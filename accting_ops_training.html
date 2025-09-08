@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Operations Mastery Training</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 15px 0;
+        }
+        
+        .nav-button {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        .nav-button:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .page {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            backdrop-filter: blur(20px);
+            min-height: 70vh;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .hero-section {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        
+        .hero-title {
+            font-size: 3em;
+            font-weight: 700;
+            background: linear-gradient(135deg, #1e40af, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.3em;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        
+        .learning-path-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .path-card {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .path-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+        }
+        
+        .path-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+            border-color: #3b82f6;
+        }
+        
+        .path-icon {
+            font-size: 3em;
+            margin-bottom: 20px;
+        }
+        
+        .path-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 15px;
+        }
+        
+        .path-description {
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+        
+        .path-topics {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .topic-list {
+            list-style: none;
+            color: #475569;
+            font-size: 0.9em;
+        }
+        
+        .topic-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .topic-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e5e7eb;
+        }
+        
+        .section-icon {
+            font-size: 2.5em;
+            margin-right: 20px;
+        }
+        
+        .section-title {
+            font-size: 2.2em;
+            color: #1e40af;
+            font-weight: 700;
+        }
+        
+        .term-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .term-card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #e2e8f0;
+            position: relative;
+        }
+        
+        .term-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            border-color: #3b82f6;
+        }
+        
+        .term-name {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 12px;
+        }
+        
+        .term-preview {
+            color: #64748b;
+            font-size: 0.95em;
+            margin-bottom: 15px;
+        }
+        
+        .complexity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+        }
+        
+        .complexity-fundamental {
+            background: #dcfce7;
+            color: #166534;
+        }
+        
+        .complexity-intermediate {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .complexity-advanced {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .deep-dive-content {
+            background: #f9fafb;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+        }
+        
+        .definition-box {
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .definition-title {
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 15px;
+        }
+        
+        .business-impact {
+            background: linear-gradient(135deg, #fef2f2, #fee2e2);
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .impact-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #dc2626;
+            margin-bottom: 15px;
+        }
+        
+        .scenario-box {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        
+        .scenario-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #059669;
+            margin-bottom: 15px;
+        }
+        
+        .challenge-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        
+        .challenge-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid #ef4444;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .challenge-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 12px 30px rgba(239, 68, 68, 0.2);
+        }
+        
+        .challenge-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .challenge-icon {
+            font-size: 1.8em;
+            margin-right: 15px;
+        }
+        
+        .challenge-name {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #dc2626;
+        }
+        
+        .impact-metrics {
+            background: #fef3c7;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .metric-label {
+            color: #92400e;
+            font-weight: 500;
+        }
+        
+        .metric-value {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #451a03;
+        }
+        
+        .breadcrumb {
+            color: #64748b;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+        
+        .breadcrumb a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .hero-title {
+                font-size: 2.2em;
+                line-height: 1.2;
+            }
+            
+            .hero-subtitle {
+                font-size: 1.1em;
+            }
+            
+            .page {
+                padding: 25px 20px;
+            }
+            
+            .navigation {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .nav-button {
+                padding: 16px 24px;
+                font-size: 1em;
+                min-height: 48px;
+                width: 100%;
+                max-width: 200px;
+            }
+            
+            .learning-path-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .term-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .challenge-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .path-card, .term-card {
+                padding: 20px;
+                min-height: 48px;
+            }
+            
+            .term-name {
+                font-size: 1.2em;
+                margin-bottom: 10px;
+                padding-right: 80px; /* Space for complexity badge */
+            }
+            
+            .complexity-badge {
+                font-size: 0.7em;
+                padding: 3px 8px;
+                top: 12px;
+                right: 12px;
+            }
+            
+            .section-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            
+            .section-icon {
+                font-size: 2em;
+                margin-right: 0;
+            }
+            
+            .section-title {
+                font-size: 1.8em;
+            }
+            
+            .definition-box, .scenario-box, .business-impact {
+                padding: 20px;
+                margin: 15px 0;
+            }
+            
+            .definition-title, .scenario-title, .impact-title {
+                font-size: 1.2em;
+            }
+            
+            .metric-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+            
+            .metric-label {
+                font-size: 0.9em;
+            }
+            
+            .metric-value {
+                font-size: 1em;
+                font-weight: 600;
+            }
+            
+            /* Better mobile typography */
+            p, li {
+                font-size: 1em;
+                line-height: 1.6;
+            }
+            
+            /* Improve touch targets */
+            .breadcrumb a {
+                padding: 8px 4px;
+                margin: 0 4px;
+            }
+            
+            /* Stack complex layouts on mobile */
+            .deep-dive-content > div[style*="grid"] {
+                display: block !important;
+            }
+            
+            .deep-dive-content > div[style*="grid"] > div {
+                margin: 10px 0 !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 1.8em;
+            }
+            
+            .hero-subtitle {
+                font-size: 1em;
+            }
+            
+            .page {
+                padding: 20px 15px;
+            }
+            
+            .definition-box, .scenario-box, .business-impact {
+                padding: 15px;
+            }
+            
+            .path-card, .term-card, .challenge-card {
+                padding: 15px;
+            }
+            
+            .nav-button {
+                padding: 14px 20px;
+                font-size: 0.95em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <div class="navigation">
+            <button class="nav-button" id="backBtn" onclick="goBack()" disabled>← Back</button>
+            <button class="nav-button" id="homeBtn" onclick="goHome()">🏠 Home</button>
+        </div>
+        
+        <!-- Home Page -->
+        <div class="page active" id="home">
+            <div class="hero-section">
+                <h1 class="hero-title">Financial Operations Mastery</h1>
+                <p class="hero-subtitle">Master the complete journey from accounting basics through advanced financial operations</p>
+            </div>
+            
+            <div class="learning-path-grid">
+                <div class="path-card" onclick="navigateTo('accounting-basics')">
+                    <div class="path-icon">🧮</div>
+                    <h3 class="path-title">Accounting Basics</h3>
+                    <p class="path-description">Start here! The fundamental building blocks of accounting that every business person should understand.</p>
+                    <div class="path-topics">
+                        <ul class="topic-list">
+                            <li>What is an Account?</li>
+                            <li>Debits & Credits Explained</li>
+                            <li>Assets, Liabilities & Equity</li>
+                            <li>Revenue vs Expenses</li>
+                            <li>The Accounting Equation</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="path-card" onclick="navigateTo('foundations')">
+                    <div class="path-icon">🗝️</div>
+                    <h3 class="path-title">Financial Operations</h3>
+                    <p class="path-description">Advanced concepts and processes that drive modern financial operations and automation needs.</p>
+                    <div class="path-topics">
+                        <ul class="topic-list">
+                            <li>General Ledger & Chart of Accounts</li>
+                            <li>Reconciliation Process</li>
+                            <li>Three-Way Matching</li>
+                            <li>Cash Application</li>
+                            <li>Journal Entries & Adjustments</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="path-card" onclick="navigateTo('challenges')">
+                    <div class="path-icon">⚠️</div>
+                    <h3 class="path-title">Business Challenges</h3>
+                    <p class="path-description">Deep dive into the pain points, costs, and business impacts that drive the need for automation.</p>
+                    <div class="path-topics">
+                        <ul class="topic-list">
+                            <li>Manual Process Breakdown</li>
+                            <li>Scaling Challenges</li>
+                            <li>Audit & Compliance Risks</li>
+                            <li>Cost of Poor Controls</li>
+                            <li>Resource Allocation Issues</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="path-card" onclick="navigateTo('scenarios')">
+                    <div class="path-icon">🎯</div>
+                    <h3 class="path-title">Real-World Scenarios</h3>
+                    <p class="path-description">Complex business scenarios that showcase where automation creates the most value.</p>
+                    <div class="path-topics">
+                        <ul class="topic-list">
+                            <li>Multi-Currency Operations</li>
+                            <li>Marketplace Transactions</li>
+                            <li>Subscription Business Models</li>
+                            <li>High-Volume Processing</li>
+                            <li>Exception Handling</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Accounting Basics Page -->
+        <div class="page" id="accounting-basics">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / Accounting Basics
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">🧮</div>
+                <h2 class="section-title">Accounting Basics</h2>
+            </div>
+            
+            <div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 2px solid #3b82f6; border-radius: 15px; padding: 25px; margin: 20px 0; text-align: center;">
+                <h3 style="color: #1e40af; margin-bottom: 15px; font-size: 1.4em;">The Fundamental Accounting Equation</h3>
+                <div style="font-size: 1.8em; font-weight: 700; color: #1e40af; margin: 20px 0;">
+                    Assets = Liabilities + Equity
+                </div>
+                <p style="color: #64748b; font-size: 1.1em;">Everything in accounting flows from this simple equation. Every transaction must keep it in balance.</p>
+            </div>
+            
+            <p style="font-size: 1.1em; color: #64748b; margin-bottom: 30px;">
+                Start with these absolute fundamentals. Click any concept to understand what it really means and why it matters for business operations.
+            </p>
+            
+            <div class="term-grid">
+                <div class="term-card" onclick="navigateTo('term-what-is-account')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">What is an Account?</h3>
+                    <p class="term-preview">The building block of all financial tracking - a bucket for organizing similar transactions.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-debits-credits')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Debits & Credits</h3>
+                    <p class="term-preview">The left and right sides of accounting that must always balance - not positive and negative!</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-assets')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Assets</h3>
+                    <p class="term-preview">Things your company owns that have value - cash, equipment, money owed to you.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-liabilities')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Liabilities</h3>
+                    <p class="term-preview">Money your company owes to others - loans, credit cards, unpaid bills.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-revenue')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Revenue</h3>
+                    <p class="term-preview">Money earned from your core business activities - sales, service fees, subscriptions.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-expenses')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Expenses</h3>
+                    <p class="term-preview">Money spent to run your business - salaries, rent, software, marketing costs.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-accounts-receivable')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Accounts Receivable (AR)</h3>
+                    <p class="term-preview">Money customers owe you for goods/services already delivered but not yet paid for.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-accounts-payable')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Accounts Payable (AP)</h3>
+                    <p class="term-preview">Money you owe to suppliers and vendors for goods/services received but not yet paid for.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-chart-of-accounts')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Chart of Accounts</h3>
+                    <p class="term-preview">The master list of all accounts in your system - the organizational structure for financial data.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-account-balance')">
+                    <span class="complexity-badge complexity-fundamental">Basic</span>
+                    <h3 class="term-name">Account Balance</h3>
+                    <p class="term-preview">The current total in any account - how much cash you have, what customers owe, etc.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- What is an Account Deep Dive -->
+        <div class="page" id="term-what-is-account">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / What is an Account?
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📁</div>
+                <h2 class="section-title">What is an Account?</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Think of it as a Filing Cabinet Drawer</h3>
+                <p>An account is simply a "bucket" or "category" where you collect similar financial transactions. Just like you might have file folders for "Bank Statements," "Receipts," and "Invoices," your accounting system has accounts for "Cash," "Sales Revenue," and "Office Expenses." Every financial transaction gets sorted into the appropriate account.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📝 Real Example: Coffee Shop Accounts</h3>
+                <p>A coffee shop might have these accounts:</p>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Cash Account:</strong> Tracks all money in the register and bank</li>
+                    <li><strong>Coffee Sales Account:</strong> Tracks revenue from coffee drinks</li>
+                    <li><strong>Rent Expense Account:</strong> Tracks monthly rent payments</li>
+                    <li><strong>Coffee Inventory Account:</strong> Tracks the value of coffee beans on hand</li>
+                    <li><strong>Equipment Account:</strong> Tracks the value of espresso machines, grinders, etc.</li>
+                </ul>
+                
+                <p style="margin-top: 15px;"><strong>When a customer buys a $5 latte:</strong></p>
+                <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace; margin: 10px 0;">
+                    $5 gets added to the "Cash" account<br>
+                    $5 gets added to the "Coffee Sales" account
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Why This Matters</h3>
+                <p><strong>Organization & Reporting:</strong> Accounts let you answer questions like "How much did we spend on marketing this month?" or "What's our total cash position?" Without properly organized accounts, you're just looking at a big pile of numbers with no meaning.</p>
+                
+                <p><strong>Business Decisions:</strong> You can't manage what you can't measure. Accounts give you the granular data needed to make informed business decisions.</p>
+            </div>
+        </div>
+        
+        <!-- Debits & Credits Deep Dive -->
+        <div class="page" id="term-debits-credits">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Debits & Credits
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">⚖️</div>
+                <h2 class="section-title">Debits & Credits</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Forget Everything You Think You Know</h3>
+                <p>Debits and credits are NOT positive and negative. They're simply "left side" and "right side" - like two columns on a ledger sheet. The key insight: every transaction affects at least two accounts, and the total debits must always equal the total credits. It's a beautiful system that ensures your books always balance mathematically.</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0;">
+                <div style="background: #dbeafe; padding: 25px; border-radius: 12px; text-align: center;">
+                    <h4 style="color: #1e40af; margin-bottom: 15px;">DEBIT (Left Side)</h4>
+                    <p><strong>Increases:</strong></p>
+                    <ul style="list-style: none; margin: 10px 0;">
+                        <li>• Assets</li>
+                        <li>• Expenses</li>
+                    </ul>
+                    <p><strong>Decreases:</strong></p>
+                    <ul style="list-style: none; margin: 10px 0;">
+                        <li>• Liabilities</li>
+                        <li>• Revenue</li>
+                        <li>• Equity</li>
+                    </ul>
+                </div>
+                
+                <div style="background: #dcfce7; padding: 25px; border-radius: 12px; text-align: center;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">CREDIT (Right Side)</h4>
+                    <p><strong>Increases:</strong></p>
+                    <ul style="list-style: none; margin: 10px 0;">
+                        <li>• Liabilities</li>
+                        <li>• Revenue</li>
+                        <li>• Equity</li>
+                    </ul>
+                    <p><strong>Decreases:</strong></p>
+                    <ul style="list-style: none; margin: 10px 0;">
+                        <li>• Assets</li>
+                        <li>• Expenses</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">💡 Simple Example: Buying Office Supplies</h3>
+                <p>You buy $100 worth of office supplies with cash.</p>
+                
+                <div style="background: #f9fafb; padding: 20px; border-radius: 10px; margin: 15px 0; font-family: monospace;">
+                    <strong>The Transaction:</strong><br><br>
+                    Debit: Office Supplies Expense - $100<br>
+                    Credit: Cash - $100<br><br>
+                    <em>Why? Office supplies expense increased (debit), Cash decreased (credit)</em>
+                </div>
+                
+                <p><strong>Result:</strong> Total debits ($100) = Total credits ($100). The books balance!</p>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Why This Double-Entry System Rocks</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Error Detection:</strong> If debits ≠ credits, you know there's a mistake</li>
+                    <li><strong>Complete Picture:</strong> Every transaction shows both sides of what happened</li>
+                    <li><strong>Audit Trail:</strong> Clear tracking of how every dollar moved through your business</li>
+                    <li><strong>Financial Statements:</strong> The foundation for generating accurate P&Ls and balance sheets</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Assets Deep Dive -->
+        <div class="page" id="term-assets">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Assets
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">💰</div>
+                <h2 class="section-title">Assets</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Things Your Company Owns That Have Value</h3>
+                <p>Assets are resources controlled by your company that have economic value and can provide future benefit. Think of them as "things you own" - but not just physical things. Money someone owes you (accounts receivable) is an asset. A software license you paid for is an asset. The key question: "Can this provide economic benefit to the company?"</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                <div style="background: #dbeafe; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #1e40af;">Current Assets</strong><br><br>
+                    Things that turn into cash quickly:<br>
+                    • Cash & Bank Accounts<br>
+                    • Accounts Receivable<br>
+                    • Inventory<br>
+                    • Prepaid Expenses
+                </div>
+                <div style="background: #dcfce7; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #059669;">Fixed Assets</strong><br><br>
+                    Long-term investments:<br>
+                    • Equipment & Machinery<br>
+                    • Buildings & Real Estate<br>
+                    • Vehicles<br>
+                    • Software & Technology
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📊 Real Example: SaaS Company Assets</h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Cash:</strong> $500,000 in bank accounts</li>
+                        <li><strong>Accounts Receivable:</strong> $150,000 customers owe for services</li>
+                        <li><strong>Equipment:</strong> $75,000 worth of computers and servers</li>
+                        <li><strong>Software Licenses:</strong> $25,000 in annual software subscriptions</li>
+                        <li><strong>Intellectual Property:</strong> $100,000 value of proprietary software</li>
+                    </ul>
+                    <p style="margin-top: 15px;"><strong>Total Assets: $850,000</strong></p>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Why Assets Matter</h3>
+                <p><strong>Financial Health:</strong> Assets represent your company's financial strength and ability to operate.</p>
+                <p><strong>Investment Decisions:</strong> Understanding asset values helps you make smart investments and resource allocation decisions.</p>
+                <p><strong>Creditworthiness:</strong> Lenders look at your assets when deciding whether to loan you money.</p>
+            </div>
+        </div>
+        
+        <!-- Liabilities Deep Dive -->
+        <div class="page" id="term-liabilities">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Liabilities
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📋</div>
+                <h2 class="section-title">Liabilities</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Money Your Company Owes to Others</h3>
+                <p>Liabilities are obligations - debts and commitments your company must pay in the future. This includes obvious things like loans and credit card balances, but also less obvious obligations like money you owe to suppliers (accounts payable) or taxes you need to pay to the government.</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #d97706;">Current Liabilities</strong><br><br>
+                    Due within one year:<br>
+                    • Accounts Payable<br>
+                    • Credit Card Balances<br>
+                    • Short-term Loans<br>
+                    • Accrued Expenses
+                </div>
+                <div style="background: #fee2e2; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #dc2626;">Long-term Liabilities</strong><br><br>
+                    Due after one year:<br>
+                    • Long-term Loans<br>
+                    • Mortgages<br>
+                    • Bonds Payable<br>
+                    • Deferred Tax Liabilities
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">⚡ Quick Example: Restaurant Liabilities</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Accounts Payable:</strong> $15,000 owed to food suppliers</li>
+                    <li><strong>Credit Card:</strong> $5,000 balance for equipment purchases</li>
+                    <li><strong>Loan:</strong> $100,000 equipment financing loan</li>
+                    <li><strong>Accrued Wages:</strong> $8,000 owed to employees for last week</li>
+                    <li><strong>Sales Tax:</strong> $2,000 collected from customers, due to state</li>
+                </ul>
+                <p style="margin-top: 15px;"><strong>Total Liabilities: $130,000</strong></p>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Critical for Cash Flow</h3>
+                <p><strong>Payment Timing:</strong> Knowing when payments are due helps you manage cash flow and avoid late fees.</p>
+                <p><strong>Creditworthiness:</strong> Your debt-to-asset ratio affects your ability to get financing.</p>
+                <p><strong>Business Planning:</strong> Understanding your obligations helps you plan growth and investments.</p>
+            </div>
+        </div>
+        
+        <!-- Revenue Deep Dive -->
+        <div class="page" id="term-revenue">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Revenue
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📈</div>
+                <h2 class="section-title">Revenue</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Money Earned from Your Core Business</h3>
+                <p>Revenue is income generated from your company's primary business activities - selling products, providing services, subscription fees, etc. It's the "top line" of your income statement and represents the value you're creating for customers. Note: Revenue is recorded when earned, not necessarily when cash is received.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🎯 Revenue Recognition Examples</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                        <strong>E-commerce Store:</strong><br>
+                        Customer buys $50 product<br>
+                        → Revenue: $50<br>
+                        <em>(Recorded when order ships)</em>
+                    </div>
+                    <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                        <strong>SaaS Company:</strong><br>
+                        Customer pays $1,200 annual subscription<br>
+                        → Revenue: $100/month<br>
+                        <em>(Spread over 12 months)</em>
+                    </div>
+                    <div style="background: #fef3c7; padding: 15px; border-radius: 8px;">
+                        <strong>Consulting Firm:</strong><br>
+                        Complete $5,000 project<br>
+                        → Revenue: $5,000<br>
+                        <em>(Recorded when work is delivered)</em>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Revenue vs Cash - Critical Difference</h3>
+                <p><strong>Revenue ≠ Cash Received:</strong> You might record $100,000 in revenue but only receive $70,000 in cash if customers pay on credit.</p>
+                <p><strong>Growth Measurement:</strong> Revenue growth shows if your business is expanding and creating more value.</p>
+                <p><strong>Investor Focus:</strong> Revenue is often the first metric investors look at to understand business scale and trajectory.</p>
+            </div>
+        </div>
+        
+        <!-- Expenses Deep Dive -->
+        <div class="page" id="term-expenses">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Expenses
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">💸</div>
+                <h2 class="section-title">Expenses</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Costs of Running Your Business</h3>
+                <p>Expenses are the costs incurred to generate revenue and operate your business. They reduce your profit and include everything from employee salaries to office rent to software subscriptions. Like revenue, expenses are recorded when incurred, not necessarily when cash is paid.</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                <div style="background: #fee2e2; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #dc2626;">Operating Expenses</strong><br><br>
+                    Regular business costs:<br>
+                    • Salaries & Benefits<br>
+                    • Rent & Utilities<br>
+                    • Marketing & Advertising<br>
+                    • Software & Subscriptions
+                </div>
+                <div style="background: #fef3c7; padding: 20px; border-radius: 10px; text-align: center;">
+                    <strong style="color: #d97706;">Cost of Goods Sold</strong><br><br>
+                    Direct costs to make products:<br>
+                    • Raw Materials<br>
+                    • Manufacturing Labor<br>
+                    • Production Equipment<br>
+                    • Shipping & Fulfillment
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📊 SaaS Company Monthly Expenses</h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Employee Salaries:</strong> $45,000</li>
+                        <li><strong>Cloud Hosting (AWS):</strong> $3,200</li>
+                        <li><strong>Software Licenses:</strong> $1,800</li>
+                        <li><strong>Office Rent:</strong> $4,500</li>
+                        <li><strong>Marketing & Ads:</strong> $8,000</li>
+                        <li><strong>Customer Support Tools:</strong> $600</li>
+                    </ul>
+                    <p style="margin-top: 15px;"><strong>Total Monthly Expenses: $63,100</strong></p>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Expense Management = Profit</h3>
+                <p><strong>Profit Formula:</strong> Revenue - Expenses = Profit. Control expenses to maximize profitability.</p>
+                <p><strong>Business Efficiency:</strong> Tracking expenses helps identify where money is being wasted or could be optimized.</p>
+                <p><strong>Tax Benefits:</strong> Most business expenses are tax-deductible, reducing your overall tax burden.</p>
+            </div>
+        </div>
+        
+        <!-- Accounts Receivable Deep Dive -->
+        <div class="page" id="term-accounts-receivable">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Accounts Receivable
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">💳</div>
+                <h2 class="section-title">Accounts Receivable (AR)</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Money Customers Owe You</h3>
+                <p>Accounts Receivable represents money that customers owe you for goods or services you've already delivered but haven't been paid for yet. When you send an invoice with payment terms like "Net 30," that invoice amount becomes part of your AR until the customer pays. It's essentially an IOU from your customers.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📄 AR Lifecycle Example</h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <p><strong>Day 1:</strong> You deliver $10,000 worth of services to ABC Corp</p>
+                    <div style="background: #f9fafb; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0;">
+                        Debit: Accounts Receivable - $10,000<br>
+                        Credit: Service Revenue - $10,000
+                    </div>
+                    
+                    <p><strong>Day 15:</strong> ABC Corp pays $6,000 (partial payment)</p>
+                    <div style="background: #f9fafb; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0;">
+                        Debit: Cash - $6,000<br>
+                        Credit: Accounts Receivable - $6,000
+                    </div>
+                    
+                    <p><strong>Result:</strong> AR balance is now $4,000 (still owed by ABC Corp)</p>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 AR Management = Cash Flow Health</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Average collection time:</span>
+                        <span class="metric-value">30-45 days</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Bad debt rate (typical):</span>
+                        <span class="metric-value">1-3%</span>
+                    </div>
+                </div>
+                <p><strong>Cash Flow Impact:</strong> High AR means you've earned revenue but don't have cash yet. Poor AR management can bankrupt profitable companies.</p>
+            </div>
+        </div>
+        
+        <!-- Accounts Payable Deep Dive -->
+        <div class="page" id="term-accounts-payable">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Accounts Payable
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📋</div>
+                <h2 class="section-title">Accounts Payable (AP)</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Bills You Haven't Paid Yet</h3>
+                <p>Accounts Payable represents money you owe to suppliers and vendors for goods or services you've received but haven't paid for yet. When a vendor sends you an invoice, it becomes part of your AP until you pay it. AP is essentially your company's IOUs to suppliers.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🧾 AP Process Example</h3>
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <p><strong>Week 1:</strong> Receive $2,500 invoice from web hosting provider</p>
+                    <div style="background: #f9fafb; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0;">
+                        Debit: Web Hosting Expense - $2,500<br>
+                        Credit: Accounts Payable - $2,500
+                    </div>
+                    
+                    <p><strong>Week 3:</strong> Pay the hosting bill</p>
+                    <div style="background: #f9fafb; padding: 10px; border-radius: 5px; font-family: monospace; margin: 10px 0;">
+                        Debit: Accounts Payable - $2,500<br>
+                        Credit: Cash - $2,500
+                    </div>
+                    
+                    <p><strong>Result:</strong> AP balance returns to $0 for this vendor</p>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Strategic Cash Flow Management</h3>
+                <p><strong>Payment Timing:</strong> AP lets you receive goods/services now but pay later, improving cash flow timing.</p>
+                <p><strong>Vendor Relationships:</strong> Paying AP on time builds trust and may earn early payment discounts.</p>
+                <p><strong>Working Capital:</strong> Managing the timing between AR collection and AP payment is crucial for cash flow.</p>
+            </div>
+        </div>
+        
+        <!-- Chart of Accounts Deep Dive -->
+        <div class="page" id="term-chart-of-accounts">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Chart of Accounts
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📊</div>
+                <h2 class="section-title">Chart of Accounts</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Your Financial Filing System</h3>
+                <p>The Chart of Accounts is the master list of all accounts in your accounting system. It's like the organizational structure for your entire financial life - every transaction must be categorized into one of these accounts. Think of it as the blueprint that determines what financial insights you can extract from your business.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🗂️ Sample Chart of Accounts Structure</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #1e40af;">1000-1999: Assets</strong><br>
+                            1000 - Cash<br>
+                            1100 - Checking Account<br>
+                            1200 - Accounts Receivable<br>
+                            1300 - Inventory<br>
+                            1400 - Equipment<br>
+                            1500 - Prepaid Expenses
+                        </div>
+                        <div style="background: #fee2e2; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #dc2626;">2000-2999: Liabilities</strong><br>
+                            2000 - Accounts Payable<br>
+                            2100 - Credit Cards<br>
+                            2200 - Accrued Expenses<br>
+                            2300 - Sales Tax Payable<br>
+                            2400 - Long-term Debt
+                        </div>
+                        <div style="background: #f3e8ff; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #7c3aed;">3000-3999: Equity</strong><br>
+                            3000 - Owner's Equity<br>
+                            3100 - Retained Earnings<br>
+                            3200 - Capital Stock<br>
+                            3300 - Dividends
+                        </div>
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #059669;">4000-4999: Revenue</strong><br>
+                            4000 - Product Sales<br>
+                            4100 - Service Revenue<br>
+                            4200 - Interest Income<br>
+                            4300 - Other Revenue
+                        </div>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px;">
+                            <strong style="color: #d97706;">5000-5999: Expenses</strong><br>
+                            5000 - Salaries & Wages<br>
+                            5100 - Rent<br>
+                            5200 - Utilities<br>
+                            5300 - Marketing<br>
+                            5400 - Software<br>
+                            5500 - Travel
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Why Structure Matters</h3>
+                <p><strong>Reporting Granularity:</strong> Your chart of accounts determines what questions you can answer. Want to know marketing ROI by channel? You need separate accounts for each channel.</p>
+                <p><strong>Automation Mapping:</strong> Tools like Ledge need to know which bank transactions map to which accounts. A well-structured chart makes automation much more effective.</p>
+                <p><strong>Business Insights:</strong> Proper account structure enables powerful analysis - which products are most profitable, which expenses are growing too fast, etc.</p>
+            </div>
+        </div>
+        
+        <!-- Account Balance Deep Dive -->
+        <div class="page" id="term-account-balance">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('accounting-basics')">Accounting Basics</a> / Account Balance
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">⚖️</div>
+                <h2 class="section-title">Account Balance</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">The Running Total in Each Account</h3>
+                <p>An account balance is simply the current total in any given account - like the current balance in your checking account, but applied to every account in your chart of accounts. Each account accumulates debits and credits over time, and the balance tells you the net result. It's the foundation for all financial reporting.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">💰 How Account Balances Work</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">Cash Account Example</h4>
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace;">
+                        Starting Balance: $10,000<br><br>
+                        
+                        Transaction 1: Customer payment (+$5,000)<br>
+                        New Balance: $15,000<br><br>
+                        
+                        Transaction 2: Pay rent (-$2,500)<br>
+                        New Balance: $12,500<br><br>
+                        
+                        Transaction 3: Office supplies (-$300)<br>
+                        <strong>Final Balance: $12,200</strong>
+                    </div>
+                </div>
+                
+                <div style="background: #dbeafe; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <strong>Balance Sheet Impact:</strong> This $12,200 cash balance appears on your balance sheet under "Current Assets" and affects your overall financial position.
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Balances Drive Decisions</h3>
+                <p><strong>Financial Position:</strong> Account balances show your company's financial health at any point in time.</p>
+                <p><strong>Cash Management:</strong> Your cash account balance determines if you can pay bills or need financing.</p>
+                <p><strong>Performance Tracking:</strong> Revenue and expense account balances show how your business is performing period over period.</p>
+                <p><strong>Reconciliation:</strong> Account balances must match external statements (bank accounts, credit cards) to ensure accuracy.</p>
+            </div>
+        </div>
+        
+        <!-- Financial Operations (formerly Core Foundations) Page -->
+        <div class="page" id="foundations">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / Financial Operations
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">🗝️</div>
+                <h2 class="section-title">Financial Operations</h2>
+            </div>
+            
+            <p style="font-size: 1.1em; color: #64748b; margin-bottom: 30px;">
+                Advanced concepts that drive modern financial operations. Click on any term below to explore its definition, business impact, and real-world applications. Understanding these is crucial for building empathy with accounting teams and identifying product opportunities.
+            </p>
+            
+            <div class="term-grid">
+                <div class="term-card" onclick="navigateTo('term-general-ledger')">
+                    <span class="complexity-badge complexity-fundamental">Fundamental</span>
+                    <h3 class="term-name">General Ledger</h3>
+                    <p class="term-preview">The master database of all financial transactions. Every dollar that moves through your business gets recorded here with mathematical precision.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-reconciliation')">
+                    <span class="complexity-badge complexity-fundamental">Fundamental</span>
+                    <h3 class="term-name">Reconciliation</h3>
+                    <p class="term-preview">Proving your internal records match external reality. The critical control that ensures financial accuracy and compliance.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-three-way-match')">
+                    <span class="complexity-badge complexity-intermediate">Intermediate</span>
+                    <h3 class="term-name">Three-Way Match</h3>
+                    <p class="term-preview">Comparing bank statements, internal records, and third-party data to identify discrepancies and ensure all sources agree.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-cash-application')">
+                    <span class="complexity-badge complexity-intermediate">Intermediate</span>
+                    <h3 class="term-name">Cash Application</h3>
+                    <p class="term-preview">The detective work of connecting customer payments to specific invoices, handling partial payments and complex scenarios.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-journal-entries')">
+                    <span class="complexity-badge complexity-fundamental">Fundamental</span>
+                    <h3 class="term-name">Journal Entries</h3>
+                    <p class="term-preview">The building blocks of accounting - how every transaction gets recorded using debits and credits to maintain the accounting equation.</p>
+                </div>
+                
+                <div class="term-card" onclick="navigateTo('term-month-end-close')">
+                    <span class="complexity-badge complexity-advanced">Advanced</span>
+                    <h3 class="term-name">Month-End Close</h3>
+                    <p class="term-preview">The high-pressure process of finalizing all transactions and preparing financial statements under tight deadlines.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- General Ledger Deep Dive -->
+        <div class="page" id="term-general-ledger">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / General Ledger
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📊</div>
+                <h2 class="section-title">General Ledger</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">What It Really Is</h3>
+                <p>Think of the General Ledger as a massive, perfectly organized database where every business transaction gets recorded with mathematical precision. It's the single source of truth for your company's financial position - every dollar that comes in or goes out must be accounted for, and the books must always balance (total debits = total credits).</p>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">🗝️ Account Structure & Organization</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #dbeafe; padding: 20px; border-radius: 10px; text-align: center;">
+                        <strong style="color: #1e40af;">Assets (1000s)</strong><br><br>
+                        1100 - Cash & Bank Accounts<br>
+                        1200 - Accounts Receivable<br>
+                        1300 - Inventory<br>
+                        1400 - Prepaid Expenses
+                    </div>
+                    <div style="background: #fecaca; padding: 20px; border-radius: 10px; text-align: center;">
+                        <strong style="color: #dc2626;">Liabilities (2000s)</strong><br><br>
+                        2100 - Accounts Payable<br>
+                        2200 - Credit Cards<br>
+                        2300 - Accrued Expenses<br>
+                        2400 - Sales Tax Payable
+                    </div>
+                    <div style="background: #d1fae5; padding: 20px; border-radius: 10px; text-align: center;">
+                        <strong style="color: #059669;">Revenue (4000s)</strong><br><br>
+                        4100 - Product Sales<br>
+                        4200 - Service Revenue<br>
+                        4300 - Interest Income<br>
+                        4400 - Other Revenue
+                    </div>
+                    <div style="background: #fed7aa; padding: 20px; border-radius: 10px; text-align: center;">
+                        <strong style="color: #ea580c;">Expenses (5000s)</strong><br><br>
+                        5100 - Salaries & Benefits<br>
+                        5200 - Rent & Utilities<br>
+                        5300 - Software Licenses<br>
+                        5400 - Credit Card Fees
+                    </div>
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🔍 Real Example: How One Sale Hits Multiple GL Accounts</h3>
+                <p><strong>Scenario:</strong> Customer buys $1,000 product + $100 tax via credit card</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0; font-family: monospace; font-size: 0.9em;">
+                    <strong>When the sale is made:</strong><br>
+                    Dr. Accounts Receivable (1200) - $1,100<br>
+                    Cr. Product Sales (4100) - $1,000<br>
+                    Cr. Sales Tax Payable (2400) - $100<br><br>
+                    
+                    <strong>When payment clears (minus 3% processing fee):</strong><br>
+                    Dr. Cash (1100) - $1,067<br>
+                    Dr. Credit Card Fees (5400) - $33<br>
+                    Cr. Accounts Receivable (1200) - $1,100
+                </div>
+                
+                <p><strong>Why this matters:</strong> This single transaction touches 5 different GL accounts. Now imagine reconciling 10,000 such transactions per month manually!</p>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Business Impact & Challenges</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Data Integrity:</strong> One misposted transaction can cascade into financial statement errors</li>
+                    <li><strong>Audit Trail:</strong> Every GL entry must be traceable back to source documents</li>
+                    <li><strong>Month-End Pressure:</strong> GL must be accurate and complete before financial statements can be prepared</li>
+                    <li><strong>Regulatory Compliance:</strong> GL structure must meet GAAP/IFRS requirements for public companies</li>
+                    <li><strong>Reporting Granularity:</strong> Account structure determines what insights you can extract</li>
+                </ul>
+                
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Time to find GL posting errors:</span>
+                        <span class="metric-value">2-8 hours each</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Cost of financial restatement:</span>
+                        <span class="metric-value">$500K - $2M+</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">GL transactions per month (mid-size):</span>
+                        <span class="metric-value">50,000 - 200,000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Reconciliation Deep Dive -->
+        <div class="page" id="term-reconciliation">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / Reconciliation
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">🔄</div>
+                <h2 class="section-title">Reconciliation</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">The Heart of Financial Control</h3>
+                <p>Reconciliation is proving that your internal view of reality matches external reality. It's essentially saying: "The money we think we have is the money we actually have, and every transaction we recorded actually happened." This is the critical control that ensures financial accuracy and prevents fraud.</p>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">🎯 Types of Reconciliation</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #dbeafe; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #1e40af;">Bank Reconciliation</strong><br><br>
+                        Your GL cash balance vs. bank statement balance<br>
+                        <em>Challenge: Timing differences, bank fees, uncleared checks</em>
+                    </div>
+                    <div style="background: #dcfce7; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #059669;">Payment Processor</strong><br><br>
+                        Your sales records vs. Stripe/PayPal settlements<br>
+                        <em>Challenge: Fee deductions, settlement delays, chargebacks</em>
+                    </div>
+                    <div style="background: #fef3c7; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #d97706;">Credit Card Reconciliation</strong><br><br>
+                        Your expense records vs. credit card statements<br>
+                        <em>Challenge: Personal vs. business charges, missing receipts</em>
+                    </div>
+                    <div style="background: #fce7f3; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #be185d;">Intercompany Reconciliation</strong><br><br>
+                        Subsidiary A's records vs. Subsidiary B's records<br>
+                        <em>Challenge: Currency differences, timing mismatches</em>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🔍 Why Reconciliation Gets Complex</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Timing Differences:</strong> You record a sale Monday, payment clears Wednesday</li>
+                    <li><strong>Cut-off Issues:</strong> December 31 transaction appears on January 1 bank statement</li>
+                    <li><strong>Currency Conversion:</strong> You send $1000, they receive €920, bank charges $15</li>
+                    <li><strong>Fee Deductions:</strong> Stripe shows $97 deposit for your $100 sale (3% fee)</li>
+                    <li><strong>Aggregation:</strong> Bank shows one $5,000 deposit from PayPal covering 50 individual sales</li>
+                    <li><strong>Partial Payments:</strong> $1,000 invoice paid as $600 + $400 over two months</li>
+                </ul>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Business Impact & Risks</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Time spent on manual reconciliation:</span>
+                        <span class="metric-value">21-56 hours/month</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Cost of undetected errors:</span>
+                        <span class="metric-value">$50K - $500K+</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Audit findings risk:</span>
+                        <span class="metric-value">Material weakness</span>
+                    </div>
+                </div>
+                <p style="margin-top: 15px;"><strong>Critical Risk:</strong> Unreconciled items can hide fraud, errors, or operational issues. A single unmatched $50,000 transaction can prevent month-end close and trigger audit investigations.</p>
+            </div>
+        </div>
+        
+        <!-- Three-Way Match Deep Dive -->
+        <div class="page" id="term-three-way-match">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / Three-Way Match
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">🎯</div>
+                <h2 class="section-title">Three-Way Match</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">The Detective Work of Finance</h3>
+                <p>You're comparing three different sources of truth that should all agree but often don't. It's like having three witnesses to an event - they should all tell the same story, but there are always discrepancies to investigate. The "three ways" are typically: your internal records, bank statements, and third-party data (like payment processors).</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📊 Real Example: Stripe Payment Reconciliation</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                        <strong>Source 1 - Your ERP/GL:</strong><br>
+                        Records 47 individual sales totaling $4,250 on March 15th
+                    </div>
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <strong>Source 2 - Stripe Dashboard:</strong><br>
+                        Shows $4,250 in gross sales, $127.50 in fees, $4,122.50 net payout
+                    </div>
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <strong>Source 3 - Bank Statement:</strong><br>
+                        Shows $4,122.50 deposit on March 17th (T+2 settlement)
+                    </div>
+                </div>
+                
+                <div style="background: #dcfce7; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                    <strong>✅ Match Result:</strong> All three sources reconcile when accounting for fees and timing differences. This is a "clean" three-way match.
+                </div>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">⚠️ Common Matching Challenges</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Net vs Gross:</strong> Your system shows $1000 sale, bank shows $970 (after fees)</li>
+                    <li><strong>Aggregation:</strong> 100 transactions in your system, 1 summarized deposit in bank</li>
+                    <li><strong>Currency:</strong> You record $1000 USD, bank shows €920 EUR</li>
+                    <li><strong>Partial Settlements:</strong> Stripe holds reserves, releases 90% immediately</li>
+                    <li><strong>Refunds:</strong> Original sale $1000, customer refund $200, net settlement $800</li>
+                    <li><strong>Chargebacks:</strong> Bank reverses previous deposit, your GL still shows the sale</li>
+                </ul>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Business Impact</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Auto-match rate (good systems):</span>
+                        <span class="metric-value">85-95%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Manual investigation time:</span>
+                        <span class="metric-value">30 min - 4 hours each</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Exceptions requiring investigation:</span>
+                        <span class="metric-value">5-15% of transactions</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Cash Application Deep Dive -->
+        <div class="page" id="term-cash-application">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / Cash Application
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">💰</div>
+                <h2 class="section-title">Cash Application</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">Connecting Payments to Purpose</h3>
+                <p>A customer sends you money. Seems simple, right? Wrong. You need to figure out: Which specific invoices is this payment covering? How much goes to principal vs. interest? Are there any discounts applied? What if they overpaid or underpaid? Cash application is the detective work of connecting payments to their intended purpose.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🔍 Complex Cash Application Scenario</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <div style="background: #fef3c7; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>Customer ABC Corp owes you:</strong><br>
+                        • Invoice #1001: $5,000 (30 days old)<br>
+                        • Invoice #1045: $3,200 (15 days old)<br>
+                        • Invoice #1067: $2,800 (5 days old)<br>
+                        • <strong>Total Outstanding: $11,000</strong>
+                    </div>
+                    
+                    <div style="background: #fee2e2; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>Payment received:</strong> $4,750 with memo "Payment for recent orders"
+                    </div>
+                    
+                    <div style="background: #dbeafe; padding: 15px; border-radius: 8px; margin: 10px 0;">
+                        <strong>Questions to resolve:</strong><br>
+                        • Which invoices does this cover?<br>
+                        • Did they take a 2% early payment discount on invoice #1067 ($2,800 - $56 = $2,744)?<br>
+                        • Are they paying oldest invoices first (FIFO) or newest first (LIFO)?<br>
+                        • Is the remaining $2,006 going toward invoice #1001?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">🤖 Cash Application Rules Engines Need</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Exact Match:</strong> $3,200 payment → automatically apply to $3,200 invoice</li>
+                    <li><strong>Partial Match:</strong> $1,500 payment → partial payment on $3,200 invoice</li>
+                    <li><strong>Overpayment:</strong> $3,300 payment → full $3,200 invoice + $100 credit</li>
+                    <li><strong>Multiple Invoice Match:</strong> $8,200 payment → covers $5,000 + $3,200 invoices exactly</li>
+                    <li><strong>Fuzzy Match:</strong> $2,744 payment → $2,800 invoice minus 2% early pay discount</li>
+                    <li><strong>Reference Matching:</strong> Payment memo contains invoice numbers</li>
+                </ul>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Business Impact</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Manual application time:</span>
+                        <span class="metric-value">5-15 min per payment</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Misapplication error rate:</span>
+                        <span class="metric-value">3-8%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Impact of errors:</span>
+                        <span class="metric-value">Incorrect AR aging</span>
+                    </div>
+                </div>
+                <p style="margin-top: 15px;"><strong>Critical Impact:</strong> Incorrect cash application leads to wrong accounts receivable aging reports, which affects credit decisions, collection efforts, and financial statement accuracy.</p>
+            </div>
+        </div>
+        
+        <!-- Journal Entries Deep Dive -->
+        <div class="page" id="term-journal-entries">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / Journal Entries
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📝</div>
+                <h2 class="section-title">Journal Entries</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">The Building Blocks of Accounting</h3>
+                <p>Journal entries are how every transaction gets recorded using the fundamental accounting equation: Assets = Liabilities + Equity. Every entry must balance - total debits must equal total credits. Think of it as the "DNA" of your financial records - every business event gets broken down into its component parts and recorded systematically.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📊 Anatomy of Journal Entries</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">Example: Processing a $1,000 Customer Payment</h4>
+                    
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em; margin: 15px 0;">
+                        <strong>When customer payment is received:</strong><br><br>
+                        Dr. Cash (Asset) - $1,000<br>
+                        Cr. Accounts Receivable (Asset) - $1,000<br><br>
+                        <em>Explanation: Cash increases, AR decreases</em>
+                    </div>
+                    
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em; margin: 15px 0;">
+                        <strong>If there's a credit card processing fee of $30:</strong><br><br>
+                        Dr. Cash (Asset) - $970<br>
+                        Dr. Credit Card Fees (Expense) - $30<br>
+                        Cr. Accounts Receivable (Asset) - $1,000<br><br>
+                        <em>Explanation: We only received $970 cash, and $30 went to fees</em>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">🎯 Types of Journal Entries</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                    <div style="background: #dbeafe; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #1e40af;">Standard Entries</strong><br><br>
+                        Regular business transactions:<br>
+                        • Sales<br>
+                        • Purchases<br>
+                        • Payments<br>
+                        • Receipts
+                    </div>
+                    <div style="background: #fef3c7; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #d97706;">Adjusting Entries</strong><br><br>
+                        Month-end corrections:<br>
+                        • Accruals<br>
+                        • Prepayments<br>
+                        • Depreciation<br>
+                        • Reserves
+                    </div>
+                    <div style="background: #fee2e2; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #dc2626;">Correcting Entries</strong><br><br>
+                        Fix errors:<br>
+                        • Wrong accounts<br>
+                        • Wrong amounts<br>
+                        • Timing errors<br>
+                        • Reclassifications
+                    </div>
+                    <div style="background: #f3e8ff; padding: 20px; border-radius: 10px;">
+                        <strong style="color: #7c3aed;">Closing Entries</strong><br><br>
+                        Year-end process:<br>
+                        • Revenue to equity<br>
+                        • Expenses to equity<br>
+                        • Reset temp accounts<br>
+                        • Prepare for new year
+                    </div>
+                </div>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Business Impact & Controls</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Journal entries per month:</span>
+                        <span class="metric-value">1,000 - 10,000+</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Error rate (manual entry):</span>
+                        <span class="metric-value">2-5%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Time to find/fix errors:</span>
+                        <span class="metric-value">1-8 hours each</span>
+                    </div>
+                </div>
+                <p style="margin-top: 15px;"><strong>Critical Control:</strong> All journal entries must have proper documentation and approval. Automated entries from reconciliation systems need audit trails showing the logic and source data.</p>
+            </div>
+        </div>
+        
+        <!-- Month-End Close Deep Dive -->
+        <div class="page" id="term-month-end-close">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / <a href="#" onclick="navigateTo('foundations')">Financial Operations</a> / Month-End Close
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">📅</div>
+                <h2 class="section-title">Month-End Close</h2>
+            </div>
+            
+            <div class="definition-box">
+                <h3 class="definition-title">The High-Pressure Finale</h3>
+                <p>Month-end close is the high-pressure process of finalizing all transactions and preparing financial statements under tight deadlines. It's like closing a massive, complex book where every page must be perfect, every number must be accurate, and you have only 3-5 business days to complete it. Miss the deadline, and board meetings get delayed, investor reports are late, and credibility suffers.</p>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">📋 The Month-End Close Checklist</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">Typical Close Process (Must Complete in 3-5 Days)</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: #fee2e2; padding: 15px; border-radius: 8px;">
+                            <strong>Day 1-2: Data Collection</strong><br>
+                            • Bank reconciliations<br>
+                            • Credit card reconciliations<br>
+                            • Payment processor matching<br>
+                            • Intercompany reconciliations
+                        </div>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px;">
+                            <strong>Day 2-3: Adjustments</strong><br>
+                            • Accrual entries<br>
+                            • Prepaid adjustments<br>
+                            • Revenue recognition<br>
+                            • Expense allocations
+                        </div>
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                            <strong>Day 3-4: Review</strong><br>
+                            • Account analysis<br>
+                            • Variance investigation<br>
+                            • Balance sheet proof<br>
+                            • Management review
+                        </div>
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                            <strong>Day 4-5: Reporting</strong><br>
+                            • Financial statements<br>
+                            • Management reports<br>
+                            • Board packages<br>
+                            • Investor materials
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="deep-dive-content">
+                <h3 style="color: #1e40af; margin-bottom: 20px;">⚠️ What Can Go Wrong</h3>
+                <ul style="margin-left: 20px; line-height: 1.8;">
+                    <li><strong>Reconciliation Issues:</strong> Unmatched transactions prevent close completion</li>
+                    <li><strong>System Problems:</strong> ERP crashes, integration failures, data corruption</li>
+                    <li><strong>Missing Information:</strong> Bank statements delayed, invoices not received</li>
+                    <li><strong>Calculation Errors:</strong> Manual spreadsheet mistakes, formula errors</li>
+                    <li><strong>Approval Delays:</strong> Management unavailable, complex items need research</li>
+                    <li><strong>Audit Findings:</strong> Previous issues requiring additional documentation</li>
+                </ul>
+            </div>
+            
+            <div class="business-impact">
+                <h3 class="impact-title">💼 Critical Business Impact</h3>
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Target close time:</span>
+                        <span class="metric-value">3-5 business days</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Actual close time (manual):</span>
+                        <span class="metric-value">7-15 business days</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Cost of late close:</span>
+                        <span class="metric-value">$15K - $100K+</span>
+                    </div>
+                </div>
+                
+                <div style="background: #fee2e2; padding: 20px; border-radius: 10px; margin: 20px 0;">
+                    <h4 style="color: #dc2626; margin-bottom: 15px;">🚨 Cascade Effects of Late Close</h4>
+                    <p><strong>Board meetings delayed</strong> → Investor reports late → Audit schedules disrupted → Credit rating concerns → Stock price impact (public companies) → Management credibility questioned → Regulatory scrutiny increased</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Challenges Page -->
+        <div class="page" id="challenges">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / Business Challenges
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">⚠️</div>
+                <h2 class="section-title">Business Challenges</h2>
+            </div>
+            
+            <p style="font-size: 1.1em; color: #64748b; margin-bottom: 30px;">
+                Understanding these challenges is crucial for building empathy with your customers and identifying where automation creates the most value. Each challenge represents both a pain point and a product opportunity.
+            </p>
+            
+            <div class="challenge-grid">
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">⏰</div>
+                        <h3 class="challenge-name">Time Pressure Hell</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"We have 3 business days to close the books, but reconciliation alone takes 2-3 days when we find exceptions."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Standard close deadline:</span>
+                            <span class="metric-value">3-5 business days</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Manual reconciliation time:</span>
+                            <span class="metric-value">21-56 hours/month</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Late close penalties:</span>
+                            <span class="metric-value">$15K - $50K+</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> Board meetings delayed, investor reports late, audit schedules disrupted, credibility loss with stakeholders.
+                    </p>
+                </div>
+                
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">🔍</div>
+                        <h3 class="challenge-name">The Exception Black Hole</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"Found 47 unmatched transactions this month. Each one requires detective work to trace the source."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Avg exceptions per month:</span>
+                            <span class="metric-value">25-100+ items</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Time per exception:</span>
+                            <span class="metric-value">30 min - 4 hours</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Unresolved risk:</span>
+                            <span class="metric-value">Cannot close books</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> One $50,000 missing payment can derail the entire close. Finance teams become investigative detectives instead of strategic advisors.
+                    </p>
+                </div>
+                
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">📊</div>
+                        <h3 class="challenge-name">Data Format Chaos</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"Bank of America exports have different headers than Chase. Stripe data doesn't match our ERP format."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Different data sources:</span>
+                            <span class="metric-value">8-15 systems</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Data prep time:</span>
+                            <span class="metric-value">3-6 hours/month</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Error introduction risk:</span>
+                            <span class="metric-value">High</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> Hours spent on data formatting instead of analysis. Copy-paste errors introduce mistakes that are hard to detect.
+                    </p>
+                </div>
+                
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">📈</div>
+                        <h3 class="challenge-name">Scaling Breakdown</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"We grew from 1K to 50K transactions/month. Same process now takes 10x longer, but we can't hire 10x more people."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Transaction growth:</span>
+                            <span class="metric-value">5-50x annually</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Headcount growth:</span>
+                            <span class="metric-value">1-2x annually</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Process efficiency:</span>
+                            <span class="metric-value">Deteriorates rapidly</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> Growth becomes painful instead of exciting. Finance team becomes bottleneck to business operations and strategic initiatives.
+                    </p>
+                </div>
+                
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">🎭</div>
+                        <h3 class="challenge-name">Audit Anxiety</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"Auditors want to see our reconciliation workpapers. It's 47 Excel files with manual formulas and corrections."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Audit cost increase:</span>
+                            <span class="metric-value">30-50%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">SOX compliance risk:</span>
+                            <span class="metric-value">Material weakness</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Documentation time:</span>
+                            <span class="metric-value">40+ hours</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> Higher audit fees, compliance risk, potential SOX violations. Clean audit trail = company credibility and lower cost of capital.
+                    </p>
+                </div>
+                
+                <div class="challenge-card">
+                    <div class="challenge-header">
+                        <div class="challenge-icon">💰</div>
+                        <h3 class="challenge-name">Hidden Opportunity Cost</h3>
+                    </div>
+                    <p style="margin-bottom: 15px;">"Our finance team spends 70% of their time on data entry and reconciliation instead of strategic analysis."</p>
+                    
+                    <div class="impact-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Strategic work time:</span>
+                            <span class="metric-value">< 30%</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Manual work time:</span>
+                            <span class="metric-value">70%+</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Talent retention:</span>
+                            <span class="metric-value">Low</span>
+                        </div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; color: #dc2626; font-weight: 500;">
+                        <strong>Impact:</strong> Finance professionals become data entry clerks. Strategic initiatives delayed. Difficulty attracting top talent to repetitive roles.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scenarios Page -->
+        <div class="page" id="scenarios">
+            <div class="breadcrumb">
+                <a href="#" onclick="goHome()">Home</a> / Real-World Scenarios
+            </div>
+            
+            <div class="section-header">
+                <div class="section-icon">🎯</div>
+                <h2 class="section-title">Real-World Scenarios</h2>
+            </div>
+            
+            <p style="font-size: 1.1em; color: #64748b; margin-bottom: 30px;">
+                These complex scenarios showcase where automation creates the most value. Understanding these use cases helps you empathize with customer challenges and identify product differentiation opportunities.
+            </p>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🌍 Scenario 1: Multi-Currency Nightmare</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">The Situation: Papaya Global's Challenge</h4>
+                    <p>You're processing payroll in 30+ countries. A seemingly simple $50,000 payment to European contractors becomes a reconciliation nightmare:</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: #fee2e2; padding: 15px; border-radius: 8px; border-left: 4px solid #ef4444;">
+                            <strong>Day 1 - US System:</strong><br>
+                            Send $50,000 USD from US bank account
+                        </div>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                            <strong>Day 2 - Conversion:</strong><br>
+                            Bank converts to €42,350 (1.18 exchange rate)
+                        </div>
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <strong>Day 3 - European Bank:</strong><br>
+                            Receives €42,280 (€70 wire transfer fee)
+                        </div>
+                        <div style="background: #f3e8ff; padding: 15px; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                            <strong>Day 4 - Reconciliation:</strong><br>
+                            Nothing matches! Detective work begins...
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">What You Need to Match & Reconcile:</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>GL Entry:</strong> $50,000 USD payroll expense</li>
+                        <li><strong>US Bank Statement:</strong> -$50,000 USD outgoing wire</li>
+                        <li><strong>European Bank Statement:</strong> +€42,280 incoming wire</li>
+                        <li><strong>Exchange Rate Variance:</strong> $1,583 difference from market rate</li>
+                        <li><strong>Wire Transfer Fee:</strong> €70 ($83 USD equivalent)</li>
+                        <li><strong>Bank Charges:</strong> $25 USD outgoing wire fee</li>
+                    </ul>
+                </div>
+                
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Time to manually reconcile:</span>
+                        <span class="metric-value">2-4 hours</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Different currencies involved:</span>
+                        <span class="metric-value">2-12 per transaction</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Settlement timing variance:</span>
+                        <span class="metric-value">1-5 business days</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">🛒 Scenario 2: Marketplace Transaction Complexity</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">The Situation: DoorDash-Style Complexity</h4>
+                    <p>One $100 food order creates a cascade of financial complexity across multiple parties:</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px; text-align: center;">
+                            <strong>Customer Pays</strong><br><br>
+                            $100 food<br>
+                            + $5 tip<br>
+                            + $3 tax<br>
+                            + $2 delivery fee<br>
+                            = <strong>$110 total</strong>
+                        </div>
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px; text-align: center;">
+                            <strong>Platform Keeps</strong><br><br>
+                            30% commission = $30<br>
+                            + $2 delivery fee<br>
+                            + $3 tax (pass-through)<br>
+                            = <strong>$35 gross revenue</strong>
+                        </div>
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px; text-align: center;">
+                            <strong>Restaurant Gets</strong><br><br>
+                            $70 food portion<br>
+                            - $2.10 processing fee<br>
+                            = <strong>$67.90 net</strong>
+                        </div>
+                        <div style="background: #fce7f3; padding: 15px; border-radius: 8px; text-align: center;">
+                            <strong>Driver Gets</strong><br><br>
+                            $5 tip<br>
+                            + $2 base pay<br>
+                            = <strong>$7 total</strong>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">Reconciliation Challenge:</h4>
+                    <ul style="margin-left: 20px; line-height: 1.8;">
+                        <li><strong>Stripe shows:</strong> One $110 charge from customer (Day 1)</li>
+                        <li><strong>Your GL needs:</strong> Revenue, commission, payables to restaurant & driver</li>
+                        <li><strong>Restaurant bank shows:</strong> $67.90 deposit (Day 3, via different processor)</li>
+                        <li><strong>Driver payment:</strong> Via Stripe Connect, different settlement schedule</li>
+                        <li><strong>Tax liability:</strong> Must be tracked separately for government remittance</li>
+                        <li><strong>Refunds/cancellations:</strong> Can happen at any stage, requiring transaction reversal</li>
+                    </ul>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">Journal Entry Complexity:</h4>
+                    <div style="background: #f9fafb; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 0.9em;">
+                        <strong>Initial Sale (6 entries needed):</strong><br>
+                        Dr. Accounts Receivable - $110<br>
+                        Cr. Commission Revenue - $30<br>
+                        Cr. Delivery Fee Revenue - $2<br>
+                        Cr. Restaurant Payable - $70<br>
+                        Cr. Driver Payable - $5<br>
+                        Cr. Sales Tax Payable - $3<br><br>
+                        
+                        <strong>Plus settlement entries, fee adjustments, etc...</strong>
+                    </div>
+                </div>
+                
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Journal entries per transaction:</span>
+                        <span class="metric-value">6-8 entries</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Settlement timing variance:</span>
+                        <span class="metric-value">1-5 days</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Manual reconciliation time:</span>
+                        <span class="metric-value">15-30 min each</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="scenario-box">
+                <h3 class="scenario-title">💳 Scenario 3: SaaS Subscription Complexity</h3>
+                
+                <div style="background: white; padding: 20px; border-radius: 10px; margin: 15px 0;">
+                    <h4 style="color: #059669; margin-bottom: 15px;">The Situation: Subscription Revenue Recognition</h4>
+                    <p>Customer pays $12,000 annually but revenue must be recognized monthly. Add upgrades, downgrades, prorations, and failed payments...</p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin: 20px 0;">
+                        <div style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                            <strong>Month 1:</strong><br>
+                            Customer pays $12,000<br>
+                            Revenue recognized: $1,000<br>
+                            Deferred revenue: $11,000
+                        </div>
+                        <div style="background: #fef3c7; padding: 15px; border-radius: 8px;">
+                            <strong>Month 6:</strong><br>
+                            Customer upgrades to $15,000<br>
+                            Proration calculation needed<br>
+                            New deferred revenue balance
+                        </div>
+                        <div style="background: #fee2e2; padding: 15px; border-radius: 8px;">
+                            <strong>Month 8:</strong><br>
+                            Payment fails<br>
+                            Service suspended<br>
+                            Revenue recognition paused
+                        </div>
+                        <div style="background: #dcfce7; padding: 15px; border-radius: 8px;">
+                            <strong>Month 10:</strong><br>
+                            Customer churns<br>
+                            Remaining deferred revenue<br>
+                            Must be reversed
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="impact-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Revenue recognition entries/month:</span>
+                        <span class="metric-value">500-5,000+</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Subscription changes/month:</span>
+                        <span class="metric-value">10-25%</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Manual calculation time:</span>
+                        <span class="metric-value">20-40 hours/month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let navigationHistory = [];
+        let currentPage = 'home';
+        
+        function navigateTo(pageId) {
+            // Add current page to history if it's not already the same page
+            if (currentPage !== pageId) {
+                navigationHistory.push(currentPage);
+                currentPage = pageId;
+            }
+            
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show target page
+            document.getElementById(pageId).classList.add('active');
+            
+            // Update navigation buttons
+            updateNavigationButtons();
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+        
+        function goBack() {
+            if (navigationHistory.length > 0) {
+                const previousPage = navigationHistory.pop();
+                currentPage = previousPage;
+                
+                // Hide all pages
+                document.querySelectorAll('.page').forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                // Show previous page
+                document.getElementById(previousPage).classList.add('active');
+                
+                // Update navigation buttons
+                updateNavigationButtons();
+                
+                // Scroll to top
+                window.scrollTo(0, 0);
+            }
+        }
+        
+        function goHome() {
+            navigationHistory = [];
+            currentPage = 'home';
+            
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show home page
+            document.getElementById('home').classList.add('active');
+            
+            // Update navigation buttons
+            updateNavigationButtons();
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+        
+        function updateNavigationButtons() {
+            const backBtn = document.getElementById('backBtn');
+            const homeBtn = document.getElementById('homeBtn');
+            
+            // Enable/disable back button based on history
+            backBtn.disabled = navigationHistory.length === 0;
+            
+            // Home button is always enabled unless we're already home
+            homeBtn.style.opacity = currentPage === 'home' ? '0.7' : '1';
+        }
+        
+        // Initialize navigation state
+        updateNavigationButtons();
+    </script>
+</body>
+</html>
