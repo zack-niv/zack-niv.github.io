@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incremental Impact - Pitch Deck</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #1F1F1F;
+            color: #E8DCC8;
+            overflow: hidden;
+        }
+
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .slide {
+            min-width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem;
+        }
+
+        .slide-content {
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* Slide 1: Opening */
+        .slide-1 {
+            background: linear-gradient(135deg, #1F1F1F 0%, #2A2520 100%);
+        }
+
+        .slide-1 h1 {
+            font-size: 6rem;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, #CC9B7A 0%, #F4D9B8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-align: center;
+        }
+
+        .slide-1 .subtitle {
+            font-size: 2.5rem;
+            color: #D4A574;
+            text-align: center;
+            line-height: 1.6;
+            margin-bottom: 3rem;
+        }
+
+        .slide-1 .vision-box {
+            background: rgba(204, 155, 122, 0.1);
+            border: 3px solid #CC9B7A;
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .slide-1 .vision-box p {
+            font-size: 1.8rem;
+            line-height: 1.8;
+            color: #E8DCC8;
+        }
+
+        .sparkle {
+            display: inline-block;
+            color: #F4D9B8;
+            animation: sparkle 2s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
+        /* Slide 2: About */
+        .slide-2 h2 {
+            font-size: 3.5rem;
+            margin-bottom: 3rem;
+            color: #CC9B7A;
+            text-align: center;
+        }
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 4rem;
+            align-items: center;
+            background: #2A2A2A;
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid #CC9B7A;
+        }
+
+        .about-photos {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .about-photo {
+            width: 100%;
+            height: 200px;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid #CC9B7A;
+        }
+
+        .about-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .about-photo.loading {
+            background: linear-gradient(135deg, #3D3D3D 0%, #2A2A2A 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+
+        .about-info h3 {
+            font-size: 2.8rem;
+            color: #CC9B7A;
+            margin-bottom: 1.5rem;
+        }
+
+        .about-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .badge {
+            background: #1F1F1F;
+            border: 2px solid #CC9B7A;
+            padding: 0.8rem 1.5rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            color: #D4A574;
+        }
+
+        .about-info p {
+            font-size: 1.4rem;
+            line-height: 1.8;
+            color: #E8DCC8;
+        }
+
+        /* Slide 3: Problem */
+        .slide-3 h2 {
+            font-size: 4rem;
+            margin-bottom: 3rem;
+            color: #CC9B7A;
+            text-align: center;
+        }
+
+        .problem-visual {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            margin: 3rem 0;
+        }
+
+        .problem-card {
+            background: #2A2A2A;
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid #3D3D3D;
+            text-align: center;
+        }
+
+        .problem-card .emoji {
+            font-size: 5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .problem-card h3 {
+            font-size: 2rem;
+            color: #CC9B7A;
+            margin-bottom: 1rem;
+        }
+
+        .problem-card p {
+            font-size: 1.4rem;
+            color: #B8B8B8;
+            line-height: 1.7;
+        }
+
+        .problem-stat {
+            background: rgba(239, 68, 68, 0.1);
+            border: 3px solid rgba(239, 68, 68, 0.4);
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            margin-top: 3rem;
+        }
+
+        .problem-stat .big {
+            font-size: 5rem;
+            color: #ef4444;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .problem-stat p {
+            font-size: 1.6rem;
+            color: #E8DCC8;
+        }
+
+        /* Slide 4: Paradigm Shift */
+        .slide-4 h2 {
+            font-size: 4rem;
+            margin-bottom: 3rem;
+            color: #CC9B7A;
+            text-align: center;
+        }
+
+        .shift-comparison {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 3rem;
+            align-items: center;
+            margin: 3rem 0;
+        }
+
+        .shift-side {
+            padding: 3rem;
+            border-radius: 20px;
+            min-height: 350px;
+        }
+
+        .shift-side.old {
+            background: rgba(239, 68, 68, 0.1);
+            border: 3px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .shift-side.new {
+            background: rgba(34, 197, 94, 0.1);
+            border: 3px solid rgba(34, 197, 94, 0.4);
+        }
+
+        .shift-side h3 {
+            font-size: 2.5rem;
+            color: #CC9B7A;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .shift-side ul {
+            list-style: none;
+            font-size: 1.5rem;
+            line-height: 2.5;
+            color: #E8DCC8;
+        }
+
+        .arrow-big {
+            font-size: 5rem;
+            color: #CC9B7A;
+        }
+
+        .unlock-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .unlock-card {
+            background: #2A2A2A;
+            padding: 2.5rem;
+            border-radius: 20px;
+            border-left: 4px solid #CC9B7A;
+        }
+
+        .unlock-card h4 {
+            font-size: 1.8rem;
+            color: #D4A574;
+            margin-bottom: 1rem;
+        }
+
+        .unlock-card p {
+            font-size: 1.3rem;
+            color: #B8B8B8;
+            line-height: 1.7;
+        }
+
+        /* Slide 5: Solution */
+        .slide-5 h2 {
+            font-size: 4rem;
+            margin-bottom: 3rem;
+            color: #CC9B7A;
+            text-align: center;
+        }
+
+        .solution-flow {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 3rem;
+            margin: 3rem 0;
+        }
+
+        .solution-step {
+            background: #2A2A2A;
+            padding: 3rem;
+            border-radius: 20px;
+            border: 2px solid #CC9B7A;
+            text-align: center;
+            position: relative;
+        }
+
+        .solution-step::after {
+            content: '→';
+            position: absolute;
+            right: -2.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 3rem;
+            color: #CC9B7A;
+        }
+
+        .solution-step:last-child::after {
+            content: '';
+        }
+
+        .step-num {
+            display: inline-block;
+            width: 70px;
+            height: 70px;
+            background: #CC9B7A;
+            color: #1F1F1F;
+            border-radius: 50%;
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 70px;
+            margin-bottom: 1.5rem;
+        }
+
+        .solution-step h3 {
+            font-size: 2rem;
+            color: #D4A574;
+            margin-bottom: 1rem;
+        }
+
+        .solution-step p {
+            font-size: 1.3rem;
+            color: #E8DCC8;
+            line-height: 1.7;
+        }
+
+        .benefit-split {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            margin-top: 3rem;
+        }
+
+        .benefit-card {
+            background: #2A2A2A;
+            padding: 3rem;
+            border-radius: 20px;
+            border: 3px solid #CC9B7A;
+        }
+
+        .benefit-card h3 {
+            font-size: 2.5rem;
+            color: #CC9B7A;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .benefit-list {
+            font-size: 1.4rem;
+            color: #E8DCC8;
+            line-height: 2;
+        }
+
+        .benefit-list strong {
+            color: #D4A574;
+        }
+
+        .impact-highlight {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05));
+            border: 3px solid rgba(34, 197, 94, 0.6);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-top: 1.5rem;
+        }
+
+        .impact-highlight p {
+            font-size: 1.5rem;
+            color: #4ade80;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Slide 6: Demo */
+        .slide-6 {
+            background: linear-gradient(135deg, #2A2520 0%, #1F1F1F 100%);
+        }
+
+        .slide-6 h2 {
+            font-size: 4.5rem;
+            margin-bottom: 3rem;
+            color: #CC9B7A;
+            text-align: center;
+        }
+
+        .demo-container {
+            background: #2A2A2A;
+            padding: 5rem;
+            border-radius: 30px;
+            border: 3px solid #CC9B7A;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .demo-container .icon {
+            font-size: 8rem;
+            margin-bottom: 2rem;
+        }
+
+        .demo-container p {
+            font-size: 2rem;
+            color: #E8DCC8;
+            margin-bottom: 3rem;
+            line-height: 1.8;
+        }
+
+        .demo-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #CC9B7A 0%, #D4A574 100%);
+            color: #1F1F1F;
+            padding: 2rem 5rem;
+            border-radius: 50px;
+            font-size: 2rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(204, 155, 122, 0.3);
+        }
+
+        .demo-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(204, 155, 122, 0.5);
+        }
+
+        /* Navigation */
+        .nav-dots {
+            position: fixed;
+            right: 3rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            z-index: 1000;
+        }
+
+        .nav-dot {
+            width: 14px;
+            height: 14px;
+            background: #3D3D3D;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-dot.active {
+            background: #CC9B7A;
+            transform: scale(1.5);
+            box-shadow: 0 0 15px rgba(204, 155, 122, 0.6);
+        }
+
+        .slide-number {
+            position: fixed;
+            bottom: 2rem;
+            right: 3rem;
+            font-size: 1.3rem;
+            color: #8E8E8E;
+            z-index: 1000;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 2rem;
+            left: 3rem;
+            display: flex;
+            gap: 2rem;
+            z-index: 1000;
+        }
+
+        .control-btn {
+            background: #2A2A2A;
+            border: 2px solid #CC9B7A;
+            color: #CC9B7A;
+            padding: 1.2rem 3rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .control-btn:hover:not(:disabled) {
+            background: #CC9B7A;
+            color: #1F1F1F;
+            transform: translateY(-2px);
+        }
+
+        .control-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .slide { padding: 2rem; }
+            .slide-1 h1 { font-size: 3.5rem; }
+            h2 { font-size: 2.5rem !important; }
+            .about-grid, .problem-visual, .unlock-grid, .solution-flow, .benefit-split, .shift-comparison {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            .arrow-big { transform: rotate(90deg); }
+            .solution-step::after { content: ''; }
+            .controls {
+                left: 50%;
+                transform: translateX(-50%);
+                bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container" id="slideContainer">
+        
+        <!-- Slide 1: Opening -->
+        <div class="slide slide-1">
+            <div class="slide-content">
+                <h1><span class="sparkle">✨</span> Incremental Impact <span class="sparkle">✨</span></h1>
+                <p class="subtitle">Turning trial-and-error into organizational intelligence</p>
+                
+                <div class="vision-box">
+                    <p>Every interaction builds wisdom. Every solution becomes a playbook. Every agent learns from every success.</p>
+                    <p style="margin-top: 2rem; font-size: 2rem; color: #CC9B7A; font-weight: 700;">
+                        This is the future we're building.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: About Me -->
+        <div class="slide slide-2">
+            <div class="slide-content">
+                <h2>Who Am I?</h2>
+                
+                <div class="about-grid">
+                    <div class="about-photos">
+                        <div class="about-photo loading">
+                            <img src="https://raw.githubusercontent.com/zack-niv/zack-niv.github.io/refs/heads/main/about%20me%201.JPG" alt="About me 1" onerror="this.parentElement.innerHTML='👤'">
+                        </div>
+                        <div class="about-photo loading">
+                            <img src="https://raw.githubusercontent.com/zack-niv/zack-niv.github.io/refs/heads/main/about%20me%202.JPG" alt="About me 2" onerror="this.parentElement.innerHTML='👨‍👩‍👧‍👦'">
+                        </div>
+                    </div>
+                    
+                    <div class="about-info">
+                        <h3>[Your Name]</h3>
+                        
+                        <div class="about-badges">
+                            <div class="badge">💼 10+ Years in Tech</div>
+                            <div class="badge">☁️ PM @ Salesforce</div>
+                            <div class="badge">👨‍👩‍👧‍👦 Father of 2</div>
+                            <div class="badge">🎖️ Company Commander</div>
+                            <div class="badge">🚀 Entrepreneur</div>
+                        </div>
+                        
+                        <p style="margin-top: 2rem;">
+                            Built AI products at Salesforce. Watched companies waste millions on agents that never improve.
+                        </p>
+                        
+                        <p style="margin-top: 1.5rem; font-size: 1.6rem; color: #D4A574; font-weight: 600;">
+                            The technology exists. Nobody's building it. Time to fix that.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: The Problem -->
+        <div class="slide slide-3">
+            <div class="slide-content">
+                <h2>The Problem</h2>
+                
+                <div class="problem-visual">
+                    <div class="problem-card">
+                        <div class="emoji">🔄</div>
+                        <h3>Agents Don't Learn</h3>
+                        <p>They retry until they succeed... then forget everything and start over</p>
+                    </div>
+                    
+                    <div class="problem-card">
+                        <div class="emoji">💸</div>
+                        <h3>Costs Never Decrease</h3>
+                        <p>Same 4.2 planning cycles per task. Forever. Token budgets exploding.</p>
+                    </div>
+                </div>
+
+                <div class="problem-stat">
+                    <div class="big">95%</div>
+                    <p>of AI agent pilots fail because "learning" is actually just expensive iteration</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: The Paradigm Shift -->
+        <div class="slide slide-4">
+            <div class="slide-content">
+                <h2>The Paradigm Shift</h2>
+                
+                <div class="shift-comparison">
+                    <div class="shift-side old">
+                        <h3>❌ Today</h3>
+                        <ul>
+                            <li>• Try 5 approaches</li>
+                            <li>• Fail, fail, succeed</li>
+                            <li>• Forget everything</li>
+                            <li>• Repeat forever</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="arrow-big">→</div>
+                    
+                    <div class="shift-side new">
+                        <h3>✅ Our Vision</h3>
+                        <ul>
+                            <li>• Learn what worked</li>
+                            <li>• Build playbooks</li>
+                            <li>• Share across agents</li>
+                            <li>• Compound daily</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="unlock-grid">
+                    <div class="unlock-card">
+                        <h4>💼 Business Impact</h4>
+                        <p><strong>Marketing:</strong> Learn creative patterns, adapt campaigns<br/>
+                        <strong>Sales:</strong> Master objections, perfect timing<br/>
+                        <strong>Service:</strong> Build resolution playbooks, reduce repeats</p>
+                    </div>
+                    
+                    <div class="unlock-card">
+                        <h4>💰 Operational Impact</h4>
+                        <p><strong>40-60% cost reduction</strong> as planning cycles drop from 4.2 → 1.8<br/>
+                        <strong>Zero-shot success</strong> rises from 12% → 67%<br/>
+                        <strong>127+ playbooks</strong> in 6 months</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: The Solution -->
+        <div class="slide slide-5">
+            <div class="slide-content">
+                <h2>How We Do It</h2>
+                
+                <div class="solution-flow">
+                    <div class="solution-step">
+                        <div class="step-num">1</div>
+                        <h3>Capture</h3>
+                        <p>Extract what worked from every execution</p>
+                    </div>
+                    
+                    <div class="solution-step">
+                        <div class="step-num">2</div>
+                        <h3>Codify</h3>
+                        <p>Transform into reusable playbooks</p>
+                    </div>
+                    
+                    <div class="solution-step">
+                        <div class="step-num">3</div>
+                        <h3>Compound</h3>
+                        <p>Share learnings, grow intelligence daily</p>
+                    </div>
+                </div>
+
+                <div class="benefit-split">
+                    <div class="benefit-card">
+                        <h3>🏢 For Enterprises</h3>
+                        <div class="benefit-list">
+                            <p><strong>Business:</strong> Better marketing, sales, and service outcomes through experienced agents</p>
+                            <p style="margin-top: 1rem;"><strong>Operations:</strong> 40-60% cost savings as efficiency compounds</p>
+                            
+                            <div class="impact-highlight">
+                                <p>🎯 Each interaction makes every future task faster, cheaper, and more accurate</p>
+                            </div>
+                            
+                            <p style="margin-top: 1.5rem; font-size: 1.2rem; color: #D4A574;">Platform-agnostic: Works with Salesforce, Microsoft, LangChain, any agent</p>
+                        </div>
+                    </div>
+                    
+                    <div class="benefit-card">
+                        <h3>🚀 For Agent Platforms</h3>
+                        <div class="benefit-list">
+                            <p><strong>Business:</strong> Differentiation through true learning—happier customers, lower churn</p>
+                            <p style="margin-top: 1rem;"><strong>Operations:</strong> 3x agent efficiency = better margins, competitive edge</p>
+                            
+                            <div class="impact-highlight">
+                                <p>📈 Learning compounds exponentially—6 months = 127+ playbooks built automatically</p>
+                            </div>
+                            
+                            <p style="margin-top: 1.5rem; font-size: 1.2rem; color: #D4A574;">First-mover window: 18-36 months before replication</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Demo -->
+        <div class="slide slide-6">
+            <div class="slide-content">
+                <h2>See It In Action</h2>
+                
+                <div class="demo-container">
+                    <div class="icon">🚀</div>
+                    <p>Experience how Incremental Impact transforms AI agents<br/>from expensive trial-and-error machines into learning systems<br/>that get smarter with every interaction.</p>
+                    <a href="https://telco-flow-b3652d5f.base44.app" target="_blank" class="demo-button">Launch Demo →</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Navigation -->
+    <div class="nav-dots" id="navDots"></div>
+    <div class="slide-number" id="slideNumber">1 / 6</div>
+    <div class="controls">
+        <button class="control-btn" id="prevBtn" onclick="changeSlide(-1)">← Previous</button>
+        <button class="control-btn" id="nextBtn" onclick="changeSlide(1)">Next →</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const totalSlides = 6;
+        const container = document.getElementById('slideContainer');
+
+        const navDots = document.getElementById('navDots');
+        for (let i = 0; i < totalSlides; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'nav-dot';
+            if (i === 0) dot.classList.add('active');
+            dot.onclick = () => goToSlide(i);
+            navDots.appendChild(dot);
+        }
+
+        function updateSlide() {
+            container.style.transform = `translateX(-${currentSlide * 100}vw)`;
+            document.querySelectorAll('.nav-dot').forEach((dot, index) => {
+                dot.classList.toggle('active', index === currentSlide);
+            });
+            document.getElementById('slideNumber').textContent = `${currentSlide + 1} / ${totalSlides}`;
+            document.getElementById('prevBtn').disabled = currentSlide === 0;
+            document.getElementById('nextBtn').disabled = currentSlide === totalSlides - 1;
+        }
+
+        function changeSlide(direction) {
+            const newSlide = currentSlide + direction;
+            if (newSlide >= 0 && newSlide < totalSlides) {
+                currentSlide = newSlide;
+                updateSlide();
+        
+        // Handle image loading
+        document.querySelectorAll('.about-photo img').forEach(img => {
+            img.onload = function() {
+                this.parentElement.classList.remove('loading');
+            };
+            if (img.complete) {
+                img.parentElement.classList.remove('loading');
+            }
+        });
+            }
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlide();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                e.preventDefault();
+                changeSlide(1);
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                changeSlide(-1);
+            } else if (e.key >= '1' && e.key <= '6') {
+                goToSlide(parseInt(e.key) - 1);
+            } else if (e.key === 'f' || e.key === 'F') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        updateSlide();
+    </script>
+</body>
+</html>
