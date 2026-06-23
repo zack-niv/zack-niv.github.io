@@ -7,221 +7,122 @@
 <title>Taist</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --cream:#FAF7F2;
-  --surface:#FFFFFF;
-  --ink:#1A1714;
-  --ink-muted:#6B6560;
-  --ink-faint:#B5AFA8;
-  --gold:#C9A84C;
-  --gold-deep:#7A5C10;
-  --gold-light:#F0E4C0;
-  --purple:#5B4B8A;
-  --purple-light:#EDE9F7;
-  --green:#2D6A4F;
-  --green-light:#D8F0E4;
+  --cream:#FAF7F2; --surface:#FFFFFF;
+  --ink:#1A1714; --ink-muted:#6B6560; --ink-faint:#B5AFA8;
+  --gold:#C9A84C; --gold-deep:#7A5C10; --gold-light:#F0E4C0;
+  --purple:#5B4B8A; --purple-light:#EDE9F7;
+  --green:#2D6A4F; --green-light:#D8F0E4;
   --border:rgba(26,23,20,0.10);
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%}
-body{
-  font-family:'DM Sans',sans-serif;
-  background:var(--cream);
-  color:var(--ink);
-  overflow:hidden;
-  -webkit-font-smoothing:antialiased;
-}
+body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);
+  overflow:hidden;-webkit-font-smoothing:antialiased}
 .serif{font-family:'Playfair Display',serif}
 
-/* soft ambient warmth */
 .ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
   background:
-    radial-gradient(50vw 50vw at 82% 12%, rgba(201,168,76,0.10), transparent 62%),
-    radial-gradient(48vw 48vw at 10% 90%, rgba(91,75,138,0.07), transparent 62%);
-}
+    radial-gradient(50vw 50vw at 82% 12%, rgba(201,168,76,0.09), transparent 62%),
+    radial-gradient(48vw 48vw at 10% 90%, rgba(91,75,138,0.06), transparent 62%);}
 
-/* deck */
 .deck{position:relative;z-index:2;width:100vw;height:100vh;display:flex;
-  transition:transform .82s cubic-bezier(.76,0,.24,1)}
+  transition:transform .9s cubic-bezier(.76,0,.24,1)}
 .slide{min-width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:7vh 8vw;position:relative}
-.inner{max-width:1140px;width:100%}
+  padding:9vh 9vw;position:relative;text-align:center}
+.inner{max-width:980px;width:100%}
 
-/* dark beats for rhythm */
+/* dark beats */
 .slide--ink{background:var(--ink);color:var(--cream)}
-.slide--ink .kicker{color:var(--gold)}
-.slide--ink .lede{color:rgba(250,247,242,.72)}
-.slide--ink .tiny{color:rgba(250,247,242,.4)}
+.slide--ink .lede{color:rgba(250,247,242,.66)}
+.slide--ink .eyebrow{color:var(--gold)}
 
-/* type */
-.kicker{font-family:'DM Sans',sans-serif;font-weight:400;letter-spacing:.18em;
-  text-transform:uppercase;font-size:.7rem;color:var(--gold-deep);margin-bottom:1.8rem}
-.slide--ink .kicker{color:var(--gold)}
-h1{font-family:'Playfair Display',serif;font-weight:600;line-height:.96;letter-spacing:-.03em}
-h2{font-family:'Playfair Display',serif;font-weight:500;line-height:1.06;letter-spacing:-.025em;
-  font-size:clamp(2.3rem,5vw,4.4rem)}
-.em{font-style:italic;color:var(--gold)}
-.lede{font-size:clamp(1.15rem,2.1vw,1.7rem);line-height:1.55;color:var(--ink-muted);
-  font-weight:300;max-width:46ch}
-.rule{width:60px;height:1px;background:var(--gold);opacity:.6;margin:2rem 0}
-.tiny{font-size:.7rem;letter-spacing:.06em;color:var(--ink-faint);text-transform:uppercase;
-  margin-top:2.2rem;font-weight:400}
+/* the workhorse: one large statement per slide */
+.eyebrow{font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-deep);
+  margin-bottom:2.4rem;font-weight:400}
+.line{font-family:'Playfair Display',serif;font-weight:500;letter-spacing:-.02em;
+  font-size:clamp(2.2rem,5.6vw,4.6rem);line-height:1.1}
+.line em{font-style:italic;color:var(--gold)}
+.line .p{color:var(--purple);font-style:italic}
+.lede{font-size:clamp(1.05rem,1.9vw,1.45rem);line-height:1.6;color:var(--ink-muted);
+  font-weight:300;max-width:40ch;margin:1.8rem auto 0}
 
 /* entrance */
-.slide [data-rise]{opacity:0;transform:translateY(20px);
-  transition:opacity .85s ease,transform .85s cubic-bezier(.2,.7,.2,1)}
+.slide [data-rise]{opacity:0;transform:translateY(18px);
+  transition:opacity 1s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
 .slide.active [data-rise]{opacity:1;transform:none;transition-delay:var(--d,0s)}
 
-/* ── 1 · HERO ── */
-.hero{text-align:center}
-.hero .mark{font-family:'Playfair Display',serif;font-style:italic;font-size:1rem;
-  color:var(--ink-faint);letter-spacing:.04em;margin-bottom:2rem}
-.hero h1{font-size:clamp(4.5rem,16vw,13rem);font-weight:700;letter-spacing:-.04em;
-  background:linear-gradient(160deg,var(--ink) 30%,var(--purple) 80%,var(--gold-deep) 130%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  margin-bottom:1.2rem}
-.hero .sub{font-family:'Playfair Display',serif;font-size:clamp(1.25rem,2.6vw,2rem);
-  color:var(--ink);font-weight:400;line-height:1.4}
-.hero .sub em{font-style:italic;color:var(--gold)}
-.hero .meta{margin-top:2.6rem;display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap}
-.pill{font-size:12px;padding:6px 14px;border-radius:20px;border:.5px solid var(--border);
-  background:var(--surface);color:var(--ink-muted);font-weight:300;letter-spacing:.02em}
-.pill.gold{background:var(--gold-light);color:var(--gold-deep);border-color:transparent}
-.pill.purple{background:var(--purple-light);color:var(--purple);border-color:transparent}
-.pill.green{background:var(--green-light);color:var(--green);border-color:transparent}
+/* cover */
+.cover .wordmark{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:-.04em;
+  font-size:clamp(4rem,13vw,10rem);
+  background:linear-gradient(160deg,var(--ink) 35%,var(--purple) 85%,var(--gold-deep) 130%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.cover .essence{font-family:'Playfair Display',serif;font-style:italic;color:var(--ink-faint);
+  font-size:clamp(1rem,2.2vw,1.5rem);margin-top:1rem;letter-spacing:.01em}
 
-/* ── 2 · HOOK chat ── */
-.chat{max-width:680px;margin:0 auto}
+/* one quiet chat moment */
+.chat{max-width:560px;margin:0 auto;text-align:left}
 .msg{display:flex;gap:11px;align-items:flex-start;margin-bottom:14px}
 .msg.user{flex-direction:row-reverse}
-.avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;border:.5px solid var(--border)}
+.avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:15px;flex-shrink:0;border:.5px solid var(--border)}
 .avatar.ai{background:var(--purple-light);color:var(--purple)}
 .avatar.user{background:var(--gold-light);color:var(--gold-deep);font-family:'Playfair Display',serif;
-  font-style:italic;font-size:13px}
-.bubble{max-width:80%;padding:13px 18px;font-size:1.05rem;line-height:1.55}
+  font-style:italic;font-size:14px}
+.bubble{max-width:82%;padding:14px 19px;font-size:1.12rem;line-height:1.55}
 .bubble.ai{background:var(--surface);border:.5px solid var(--border);
   border-radius:4px 18px 18px 18px;box-shadow:0 1px 6px rgba(0,0,0,.04)}
 .bubble.user{background:var(--ink);color:var(--cream);border-radius:18px 4px 18px 18px;font-weight:300}
 .named{color:var(--purple);font-family:'Playfair Display',serif;font-style:italic}
 .cursor{display:inline-block;width:2px;height:1.05em;background:var(--purple);vertical-align:-2px;
-  margin-left:1px;animation:blink 1s steps(1) infinite}
+  margin-left:2px;animation:blink 1s steps(1) infinite}
 @keyframes blink{50%{opacity:0}}
-.memory-note{font-size:.85rem;color:var(--gold-deep);font-style:italic;font-family:'Playfair Display',serif;
-  margin-top:10px;padding:9px 13px;background:var(--gold-light);border-radius:8px;
-  border-left:2px solid var(--gold);max-width:80%;margin-left:43px}
-.punch{text-align:center;font-family:'Playfair Display',serif;
-  font-size:clamp(1.5rem,3vw,2.4rem);margin-top:2.4rem;font-weight:500;line-height:1.3}
-.punch em{font-style:italic;color:var(--gold)}
 
-/* stat */
-.stat-big{font-family:'Playfair Display',serif;font-size:clamp(5rem,14vw,11rem);font-weight:700;
-  line-height:.88;letter-spacing:-.04em;color:var(--gold)}
-.slide--ink .stat-big{background:linear-gradient(180deg,#fff,var(--gold-light));
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-.two-col{display:grid;grid-template-columns:1.1fr 1fr;gap:5vw;align-items:center}
-@media(max-width:840px){.two-col{grid-template-columns:1fr;gap:3vh}}
+/* the brand-lands slide */
+.lands .wordmark{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:-.04em;
+  font-size:clamp(4.5rem,15vw,11rem);color:var(--ink);line-height:.9}
+.lands .essence{font-family:'Playfair Display',serif;font-style:italic;color:var(--gold);
+  font-size:clamp(1.2rem,2.6vw,1.9rem);margin-top:1.2rem}
+.lands .trio{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-top:2.2rem}
+.pill{font-size:12px;padding:6px 14px;border-radius:20px;font-weight:300;letter-spacing:.02em}
+.pill.gold{background:var(--gold-light);color:var(--gold-deep)}
+.pill.purple{background:var(--purple-light);color:var(--purple)}
+.pill.green{background:var(--green-light);color:var(--green)}
 
-/* fail cards */
-.fails{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;margin-top:.5rem}
-@media(max-width:840px){.fails{grid-template-columns:1fr}}
-.fail{border:.5px solid var(--border);border-radius:14px;padding:1.8rem;background:var(--surface);
-  box-shadow:0 1px 6px rgba(0,0,0,.03)}
-.fail .n{font-size:.66rem;letter-spacing:.14em;color:var(--ink-faint);text-transform:uppercase;
-  margin-bottom:1rem;font-weight:400}
-.fail h3{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:600;margin-bottom:.6rem}
-.fail p{color:var(--ink-muted);font-size:1.02rem;line-height:1.5;font-weight:300}
-.fail .verdict{margin-top:1.1rem;display:inline-block;font-size:.72rem;letter-spacing:.04em;
-  padding:4px 11px;border-radius:20px;background:var(--gold-light);color:var(--gold-deep)}
+/* where-we-start: two quiet words */
+.where{display:flex;gap:3rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2rem}
+.where .place{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:600}
+.where .arrow{color:var(--ink-faint);font-size:1.6rem}
+.where .tag{display:block;font-family:'DM Sans',sans-serif;font-size:.66rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gold-deep);font-weight:400;margin-top:.4rem}
 
-/* stack of layers */
-.stack{display:flex;flex-direction:column;gap:.8rem;margin-top:.4rem}
-.layer{display:grid;grid-template-columns:auto 1fr auto;gap:1.4rem;align-items:center;
-  padding:1.3rem 1.6rem;border-radius:14px;border:.5px solid var(--border);background:var(--surface)}
-.layer .lv{font-family:'Playfair Display',serif;font-style:italic;color:var(--ink-faint);font-size:1.2rem}
-.layer h3{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:500}
-.layer p{color:var(--ink-muted);font-size:1rem;font-weight:300}
-.layer .def{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);
-  white-space:nowrap;padding:4px 11px;border-radius:20px;background:var(--cream);border:.5px solid var(--border)}
-.layer.win{border:1.5px solid var(--purple);
-  background:linear-gradient(110deg,var(--purple-light),rgba(240,228,192,.4));
-  box-shadow:0 6px 30px rgba(91,75,138,.14)}
-.layer.win .lv{color:var(--purple)}
-.layer.win h3{color:var(--purple)}
-.layer.win .def{background:var(--purple);color:#fff;border-color:transparent}
-
-/* pillars */
-.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:1.8rem;margin-top:.4rem}
-@media(max-width:840px){.pillars{grid-template-columns:1fr}}
-.pillar{border-top:1px solid var(--gold);padding-top:1.2rem}
-.pillar .i{font-size:1.5rem;margin-bottom:.7rem}
-.pillar h3{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:600;margin-bottom:.5rem}
-.pillar p{color:var(--ink-muted);font-size:1.02rem;line-height:1.5;font-weight:300}
-
-/* architecture (what Taist is) */
-.arch{max-width:420px}
-.arch-node{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;
-  font-size:1rem;font-weight:400}
-.arch-node .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
-.arch-node.u{background:var(--gold-light);color:var(--gold-deep)}
-.arch-node.a{background:var(--purple-light);color:var(--purple)}
-.arch-node.p{background:var(--green-light);color:var(--green)}
-.arch-node b{font-weight:500}
-.arch-arrow{font-size:.74rem;color:var(--ink-faint);padding:6px 0 6px 24px;font-style:italic;
-  font-family:'Playfair Display',serif}
-
-/* mini restaurant card (moat slide) */
-.rcard{background:var(--surface);border:.5px solid var(--border);border-radius:14px;padding:14px 16px;
-  max-width:340px;box-shadow:0 2px 12px rgba(0,0,0,.05)}
-.rcard .top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
-.rcard .nm{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:600}
-.rcard .score{font-size:.66rem;background:var(--green-light);color:var(--green);padding:3px 9px;
-  border-radius:20px;font-weight:500}
-.rcard .meta{font-size:.82rem;color:var(--ink-muted);margin-bottom:3px}
-.rcard .why{font-size:.82rem;color:var(--purple);font-style:italic;font-family:'Playfair Display',serif}
-
-/* chaos list */
-.chaos{display:flex;flex-direction:column;gap:.7rem;margin-top:.3rem}
-.chaos div{font-size:1.15rem;font-weight:300;color:var(--ink);display:flex;gap:1rem;align-items:baseline}
-.chaos .t{font-size:.7rem;letter-spacing:.1em;color:var(--ink-faint);min-width:120px;text-transform:uppercase;
-  padding-top:3px}
-.chaos b{color:var(--gold-deep);font-weight:500;font-family:'Playfair Display',serif;font-style:italic}
-
-/* gtm */
-.gtm{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:.3rem}
-@media(max-width:840px){.gtm{grid-template-columns:1fr}}
-.geo{padding:0 1.8rem;border-left:1px solid var(--border)}
-.geo:first-child{border-left:none;padding-left:0}
-.geo .tag{font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold-deep);
-  margin-bottom:.7rem}
-.geo h3{font-family:'Playfair Display',serif;font-size:1.9rem;font-weight:600;margin-bottom:.5rem}
-.geo p{color:var(--ink-muted);font-size:1rem;line-height:1.45;font-weight:300}
-
-/* close */
-.close{text-align:center}
-.close h2{font-size:clamp(2.5rem,5.6vw,5rem);font-weight:500;line-height:1.08;margin-bottom:2rem}
-.close h2 em{font-style:italic;color:var(--gold)}
-.close .triad{font-family:'Playfair Display',serif;font-size:clamp(1rem,2vw,1.4rem);
-  color:rgba(250,247,242,.6);font-style:italic;line-height:2}
-.close .triad b{color:var(--gold);font-weight:600}
+/* speaker notes overlay */
+.notes{position:fixed;left:0;right:0;bottom:0;z-index:30;
+  background:rgba(26,23,20,.96);color:var(--cream);padding:1.4rem 2.2rem 1.6rem;
+  font-size:1.02rem;line-height:1.6;font-weight:300;
+  transform:translateY(110%);transition:transform .35s ease;max-height:42vh;overflow:auto}
+.notes.open{transform:none}
+.notes .nlabel{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
+  margin-bottom:.5rem;display:block}
+.notes .ntext{max-width:900px}
+.notes em{font-style:italic;color:var(--gold-light)}
 
 /* chrome */
 .chrome{position:fixed;z-index:10;left:0;right:0;bottom:0;display:flex;align-items:center;
-  justify-content:space-between;padding:1.1rem 2rem;pointer-events:none;mix-blend-mode:normal}
+  justify-content:space-between;padding:1.1rem 2rem;pointer-events:none}
 .brandmark{font-family:'Playfair Display',serif;font-style:italic;font-size:.85rem;color:var(--ink-faint)}
 .dots{display:flex;gap:.5rem;pointer-events:auto}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);opacity:.4;cursor:pointer;
   transition:all .35s}
 .dot.active{background:var(--gold);opacity:1;transform:scale(1.5)}
 .counter{font-size:.7rem;letter-spacing:.12em;color:var(--ink-faint)}
-.slide--ink ~ .chrome{}
 .progress-bar{position:fixed;top:0;left:0;height:2px;z-index:11;
-  background:linear-gradient(90deg,var(--purple),var(--gold));transition:width .82s cubic-bezier(.76,0,.24,1)}
+  background:linear-gradient(90deg,var(--purple),var(--gold));transition:width .9s cubic-bezier(.76,0,.24,1)}
 .hint{position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:10;
   font-size:.62rem;letter-spacing:.16em;color:var(--ink-faint);text-transform:uppercase;
-  animation:fade 4s ease 3.5s forwards;pointer-events:none}
+  animation:fade 5s ease 4s forwards;pointer-events:none}
 @keyframes fade{to{opacity:0}}
 </style>
 </head>
@@ -231,211 +132,121 @@ h2{font-family:'Playfair Display',serif;font-weight:500;line-height:1.06;letter-
 
 <div class="deck" id="deck">
 
-  <!-- 1 · HERO -->
-  <section class="slide hero">
+  <!-- 0 · COVER -->
+  <section class="slide cover" data-note="(Let the name sit a beat. Breathe. Then begin — quietly, almost like you're telling a friend a story.)">
     <div class="inner">
-      <div class="mark" data-rise>the taste &amp; context layer</div>
-      <h1 data-rise style="--d:.08s">Taist</h1>
-      <p class="sub" data-rise style="--d:.24s">Be in the answer. Own the action.<br>Keep the data they <em>can&rsquo;t retrain into existence.</em></p>
-      <div class="meta" data-rise style="--d:.42s">
-        <span class="pill gold">Taste &amp; memory</span>
-        <span class="pill purple">Inside the LLM</span>
-        <span class="pill green">Live inventory</span>
-      </div>
+      <div class="wordmark" data-rise>Taist</div>
+      <div class="essence" data-rise style="--d:.3s">the taste &amp; context layer</div>
     </div>
   </section>
 
-  <!-- 2 · HOOK -->
-  <section class="slide">
+  <!-- 1 · THE QUESTION -->
+  <section class="slide" data-note="It's Thursday. Someone you know is planning a first date. They don't open Google. They don't scroll Maps. They just ask — out loud, almost — for a natural-wine bar with a terrace, somewhere good for a first date.">
     <div class="inner">
       <div class="chat">
         <div class="msg user" data-rise>
           <div class="avatar user">J</div>
-          <div class="bubble user">a natural-wine bar near me with a terrace &mdash; good for a first date</div>
+          <div class="bubble user">a natural-wine bar with a terrace &mdash; somewhere good for a first date</div>
         </div>
-        <div class="msg" data-rise style="--d:.5s">
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · THE ANSWER -->
+  <section class="slide" data-note="And the assistant answers. Not with ten blue links. Not with a page of options. With three names, in a single sentence. That is the whole world now.">
+    <div class="inner">
+      <div class="chat">
+        <div class="msg" data-rise>
           <div class="avatar ai">✦</div>
           <div class="bubble ai">You&rsquo;ll love <span class="named">three places</span><span class="cursor"></span></div>
         </div>
-        <div class="memory-note" data-rise style="--d:.85s">✦ I remember you skip the touristy spots and lean low-intervention &mdash; pulling live tables now</div>
       </div>
-      <p class="punch" data-rise style="--d:1.2s">There is no second page.<br><em>You&rsquo;re in the sentence &mdash; or you don&rsquo;t exist.</em></p>
+      <p class="lede" data-rise style="--d:.7s">No second page.</p>
     </div>
   </section>
 
-  <!-- 3 · THE SHIFT -->
-  <section class="slide">
-    <div class="inner two-col">
-      <div>
-        <div class="kicker" data-rise>The shift</div>
-        <h2 data-rise style="--d:.1s">Discovery just<br>collapsed.</h2>
-        <div class="rule" data-rise style="--d:.2s"></div>
-        <p class="lede" data-rise style="--d:.3s">Ten blue links became <span class="em">one synthesized answer</span> that names a handful of places &mdash; and stops.</p>
-      </div>
-      <div>
-        <div class="stat-big" data-rise style="--d:.4s">3&ndash;5</div>
-        <p class="lede" data-rise style="--d:.55s;margin-top:1rem">venues named per query.<br>The rest of the city goes silent.</p>
-      </div>
+  <!-- 3 · THE STAKES (dark) -->
+  <section class="slide slide--ink" data-note="If you run a restaurant, sit with that. For twenty years, being findable meant page one, a pin on the map. That's gone. One answer now, with room for three. You are in that sentence — or you do not exist.">
+    <div class="inner">
+      <h2 class="line" data-rise>You&rsquo;re in the sentence &mdash;<br><em>or you don&rsquo;t exist.</em></h2>
     </div>
   </section>
 
-  <!-- 4 · THE VANISHING (dark beat) -->
-  <section class="slide slide--ink">
-    <div class="inner two-col">
-      <div>
-        <div class="kicker" data-rise>The vanishing</div>
-        <div class="stat-big" data-rise style="--d:.1s">~83%</div>
-        <p class="lede" data-rise style="--d:.25s">of restaurants are effectively <span class="em">invisible in AI search</span> &mdash; present on Google, absent from the answer.</p>
-      </div>
-      <div>
-        <h2 data-rise style="--d:.35s;font-size:clamp(2rem,4vw,3.4rem);color:var(--cream)">SEO <span class="em">&ne;</span> GEO</h2>
-        <div class="rule" data-rise style="--d:.45s"></div>
-        <p class="lede" data-rise style="--d:.55s">Overlap between top Google links and AI-cited sources fell from <span class="em">~70%</span> to <span class="em">under 20%.</span> Ranking #1 no longer puts you in the answer.</p>
-        <p class="tiny" data-rise style="--d:.65s">Directional · vendor-sourced, 2026</p>
-      </div>
+  <!-- 4 · THE SCRAMBLE -->
+  <section class="slide" data-note="So everyone is racing to get into that sentence. And there are two obvious ways. One: feed the AI better content — reviews, tags, fresh menus — so it picks you. Two: become the tool it books through. Be the pipe.">
+    <div class="inner">
+      <div class="eyebrow" data-rise>The race</div>
+      <h2 class="line" data-rise style="--d:.1s">Everyone is fighting<br>to be <em>in the answer.</em></h2>
     </div>
   </section>
 
   <!-- 5 · THE TRAP -->
-  <section class="slide">
+  <section class="slide" data-note="Here's the trap. The content game — anyone copies it by Tuesday. A race to the bottom. And the pipe? The giants already own it. OpenTable is the exclusive partner inside ChatGPT. Google owns the default. Be a popular pipe, and the platform either builds you natively or hands your slot to someone else. The pipe gets you disintermediated.">
     <div class="inner">
-      <div class="kicker" data-rise>The trap</div>
-      <h2 data-rise style="--d:.05s;margin-bottom:2rem">Everyone is fighting for the pipe.</h2>
-      <div class="fails">
-        <div class="fail" data-rise style="--d:.2s">
-          <div class="n">Play 01 — Content / GEO</div>
-          <h3>Optimize to get surfaced</h3>
-          <p>Schema, reviews, freshness. Useful &mdash; and instantly copyable by every agency and tool.</p>
-          <span class="verdict">→ Commoditizes fast</span>
-        </div>
-        <div class="fail" data-rise style="--d:.35s">
-          <div class="n">Play 02 — Connector / Action</div>
-          <h3>Be the tool the model calls</h3>
-          <p>Stickier &mdash; but OpenTable is the exclusive ChatGPT partner and Google owns the default. The gateway is owned.</p>
-          <span class="verdict">→ Platform-gated</span>
-        </div>
-      </div>
-      <p class="punch" data-rise style="--d:.5s;font-size:clamp(1.3rem,2.6vw,2rem)">Be a popular pipe, and you <em>invite disintermediation.</em></p>
+      <div class="eyebrow" data-rise>The trap</div>
+      <h2 class="line" data-rise style="--d:.1s">Both paths already belong<br>to <em>the giants.</em></h2>
     </div>
   </section>
 
   <!-- 6 · THE INSIGHT -->
-  <section class="slide">
+  <section class="slide" data-note="But look underneath. Below the content, below the booking, there's a third layer — and almost no one is standing on it. The giants own what's available, and they own how you pay. But they do not own what you love. They don't own taste.">
     <div class="inner">
-      <div class="kicker" data-rise>The insight</div>
-      <h2 data-rise style="--d:.05s;margin-bottom:1.5rem">Three layers. Defensibility climbs.</h2>
-      <div class="stack">
-        <div class="layer" data-rise style="--d:.15s">
-          <div class="lv">I</div>
-          <div><h3>Content / GEO</h3><p>Everyone&rsquo;s here — agencies, SEO tools</p></div>
-          <div class="def">Low moat</div>
-        </div>
-        <div class="layer" data-rise style="--d:.3s">
-          <div class="lv">II</div>
-          <div><h3>Connector / Action</h3><p>OpenTable · Google · Resy</p></div>
-          <div class="def">Medium · gated</div>
-        </div>
-        <div class="layer win" data-rise style="--d:.5s">
-          <div class="lv">III</div>
-          <div><h3>Taste / Context — Taist</h3><p>The diner&rsquo;s taste, curation &amp; memory · ~nobody here yet</p></div>
-          <div class="def">High · unownable</div>
-        </div>
-      </div>
-      <p class="lede" data-rise style="--d:.7s;margin-top:1.6rem;max-width:62ch">They own inventory and transactions. <span class="em">Nobody owns taste-with-memory</span> &mdash; and they can&rsquo;t absorb it from usage logs.</p>
+      <div class="eyebrow" data-rise>Underneath it all</div>
+      <h2 class="line" data-rise style="--d:.1s">Nobody owns <em>taste.</em></h2>
     </div>
   </section>
 
-  <!-- 7 · WHAT TAIST IS -->
-  <section class="slide">
-    <div class="inner two-col">
-      <div>
-        <div class="kicker" data-rise>What Taist is</div>
-        <h2 data-rise style="--d:.05s">The taste &amp; context layer for venue discovery and booking, <span class="em">inside the LLM.</span></h2>
-        <p class="lede" data-rise style="--d:.2s;margin-top:1.4rem">The connector delivers the value.<br>The taste graph is the moat.</p>
-      </div>
-      <div class="arch" data-rise style="--d:.4s">
-        <div class="arch-node u"><span class="dot"></span> <b>You</b> &mdash; natural language</div>
-        <div class="arch-arrow">↓ intent + memory</div>
-        <div class="arch-node a"><span class="dot"></span> <b>Taist</b> &mdash; taste &amp; context layer</div>
-        <div class="arch-arrow">↓ tool call</div>
-        <div class="arch-node p"><span class="dot"></span> <b>Any rail</b> &mdash; live inventory &amp; booking</div>
-        <div class="arch-arrow">↑ confirmed &mdash; and remembered</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 8 · THE MOAT (dark beat) -->
-  <section class="slide slide--ink">
-    <div class="inner two-col">
-      <div>
-        <div class="kicker" data-rise>The moat</div>
-        <h2 data-rise style="--d:.1s;color:var(--cream)">A model can&rsquo;t retrain into existence what it <span class="em">never sees.</span></h2>
-        <p class="lede" data-rise style="--d:.3s;margin-top:1.3rem">Preferences. The choices made. The outcome afterward. A taste graph that <span class="em">compounds for you</span> &mdash; and never enters anyone else&rsquo;s training set.</p>
-        <p class="tiny" data-rise style="--d:.45s">Accumulating-experience moat · invocation decided at runtime, not in weights</p>
-      </div>
-      <div data-rise style="--d:.55s">
-        <div class="rcard">
-          <div class="top"><div class="nm">Taizu</div><div class="score">98% match</div></div>
-          <div class="meta">Pan-Asian · ₪₪₪ · intimate, dim, seasonal</div>
-          <div class="why">✦ You loved Mashya — same philosophy, different continent</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 9 · WHY NOW -->
-  <section class="slide">
-    <div class="inner two-col">
-      <div>
-        <div class="kicker" data-rise>Why now</div>
-        <h2 data-rise style="--d:.1s">GEO is where SEO<br>was in <span class="em">2004.</span></h2>
-        <div class="rule" data-rise style="--d:.2s"></div>
-        <p class="lede" data-rise style="--d:.3s">Best practices still forming. Incumbents asleep. The early-mover window is open &mdash; and <span class="em">timed.</span></p>
-      </div>
-      <div>
-        <div class="kicker" data-rise style="--d:.35s">Europe · incumbent chaos</div>
-        <div class="chaos">
-          <div data-rise style="--d:.45s"><span class="t">Quandoo</span><span><b>shutting down</b> by end-2026</span></div>
-          <div data-rise style="--d:.55s"><span class="t">TheFork</span><span>largest in EU — <b>up for sale</b></span></div>
-          <div data-rise style="--d:.65s"><span class="t">SevenRooms</span><span>swallowed by <b>DoorDash</b></span></div>
-          <div data-rise style="--d:.75s"><span class="t">OpenTable</span><span>forcing bookings → <b>backlash</b></span></div>
-        </div>
-        <p class="tiny" data-rise style="--d:.85s">A rare window of disarray · directional</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- 10 · GO TO MARKET -->
-  <section class="slide">
+  <!-- 7 · THE MOAT (dark) -->
+  <section class="slide slide--ink" data-note="And taste — with memory — is the one thing a foundation model cannot retrain into existence, because it never sees it. It isn't on the public internet. It lives in the quiet accumulation of one person's choices, and what they loved afterward. That compounds. For you. Forever.">
     <div class="inner">
-      <div class="kicker" data-rise>Go to market</div>
-      <h2 data-rise style="--d:.05s;margin-bottom:1.8rem">Prove it small. Win it fragmented.</h2>
-      <div class="gtm">
-        <div class="geo" data-rise style="--d:.2s"><div class="tag">01 · Lab</div><h3>Tel Aviv</h3><p>Contained home turf. Ontopo owns it, not OpenTable. Hands-on, with design partners.</p></div>
-        <div class="geo" data-rise style="--d:.35s"><div class="tag">02 · Wedge</div><h3>Europe</h3><p>Culinarily rich, structurally fragmented, US platforms barely landed. The opening.</p></div>
-        <div class="geo" data-rise style="--d:.5s"><div class="tag">03 · Later</div><h3>The US</h3><p>A fresh fight &mdash; or a build-to-acquisition exit into a destabilized incumbent.</p></div>
-      </div>
-      <p class="punch" data-rise style="--d:.7s;font-size:clamp(1.2rem,2.4vw,1.8rem);margin-top:2.2rem">The places worth loving are on <em>no reservation system.</em> Only curation + memory fits the long tail.</p>
+      <h2 class="line" data-rise>Taste, with memory,<br>can&rsquo;t be retrained<br><em>into existence.</em></h2>
+      <p class="lede" data-rise style="--d:.4s">A model can&rsquo;t own what it never sees.</p>
     </div>
   </section>
 
-  <!-- 11 · CLOSE (dark beat) -->
-  <section class="slide slide--ink close">
+  <!-- 8 · THE BRAND LANDS -->
+  <section class="slide lands" data-note="That's Taist. The taste and context layer that sits inside the assistant. It knows the diner. It covers the long tail — the natural-wine bars and walk-in cafés the giants never even see. And it hands off cleanly to whoever can actually book the table. The connection is how we deliver. The taste is the thing we own.">
     <div class="inner">
-      <div class="mark serif" data-rise style="font-style:italic;color:var(--gold);font-size:1.2rem;margin-bottom:1.6rem">Taist</div>
-      <h2 data-rise style="--d:.1s;color:var(--cream)">When the world asks an AI where to eat &mdash; <em>Taist is the answer.</em></h2>
-      <p class="triad" data-rise style="--d:.4s">Be in the <b>answer.</b> &nbsp;·&nbsp; Own the <b>action.</b> &nbsp;·&nbsp; Own the <b>data they can&rsquo;t retrain.</b></p>
+      <div class="wordmark" data-rise>Taist</div>
+      <div class="essence" data-rise style="--d:.25s">the taste &amp; context layer, inside the answer</div>
+      <div class="trio" data-rise style="--d:.5s">
+        <span class="pill gold">Knows your taste</span>
+        <span class="pill purple">Covers the long tail</span>
+        <span class="pill green">Hands off to any rail</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 · WHY NOW / WHERE -->
+  <section class="slide" data-note="And the timing is now. Discovery is being rewritten this year — and in Europe, the old guard is in disarray: one platform shutting down, another up for sale, a third swallowed by a delivery company. So we prove it where we live — Tel Aviv, a contained market the giants haven't taken — and then we walk through the open door into Europe.">
+    <div class="inner">
+      <div class="eyebrow" data-rise>The window is open &mdash; and timed</div>
+      <div class="where">
+        <div data-rise style="--d:.1s"><span class="place">Tel Aviv</span><span class="tag">prove it where we live</span></div>
+        <span class="arrow" data-rise style="--d:.25s">&rarr;</span>
+        <div data-rise style="--d:.4s"><span class="place">Europe</span><span class="tag">walk through the open door</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · CLOSE (dark) -->
+  <section class="slide slide--ink" data-note="And that first date — the wine bar, the terrace? Taist is what put it in the sentence. Taist is what booked it. And Taist is what remembers it, so the next time, the answer is even better. When the world asks an AI where to eat… Taist is the answer.">
+    <div class="inner">
+      <h2 class="line" data-rise>When the world asks an AI<br>where to eat &mdash;<br><em>Taist is the answer.</em></h2>
+      <p class="lede" data-rise style="--d:.5s">And it remembers, so the next answer is even better.</p>
     </div>
   </section>
 
 </div>
+
+<div class="notes" id="notes"><span class="nlabel">Say it like this</span><div class="ntext" id="ntext"></div></div>
 
 <div class="chrome">
   <div class="brandmark">Taist</div>
   <div class="dots" id="dots"></div>
   <div class="counter" id="counter">01 / 11</div>
 </div>
-<div class="hint">← → · space · click to advance</div>
+<div class="hint">← → · space to advance · press S for the script</div>
 
 <script>
 const deck=document.getElementById('deck');
@@ -443,8 +254,10 @@ const slides=[...document.querySelectorAll('.slide')];
 const dotsWrap=document.getElementById('dots');
 const counter=document.getElementById('counter');
 const bar=document.getElementById('bar');
+const notes=document.getElementById('notes');
+const ntext=document.getElementById('ntext');
 const total=slides.length;
-let cur=0;
+let cur=0, notesOpen=false;
 
 slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot';
   d.addEventListener('click',e=>{e.stopPropagation();go(i);});dotsWrap.appendChild(d);});
@@ -456,7 +269,7 @@ function render(){
   dots.forEach((d,i)=>d.classList.toggle('active',i===cur));
   counter.textContent=`${String(cur+1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`;
   bar.style.width=`${((cur+1)/total)*100}%`;
-  // adapt chrome contrast on dark slides
+  ntext.textContent=slides[cur].getAttribute('data-note')||'';
   const ink=slides[cur].classList.contains('slide--ink');
   document.querySelector('.brandmark').style.color=ink?'rgba(250,247,242,.5)':'';
   counter.style.color=ink?'rgba(250,247,242,.5)':'';
@@ -464,6 +277,7 @@ function render(){
 function go(i){cur=Math.max(0,Math.min(total-1,i));render();}
 function next(){go(cur+1);}
 function prev(){go(cur-1);}
+function toggleNotes(){notesOpen=!notesOpen;notes.classList.toggle('open',notesOpen);}
 
 document.addEventListener('keydown',e=>{
   switch(e.key){
@@ -473,12 +287,16 @@ document.addEventListener('keydown',e=>{
       e.preventDefault();prev();break;
     case 'Home':e.preventDefault();go(0);break;
     case 'End':e.preventDefault();go(total-1);break;
+    case 's':case 'S':case 'n':case 'N':e.preventDefault();toggleNotes();break;
     case 'f':case 'F':
       if(!document.fullscreenElement)document.documentElement.requestFullscreen();
       else document.exitFullscreen();break;
   }
 });
-document.addEventListener('click',e=>{if(e.target.closest('.dots'))return;next();});
+document.addEventListener('click',e=>{
+  if(e.target.closest('.dots')||e.target.closest('.notes'))return;
+  next();
+});
 render();
 </script>
 </body>
