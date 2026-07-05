@@ -192,28 +192,30 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .journey-row + .journey-row { margin-top: .5rem; }
 .jchip {
   background: var(--surface); border: 1.5px solid var(--border-s);
-  border-radius: 11px; padding: .55rem .7rem .45rem;
+  border-radius: 13px; padding: .85rem 1rem .7rem;
   display: flex; flex-direction: column; align-items: center;
-  gap: .18rem; flex-shrink: 0; width: 118px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  gap: .28rem; flex-shrink: 0; width: 152px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.05);
 }
-.jchip-ico { font-size: 1rem; line-height: 1; }
-.jchip-name { font-size: .72rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
-.jchip-sub { font-size: .6rem; color: var(--ink-faint); white-space: nowrap; }
+.jchip-ico { font-size: 1.3rem; line-height: 1; }
+.jchip-name { font-size: .86rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.jchip-sub { font-size: .68rem; color: var(--ink-faint); white-space: nowrap; }
 .jchip--end {
   border-color: rgba(190,60,50,.3);
   background: rgba(220,90,80,.05);
 }
 .jchip--end .jchip-name { color: rgba(190,60,50,.75); }
 .jarrow {
-  width: 22px; flex-shrink: 0;
+  width: 46px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
 }
+.jarrow svg { width: 30px; height: auto; }
 .jdown {
   display: flex; justify-content: flex-end;
-  height: 22px; align-items: center;
-  padding-right: 48px;
+  height: 26px; align-items: center;
+  padding-right: 65px;
 }
+.jdown svg { width: 24px; height: auto; }
 .journey-stat {
   margin-top: 1.5rem;
   font-size: .86rem; color: var(--ink-muted); line-height: 1.5;
@@ -366,8 +368,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
             Eight of us.<br>Two restless kids.<br><em>One simple ask.</em>
           </h1>
           <p class="lede" data-rise style="--d:.52s">
-            I brought the exact same question to Gemini, to Claude, and to ChatGPT —
-            three of the most capable assistants on the planet.
+            The same question — to Gemini, to Claude, to ChatGPT.
           </p>
         </div>
       </div>
@@ -382,10 +383,6 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
       <h2 class="line line--xl" data-rise style="--d:.28s">
         I booked exactly<br><em>zero tables.</em>
       </h2>
-      <p class="lede" data-rise style="--d:.52s">
-        Somewhere in this city, a restaurant with a big table and room for kids
-        was open that evening — and never knew we were asking.
-      </p>
     </div>
   </section>
 
@@ -418,7 +415,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
             <circle cx="48" cy="32" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
           </svg>
           <div class="lp-title">The table stayed empty.</div>
-          <div class="lp-sub">The right venue — with space, with availability — waited for guests who never came.</div>
+          <div class="lp-sub">The right table sat open. The guests never came.</div>
         </div>
       </div>
     </div>
@@ -501,8 +498,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         </div>
         </div><!-- .journey-map -->
         <p class="journey-stat" data-rise style="--d:.6s">
-          <strong>This is venue discovery in 2025.</strong>
-          None of these tools knew I had two kids — or that I needed a kitchen kind to children.
+          Not one of them knew I had <strong>two kids.</strong>
         </p>
       </div>
     </div>
@@ -519,9 +515,9 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
       <h2 class="line line--dim" data-rise style="--d:.46s">
         Systems think<br>in filters.
       </h2>
-      <p class="lede lede--narrow" data-rise style="--d:.66s">
-        "Somewhere with room for kids, good cocktails, available Friday, that can host eight" —
-        that's not a filter combination. It's an intention. And no current system knows how to hear it.
+      <p class="lede lede--narrow lede--italic" data-rise style="--d:.66s">
+        "Room for kids, good cocktails, a Friday table for eight" —
+        that's not a filter. It's an intention.
       </p>
     </div>
   </section>
@@ -539,10 +535,9 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
           <div class="shift-era">Until now</div>
           <div class="shift-head">You adapt<br>to software.</div>
           <ul class="shift-list">
-            <li>Learn the right keywords</li>
-            <li>Apply the right filters</li>
-            <li>Visit multiple platforms</li>
-            <li>Make sense of results yourself</li>
+            <li>Learn the keywords</li>
+            <li>Apply the filters</li>
+            <li>Open ten tabs</li>
           </ul>
         </div>
         <div class="shift-mid">
@@ -554,9 +549,8 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
           <div class="shift-era">Now</div>
           <div class="shift-head">Software adapts<br>to you.</div>
           <ul class="shift-list">
-            <li>Describe what you want, naturally</li>
+            <li>Just describe it</li>
             <li>Context is understood</li>
-            <li>One conversation does the work</li>
             <li>Intent becomes action</li>
           </ul>
         </div>
@@ -574,13 +568,8 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         Every meal.<br>Every celebration.<br><em>Every night out.</em>
       </h2>
       <p class="lede" data-rise style="--d:.5s">
-        These moments begin with human intent — and that intent is moving to AI surfaces.
-        What's missing is the infrastructure that <strong>hears it, understands it,
-        and converts it into a confirmed booking.</strong>
-      </p>
-      <p class="lede lede--italic" data-rise style="--d:.65s">
-        We are not creating demand. We are capturing demand that already exists —
-        and today falls through the cracks.
+        All of it begins with intent — and that intent is moving to AI.
+        <strong>We capture it, and turn it into bookings.</strong>
       </p>
     </div>
   </section>
@@ -591,11 +580,10 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">Taist</span>
       <h2 class="line line--sm" data-rise style="--d:.32s">
-        People describe the experience they want.
-        Our platform understands that intent,
-        finds venues with <em>real availability,</em>
-        and converts the search directly into
-        a confirmed booking.
+        People describe the evening they want.
+        Taist understands it, finds venues with
+        <em>real availability,</em> and turns the search
+        into a confirmed booking.
       </h2>
     </div>
   </section>
@@ -629,7 +617,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
             </svg>
           </div>
           <div class="fnode-title">Taist</div>
-          <div class="fnode-detail">Understands intent · validates real availability · surfaces best-fit venues</div>
+          <div class="fnode-detail">Understands intent. Finds real availability.</div>
         </div>
         <div class="farrow">
           <svg width="36" height="14" viewBox="0 0 36 14" fill="none">
@@ -686,15 +674,13 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">The vision</span>
       <h2 class="line line--sm" data-rise style="--d:.3s">
-        As AI becomes the primary interface<br>
-        for <em>discovering the physical world,</em><br>
-        every agent will need a way<br>
-        to understand human intent<br>
-        and convert it into real-world experiences.
+        As AI becomes how we discover<br>
+        <em>the physical world,</em> every agent will need<br>
+        to turn human intent into real experiences.
       </h2>
       <p class="lede" data-rise style="--d:.58s">
-        We start with restaurants — the highest-frequency, highest-intent,
-        transaction-ready category — and we build the layer every AI will rely on.
+        We start with restaurants — highest frequency, highest intent,
+        ready to transact.
       </p>
       <div class="vision-quote" data-rise style="--d:.82s">
         Every intention deserves an unforgettable evening.
