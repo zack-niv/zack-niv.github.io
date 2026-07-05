@@ -185,15 +185,16 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 
 /* S4 journey map */
 .journey-outer { margin-top: 2.4rem; }
+.journey-map { width: fit-content; margin: 0 auto; }
 .journey-row {
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: center;
 }
-.journey-row + .journey-row { margin-top: .4rem; }
+.journey-row + .journey-row { margin-top: .5rem; }
 .jchip {
   background: var(--surface); border: 1.5px solid var(--border-s);
-  border-radius: 11px; padding: .55rem .9rem .45rem;
+  border-radius: 11px; padding: .55rem .7rem .45rem;
   display: flex; flex-direction: column; align-items: center;
-  gap: .18rem; flex-shrink: 0; min-width: 92px;
+  gap: .18rem; flex-shrink: 0; width: 118px;
   box-shadow: 0 2px 8px rgba(0,0,0,.04);
 }
 .jchip-ico { font-size: 1rem; line-height: 1; }
@@ -210,8 +211,8 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 }
 .jdown {
   display: flex; justify-content: flex-end;
-  height: 20px; align-items: center;
-  padding-right: 46px;
+  height: 22px; align-items: center;
+  padding-right: 48px;
 }
 .journey-stat {
   margin-top: 1.5rem;
@@ -432,6 +433,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         Seven touchpoints.<br>Forty minutes.<br><em>Still nothing certain.</em>
       </h2>
       <div class="journey-outer" data-rise style="--d:.42s">
+        <div class="journey-map">
         <div class="journey-row">
           <div class="jchip">
             <span class="jchip-ico">🔍</span>
@@ -466,7 +468,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         <div class="jdown">
           <svg width="22" height="20" viewBox="0 0 22 20" fill="none"><path d="M11 1v15M5 11l6 6 6-6" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="journey-row" style="flex-direction:row-reverse;justify-content:flex-end">
+        <div class="journey-row">
           <div class="jchip jchip--end">
             <span class="jchip-ico">❓</span>
             <span class="jchip-name">Give up</span>
@@ -486,7 +488,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
           <div class="jchip">
             <span class="jchip-ico">📅</span>
             <span class="jchip-name">Try to book</span>
-            <span class="jchip-sub">OpenTable, Wolt…</span>
+            <span class="jchip-sub">OpenTable…</span>
           </div>
           <div class="jarrow" style="transform:scaleX(-1)">
             <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -497,6 +499,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
             <span class="jchip-sub">Find info</span>
           </div>
         </div>
+        </div><!-- .journey-map -->
         <p class="journey-stat" data-rise style="--d:.6s">
           <strong>This is venue discovery in 2025.</strong>
           None of these tools knew I had two kids — or that I needed a kitchen kind to children.
