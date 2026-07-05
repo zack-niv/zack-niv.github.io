@@ -9,284 +9,754 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
-:root{
-  --cream:#FAF7F2; --surface:#FFFFFF;
-  --ink:#1A1714; --ink-muted:#6B6560; --ink-faint:#B5AFA8;
-  --gold:#C9A84C; --gold-deep:#7A5C10; --gold-light:#F0E4C0;
-  --purple:#5B4B8A; --purple-light:#EDE9F7;
-  --green:#2D6A4F; --green-light:#D8F0E4;
-  --border:rgba(26,23,20,0.10);
+:root {
+  --cream: #FAF7F2; --surface: #FFFFFF;
+  --ink: #1A1714; --ink-muted: #6B6560; --ink-faint: #B5AFA8;
+  --gold: #C9A84C; --gold-deep: #7A5C10; --gold-light: #F0E4C0;
+  --purple: #5B4B8A; --purple-light: #EDE9F7;
+  --green: #2D6A4F; --green-light: #D8F0E4;
+  --border: rgba(26,23,20,.10);
+  --border-s: rgba(26,23,20,.18);
 }
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%}
-body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);
-  overflow:hidden;-webkit-font-smoothing:antialiased}
-.serif{font-family:'Playfair Display',serif}
-
-.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream); color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+.ambient {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background:
-    radial-gradient(50vw 50vw at 82% 12%, rgba(201,168,76,0.09), transparent 62%),
-    radial-gradient(48vw 48vw at 10% 90%, rgba(91,75,138,0.06), transparent 62%);}
+    radial-gradient(55vw 55vw at 88% 14%, rgba(201,168,76,.07), transparent 65%),
+    radial-gradient(48vw 48vw at 8% 88%, rgba(91,75,138,.05), transparent 65%);
+}
+.deck {
+  position: relative; z-index: 2;
+  width: 100vw; height: 100vh;
+  display: flex;
+  transition: transform .88s cubic-bezier(.76,0,.24,1);
+  will-change: transform;
+}
+.slide {
+  min-width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 7vh 8vw;
+  position: relative; overflow: hidden;
+  text-align: center;
+}
+.inner { max-width: 1040px; width: 100%; }
+.slide--ink { background: var(--ink); color: var(--cream); }
+.slide--ink .lede { color: rgba(250,247,242,.65); }
+.slide--ink .lede strong { color: rgba(250,247,242,.9); }
+.slide--ink .eyebrow { color: var(--gold); }
+.slide--ink .caption { color: rgba(250,247,242,.38); }
+.eyebrow {
+  display: block;
+  font-size: .67rem; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--gold-deep); margin-bottom: 1.8rem; font-weight: 400;
+}
+.line {
+  font-family: 'Playfair Display', serif;
+  font-weight: 500; letter-spacing: -.022em;
+  font-size: clamp(1.9rem, 4.8vw, 4.1rem);
+  line-height: 1.12;
+}
+.line em { font-style: italic; color: var(--gold); }
+.line--sm { font-size: clamp(1.5rem, 3.1vw, 2.65rem); line-height: 1.22; }
+.line--xl { font-size: clamp(2.4rem, 6.2vw, 5.4rem); }
+.line + .line { margin-top: .7rem; }
+.line--dim { color: var(--ink-muted); }
+.slide--ink .line--dim { color: rgba(250,247,242,.4); }
+.lede {
+  font-size: clamp(.9rem, 1.62vw, 1.26rem);
+  line-height: 1.7; color: var(--ink-muted);
+  font-weight: 300; max-width: 48ch;
+  margin: 1.6rem auto 0;
+}
+.lede strong { font-weight: 500; color: var(--ink); }
+.lede--narrow { max-width: 38ch; }
+.lede--italic { font-style: italic; margin-top: 1rem; }
+.caption {
+  display: block;
+  font-size: .72rem; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-faint); margin-top: 1.3rem;
+}
+[data-rise] { opacity: 0; transform: translateY(24px); }
+.active [data-rise] {
+  opacity: 1; transform: translateY(0);
+  transition: opacity .68s ease calc(var(--d, 0s)), transform .68s ease calc(var(--d, 0s));
+}
+.progress-bar {
+  position: fixed; top: 0; left: 0; height: 2px; z-index: 100;
+  background: var(--gold);
+  transition: width .88s cubic-bezier(.76,0,.24,1);
+}
+.ns-mark {
+  position: fixed; top: 2.2rem; right: 2.8rem; z-index: 50;
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: .82rem; color: rgba(201,168,76,.48);
+  opacity: 0; pointer-events: none;
+  transition: opacity .6s ease;
+}
+.ns-mark.show { opacity: 1; }
+body.on-ink .ns-mark { color: rgba(201,168,76,.4); }
+.chrome {
+  position: fixed; bottom: 2.2rem; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center;
+  gap: 1.8rem; z-index: 100; pointer-events: none;
+}
+.dots { display: flex; gap: .46rem; align-items: center; pointer-events: auto; }
+.dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(26,23,20,.22); cursor: pointer;
+  transition: background .3s, transform .3s;
+}
+.dot.on { background: var(--gold); transform: scale(1.4); }
+body.on-ink .dot { background: rgba(250,247,242,.28); }
+body.on-ink .dot.on { background: var(--gold); }
+.counter {
+  font-size: .68rem; letter-spacing: .18em; color: var(--ink-faint);
+  min-width: 3.8rem; text-align: center; font-variant-numeric: tabular-nums;
+}
+body.on-ink .counter { color: rgba(250,247,242,.34); }
+.hint {
+  position: fixed; bottom: 2.2rem; right: 2.8rem; z-index: 100;
+  font-size: .62rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-faint); display: flex; gap: 1.2rem;
+}
+body.on-ink .hint { color: rgba(250,247,242,.26); }
+.notes-panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #111; color: var(--cream);
+  padding: 2.2rem 3rem 3.2rem;
+  transform: translateY(100%);
+  transition: transform .38s cubic-bezier(.4,0,.2,1);
+  z-index: 200; max-height: 42vh; overflow-y: auto;
+  border-top: 1px solid rgba(201,168,76,.22);
+}
+.notes-panel.open { transform: translateY(0); }
+.notes-inner { max-width: 760px; margin: 0 auto; }
+.notes-label {
+  font-size: .62rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--gold); margin-bottom: .9rem;
+}
+.notes-body { font-size: .95rem; line-height: 1.72; color: rgba(250,247,242,.78); }
 
-.deck{position:relative;z-index:2;width:100vw;height:100vh;display:flex;
-  transition:transform .9s cubic-bezier(.76,0,.24,1)}
-.slide{min-width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:8vh 9vw;position:relative;text-align:center}
-.inner{max-width:980px;width:100%}
+/* S1 hook layout */
+.hook-grid {
+  display: grid; grid-template-columns: 1.05fr 1fr;
+  gap: 4.5rem; align-items: center; text-align: left;
+}
+.hook-img-wrap {
+  border-radius: 18px; overflow: hidden;
+  box-shadow: 0 28px 80px rgba(0,0,0,.13), 0 4px 16px rgba(0,0,0,.06);
+}
+.hook-img-wrap img { width: 100%; display: block; }
+.hook-img-caption {
+  font-size: .65rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-faint); margin-top: .8rem; text-align: center;
+}
+.hook-text .eyebrow { margin-bottom: 1.3rem; }
+.hook-text .line { text-align: left; }
+.hook-text .lede { text-align: left; margin-left: 0; }
 
-/* dark beats */
-.slide--ink{background:var(--ink);color:var(--cream)}
-.slide--ink .lede{color:rgba(250,247,242,.66)}
-.slide--ink .eyebrow{color:var(--gold)}
-.slide--ink .caption{color:rgba(250,247,242,.5)}
+/* S3 double-loss */
+.loss-panels {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 3px; margin-top: 2.4rem;
+  border-radius: 18px; overflow: hidden;
+}
+.loss-panel {
+  padding: 2.8rem 2.4rem 2.4rem;
+  display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+}
+.loss-panel--l { background: var(--purple-light); }
+.loss-panel--r { background: #FFF8E6; }
+.lp-icon { width: 60px; height: 60px; }
+.lp-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.16rem; font-weight: 500; letter-spacing: -.01em;
+}
+.lp-sub {
+  font-size: .85rem; color: var(--ink-muted); line-height: 1.55;
+  max-width: 20ch; text-align: center;
+}
 
-/* one large statement per slide */
-.eyebrow{font-size:.7rem;letter-spacing:.22em;text-transform:uppercase;color:var(--gold-deep);
-  margin-bottom:2.2rem;font-weight:400}
-.line{font-family:'Playfair Display',serif;font-weight:500;letter-spacing:-.02em;
-  font-size:clamp(2.1rem,5.4vw,4.4rem);line-height:1.1}
-.line em{font-style:italic;color:var(--gold)}
-.lede{font-size:clamp(1.05rem,1.9vw,1.45rem);line-height:1.6;color:var(--ink-muted);
-  font-weight:300;max-width:42ch;margin:1.7rem auto 0}
+/* S4 journey map */
+.journey-outer { margin-top: 2.4rem; }
+.journey-row {
+  display: flex; align-items: center; justify-content: center;
+}
+.journey-row + .journey-row { margin-top: .4rem; }
+.jchip {
+  background: var(--surface); border: 1.5px solid var(--border-s);
+  border-radius: 11px; padding: .55rem .9rem .45rem;
+  display: flex; flex-direction: column; align-items: center;
+  gap: .18rem; flex-shrink: 0; min-width: 92px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.jchip-ico { font-size: 1rem; line-height: 1; }
+.jchip-name { font-size: .72rem; font-weight: 500; color: var(--ink); white-space: nowrap; }
+.jchip-sub { font-size: .6rem; color: var(--ink-faint); white-space: nowrap; }
+.jchip--end {
+  border-color: rgba(190,60,50,.3);
+  background: rgba(220,90,80,.05);
+}
+.jchip--end .jchip-name { color: rgba(190,60,50,.75); }
+.jarrow {
+  width: 22px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.jdown {
+  display: flex; justify-content: flex-end;
+  height: 20px; align-items: center;
+  padding-right: 46px;
+}
+.journey-stat {
+  margin-top: 1.5rem;
+  font-size: .86rem; color: var(--ink-muted); line-height: 1.5;
+}
+.journey-stat strong { color: var(--ink); }
 
-/* entrance */
-.slide [data-rise]{opacity:0;transform:translateY(18px);
-  transition:opacity 1s ease,transform 1s cubic-bezier(.2,.7,.2,1)}
-.slide.active [data-rise]{opacity:1;transform:none;transition-delay:var(--d,0s)}
+/* S6 before/after */
+.shift-wrap {
+  display: grid; grid-template-columns: 1fr 40px 1fr;
+  margin-top: 2.4rem; align-items: stretch;
+}
+.shift-panel {
+  padding: 2.2rem 2rem; border-radius: 14px; text-align: left;
+}
+.shift-panel--b { background: rgba(26,23,20,.04); }
+.shift-panel--a { background: var(--green-light); }
+.shift-era {
+  font-size: .62rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: .55rem;
+}
+.shift-panel--a .shift-era { color: var(--green); }
+.shift-head {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem; font-weight: 500; margin-bottom: .85rem; line-height: 1.25;
+}
+.shift-list {
+  list-style: none; display: flex; flex-direction: column; gap: .42rem;
+}
+.shift-list li {
+  font-size: .84rem; color: var(--ink-muted); line-height: 1.4;
+  display: flex; gap: .6rem; align-items: baseline;
+}
+.shift-list li::before { content: '—'; color: var(--ink-faint); flex-shrink: 0; }
+.shift-panel--a .shift-list li { color: var(--ink); }
+.shift-panel--a .shift-list li::before { content: '✓'; color: var(--green); font-weight: 600; }
+.shift-mid {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold);
+}
 
-/* hook screenshot */
-.shot{max-width:560px;margin:0 auto;border-radius:26px;overflow:hidden;
-  border:1px solid rgba(255,255,255,.08);box-shadow:0 22px 60px rgba(26,23,20,.45);background:#0b0b0d}
-.shot img{display:block;width:100%}
-.caption{margin-top:1.5rem;font-family:'Playfair Display',serif;font-style:italic;
-  color:var(--ink-faint);font-size:clamp(1rem,2vw,1.35rem)}
+/* S9 solution flow */
+.flow-nodes {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; margin-top: 2.8rem;
+}
+.fnode {
+  background: var(--surface); border: 1.5px solid var(--border-s);
+  border-radius: 18px; padding: 1.9rem 1.6rem;
+  min-width: 185px; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: .7rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,.05);
+}
+.fnode--core {
+  background: var(--ink); border-color: var(--ink);
+  color: var(--cream); min-width: 225px; padding: 2.3rem 1.9rem;
+}
+.fnode-ico { display: flex; align-items: center; justify-content: center; color: var(--ink-muted); }
+.fnode--core .fnode-ico { color: var(--gold); }
+.fnode-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem; font-weight: 500;
+}
+.fnode--core .fnode-title { color: var(--gold); font-size: 1.15rem; }
+.fnode-detail {
+  font-size: .76rem; line-height: 1.5; color: var(--ink-muted);
+  text-align: center; max-width: 17ch;
+}
+.fnode--core .fnode-detail { color: rgba(250,247,242,.58); }
+.farrow {
+  width: 44px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold);
+}
 
-/* three assistants */
-.assistants{display:flex;gap:.7rem;justify-content:center;flex-wrap:wrap;margin-top:1.8rem}
-.assistant{font-size:1rem;padding:11px 22px;border-radius:26px;border:.5px solid var(--border);
-  background:var(--surface);color:var(--ink-muted);font-weight:400;box-shadow:0 1px 5px rgba(0,0,0,.04)}
+/* S10 comparison */
+.compare {
+  display: grid; grid-template-columns: 1fr 1fr;
+  margin-top: 2.6rem; border: 1.5px solid var(--border-s);
+  border-radius: 18px; overflow: hidden;
+}
+.ccol { display: flex; flex-direction: column; }
+.ccol + .ccol { border-left: 1.5px solid var(--border-s); }
+.ccol-head {
+  padding: 1.1rem 2rem;
+  font-size: .67rem; letter-spacing: .18em; text-transform: uppercase;
+  font-weight: 500; border-bottom: 1.5px solid var(--border-s);
+}
+.ccol--them .ccol-head { background: rgba(26,23,20,.03); color: var(--ink-faint); }
+.ccol--us .ccol-head { background: var(--gold-light); color: var(--gold-deep); }
+.crow {
+  padding: .95rem 2rem;
+  font-size: .92rem; line-height: 1.4;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: .75rem;
+}
+.crow:last-child { border-bottom: none; }
+.ccol--them .crow { color: var(--ink-muted); }
+.ccol--them .crow::before { content: '—'; color: var(--ink-faint); flex-shrink: 0; }
+.ccol--us .crow { color: var(--ink); }
+.ccol--us .crow::before { content: '✓'; color: var(--green); font-weight: 600; flex-shrink: 0; }
 
-/* the brand-lands slide */
-.lands .wordmark{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:-.04em;
-  font-size:clamp(4.5rem,15vw,11rem);color:var(--ink);line-height:.9}
-.lands .essence{font-family:'Playfair Display',serif;font-style:italic;color:var(--gold);
-  font-size:clamp(1.2rem,2.6vw,1.9rem);margin-top:1.2rem}
-.trio{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-top:2.2rem}
-.pill{font-size:12px;padding:6px 14px;border-radius:20px;font-weight:300;letter-spacing:.02em}
-.pill.gold{background:var(--gold-light);color:var(--gold-deep)}
-.pill.purple{background:var(--purple-light);color:var(--purple)}
-.pill.green{background:var(--green-light);color:var(--green)}
-
-/* where-we-start */
-.where{display:flex;gap:3rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:2rem}
-.where .place{font-family:'Playfair Display',serif;font-size:clamp(1.6rem,4vw,2.8rem);font-weight:600}
-.where .arrow{color:var(--ink-faint);font-size:1.6rem}
-.where .tag{display:block;font-family:'DM Sans',sans-serif;font-size:.66rem;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--gold-deep);font-weight:400;margin-top:.4rem}
-
-/* speaker notes */
-.notes{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(26,23,20,.96);color:var(--cream);
-  padding:1.4rem 2.2rem 1.6rem;font-size:1.02rem;line-height:1.6;font-weight:300;
-  transform:translateY(110%);transition:transform .35s ease;max-height:44vh;overflow:auto}
-.notes.open{transform:none}
-.notes .nlabel{font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);
-  margin-bottom:.5rem;display:block}
-.notes .ntext{max-width:900px}
-.notes em{font-style:italic;color:var(--gold-light)}
-
-/* chrome */
-.chrome{position:fixed;z-index:10;left:0;right:0;bottom:0;display:flex;align-items:center;
-  justify-content:space-between;padding:1.1rem 2rem;pointer-events:none}
-.brandmark{font-family:'Playfair Display',serif;font-style:italic;font-size:.85rem;color:var(--ink-faint)}
-.dots{display:flex;gap:.5rem;pointer-events:auto}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);opacity:.4;cursor:pointer;transition:all .35s}
-.dot.active{background:var(--gold);opacity:1;transform:scale(1.5)}
-.counter{font-size:.7rem;letter-spacing:.12em;color:var(--ink-faint)}
-.progress-bar{position:fixed;top:0;left:0;height:2px;z-index:11;
-  background:linear-gradient(90deg,var(--purple),var(--gold));transition:width .9s cubic-bezier(.76,0,.24,1)}
-.hint{position:fixed;bottom:1.1rem;left:50%;transform:translateX(-50%);z-index:10;
-  font-size:.62rem;letter-spacing:.16em;color:var(--ink-faint);text-transform:uppercase;
-  animation:fade 5s ease 4s forwards;pointer-events:none}
-@keyframes fade{to{opacity:0}}
+/* S11 vision */
+.vision-quote {
+  font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: clamp(1rem, 1.75vw, 1.42rem);
+  color: rgba(201,168,76,.8); margin-top: 2.8rem;
+  line-height: 1.52; letter-spacing: .01em;
+}
 </style>
 </head>
 <body>
+
 <div class="ambient"></div>
-<div class="progress-bar" id="bar"></div>
+<div class="progress-bar" id="prog"></div>
+<div class="ns-mark" id="nsMark">Every intention deserves an unforgettable evening.</div>
+
+<div class="notes-panel" id="notesPanel">
+  <div class="notes-inner">
+    <div class="notes-label">Speaker notes — press S to hide</div>
+    <div class="notes-body" id="notesBody"></div>
+  </div>
+</div>
+
+<div class="chrome">
+  <div class="dots" id="dots"></div>
+  <div class="counter" id="counter"></div>
+</div>
+<div class="hint">
+  <span>→ advance</span>
+  <span>S notes</span>
+  <span>F fullscreen</span>
+</div>
 
 <div class="deck" id="deck">
 
-  <!-- 1 · HOOK — the real search -->
-  <section class="slide" data-note="(Open cold. No intro. Put the screenshot up and just talk.) This is me. Last month. I'm trying to find somewhere to take my family for a birthday dinner — eight of us, two of them kids who need a bit of room to wriggle. In Tel Aviv. So I did what we all do now: I didn't scroll, I didn't open a map. I just asked.">
+  <!-- S1: The search -->
+  <section class="slide"
+    data-note="Open cold — no intro. Screenshot already up. Talk like telling a friend: last month, birthday dinner, 8 people, two kids who need room. Let the image sit a beat before you speak.">
     <div class="inner">
-      <div class="shot" data-rise><img src="taist-hook-gemini.jpg" alt="A real search to Gemini: a good place to eat in Tel Aviv, 8 people incl. two kids who need space"></div>
-      <p class="caption" data-rise style="--d:.4s">A birthday dinner. Tel Aviv. Eight of us &mdash; two of them kids who need space.</p>
-    </div>
-  </section>
-
-  <!-- 2 · THREE ASSISTANTS -->
-  <section class="slide" data-note="And I didn't just ask once. I brought the exact same question to Gemini. Then to Claude. Then to ChatGPT. The same simple, human request, to the three most capable assistants on the planet.">
-    <div class="inner">
-      <div class="eyebrow" data-rise>The same question, three times</div>
-      <h2 class="line" data-rise style="--d:.1s">I asked <em>all three.</em></h2>
-      <div class="assistants" data-rise style="--d:.3s">
-        <span class="assistant">Gemini</span>
-        <span class="assistant">Claude</span>
-        <span class="assistant">ChatGPT</span>
+      <div class="hook-grid">
+        <div data-rise style="--d:.08s">
+          <div class="hook-img-wrap">
+            <img src="taist-hook-gemini.jpg" alt="Gemini search in Hebrew: looking for a restaurant in Tel Aviv, 8 people, 2 kids">
+          </div>
+          <p class="hook-img-caption">Gemini · last month</p>
+        </div>
+        <div class="hook-text">
+          <span class="eyebrow" data-rise style="--d:.22s">The search</span>
+          <h1 class="line" data-rise style="--d:.36s">
+            Eight of us.<br>Two restless kids.<br><em>One simple ask.</em>
+          </h1>
+          <p class="lede" data-rise style="--d:.52s">
+            I brought the exact same question to Gemini, to Claude, and to ChatGPT —
+            three of the most capable assistants on the planet.
+          </p>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 3 · THE RESULTS -->
-  <section class="slide" data-note="I won't even start with the quality of the answers. But just as an example — some of the venues suggested couldn't even seat eight people. Others were great restaurants that simply don't cater to kids. The AI had no idea what I actually needed. It just pattern-matched on 'Tel Aviv' and 'good food' and handed me a list. Context-free. Taste-free.">
+  <!-- S2: Zero tables (ink) -->
+  <section class="slide slide--ink"
+    data-note="Land 'zero' hard. Full stop. Pause — let it sit. Then pivot to the restaurant. Two parties who wanted each other and never connected.">
     <div class="inner">
-      <div class="eyebrow" data-rise>The discovery</div>
-      <h2 class="line" data-rise style="--d:.1s">Options that couldn&rsquo;t<br><em>actually host us.</em></h2>
-      <p class="lede" data-rise style="--d:.4s">No context. No capacity check. No memory of what I actually need.</p>
+      <span class="eyebrow" data-rise style="--d:.1s">The result</span>
+      <h2 class="line line--xl" data-rise style="--d:.28s">
+        I booked exactly<br><em>zero tables.</em>
+      </h2>
+      <p class="lede" data-rise style="--d:.52s">
+        Somewhere in this city, a restaurant with a big table and room for kids
+        was open that evening — and never knew we were asking.
+      </p>
     </div>
   </section>
 
-  <!-- 4 · ZERO (dark) -->
-  <section class="slide slide--ink" data-note="And even setting the quality aside — here's the only number that matters. I booked exactly zero tables. Three of the most powerful AIs on earth, one family ready to spend, and not one booked table. That's not my problem — I'll find somewhere. It's a problem for the venues. Because somewhere in this city, a restaurant with a big table and a kitchen that's kind to kids wanted exactly us that night… and never knew we were asking.">
+  <!-- S3: The double loss -->
+  <section class="slide"
+    data-note="Two sides of the same broken moment. The guest gave up on the night. The restaurant kept an empty table. Make them feel both sides — this isn't a tech story, it's a people story.">
     <div class="inner">
-      <h2 class="line" data-rise>I booked exactly<br><em>zero tables.</em></h2>
-      <p class="lede" data-rise style="--d:.45s">And that&rsquo;s not my problem. It&rsquo;s a very big problem &mdash; for the venues.</p>
-    </div>
-  </section>
-
-  <!-- 4 · THE STAKES -->
-  <section class="slide" data-note="Because here's what's actually happening underneath. We've stopped scrolling. We stopped opening ten blue links. We just ask — and the assistant answers with a handful of names, and stops. So if you're a restaurant, the whole game just changed. You're in that answer… or you don't exist.">
-    <div class="inner">
-      <div class="eyebrow" data-rise>What just changed</div>
-      <h2 class="line" data-rise style="--d:.1s">You&rsquo;re in the answer &mdash;<br><em>or you don&rsquo;t exist.</em></h2>
-    </div>
-  </section>
-
-  <!-- 5 · THE RACE -->
-  <section class="slide" data-note="So everyone is racing to get into that answer. There are two obvious ways. One: feed the AI better content — reviews, tags, fresh menus — so it picks you. Two: become the tool it books through. Be the pipe.">
-    <div class="inner">
-      <div class="eyebrow" data-rise>The race</div>
-      <h2 class="line" data-rise style="--d:.1s">Everyone is fighting<br>to be <em>in the answer.</em></h2>
-    </div>
-  </section>
-
-  <!-- 6 · THE TRAP -->
-  <section class="slide" data-note="Here's the trap. The content game — anyone copies it by Tuesday. A race to the bottom. And the pipe? The giants already own it. OpenTable is the exclusive partner inside ChatGPT. Google owns the default. Be a popular pipe, and the platform either builds you natively, or hands your slot to someone else. The pipe gets you replaced.">
-    <div class="inner">
-      <div class="eyebrow" data-rise>The trap</div>
-      <h2 class="line" data-rise style="--d:.1s">Both paths already belong<br>to <em>the giants.</em></h2>
-    </div>
-  </section>
-
-  <!-- 7 · THE INSIGHT -->
-  <section class="slide" data-note="But look underneath. Below the content, below the booking, there's a third layer — and almost no one is standing on it. The giants own what's available. They own how you pay. But they do not own what you love. They don't own taste — and they don't know that I'm the dad with two restless kids who needs a big table and a kitchen that's kind to children.">
-    <div class="inner">
-      <div class="eyebrow" data-rise>Underneath it all</div>
-      <h2 class="line" data-rise style="--d:.1s">Nobody owns <em>taste.</em></h2>
-    </div>
-  </section>
-
-  <!-- 8 · THE MOAT (dark) -->
-  <section class="slide slide--ink" data-note="And taste — with memory — is the one thing a foundation model cannot retrain into existence. Because it never sees it. It isn't on the public internet. It lives in the quiet accumulation of one person's choices, and what they loved afterward. That compounds. For you. And no one can take it.">
-    <div class="inner">
-      <h2 class="line" data-rise>Taste, with memory,<br>can&rsquo;t be retrained<br><em>into existence.</em></h2>
-      <p class="lede" data-rise style="--d:.4s">A model can&rsquo;t own what it never sees.</p>
-    </div>
-  </section>
-
-  <!-- 10 · TAIST (the name lands) -->
-  <section class="slide lands" data-note="That's Taist. The taste and context layer that sits inside the assistant. It knows the diner — it knows me, it knows I have two kids, it knows we need a table for eight and a kitchen that doesn't mind children. So the options it surfaces aren't just good restaurants. They're valid ones — places that can actually host us tonight. And then it doesn't just hand you a list and wish you luck. It seals the deal. It books the table.">
-    <div class="inner">
-      <div class="wordmark" data-rise>Taist</div>
-      <div class="essence" data-rise style="--d:.25s">valid options, not just suggestions &mdash; and it closes</div>
-      <div class="trio" data-rise style="--d:.5s">
-        <span class="pill gold">Knows your context</span>
-        <span class="pill purple">Surfaces valid options</span>
-        <span class="pill green">Books &mdash; doesn&rsquo;t just suggest</span>
+      <span class="eyebrow" data-rise style="--d:.1s">One search. Two losses.</span>
+      <h2 class="line line--sm" data-rise style="--d:.25s">
+        When discovery fails,<br>everyone <em>loses.</em>
+      </h2>
+      <div class="loss-panels" data-rise style="--d:.44s">
+        <div class="loss-panel loss-panel--l">
+          <svg class="lp-icon" viewBox="0 0 60 60" fill="none">
+            <circle cx="30" cy="17" r="8" stroke="#5B4B8A" stroke-width="1.5" fill="rgba(91,75,138,.1)"/>
+            <path d="M14 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M10 52h40" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M14 46v6M46 46v6" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M10 50c0-2.209 1.791-4 4-4h32c2.209 0 4 1.791 4 4" stroke="#5B4B8A" stroke-width="1.5"/>
+          </svg>
+          <div class="lp-title">The evening was abandoned.</div>
+          <div class="lp-sub">Fatigue. Too many tabs. The night stayed home.</div>
+        </div>
+        <div class="loss-panel loss-panel--r">
+          <svg class="lp-icon" viewBox="0 0 60 60" fill="none">
+            <ellipse cx="30" cy="32" rx="22" ry="13" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
+            <circle cx="30" cy="18" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
+            <circle cx="30" cy="46" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
+            <circle cx="12" cy="32" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
+            <circle cx="48" cy="32" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
+          </svg>
+          <div class="lp-title">The table stayed empty.</div>
+          <div class="lp-sub">The right venue — with space, with availability — waited for guests who never came.</div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- 10 · WHY NOW / WHERE -->
-  <section class="slide" data-note="And the moment is now. Discovery is being rewritten this year — and in Europe, the old guard is in disarray: one platform shutting down, one up for sale, one swallowed by a delivery company. So we prove it where we live — Tel Aviv, a market the giants haven't taken — and then we walk through the open door into Europe.">
+  <!-- S4: The fragmented journey -->
+  <section class="slide"
+    data-note="Walk through every step. Let the audience count them. Each one reasonable. And yet — nothing at the end. The visual does the work; your voice guides them through the fatigue.">
     <div class="inner">
-      <div class="eyebrow" data-rise>The window is open &mdash; and timed</div>
-      <div class="where">
-        <div data-rise style="--d:.1s"><span class="place">Tel Aviv</span><span class="tag">prove it where we live</span></div>
-        <span class="arrow" data-rise style="--d:.25s">&rarr;</span>
-        <div data-rise style="--d:.4s"><span class="place">Europe</span><span class="tag">walk through the open door</span></div>
+      <span class="eyebrow" data-rise style="--d:.1s">How we search today</span>
+      <h2 class="line line--sm" data-rise style="--d:.24s">
+        Seven touchpoints.<br>Forty minutes.<br><em>Still nothing certain.</em>
+      </h2>
+      <div class="journey-outer" data-rise style="--d:.42s">
+        <div class="journey-row">
+          <div class="jchip">
+            <span class="jchip-ico">🔍</span>
+            <span class="jchip-name">Google it</span>
+            <span class="jchip-sub">Start searching</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📍</span>
+            <span class="jchip-name">Open Maps</span>
+            <span class="jchip-sub">Scan area</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📸</span>
+            <span class="jchip-name">Instagram</span>
+            <span class="jchip-sub">Check the vibe</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">⭐</span>
+            <span class="jchip-name">Read reviews</span>
+            <span class="jchip-sub">40+ of them</span>
+          </div>
+        </div>
+        <div class="jdown">
+          <svg width="22" height="20" viewBox="0 0 22 20" fill="none"><path d="M11 1v15M5 11l6 6 6-6" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="journey-row" style="flex-direction:row-reverse;justify-content:flex-end">
+          <div class="jchip jchip--end">
+            <span class="jchip-ico">❓</span>
+            <span class="jchip-name">Give up</span>
+            <span class="jchip-sub">Start over</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📞</span>
+            <span class="jchip-name">Phone call</span>
+            <span class="jchip-sub">No table for 8</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📅</span>
+            <span class="jchip-name">Try to book</span>
+            <span class="jchip-sub">OpenTable, Wolt…</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">🌐</span>
+            <span class="jchip-name">Website</span>
+            <span class="jchip-sub">Find info</span>
+          </div>
+        </div>
+        <p class="journey-stat" data-rise style="--d:.6s">
+          <strong>This is venue discovery in 2025.</strong>
+          None of these tools knew I had two kids — or that I needed a kitchen kind to children.
+        </p>
       </div>
     </div>
   </section>
 
-  <!-- 12 · CLOSE (dark) -->
-  <section class="slide slide--ink" data-note="And that birthday dinner — eight of us, two restless kids? With Taist, the answer already knows what we need. It doesn't send me venues that seat six. It doesn't suggest places with no room for children. It finds the one that can actually host us. And then it books the table. Not a list. Not ten blue links. A confirmed reservation. And it remembers — so next year, I don't start from zero. When the world asks an AI where to eat… Taist is the answer.">
+  <!-- S5: The intent problem (ink) -->
+  <section class="slide slide--ink"
+    data-note="The intellectual pivot. Slow right down. The real problem isn't bad UX — it's a mismatch between how humans express intent and how software receives it. Pause between the two lines.">
     <div class="inner">
-      <h2 class="line" data-rise>When the world asks an AI<br>where to eat &mdash;<br><em>Taist is the answer.</em></h2>
-      <p class="lede" data-rise style="--d:.5s">Valid options. A confirmed table. And next year, I don&rsquo;t start from zero.</p>
+      <span class="eyebrow" data-rise style="--d:.1s">The real problem</span>
+      <h2 class="line" data-rise style="--d:.28s">
+        People think<br>in <em>experiences.</em>
+      </h2>
+      <h2 class="line line--dim" data-rise style="--d:.46s">
+        Systems think<br>in filters.
+      </h2>
+      <p class="lede lede--narrow" data-rise style="--d:.66s">
+        "Somewhere with room for kids, good cocktails, available Friday, that can host eight" —
+        that's not a filter combination. It's an intention. And no current system knows how to hear it.
+      </p>
+    </div>
+  </section>
+
+  <!-- S6: Why now -->
+  <section class="slide"
+    data-note="Market timing — not a complaint, an observation. The shift is already happening. AI is learning to understand natural language. Discovery is being rewritten. We are building at exactly the right moment.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">The inflection</span>
+      <h2 class="line line--sm" data-rise style="--d:.24s">
+        For decades, we learned<br>to talk to software.
+      </h2>
+      <div class="shift-wrap" data-rise style="--d:.42s">
+        <div class="shift-panel shift-panel--b">
+          <div class="shift-era">Until now</div>
+          <div class="shift-head">You adapt<br>to software.</div>
+          <ul class="shift-list">
+            <li>Learn the right keywords</li>
+            <li>Apply the right filters</li>
+            <li>Visit multiple platforms</li>
+            <li>Make sense of results yourself</li>
+          </ul>
+        </div>
+        <div class="shift-mid">
+          <svg width="20" height="34" viewBox="0 0 20 34" fill="none">
+            <path d="M10 2v26M3 22l7 8 7-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="shift-panel shift-panel--a">
+          <div class="shift-era">Now</div>
+          <div class="shift-head">Software adapts<br>to you.</div>
+          <ul class="shift-list">
+            <li>Describe what you want, naturally</li>
+            <li>Context is understood</li>
+            <li>One conversation does the work</li>
+            <li>Intent becomes action</li>
+          </ul>
+        </div>
+      </div>
+      <span class="caption" data-rise style="--d:.62s">Discovery is being rewritten. This is the window.</span>
+    </div>
+  </section>
+
+  <!-- S7: The opportunity -->
+  <section class="slide"
+    data-note="Don't lead with TAM numbers — lead with the moments. Every meal, every birthday, every date night — those are the units of this market. Then zoom out: that intent is moving to AI surfaces, and the infrastructure to capture it doesn't exist yet.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">The opportunity</span>
+      <h2 class="line" data-rise style="--d:.26s">
+        Every meal.<br>Every celebration.<br><em>Every night out.</em>
+      </h2>
+      <p class="lede" data-rise style="--d:.5s">
+        These moments begin with human intent — and that intent is moving to AI surfaces.
+        What's missing is the infrastructure that <strong>hears it, understands it,
+        and converts it into a confirmed booking.</strong>
+      </p>
+      <p class="lede lede--italic" data-rise style="--d:.65s">
+        We are not creating demand. We are capturing demand that already exists —
+        and today falls through the cracks.
+      </p>
+    </div>
+  </section>
+
+  <!-- S8: The solution (ink) -->
+  <section class="slide slide--ink"
+    data-note="One sentence. Say it slowly, once. Don't expand or explain. The sentence is complete. After you finish — pause. Let it land.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">Taist</span>
+      <h2 class="line line--sm" data-rise style="--d:.32s">
+        People describe the experience they want.
+        Our platform understands that intent,
+        finds venues with <em>real availability,</em>
+        and converts the search directly into
+        a confirmed booking.
+      </h2>
+    </div>
+  </section>
+
+  <!-- S9: How it works -->
+  <section class="slide"
+    data-note="Keep it visual, keep it simple. Three steps — each obvious. The audience should be nodding. The complexity lives inside Taist; they only see clean input and clean output.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">How it works</span>
+      <div class="flow-nodes" data-rise style="--d:.3s">
+        <div class="fnode">
+          <div class="fnode-ico">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+              <rect x="3" y="7" width="24" height="17" rx="4" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M9 13h12M9 18h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M15 7V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="fnode-title">You describe it</div>
+          <div class="fnode-detail">"8 people, 2 kids, Friday, space to move, good drinks"</div>
+        </div>
+        <div class="farrow">
+          <svg width="36" height="14" viewBox="0 0 36 14" fill="none">
+            <path d="M2 7h28M22 2.5l8 4.5-8 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="fnode fnode--core">
+          <div class="fnode-ico">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+              <path d="M15 3l2.6 8H26l-6.8 5 2.6 8L15 19.4 8.2 24l2.6-8L4 11h8.4z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="fnode-title">Taist</div>
+          <div class="fnode-detail">Understands intent · validates real availability · surfaces best-fit venues</div>
+        </div>
+        <div class="farrow">
+          <svg width="36" height="14" viewBox="0 0 36 14" fill="none">
+            <path d="M2 7h28M22 2.5l8 4.5-8 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="fnode">
+          <div class="fnode-ico">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+              <path d="M5 17c0-5.523 4.477-10 10-10s10 4.477 10 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M5 17h20" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <circle cx="15" cy="24" r="2.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M11 20v4M19 20v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="fnode-title">Table confirmed</div>
+          <div class="fnode-detail">The right venue. The right evening.</div>
+        </div>
+      </div>
+      <span class="caption" data-rise style="--d:.55s">The intent is the input. The evening is the output.</span>
+    </div>
+  </section>
+
+  <!-- S10: Why different -->
+  <section class="slide"
+    data-note="Walk the contrast. Let the table speak. The insight is structural: existing platforms optimise for the platform. Taist optimises for the match — for the guest and for the venue.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">Why we're different</span>
+      <h2 class="line line--sm" data-rise style="--d:.24s">
+        Not another filter.<br><em>An understanding.</em>
+      </h2>
+      <div class="compare" data-rise style="--d:.44s">
+        <div class="ccol ccol--them">
+          <div class="ccol-head">Existing platforms</div>
+          <div class="crow">Optimise filters</div>
+          <div class="crow">Return lists</div>
+          <div class="crow">Stop at discovery</div>
+          <div class="crow">Any available guest</div>
+        </div>
+        <div class="ccol ccol--us">
+          <div class="ccol-head">Taist</div>
+          <div class="crow">Understand experiences</div>
+          <div class="crow">Make recommendations</div>
+          <div class="crow">Complete the journey</div>
+          <div class="crow">Best-fit guests, matched</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S11: Vision (ink) -->
+  <section class="slide slide--ink"
+    data-note="The close. Slow right down. 'As AI becomes the primary interface for the physical world' — that's the macro frame. Then narrow to restaurants. End with the north star. The final line should stay with them.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">The vision</span>
+      <h2 class="line line--sm" data-rise style="--d:.3s">
+        As AI becomes the primary interface<br>
+        for <em>discovering the physical world,</em><br>
+        every agent will need a way<br>
+        to understand human intent<br>
+        and convert it into real-world experiences.
+      </h2>
+      <p class="lede" data-rise style="--d:.58s">
+        We start with restaurants — the highest-frequency, highest-intent,
+        transaction-ready category — and we build the layer every AI will rely on.
+      </p>
+      <div class="vision-quote" data-rise style="--d:.82s">
+        Every intention deserves an unforgettable evening.
+      </div>
     </div>
   </section>
 
 </div>
-
-<div class="notes" id="notes"><span class="nlabel">Say it like this</span><div class="ntext" id="ntext"></div></div>
-
-<div class="chrome">
-  <div class="brandmark">Taist</div>
-  <div class="dots" id="dots"></div>
-  <div class="counter" id="counter">01 / 11</div>
-</div>
-<div class="hint">← → · space to advance · press S for the script</div>
 
 <script>
-const deck=document.getElementById('deck');
-const slides=[...document.querySelectorAll('.slide')];
-const dotsWrap=document.getElementById('dots');
-const counter=document.getElementById('counter');
-const bar=document.getElementById('bar');
-const notes=document.getElementById('notes');
-const ntext=document.getElementById('ntext');
-const total=slides.length;
-let cur=0, notesOpen=false;
+const deck   = document.getElementById('deck');
+const slides = Array.from(document.querySelectorAll('.slide'));
+const prog   = document.getElementById('prog');
+const dotsEl = document.getElementById('dots');
+const ctrEl  = document.getElementById('counter');
+const notesPnl = document.getElementById('notesPanel');
+const nbody  = document.getElementById('notesBody');
+const nsMark = document.getElementById('nsMark');
+let cur = 0, notesOpen = false;
+const N = slides.length;
 
-slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot';
-  d.addEventListener('click',e=>{e.stopPropagation();go(i);});dotsWrap.appendChild(d);});
-const dots=[...dotsWrap.children];
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.addEventListener('click', () => go(i));
+  dotsEl.appendChild(d);
+});
 
-function render(){
-  deck.style.transform=`translateX(-${cur*100}vw)`;
-  slides.forEach((s,i)=>s.classList.toggle('active',i===cur));
-  dots.forEach((d,i)=>d.classList.toggle('active',i===cur));
-  counter.textContent=`${String(cur+1).padStart(2,'0')} / ${String(total).padStart(2,'0')}`;
-  bar.style.width=`${((cur+1)/total)*100}%`;
-  ntext.textContent=slides[cur].getAttribute('data-note')||'';
-  const ink=slides[cur].classList.contains('slide--ink');
-  document.querySelector('.brandmark').style.color=ink?'rgba(250,247,242,.5)':'';
-  counter.style.color=ink?'rgba(250,247,242,.5)':'';
+function render() {
+  deck.style.transform = `translateX(-${cur * 100}vw)`;
+  const allDots = dotsEl.querySelectorAll('.dot');
+  slides.forEach((s, i) => {
+    s.classList.toggle('active', i === cur);
+    allDots[i].classList.toggle('on', i === cur);
+  });
+  ctrEl.textContent = `${String(cur + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
+  prog.style.width   = `${((cur + 1) / N) * 100}%`;
+  document.body.classList.toggle('on-ink', slides[cur].classList.contains('slide--ink'));
+  nsMark.classList.toggle('show', cur >= 4);
+  nbody.textContent = slides[cur].dataset.note || '';
 }
-function go(i){cur=Math.max(0,Math.min(total-1,i));render();}
-function next(){go(cur+1);}
-function prev(){go(cur-1);}
-function toggleNotes(){notesOpen=!notesOpen;notes.classList.toggle('open',notesOpen);}
 
-document.addEventListener('keydown',e=>{
-  switch(e.key){
-    case 'ArrowRight':case 'ArrowDown':case ' ':case 'PageDown':
-      e.preventDefault();next();break;
-    case 'ArrowLeft':case 'ArrowUp':case 'PageUp':
-      e.preventDefault();prev();break;
-    case 'Home':e.preventDefault();go(0);break;
-    case 'End':e.preventDefault();go(total-1);break;
-    case 's':case 'S':case 'n':case 'N':e.preventDefault();toggleNotes();break;
-    case 'f':case 'F':
-      if(!document.fullscreenElement)document.documentElement.requestFullscreen();
-      else document.exitFullscreen();break;
+function go(i) { cur = Math.max(0, Math.min(N - 1, i)); render(); }
+const next = () => go(cur + 1);
+const prev = () => go(cur - 1);
+
+document.addEventListener('keydown', e => {
+  if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) { e.preventDefault(); next(); }
+  else if (['ArrowLeft', 'PageUp'].includes(e.key))    { e.preventDefault(); prev(); }
+  else if (e.key === 'Home') { e.preventDefault(); go(0); }
+  else if (e.key === 'End')  { e.preventDefault(); go(N - 1); }
+  else if (e.key === 'f' || e.key === 'F') {
+    document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  }
+  else if (e.key === 's' || e.key === 'S') {
+    notesOpen = !notesOpen;
+    notesPnl.classList.toggle('open', notesOpen);
   }
 });
-document.addEventListener('click',e=>{
-  if(e.target.closest('.dots')||e.target.closest('.notes'))return;
+
+document.addEventListener('click', e => {
+  if (e.target.closest('.dots') || e.target.closest('.notes-panel') || e.target.closest('.hint')) return;
   next();
 });
+
 render();
 </script>
 </body>

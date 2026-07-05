@@ -1,68 +1,107 @@
-# Taist — the pitch, told as a story
+# Taist — the pitch, spoken
 
-A spoken script for the click-through deck (`taist-pitch.html`).
-One thought per slide. The slide holds the room; **your voice carries the message.**
-Advance on the line marked **▸**. Press `S` in the deck to see these notes on screen while you rehearse.
+A rehearsal script aligned to the 11-slide deck (`taist-pitch.html`).
+One thought per slide. The slide holds the room; **your voice carries the story.**
+Advance on the line marked **▸**. Press `S` in the deck to see these notes while you rehearse.
 
-Total runtime ≈ 3 minutes. Slow down. The pauses are the point.
+Total runtime ≈ 3–4 minutes. Slow down. The pauses are the point.
 
 ---
 
-### The weave
-Your real story runs through the whole pitch: searching for a birthday-dinner venue — eight people, two kids who need space — across Gemini, Claude, and ChatGPT, and booking **zero tables**. We open on that. We close on Taist having fixed it — and remembering, so *next year you don't start from zero.* Everything between is why that matters.
+### The thread
+The protagonist of this story is not AI and not restaurants — it's **human intent.** A dad who wants to take his family somewhere good. That intent is real and specific, and the whole world currently fails to hear it. Open on that. Close on it being solved. Everything in between is *why* that matters, and *how.*
 
 ---
 
 ## ▸ Slide 1 — The search *(the screenshot)*
-*(Open cold. No title, no intro. Put the screenshot up and just talk — like you're telling a friend what happened.)*
+*(Open cold. No title, no "hi I'm…". The image is already on screen. Talk like you're telling a friend what happened.)*
 
-> "This is me. Last month. I'm trying to find somewhere to take my family for a birthday dinner — eight of us, two of them kids who need a bit of room to wriggle. In Tel Aviv. So I did what we all do now. I didn't scroll. I didn't open a map. I just **asked.**"
-
-## ▸ Slide 2 — I asked all three
-> "And I didn't ask once. I brought the exact same question to Gemini. Then to Claude. Then to ChatGPT. One simple, human request — to the three most capable assistants on the planet."
-
-## ▸ Slide 3 — Zero tables *(dark)*
-> "I won't even get into the results — let's just say, underwhelming. But forget the quality for a second. Here's the only number that matters: **I booked exactly zero tables.** Three of the most powerful AIs on earth, one family ready to spend — and not one booked table."
+> "This is me. Last month. I'm trying to take my family for a birthday dinner — eight of us, two kids who need a bit of room to move around. In Tel Aviv. So I did what we all do now. I didn't scroll. I didn't open a map. I just **asked.**"
 >
-> *(beat)*
+> "And not once. I brought the exact same question to Gemini, to Claude, and to ChatGPT. Three of the most capable assistants on the planet. One simple, human request."
+
+## ▸ Slide 2 — Zero tables *(dark)*
+> "I won't even get into the quality of the results. Let's just focus on the one number that matters: **I booked exactly zero tables.**"
 >
-> "And that's a very big problem. Not for me — I'll find somewhere. It's a problem for the **venues.** Because somewhere in this city, a restaurant with a big table and room for kids wanted exactly us that night… and never knew we were asking."
-
-## ▸ Slide 4 — In the answer, or invisible
-> "Because here's what's actually happening underneath. We've stopped scrolling. We stopped opening ten blue links. We just ask — and the assistant answers with a handful of names, and stops. So if you're a restaurant, the whole game just changed. You're in that answer… **or you don't exist.**"
-
-## ▸ Slide 5 — The race
-> "So everyone is racing to get into that answer. Two obvious ways. One — feed the AI better content so it picks you. Two — become the tool it books through. Be the pipe."
-
-## ▸ Slide 6 — The trap
-> "Here's the trap. The content game? Anyone copies it by Tuesday — a race to the bottom. And the pipe? The giants already own it. OpenTable is the exclusive partner inside ChatGPT. Google owns the default. Be a popular pipe, and the platform either builds you natively — or hands your slot to someone else. **The pipe gets you replaced.**"
-
-## ▸ Slide 7 — Nobody owns taste
-> "But look underneath. Below the content, below the booking, there's a third layer — and almost no one is standing on it. The giants own what's *available*. They own how you *pay*. But they do not own what you **love.** They don't own taste — and they have no idea I'm the dad with two restless kids who needs a big table and a kitchen that's kind to children."
-
-## ▸ Slide 8 — The moat *(dark)*
-> "And taste — with memory — is the one thing a model cannot retrain into existence. Because it never sees it. It isn't on the public internet. It lives in the quiet accumulation of one person's choices, and what they loved afterward. That **compounds.** For you. And no one can take it."
-
-## ▸ Slide 9 — Taist *(the name lands)*
-> "That's **Taist.** The taste and context layer that sits inside the assistant. It knows the diner — it knows me, and my two kids. It covers the long tail the giants never even see. And it hands off, cleanly, to whoever can actually book the table. The connection is how we deliver. The taste is what we own."
-
-## ▸ Slide 10 — Why now / where
-> "And the moment is now. Discovery is being rewritten this year — and in Europe, the old guard is in disarray: one platform shutting down, one up for sale, one swallowed by a delivery company. So we prove it where we live — Tel Aviv, a market the giants haven't taken — and then we walk through the open door into Europe."
-
-## ▸ Slide 11 — The close *(dark)*
-> "And that birthday dinner — eight of us, two restless kids? With **Taist**, the answer already knows. It knows we need space, and a kitchen that's kind to children. It finds the place that wanted us. It books the table. And it remembers — so next year, I don't start from zero."
+> *(pause — full beat)*
 >
-> *(beat)*
+> "And somewhere in this city, a restaurant with a big table and room for kids was open that evening — and never knew we were asking."
+
+## ▸ Slide 3 — The double loss
+> "Because here's what actually happened. The search went on too long. The tabs piled up. At some point — you just stop. The night stays home."
 >
-> "When the world asks an AI where to eat… **Taist is the answer.**"
+> "And on the other side of this city, a restaurant set their tables for Friday evening. They had space. They had the right kitchen. They wanted exactly us. They just never had the chance to say so."
+>
+> "One failed search. Two real losses. And this happens **every single night,** everywhere."
+
+## ▸ Slide 4 — The fragmented journey
+> "So let's look at how this actually works today. You Google it. You open Maps. You go to Instagram to check the vibe. You read forty reviews. You find the website. You try to book — OpenTable, Wolt, whatever's linked. You call. There's no table for eight."
+>
+> *(let the visual count the steps)*
+>
+> "Seven steps. Forty minutes. And I still didn't know if the place could handle two kids."
+>
+> "None of these tools had any idea what I actually needed — because none of them were listening to me. They were waiting for me to speak their language."
+
+## ▸ Slide 5 — The intent problem *(dark)*
+> "And that's the real problem. Not the number of steps. Not the bad recommendations."
+>
+> "People think in **experiences.** 'Somewhere with room for kids, good cocktails, a Friday table for eight, a kitchen that's kind to children.' That is an intention — it's rich, it's human, it's specific."
+>
+> *(pause)*
+>
+> "Systems think in filters. Two dropdown menus and a star rating. The gap between those two things is where every night out gets lost."
+
+## ▸ Slide 6 — The inflection
+> "Here's what's changing. For decades, we adapted to software. We learned the right search terms. We applied the right filters. We opened ten tabs and made sense of it ourselves."
+>
+> "Now — for the first time — software is learning to adapt to us. To understand natural language. To hear an intention and act on it."
+>
+> "Discovery is being rewritten right now, in real time. **This is the window.**"
+
+## ▸ Slide 7 — The opportunity
+> "And the opportunity is enormous — not in the abstract TAM sense, but in the human sense. Every meal out starts with intent. Every date night. Every birthday dinner. Every work celebration."
+>
+> "Those moments are moving to AI surfaces. People are asking assistants. The question is: **who captures that intent and converts it into a booking?**"
+>
+> "We are not creating new demand. We are capturing demand that already exists — and today falls through the cracks."
+
+## ▸ Slide 8 — The solution *(dark)*
+*(Say this once, slowly. Then stop.)*
+
+> "People describe the experience they want. Our platform understands that intent, finds venues with real availability, and converts the search directly into a confirmed booking."
+>
+> *(pause)*
+
+## ▸ Slide 9 — How it works
+> "Three steps. You describe what you want — in plain language, the way you'd tell a friend. Taist hears that, matches it against venues with real, live availability, and surfaces the options that actually fit. Then it completes the booking. Not a link to another platform. Not a list to sift through. **A confirmation.**"
+>
+> "The intent is the input. The evening is the output."
+
+## ▸ Slide 10 — Why we're different
+> "Every platform out there optimises filters. It returns a list. It stops when you click. The assumption is that discovery is the job — what you do with the result is your problem."
+>
+> "We disagree. The job is the evening. The job is making sure the right guests find the right venue, and that it actually happens. **We complete the journey.** And we help venues welcome the guests who were always looking for them."
+
+## ▸ Slide 11 — The vision *(dark)*
+> "As AI becomes the primary interface for discovering the physical world — every restaurant, every experience, every place worth going — every agent will need a layer that understands human intent and converts it into real-world bookings."
+>
+> "We start with restaurants. Highest frequency. Highest intent. Transaction-ready. We prove it where we live — Tel Aviv, a market the giants haven't taken — and then we walk through the open door into Europe."
+>
+> *(pause — full beat)*
+>
+> "**Every intention deserves an unforgettable evening.**"
 
 ---
 
 ## Delivery notes
-- **Open cold on the screenshot.** No "hi, I'm…", no agenda slide. The first thing the room sees is your real, failed search. That *is* the hook.
-- **"Zero" is the heartbeat.** Land it on slide 3, and pay it off on slide 11 ("I don't start from zero"). If you only nail two moments, nail those.
-- **The numbers stay in your mouth, not on the wall.** Zero tables, the three failing incumbents — say them, don't slide them.
-- **Three dark slides (3, 8, 11) are your turns.** Drop your voice. Slow down. Let them land.
-- **The name is withheld until slide 9.** It arrives as the *answer* the story earned — lean into that.
-- **You are the dad with two kids the whole way through.** That's the thread. It makes a market thesis feel like a person.
-- **Keep the visuals quiet on purpose.** If the room is reading the slide, they're not listening to you. The slide is a held breath; you are the sentence.
+
+- **Open cold on the screenshot.** No intro, no agenda slide. The first thing the room sees is a real failed search. That *is* the hook.
+- **"Zero" is the heartbeat of the pitch.** Land it hard on slide 2. Pause after it. Then use the silence.
+- **The double loss (slide 3) is the emotional core.** Make them feel both sides — the guest who stayed home, the restaurant that waited. If you rush this, you lose the human thread.
+- **Let the journey map (slide 4) do the work.** Your voice just narrates the count. The audience sees the fatigue accumulate.
+- **Three dark slides (2, 5, 8, 11) are your turns to slow down.** Drop the pace. Let the ink hold the room.
+- **The solution (slide 8) is one sentence.** Say it once, slowly. Don't explain. Don't expand. Trust it.
+- **The name appears on slide 8 — not before.** It arrives as the answer the story earned.
+- **You are the dad with two kids the whole way through.** That's the thread. It turns a market thesis into a person.
+- **"Every intention deserves an unforgettable evening."** Sit on it. That's the last thing they hear.
