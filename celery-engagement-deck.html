@@ -104,13 +104,13 @@
   .meta b{color:var(--ink-2);font-weight:600;}
 
   /* ---------- funnel (real funnel shape) ---------- */
-  .funnel{display:flex;flex-direction:column;align-items:center;gap:0;width:100%;max-width:560px;margin:0 auto;}
-  .tier{width:100%;color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;position:relative;}
-  .tier .tl{font-family:var(--display);font-weight:650;font-size:15px;}
-  .tier .tv{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:12px;opacity:.95;}
-  .t1{height:70px;background:linear-gradient(180deg,#caa03a,var(--amber));clip-path:polygon(0 0,100% 0,85% 100%,15% 100%);}
-  .t2{height:66px;background:linear-gradient(180deg,var(--teal),#0f7377);clip-path:polygon(15% 0,85% 0,72% 100%,28% 100%);}
-  .t3{height:66px;background:linear-gradient(180deg,var(--green),#227a51);clip-path:polygon(28% 0,72% 0,60% 100%,40% 100%);}
+  .funnel{display:flex;flex-direction:column;align-items:center;gap:0;width:100%;max-width:660px;margin:0 auto;}
+  .tier{width:100%;color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;position:relative;padding:4px 8px;}
+  .tier .tl{font-family:var(--display);font-weight:650;font-size:16px;line-height:1.1;}
+  .tier .tv{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:11.5px;opacity:.95;margin-top:2px;}
+  .t1{min-height:86px;background:linear-gradient(180deg,#caa03a,var(--amber));clip-path:polygon(0 0,100% 0,90% 100%,10% 100%);}
+  .t2{min-height:84px;background:linear-gradient(180deg,var(--teal),#0f7377);clip-path:polygon(10% 0,90% 0,81% 100%,19% 100%);}
+  .t3{min-height:88px;background:linear-gradient(180deg,var(--green),#227a51);clip-path:polygon(19% 0,81% 0,73% 100%,27% 100%);}
   .leak{display:flex;align-items:center;gap:8px;color:var(--red);font-size:12.5px;font-weight:600;align-self:flex-end;margin:6px 0;}
   .leak .arr{font-size:16px;}
 
@@ -275,6 +275,46 @@
 
   .note{font-size:12.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:10px;margin-top:2px;}
 
+  /* ceremony cards */
+  .cer{display:flex;flex-direction:column;gap:13px;}
+  .cer-ic{width:52px;height:52px;border-radius:14px;background:var(--teal-050);display:grid;place-items:center;}
+  .cer-ic svg{width:27px;height:27px;stroke:var(--teal);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .cer h3{font-size:20px;}
+  .cer-p{margin:0;font-size:15px;color:var(--ink-2);line-height:1.5;}
+  .cer-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;font-size:13px;color:var(--ink-2);}
+  .cer-foot b{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--teal);margin-bottom:3px;font-weight:600;}
+
+  /* payslip canned + snapshot */
+  .cta-row{display:flex;gap:9px;align-items:center;margin-top:11px;flex-wrap:wrap;}
+  .btn.big{padding:11px 18px;font-size:13.5px;}
+  .canned{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
+  .cbox{border:1px dashed var(--line-2);border-radius:9px;padding:10px 12px;font-size:12.5px;color:var(--ink-3);font-style:italic;line-height:1.4;}
+  .cbox b{color:var(--teal);font-style:normal;}
+  .miniline{display:flex;justify-content:space-between;font-size:12.5px;padding:7px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;color:var(--ink-2);}
+  .miniline:last-child{border-bottom:none;}
+  .miniline.flag{color:var(--red);font-weight:700;}
+  .miniline .cd{color:var(--ink-3);font-family:var(--mono);font-size:11px;margin-right:5px;}
+  .viewfull{font-size:11.5px;color:var(--teal);margin-top:8px;display:inline-block;}
+
+  /* readout audit */
+  .bkrow.clk{cursor:pointer;border-radius:8px;padding:5px 7px;transition:background .15s;}
+  .bkrow.clk:hover{background:var(--surface-2);}
+  .bkrow.clk.on{background:var(--teal-050);}
+  .audit{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:13px 16px;min-height:118px;}
+  .audit h5{margin:0 0 8px;font-size:13px;font-family:var(--display);display:flex;align-items:center;gap:8px;}
+  .audit .arow{display:flex;justify-content:space-between;font-size:12.5px;padding:6px 0;border-bottom:1px solid var(--line);color:var(--ink-2);font-variant-numeric:tabular-nums;}
+  .audit .arow:last-child{border-bottom:none;}
+  .audit .arow b{color:var(--ink);font-weight:600;}
+  .audhint{font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.05em;}
+
+  /* config pipeline */
+  .pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;}
+  .pnode{flex:1;min-width:148px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:11px 12px;display:flex;flex-direction:column;gap:6px;}
+  .pnode .pt{font-family:var(--display);font-weight:650;font-size:12.5px;color:var(--ink);}
+  .pnode .pk{font-family:var(--mono);font-size:10px;color:var(--teal);background:var(--teal-050);border:1px solid color-mix(in srgb,var(--teal) 25%,var(--line));border-radius:5px;padding:2px 6px;align-self:flex-start;}
+  .pnode .pd{font-size:11px;color:var(--ink-3);line-height:1.35;}
+  .parrow{align-self:center;color:var(--ink-3);padding:0 6px;font-size:14px;}
+
   /* nav */
   .navbar{position:fixed;left:0;right:0;bottom:0;height:52px;display:flex;align-items:center;justify-content:center;gap:16px;background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line);z-index:40;}
   .navbar button{font-family:var(--sans);font-size:13px;font-weight:600;background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:8px;padding:7px 14px;cursor:pointer;}
@@ -396,11 +436,29 @@
   <section class="slide">
     <div class="head"><div class="eyebrow"><span class="tick">✓</span> The insight</div><div class="eyebrow">04 / 12</div></div>
     <h2 class="title">A payroll cycle is a ceremony. Let's design it like one.</h2>
-    <p class="lead" style="margin-top:2px">Every ceremony has three things. Each fixes a failure from slide 01 — and becomes a moment in the experience.</p>
-    <div class="fill row" style="margin-top:18px">
-      <div class="card col" style="flex:1;gap:9px"><span class="pill teal">A date</span><h3 style="font-size:19px">Cadence &amp; trigger</h3><p style="margin:0;font-size:14px;color:var(--ink-2);line-height:1.5">It's <b>always before/after something.</b> → A scheduled kickoff with a hard close.</p><p class="note redhl">Fixes: nothing pulls you to start.</p></div>
-      <div class="card col" style="flex:1;gap:9px"><span class="pill teal">A structure</span><h3 style="font-size:19px">Order of events</h3><p style="margin:0;font-size:14px;color:var(--ink-2);line-height:1.5">A defined sequence. → A guided worklist, <b>biggest dollars first,</b> with progress.</p><p class="note redhl">Fixes: flat table, no sequence.</p></div>
-      <div class="card col" style="flex:1;gap:9px"><span class="pill teal">Full attention</span><h3 style="font-size:19px">It matters</h3><p style="margin:0;font-size:14px;color:var(--ink-2);line-height:1.5">Everyone shows up. → Focus mode, next-best-actions, and <b>shared accountability.</b></p><p class="note redhl">Fixes: shallow, chore-like effort.</p></div>
+    <p class="lead" style="margin-top:2px">Three things every ceremony has — and each becomes a moment in the review experience.</p>
+    <div class="fill row" style="margin-top:20px">
+      <div class="card cer" style="flex:1">
+        <div class="cer-ic"><svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg></div>
+        <span class="pill teal">A date</span>
+        <h3>Cadence &amp; trigger</h3>
+        <p class="cer-p">A ceremony is <b>always tied to a moment.</b> The review gets an auto-scheduled kickoff and a hard close.</p>
+        <div class="cer-foot"><b>Closes the gap</b>Today, nothing pulls people in to start.</div>
+      </div>
+      <div class="card cer" style="flex:1">
+        <div class="cer-ic"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg></div>
+        <span class="pill teal">A structure</span>
+        <h3>Order of events</h3>
+        <p class="cer-p">A ceremony follows a <b>sequence.</b> We guide a worklist — biggest dollars first — with live progress.</p>
+        <div class="cer-foot"><b>Closes the gap</b>Today, it's a flat table with no order.</div>
+      </div>
+      <div class="card cer" style="flex:1">
+        <div class="cer-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/></svg></div>
+        <span class="pill teal">Full attention</span>
+        <h3>It matters</h3>
+        <p class="cer-p">A ceremony <b>commands focus.</b> Next-best-actions and shared accountability keep the whole team present.</p>
+        <div class="cer-foot"><b>Closes the gap</b>Today, engagement is shallow and chore-like.</div>
+      </div>
     </div>
   </section>
 
@@ -526,33 +584,27 @@
         <div class="psh-body">
           <div class="psh-name"><div class="ic"></div><div><h3>Alvarez, M.</h3><div class="dep">Department 138128 · Nursing — Nights</div></div><span class="sp" style="flex:1"></span><span class="pill crit">$612 at risk</span></div>
           <div class="row" style="gap:14px;align-items:stretch">
-            <div class="col" style="flex:1.05;gap:12px">
+            <div class="col" style="flex:1.15;gap:12px">
               <div class="panel">
-                <h4>Summary <span class="cnt">1</span></h4>
-                <div class="anom"><span class="x">✕</span><span>Unauthorized overtime · 14 hrs above schedule · <b style="color:var(--ink)">recurring, 3rd cycle</b></span><span class="chev">›</span></div>
-                <div class="nba"><span class="spark">✨</span><span class="txt"><b>Next best action:</b> Approve · scheduled OT — matches this employee's last 3 cycles &amp; the unit's storm-coverage policy.</span></div>
-                <div class="chips"><span class="chip approve">✓ Approve · scheduled OT</span><span class="chip reject">✕ Reject · timekeeping error</span><span class="chip route">→ Route</span></div>
+                <h4>Anomaly <span class="cnt">1</span></h4>
+                <div class="anom" style="border:none;padding:2px 0"><span class="x">✕</span><span>Unauthorized overtime · 14 hrs above schedule · <b style="color:var(--ink)">recurring, 3rd cycle</b></span><span style="margin-left:auto;color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums">$612</span></div>
+                <div class="nba"><span class="spark">✨</span><span class="txt"><b>Suggested:</b> Approve · scheduled OT — matches the last 3 cycles &amp; the unit's storm-coverage policy.</span></div>
+                <div class="cta-row"><span class="btn primary big">✓ Approve · scheduled OT</span><span class="chip reject">Reject</span><span class="chip route">Route →</span></div>
               </div>
               <div class="panel">
-                <h4>Comments</h4>
-                <div class="thread"><div class="cmt"><span class="au">You:</span> Third cycle running — is Nights genuinely short-staffed?</div><div class="cmt reply"><span class="au">↳ pick a canned reply, or type…</span></div></div>
-                <div class="routebar"><span class="who2">Suggested owner: <b>Dana Levy · Nursing Ops</b> (routing rule)</span><span class="routebtn">@ Route</span></div>
+                <h4>Comment <span class="mut" style="font-weight:500;font-size:11px">· one tap, or type</span></h4>
+                <div class="canned"><span class="chip approve">Scheduled OT — approved</span><span class="chip">Confirmed with facility</span><span class="chip">Needs correction</span></div>
+                <div class="cbox"><b>Prefilled:</b> “Approved — scheduled storm-coverage OT, consistent with the prior three cycles.”</div>
               </div>
             </div>
-            <div class="col" style="flex:1">
+            <div class="col" style="flex:.85">
               <div class="panel" style="flex:1">
-                <h4>Payslip Information</h4>
-                <table class="etable">
-                  <thead><tr><th>Code</th><th class="rc">Hours</th><th class="rc">Rate</th><th class="rc">Total</th></tr></thead>
-                  <tbody>
-                    <tr><td>REG</td><td class="rc">67.88</td><td class="rc">50.745</td><td class="rc">3,444.6</td></tr>
-                    <tr><td>OT</td><td class="rc flag">14.0</td><td class="rc">76.12</td><td class="rc flag">1,065.7</td></tr>
-                    <tr><td>ERLIF</td><td class="rc">—</td><td class="rc">—</td><td class="rc">0.56</td></tr>
-                    <tr><td>ERMED</td><td class="rc">—</td><td class="rc">—</td><td class="rc">103.5</td></tr>
-                    <tr><td>BONOP</td><td class="rc">—</td><td class="rc">—</td><td class="rc">469.7</td></tr>
-                  </tbody>
-                </table>
-                <div style="text-align:right;margin-top:8px"><span class="btn primary" style="padding:7px 14px">✓ Approve payslip</span></div>
+                <h4>Payslip snapshot</h4>
+                <div class="miniline"><span><span class="cd">REG</span>Regular</span><span>$3,444.60</span></div>
+                <div class="miniline flag"><span><span class="cd">OT</span>Overtime · flagged</span><span>$1,065.70</span></div>
+                <div class="miniline"><span><span class="cd">BONOP</span>Bonus</span><span>$469.70</span></div>
+                <div class="miniline" style="font-weight:700;color:var(--ink)"><span>Net pay</span><span>$5,083.50</span></div>
+                <a class="viewfull">View full breakdown ›</a>
               </div>
             </div>
           </div>
@@ -580,22 +632,24 @@
               <div class="col" style="flex:.8"><div class="score"><div class="mlabel greenhl">Salvaged this cycle</div><div class="metric big greenhl" style="margin:6px 0;font-size:clamp(30px,4vw,46px)">$127,400</div><div style="font-size:13px;color:var(--ink-2)"><b>RSR 71%</b> ↑ from 44% last cycle</div></div></div>
               <div class="col" style="flex:1.1;justify-content:center">
                 <div class="breakdown">
-                  <div class="bkrow"><span class="k greenhl">Salvaged</span><div class="track"><div class="seg" style="width:62%;background:var(--green)"></div></div><span class="val greenhl">$127.4K</span></div>
-                  <div class="bkrow"><span class="k mut">Cleared</span><div class="track"><div class="seg" style="width:26%;background:color-mix(in srgb,var(--green) 45%,var(--ink-3))"></div></div><span class="val mut">$53.9K</span></div>
-                  <div class="bkrow"><span class="k redhl">Unresolved</span><div class="track"><div class="seg" style="width:12%;background:var(--red)"></div></div><span class="val redhl">$24.6K</span></div>
+                  <div class="bkrow clk on" data-aud="salvaged"><span class="k greenhl">Salvaged</span><div class="track"><div class="seg" style="width:62%;background:var(--green)"></div></div><span class="val greenhl">$127.4K</span></div>
+                  <div class="bkrow clk" data-aud="cleared"><span class="k mut">Cleared</span><div class="track"><div class="seg" style="width:26%;background:color-mix(in srgb,var(--green) 45%,var(--ink-3))"></div></div><span class="val mut">$53.9K</span></div>
+                  <div class="bkrow clk" data-aud="unresolved"><span class="k redhl">Unresolved</span><div class="track"><div class="seg" style="width:12%;background:var(--red)"></div></div><span class="val redhl">$24.6K</span></div>
                 </div>
-                <p class="note" style="margin-top:12px">Unresolved risk is <b style="color:var(--ink)">named, not hidden</b> — honest, and a reason to start earlier next cycle.</p>
+                <div class="audhint" style="margin-top:8px">▸ click a bar for its audit trail</div>
               </div>
             </div>
+            <div class="audit" id="auditBox"></div>
           </div>
         </main>
       </div>
     </div>
+    <p class="note" style="margin-top:12px;border:none;text-align:center">Unresolved risk is <b style="color:var(--ink)">named, not hidden</b> — honest, and a reason to start earlier next cycle.</p>
   </section>
 
   <!-- 11 · TECHNICAL (10) -->
   <section class="slide">
-    <div class="head"><div class="eyebrow"><span class="tick">✓</span> Under the hood · <b>data flow &amp; learning loop</b></div><div class="eyebrow">10 / 12</div></div>
+    <div class="head"><div class="eyebrow"><span class="tick">✓</span> High-Level Technical Workflow · <b>data flow &amp; learning loop</b></div><div class="eyebrow">10 / 12</div></div>
     <h2 class="title" style="font-size:clamp(22px,2.8vw,32px)">How it works — and how it gets smarter each cycle.</h2>
     <div class="flow" style="margin-top:8px">
       <div class="flane"><div class="flabel">Ingest</div><div class="fnodes">
@@ -620,29 +674,42 @@
 
   <!-- 12 · IMPLEMENTATION (11) -->
   <section class="slide">
-    <div class="head"><div class="eyebrow"><span class="tick">✓</span> Execution · <b>what it takes to ship</b></div><div class="eyebrow">11 / 12</div></div>
-    <h2 class="title" style="font-size:clamp(22px,2.8vw,32px)">Config &amp; assumptions.</h2>
-    <div class="fill row" style="margin-top:10px;gap:26px">
-      <div class="col" style="flex:1.25">
-        <div class="mlabel" style="margin-bottom:4px">What the ceremony needs to know</div>
-        <div class="cfg">
-          <div class="item"><span class="k">01</span><span><b>Cycle dates</b> — pulled from the payroll integration.</span></div>
-          <div class="item"><span class="k">02</span><span><b>Invite lead time</b> — fire as data lands, before cutoff.</span></div>
-          <div class="item"><span class="k">03</span><span><b>Trigger event</b> — "data ready + tests complete" opens the cycle.</span></div>
-          <div class="item"><span class="k">04</span><span><b>Routing rules</b> — role → owner, per facility / financial area.</span></div>
-          <div class="item"><span class="k">05</span><span><b>Reason-code library</b> — per alert type, seeded from history.</span></div>
-          <div class="item"><span class="k">06</span><span><b>Notify channels</b> — email / Teams / Google Chat + SLA.</span></div>
+    <div class="head"><div class="eyebrow"><span class="tick">✓</span> Execution · <b>config drives the runtime</b></div><div class="eyebrow">11 / 12</div></div>
+    <h2 class="title" style="font-size:clamp(22px,2.8vw,32px)">Configuration parameterizes every stage.</h2>
+    <div class="fill col" style="margin-top:10px;gap:16px">
+      <div>
+        <div class="mlabel" style="margin-bottom:9px">Each runtime stage is driven by a config key</div>
+        <div class="pipe">
+          <div class="pnode"><span class="pk">cycle_dates · data_ready</span><span class="pt">Trigger</span><span class="pd">Opens the cycle when integration data + tests complete.</span></div>
+          <div class="parrow">→</div>
+          <div class="pnode"><span class="pk">severity × $</span><span class="pt">Prioritize</span><span class="pd">Builds the ranked worklist, biggest dollars first.</span></div>
+          <div class="parrow">→</div>
+          <div class="pnode"><span class="pk">reason_codes[]</span><span class="pt">Resolve</span><span class="pd">Chip = decision + reason; NBA suggests the action.</span></div>
+          <div class="parrow">→</div>
+          <div class="pnode"><span class="pk">routing_rules{}</span><span class="pt">Route</span><span class="pd">role → owner, per facility / area, with SLA.</span></div>
+          <div class="parrow">→</div>
+          <div class="pnode"><span class="pk">channels[]</span><span class="pt">Notify</span><span class="pd">email / Teams / Google Chat.</span></div>
+          <div class="parrow">→</div>
+          <div class="pnode"><span class="pk">rsr · reversal</span><span class="pt">Analytics</span><span class="pd">Salvaged / Cleared / Unresolved · readout.</span></div>
         </div>
-        <div class="note" style="margin-top:14px"><b style="color:var(--ink)">Next-best-action is driven by three sources:</b> industry <span class="hl">best practices</span> · this account's <span class="hl">historical resolutions</span> of the same alert · the org's own <span class="hl">policies &amp; rules.</span></div>
       </div>
-      <div class="col" style="flex:.85">
-        <div class="mlabel" style="margin-bottom:4px">Working assumptions</div>
-        <div class="assume">
-          <div class="a"><b>Roles exist in the system</b> → we can route, suggest an owner, or auto-route.</div>
-          <div class="a"><b>History &amp; best-practice exist</b> per recurring alert → powers next-best-action and reason codes.</div>
-          <div class="a"><b>Comments are nested &amp; ready-on-click</b>; a summary of the thread is emailed to mentioned owners (or via Teams / Google Chat).</div>
+      <div class="row" style="gap:20px">
+        <div class="col" style="flex:1">
+          <div class="mlabel" style="margin-bottom:6px">Next-best-action draws on three sources</div>
+          <div class="assume">
+            <div class="a"><b>Industry best practices</b> for the alert type.</div>
+            <div class="a"><b>This account's history</b> — prior resolutions of the same recurring alert.</div>
+            <div class="a"><b>The org's own policies &amp; rules</b> (e.g. storm-coverage OT).</div>
+          </div>
         </div>
-        <div class="note" style="margin-top:12px"><b style="color:var(--ink)">Measure:</b> A/B by facility · primary metric <span class="greenhl">RSR</span> · guardrail <span class="redhl">reversal rate.</span></div>
+        <div class="col" style="flex:1">
+          <div class="mlabel" style="margin-bottom:6px">Working assumptions</div>
+          <div class="assume">
+            <div class="a"><b>Roles exist</b> in the system → route, suggest, or auto-route owners.</div>
+            <div class="a"><b>Comments nested &amp; ready-on-click</b>; thread summary sent to mentioned owners.</div>
+            <div class="a"><b>Measure:</b> A/B by facility · primary <span class="greenhl">RSR</span> · guardrail <span class="redhl">reversal rate</span>.</div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -680,6 +747,26 @@
   document.getElementById('prev').onclick=()=>show(i-1);
   document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();show(i+1);}else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();show(i-1);}else if(e.key==='Home')show(0);else if(e.key==='End')show(slides.length-1);else if(e.key.toLowerCase()==='p')window.print();});
   show(0);
+
+  // slide 09 · click-to-audit on the cycle breakdown
+  const auditData={
+    salvaged:{t:'Salvaged · 37 alerts corrected',c:'var(--green)',rows:[['Overtime corrected','$41.2K'],['Rate mismatches vs. contract','$34.8K'],['Duplicate benefit deductions','$28.1K'],['Retro pay & missed terminations','$23.3K']]},
+    cleared:{t:'Cleared · 22 false alarms confirmed',c:'var(--ink-3)',rows:[['Storm-coverage OT (policy-approved)','$22.4K'],['Approved discretionary bonuses','$18.7K'],['Contractual shift differentials','$12.8K']]},
+    unresolved:{t:'Unresolved · 9 alerts carried forward',c:'var(--red)',rows:[['Routed to facility — awaiting owner','$16.2K'],['Missing timesheet data','$8.4K']]}
+  };
+  function renderAudit(k){
+    const d=auditData[k], el=document.getElementById('auditBox');
+    if(!el) return;
+    el.innerHTML='<h5><span style="color:'+d.c+'">●</span>'+d.t+'<span class="audhint" style="margin-left:auto">audit trail · pre-run</span></h5>'+
+      d.rows.map(r=>'<div class="arow"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>').join('');
+    document.querySelectorAll('.bkrow.clk').forEach(b=>b.classList.toggle('on',b.dataset.aud===k));
+  }
+  document.querySelectorAll('.bkrow.clk').forEach(b=>{
+    b.setAttribute('role','button'); b.tabIndex=0;
+    b.addEventListener('click',()=>renderAudit(b.dataset.aud));
+    b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();renderAudit(b.dataset.aud);}});
+  });
+  renderAudit('salvaged');
 </script>
 </body>
 </html>
