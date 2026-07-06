@@ -314,6 +314,7 @@
   @keyframes hintpulse{0%,100%{opacity:.5;}50%{opacity:1;}}
   .audhint.pulse{animation:hintpulse 1.7s ease-in-out infinite;color:var(--teal);}
   @media (prefers-reduced-motion:reduce){.audhint.pulse,.bkrow.tap{animation:none;}}
+  .illus{font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);border-radius:999px;padding:2px 7px;margin-left:8px;white-space:nowrap;vertical-align:middle;}
 
   /* config pipeline */
   .pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;}
@@ -565,7 +566,7 @@
             <div class="upload">⤒ Upload Documents</div>
           </div>
           <div class="ash-canvas">
-            <div class="crumb"><b>Quick Review</b> › Focused Review · <span style="color:var(--teal)">sorted by $ at risk ▼</span></div>
+            <div class="crumb"><b>Quick Review</b> › Focused Review · <span style="color:var(--teal)">sorted by $ at risk ▼</span> <span class="illus">Illustrative</span></div>
             <div class="banner">🟡 <span><b>42 of 118 payslips ready.</b> Start now on what's landed — the rest stream in as timesheets arrive.</span></div>
             <div class="wl">
               <div class="wlbar"><span class="lbl">$252K of $645.9K reviewed</span><div class="track"><div class="fb"></div></div><span class="lbl">39%</span></div>
@@ -590,7 +591,7 @@
           <span class="paydate">Feb 22, 2023 (Current) ▾</span><span class="sp"></span><span style="opacity:.85">🔔</span><span class="lo">Logout</span>
         </div>
         <div class="psh-body">
-          <div class="psh-name"><div class="ic"></div><div><h3>Alvarez, M.</h3><div class="dep">Department 138128 · Nursing — Nights</div></div><span class="sp" style="flex:1"></span><span class="pill crit">$612 at risk</span></div>
+          <div class="psh-name"><div class="ic"></div><div><h3>Alvarez, M.</h3><div class="dep">Department 138128 · Nursing — Nights</div></div><span class="sp" style="flex:1"></span><span class="illus">Illustrative</span><span class="pill crit">$612 at risk</span></div>
           <div class="row" style="gap:14px;align-items:stretch">
             <div class="col" style="flex:1.15;gap:12px">
               <div class="panel">
@@ -635,7 +636,7 @@
         <main class="ash-main">
           <div class="ash-top"><div class="tg"><div class="l">Pay Date</div><div class="v">Feb 22, 2023 ▾</div></div><div class="spacer"></div><div class="status" style="color:var(--green)">✓ Review completed</div></div>
           <div class="ash-canvas">
-            <div class="crumb"><b>Quick Review</b> › Cycle Readout</div>
+            <div class="crumb"><b>Quick Review</b> › Cycle Readout <span class="illus">Illustrative figures</span></div>
             <div class="row" style="gap:14px;align-items:stretch">
               <div class="col" style="flex:.7"><div class="score" style="padding:13px 15px"><div class="mlabel greenhl">Salvaged this cycle</div><div class="metric greenhl" style="margin:4px 0;font-size:clamp(25px,3.3vw,38px)">$127,400</div><div style="font-size:12px;color:var(--ink-2)"><b>RSR 71%</b> ↑ from 44%</div></div></div>
               <div class="col" style="flex:1.2;justify-content:center;gap:7px">
@@ -776,20 +777,18 @@
     stopDemo();
     const ptr=document.getElementById('demoPtr');
     const h=document.getElementById('clkHint'); if(h){h.classList.add('pulse');}
-    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){renderAudit('salvaged');return;}
-    const order=['cleared','unresolved','salvaged']; let s=0;
-    const step=()=>{
-      const k=order[s], bar=document.querySelector('.bkrow.clk[data-aud="'+k+'"]');
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){renderAudit('unresolved');return;}
+    renderAudit('salvaged');
+    const bar=document.querySelector('.bkrow.clk[data-aud="unresolved"]');
+    demoTimer=setTimeout(()=>{
       if(bar){
         bar.classList.remove('tap'); void bar.offsetWidth; bar.classList.add('tap');
         if(ptr){ptr.style.opacity='1';ptr.style.transform='translate('+(bar.offsetLeft+bar.offsetWidth*0.46)+'px,'+(bar.offsetTop+bar.offsetHeight*0.5)+'px)';}
-        renderAudit(k);
+        renderAudit('unresolved');
       }
-      s++;
-      if(s<order.length){demoTimer=setTimeout(step,820);}
-      else{demoTimer=null; if(ptr){setTimeout(()=>{ptr.style.opacity='0';},900);}}
-    };
-    demoTimer=setTimeout(step,550);
+      demoTimer=null;
+      if(ptr){setTimeout(()=>{ptr.style.opacity='0';},1200);}
+    },650);
   }
   document.querySelectorAll('.bkrow.clk').forEach(b=>{
     b.setAttribute('role','button'); b.tabIndex=0;
