@@ -317,6 +317,29 @@
   @media (prefers-reduced-motion:reduce){.audhint.pulse,.bkrow.tap{animation:none;}}
   .illus{font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);border:1px solid var(--line-2);border-radius:999px;padding:2px 7px;margin-left:8px;white-space:nowrap;vertical-align:middle;}
 
+  /* close readout slide */
+  .close-slide h2.title{max-width:22ch;}
+  .close-slide .fill{margin-top:8px;}
+  .close-mock{max-width:900px;margin:0 auto;width:100%;}
+  .close-mock .ash{grid-template-columns:142px 1fr;box-shadow:none;}
+  .close-mock .ash-side{padding-top:10px;}
+  .close-mock .ash-logo{padding:0 12px 10px;font-size:14px;}
+  .close-mock .ash-nav{padding:0 7px;gap:0;}
+  .close-mock .ash-nav a{font-size:9.5px;padding:5px 8px;}
+  .close-mock .ash-user{padding:8px 12px 0;font-size:9.5px;}
+  .close-mock .ash-top{padding:8px 14px;}
+  .close-mock .ash-canvas{padding:16px 20px 14px;gap:14px;justify-content:flex-start;overflow:hidden;}
+  .close-readout{display:grid;grid-template-columns:minmax(250px,.86fr) minmax(310px,1.14fr);gap:26px;align-items:center;}
+  .close-score{min-height:176px;padding:22px 24px;justify-content:center;}
+  .close-score .metric{margin:10px 0 12px;font-size:clamp(40px,4.1vw,54px);}
+  .close-score .rsr{font-size:15px;color:var(--ink-2);}
+  .close-breakdown{justify-content:center;gap:12px;}
+  .close-breakdown .breakdown{gap:12px;}
+  .close-breakdown .bkrow{grid-template-columns:104px minmax(120px,1fr) 76px;gap:12px;padding:7px 10px;}
+  .close-breakdown .bkrow .track{height:28px;}
+  .close-audit{padding:14px 18px;min-height:96px;margin-top:0;}
+  .close-note{margin-top:14px;border:none;text-align:center;}
+
   /* config pipeline */
   .pipe{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;}
   .pnode{flex:1;min-width:148px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:11px 12px;display:flex;flex-direction:column;gap:6px;}
@@ -624,10 +647,11 @@
   </section>
 
   <!-- 10 · STEP 5 READOUT (09) -->
-  <section class="slide">
+  <section class="slide close-slide">
     <div class="head"><div class="eyebrow"><span class="tick">✓</span> Walkthrough · <b>inside the review hub</b></div><div class="eyebrow">09 / 12</div></div>
     <h2 class="title" style="font-size:clamp(20px,2.5vw,30px)"><span class="stepno">5</span>The close — the cycle ends on a number.</h2>
-    <div class="fill" style="margin-top:6px">
+    <div class="fill">
+      <div class="close-mock">
       <div class="ash">
         <aside class="ash-side">
           <div class="celerylogo ash-logo"><svg viewBox="0 0 32 32" fill="none"><path d="M6 17.5 L13 24 L26 8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/></svg>celery</div>
@@ -638,10 +662,10 @@
           <div class="ash-top"><div class="tg"><div class="l">Pay Date</div><div class="v">Feb 22, 2023 ▾</div></div><div class="spacer"></div><div class="status" style="color:var(--green)">✓ Review completed</div></div>
           <div class="ash-canvas fillcenter">
             <div class="crumb"><b>Quick Review</b> › Cycle Readout <span class="illus">Illustrative figures</span></div>
-            <div class="row" style="gap:22px;align-items:stretch">
-              <div class="col" style="flex:.85"><div class="score" style="padding:20px 22px;height:100%;justify-content:center"><div class="mlabel greenhl" style="white-space:nowrap">Salvaged this cycle</div><div class="metric greenhl" style="margin:8px 0;font-size:clamp(32px,4.2vw,46px)">$127,400</div><div style="font-size:14px;color:var(--ink-2)"><b>RSR 71%</b> ↑ from 44% last cycle</div></div></div>
-              <div class="col" style="flex:1.15;justify-content:center;gap:11px">
-                <div class="breakdown" id="bkWrap" style="gap:14px">
+            <div class="close-readout">
+              <div class="score close-score"><div class="mlabel greenhl" style="white-space:nowrap">Salvaged this cycle</div><div class="metric greenhl">$127,400</div><div class="rsr"><b>RSR 71%</b> ↑ from 44% last cycle</div></div>
+              <div class="close-breakdown">
+                <div class="breakdown" id="bkWrap">
                   <div class="bkrow clk on" data-aud="salvaged"><span class="k greenhl">Salvaged</span><div class="track"><div class="seg" style="width:62%;background:var(--green)"></div></div><span class="val greenhl">$127.4K</span></div>
                   <div class="bkrow clk" data-aud="cleared"><span class="k mut">Cleared</span><div class="track"><div class="seg" style="width:26%;background:color-mix(in srgb,var(--green) 45%,var(--ink-3))"></div></div><span class="val mut">$53.9K</span></div>
                   <div class="bkrow clk" data-aud="unresolved"><span class="k redhl">Unresolved</span><div class="track"><div class="seg" style="width:12%;background:var(--red)"></div></div><span class="val redhl">$24.6K</span></div>
@@ -650,12 +674,13 @@
                 <div class="audhint pulse" id="clkHint">▸ Click a bar for its audit trail</div>
               </div>
             </div>
-            <div class="audit" id="auditBox" style="padding:16px 20px;min-height:108px"></div>
+            <div class="audit close-audit" id="auditBox"></div>
           </div>
         </main>
       </div>
+      </div>
     </div>
-    <p class="note" style="margin-top:12px;border:none;text-align:center">Unresolved risk is <b style="color:var(--ink)">named, not hidden</b> — honest, and a reason to start earlier next cycle.</p>
+    <p class="note close-note">Unresolved risk is <b style="color:var(--ink)">named, not hidden</b> — honest, and a reason to start earlier next cycle.</p>
   </section>
 
   <!-- 11 · TECHNICAL (10) -->
