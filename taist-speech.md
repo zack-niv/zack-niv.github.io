@@ -46,7 +46,7 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 > "Which is an enormous opening — in human terms. Every meal out. Every date night. Every birthday. Every celebration. All of it begins with intent, and that intent is now moving to AI. We capture it, and turn it into bookings."
 
 ## ▸ 9 — Where the value is *(the wedge)*
-> "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just fifty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
+> "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just sixty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
 
 ## ▸ 10 — The market, bottom-up
 > "And you can size it without any hand-waving. Every full-service restaurant is a customer, and each already pays thousands a year to fill seats. Take a fraction of that — three thousand a year. Israel, our beachhead, is about ten thousand venues — thirty million, and it's winnable now. Europe, our wedge, is a million venues — a **three-billion-dollar** market, fragmented and wide open. Globally it's tens of billions. One number you can look up, one price anchored to what they already pay. No funnel."
@@ -86,6 +86,7 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 - **A5 · "Who else is in this space?"** — Consolidated + AI-partnered in the US, destabilized in Europe. We're not a rail; we sit on top of all of them.
 - **A6 · "How does Taist get invoked inside an assistant?"** — Three paths (connect / name / platform-bless); neutrality means no silent-default pipe. We win diner name-recall through taste + memory, and stay partner-able by being rail-agnostic.
 - **A7 · "What's the endgame?"** — Independent scale on the taste graph, or build-to-acquisition into a destabilized incumbent. The unownable asset keeps both open.
+- **A8 · Sources** — Every opportunity figure, hyperlinked: NRA (restaurant sales / full-service split), Statista (venue counts), Credence Research (reservation-software market), OpenTable Newsroom (scale + pricing comparable), Grand View (global/APAC ceiling). The "See all sources →" link on the wedge slide jumps here.
 
 ---
 
