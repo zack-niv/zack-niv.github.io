@@ -444,6 +444,23 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .land-row--us { background: var(--gold-light); }
 .land-row--us .land-sig { color: var(--gold-deep); }
 
+/* sizing thesis table */
+.thesis { margin-top: 1.6rem; border: 1.5px solid var(--border-s); border-radius: 14px;
+  overflow: hidden; text-align: left; }
+.trow { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1fr; }
+.trow > div { padding: .62rem .9rem; font-size: .84rem; border-bottom: 1px solid var(--border); }
+.trow--h > div { background: rgba(26,23,20,.03); font-size: .58rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-faint); }
+.trow--res > div { background: var(--gold-light); font-weight: 500; }
+.thesis .trow:last-child > div { border-bottom: none; }
+.tlabel { font-weight: 500; }
+.tmul { padding: .6rem .9rem; background: var(--ink); color: rgba(250,247,242,.85);
+  font-size: .78rem; text-align: center; letter-spacing: .02em; border-bottom: 1px solid var(--border); }
+.tmul em { color: var(--gold); font-style: normal; font-weight: 500; }
+.thesis-foot { margin-top: 1.5rem; font-size: clamp(.9rem,1.4vw,1.05rem);
+  color: var(--ink-muted); line-height: 1.6; max-width: 62ch; margin-left: auto; margin-right: auto; }
+.thesis-foot strong { color: var(--ink); font-weight: 500; }
+
 /* two-col compare for moat */
 .moat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; text-align: left; }
 .moatcard { border-radius: 14px; padding: 1.5rem 1.4rem; }
@@ -788,26 +805,26 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
       <div class="regions" data-rise style="--d:.42s">
         <div class="region region--beach">
           <div class="region-name">Israel<small>Beachhead</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:6%"></div></div>
-          <div class="region-val">~$0.5B<span class="region-tag">Lab</span></div>
+          <div class="region-track"><div class="region-fill" style="--w:4%"></div></div>
+          <div class="region-val">~$0.2B<span class="region-tag">Lab</span></div>
         </div>
         <div class="region">
           <div class="region-name">Europe<small>GTM wedge</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:70%"></div></div>
-          <div class="region-val">~$18B</div>
+          <div class="region-track"><div class="region-fill" style="--w:72%"></div></div>
+          <div class="region-val">~$23B</div>
         </div>
         <div class="region">
           <div class="region-name">United States<small>Later / exit</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:58%"></div></div>
-          <div class="region-val">~$15B</div>
+          <div class="region-track"><div class="region-fill" style="--w:94%"></div></div>
+          <div class="region-val">~$30B</div>
         </div>
         <div class="region">
           <div class="region-name">APAC<small>The ceiling</small></div>
           <div class="region-track"><div class="region-fill" style="--w:100%"></div></div>
-          <div class="region-val">~$26B</div>
+          <div class="region-val">~$32B</div>
         </div>
       </div>
-      <span class="disclaim" data-rise style="--d:.7s">Illustrative — annual value of abandoned discovery. Replace with validated figures. Taist earns a take-rate slice of what it recovers, plus a venue-insights layer.</span>
+      <span class="disclaim" data-rise style="--d:.7s">≈ <strong style="color:var(--ink)">$85B of dining intent abandoned every year</strong> across four markets — built up from full-service restaurant revenue × discovery × digital × abandonment. Full assumption stack in the appendix.</span>
     </div>
   </section>
 
@@ -949,11 +966,41 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     </div>
   </section>
 
-  <!-- A1: Why won't the giants build this -->
+  <!-- A1: The sizing thesis -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The drill-down on the opportunity numbers. Anchor on real 2025 full-service restaurant revenue per region (NRA, Datassential, Fortune, USDA). Then three conservative multipliers: ~30% of full-service occasions begin with discovery (a new place, a group, an occasion — not habit), ~45% of that is surfaced digitally today and rising, ~30% never converts to a booking. Product ≈ 5.8% of full-service revenue = the annual unconverted-intent pool. Four markets ≈ $85B/yr. Taist's revenue is a take-rate slice of what it recovers plus the insights layer — recover even 5% at a 10% blended take and it's $100M+ per major market. Every anchor is sourced; every multiplier is ours and conservative.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 01 · The sizing thesis</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"Where does ~$85B come from?"</span>
+      <div class="thesis" data-rise style="--d:.42s">
+        <div class="trow trow--h">
+          <div>Full-service restaurant revenue · 2025</div>
+          <div>Israel</div><div>Europe</div><div>US</div><div>APAC</div>
+        </div>
+        <div class="trow">
+          <div class="tlabel">The bookable dining economy</div>
+          <div>~$4B</div><div>~$400B</div><div>~$522B</div><div>~$550B</div>
+        </div>
+        <div class="tmul">
+          × <em>~30%</em> begin with discovery&nbsp; · &nbsp;× <em>~45%</em> surfaced digitally&nbsp; · &nbsp;× <em>~30%</em> never book
+        </div>
+        <div class="trow trow--res">
+          <div class="tlabel">Unconverted intent / year</div>
+          <div>~$0.2B</div><div>~$23B</div><div>~$30B</div><div>~$32B</div>
+        </div>
+      </div>
+      <p class="thesis-foot" data-rise style="--d:.6s">
+        ≈ <strong>$85B abandoned every year</strong> across four markets. Recover even ~5% of it at a ~10% blended take — booking fee, qualified demand, insights — and that's <strong>$100M+ per major market.</strong>
+      </p>
+      <span class="disclaim" data-rise style="--d:.72s">Anchors: NRA 2025 · Datassential / Fortune · USDA FAS. Multipliers are our thesis — deliberately conservative, and being validated market by market.</span>
+    </div>
+  </section>
+
+  <!-- A2: Why won't the giants build this -->
   <section class="slide slide--appendix" data-appendix
     data-note="The #1 investor question. Key points: OpenTable and Google own inventory and the transaction, but not taste-with-memory — and they have no incentive to build it and can't absorb it from usage logs. Being a booking pipe actually invites disintermediation (OpenTable got made the exclusive ChatGPT partner; Google shipped native). So we deliberately don't compete as a pipe — we own the layer underneath: an accumulating taste-and-context graph that compounds per diner and can't be retrained into existence.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 01</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 02</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"Why won't OpenTable or Google just build this?"<span class="qmark"></span></span>
       <div class="moat2" data-rise style="--d:.44s">
         <div class="moatcard moatcard--them">
@@ -972,7 +1019,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="Business model. Three surfaces. Near-term: venue-facing AI-visibility + qualified demand + booking actions (a take rate on bookings we route). The commercial wedge, not the thesis. Longer-term: the insights product — the booking exhaust becomes anonymized diner-segment intelligence sold to venues. Say the data product is stage-2, gated on booking volume.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 02</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist actually make money?"</span>
       <div class="revcards" data-rise style="--d:.44s">
         <div class="revcard">
@@ -998,7 +1045,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="Jaque's addition — the second product. Once diners book through Taist, the booking exhaust is REVEALED preference: what people actually reserved, not what they said they liked. At volume that segments into cohorts ('date-night wine-bar seekers', 'group-celebration bookers'). Sold to venues two ways — targeting (reach the segments you want) and insight (understand who's booking you). Must be framed as anonymized cohort intelligence, never identifiable diner data. This is the taste graph becoming a venue-facing revenue surface — closer to a demand-side data platform than to how OpenTable monetizes.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03 · The second product</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 04 · The second product</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">Every search is a signal.<br>The exhaust becomes a <em>product.</em></span>
       <p class="answer" data-rise style="--d:.44s">
         What people actually book is <strong>revealed preference</strong> — richer than any survey. At volume it segments into diner cohorts: <em>date-night wine-bar seekers, group-celebration bookers, solo-lunch regulars.</em>
@@ -1015,7 +1062,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="GTM + timing. Israel = lab: contained home turf where Ontopo (not OpenTable) owns booking, so it's partner-able, not a war. Prove discoverability → earn leverage. Europe = the real wedge: culinarily rich, structurally fragmented across rails, US platforms barely penetrated, and incumbents in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by DoorDash, OpenTable backlash. The window is real but TIMED — Google is already exporting AI-Mode booking.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 04</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 05</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"Why start in Israel — isn't it small?"</span>
       <div class="moat2" data-rise style="--d:.44s">
         <div class="moatcard moatcard--them">
@@ -1034,7 +1081,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="The landscape. Consolidated and AI-partnered in the US, destabilized in Europe. Walk the signal column — that's the story: everyone above us is either platform-gated or in motion, and none of them own taste. We're not another rail; we sit on top of all of them.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 05</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 06</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"Who else is in this space?"</span>
       <div class="land" data-rise style="--d:.42s">
         <div class="land-row land-row--h"><div>Player</div><div>Signal</div><div>Owner</div></div>
@@ -1052,7 +1099,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="The distribution question — how do you get inside the assistant? Three ways a tool gets invoked: the user connects it, the user names it, or the platform blesses it. Assistants increasingly won't auto-pick a pipe the user didn't name (neutrality). Our answer: we're not trying to be the silent default pipe — we win diner mindshare through curation and memory (you come back because it knows YOU), and because we're rail-agnostic we're partner-able to the platforms rather than a threat they route around.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 06</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 07</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist get invoked inside an assistant?"</span>
       <p class="answer" data-rise style="--d:.42s">
         A tool gets called three ways: the user <strong>connects</strong> it, the user <strong>names</strong> it, or the platform <strong>blesses</strong> it. Assistants increasingly won't auto-pick a pipe you didn't ask for — neutrality by design.
@@ -1067,7 +1114,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   <section class="slide slide--appendix" data-appendix
     data-note="Endgame — investors want to know how they get their return. Two live paths, and we design toward both: independent scale on the taste-graph moat, OR build-to-acquisition into one of the destabilized incumbents who need exactly this and can't build it. The unownable asset is what makes either path real.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 07</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 08</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"What's the endgame?"</span>
       <div class="moat2" data-rise style="--d:.44s">
         <div class="moatcard moatcard--us">
