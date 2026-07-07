@@ -324,6 +324,135 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   color: rgba(201,168,76,.8); margin-top: 2.8rem;
   line-height: 1.52; letter-spacing: .01em;
 }
+
+/* ── Opportunity: funnel formula ── */
+.funnel {
+  display: flex; align-items: stretch; justify-content: center;
+  gap: 0; margin-top: 2.4rem; flex-wrap: wrap;
+}
+.fstep {
+  padding: 1.15rem 1.3rem; min-width: 150px; flex: 0 1 auto;
+  display: flex; flex-direction: column; gap: .3rem; text-align: center;
+}
+.fstep-k {
+  font-size: .62rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.fstep-v {
+  font-family: 'Playfair Display', serif; font-size: 1.08rem;
+  font-weight: 500; color: var(--ink); line-height: 1.25;
+}
+.fstep-v em { font-style: italic; color: var(--gold-deep); }
+.ftimes { display: flex; align-items: center; color: var(--gold);
+  font-family: 'Playfair Display', serif; font-size: 1.3rem; padding: 0 .1rem; }
+.fresult {
+  padding: 1.15rem 1.5rem; border-radius: 14px;
+  background: var(--ink); color: var(--cream);
+  display: flex; flex-direction: column; gap: .3rem; text-align: center;
+  justify-content: center; min-width: 190px;
+}
+.fresult .fstep-k { color: var(--gold); }
+.fresult .fstep-v { color: var(--cream); font-size: 1.15rem; }
+
+/* ── Regional bars ── */
+.regions { margin-top: 2.2rem; display: flex; flex-direction: column; gap: 1.05rem; }
+.region { display: grid; grid-template-columns: 108px 1fr 128px; align-items: center; gap: 1.2rem; }
+.region-name { text-align: left; font-weight: 500; font-size: .95rem; }
+.region-name small { display: block; font-size: .66rem; color: var(--ink-faint);
+  font-weight: 400; letter-spacing: .04em; margin-top: .1rem; }
+.region-track { height: 30px; background: rgba(26,23,20,.05); border-radius: 7px; overflow: hidden; }
+.region-fill { height: 100%; border-radius: 7px; width: 0;
+  background: linear-gradient(90deg, var(--gold-light), var(--gold));
+  transition: width 1s cubic-bezier(.4,0,.2,1) .3s; }
+.active .region-fill { width: var(--w); }
+.region--beach .region-fill { background: linear-gradient(90deg, #D8F0E4, var(--green)); }
+.region-val { text-align: right; font-family: 'Playfair Display', serif;
+  font-size: 1.15rem; font-weight: 500; }
+.region--beach .region-val { color: var(--green); }
+.region-tag { display: inline-block; margin-left: .5rem; font-size: .58rem;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--green);
+  border: 1px solid rgba(45,106,79,.35); border-radius: 20px; padding: .1rem .5rem;
+  vertical-align: middle; }
+.disclaim { display: block; margin-top: 1.8rem; font-size: .68rem;
+  color: var(--ink-faint); font-style: italic; letter-spacing: .02em; }
+
+/* ── Surfaces (channels) ── */
+.surfaces { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2.3rem; }
+.surface {
+  background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 16px;
+  padding: 1.7rem 1.2rem 1.5rem; display: flex; flex-direction: column; align-items: center;
+  gap: .7rem; box-shadow: 0 4px 18px rgba(0,0,0,.05);
+}
+.surface-ico { width: 46px; height: 46px; border-radius: 12px; display: flex;
+  align-items: center; justify-content: center; background: var(--cream); font-size: 1.5rem; }
+.surface-name { font-family: 'Playfair Display', serif; font-size: 1.05rem; font-weight: 500; }
+.surface-sub { font-size: .74rem; color: var(--ink-muted); line-height: 1.45; }
+.surface-rising { font-size: .6rem; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--green); border: 1px solid rgba(45,106,79,.3); border-radius: 20px; padding: .12rem .55rem; }
+.surfaces-foot { margin-top: 1.9rem; font-size: .95rem; color: var(--ink-muted); }
+.surfaces-foot strong { color: var(--ink); font-weight: 500; }
+
+/* ── Mic drop ── */
+.micdrop .line { line-height: 1.05; }
+.micdrop-pre { font-size: clamp(.95rem,1.7vw,1.3rem); color: rgba(250,247,242,.55);
+  font-weight: 300; margin-bottom: 1.4rem; }
+.micdrop-big { font-family: 'Playfair Display', serif; font-weight: 600;
+  font-size: clamp(3.2rem, 9vw, 7rem); letter-spacing: -.03em; color: var(--gold);
+  line-height: 1; }
+.micdrop-mark { margin-top: 2.4rem; font-size: .72rem; letter-spacing: .42em;
+  text-transform: uppercase; color: rgba(250,247,242,.5); }
+
+/* ── Appendix ── */
+.slide--appendix { background: #F4F0E9; }
+.appendix-kicker { font-size: .62rem; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--gold-deep); }
+.q-eyebrow { display: block; font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: clamp(1.3rem, 2.8vw, 2.1rem); font-weight: 500; color: var(--ink);
+  margin-bottom: 1.6rem; line-height: 1.2; letter-spacing: -.01em; }
+.q-eyebrow .qmark { color: var(--gold); }
+.answer { font-size: clamp(.92rem,1.5vw,1.12rem); line-height: 1.65; color: var(--ink-muted);
+  font-weight: 300; max-width: 60ch; margin: 0 auto; }
+.answer strong { font-weight: 500; color: var(--ink); }
+.answer + .answer { margin-top: 1rem; }
+
+.pillrow { display: flex; flex-wrap: wrap; gap: .7rem; justify-content: center; margin-top: 2rem; }
+.pill { background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 30px;
+  padding: .6rem 1.2rem; font-size: .86rem; display: flex; gap: .5rem; align-items: center; }
+.pill b { font-weight: 500; }
+.pill small { color: var(--ink-faint); }
+
+/* revenue stack cards */
+.revcards { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 2.2rem; }
+.revcard { background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 14px;
+  padding: 1.5rem 1.3rem; text-align: left; display: flex; flex-direction: column; gap: .5rem; }
+.revcard-n { font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--gold-deep); }
+.revcard-t { font-family: 'Playfair Display', serif; font-size: 1.15rem; font-weight: 500; }
+.revcard-d { font-size: .82rem; color: var(--ink-muted); line-height: 1.5; }
+.revcard--soon { background: rgba(201,168,76,.07); border-style: dashed; }
+.revcard--soon .revcard-n { color: var(--green); }
+
+/* landscape/competition table */
+.land { margin-top: 2rem; border: 1.5px solid var(--border-s); border-radius: 14px; overflow: hidden; text-align: left; }
+.land-row { display: grid; grid-template-columns: 1.1fr 1.4fr 1fr; gap: 0;
+  border-bottom: 1px solid var(--border); font-size: .84rem; }
+.land-row:last-child { border-bottom: none; }
+.land-row > div { padding: .7rem 1.1rem; }
+.land-row--h { background: rgba(26,23,20,.03); font-size: .62rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-faint); }
+.land-row b { font-weight: 500; }
+.land-sig { color: var(--ink-muted); }
+.land-row--us { background: var(--gold-light); }
+.land-row--us .land-sig { color: var(--gold-deep); }
+
+/* two-col compare for moat */
+.moat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; text-align: left; }
+.moatcard { border-radius: 14px; padding: 1.5rem 1.4rem; }
+.moatcard--them { background: rgba(26,23,20,.04); }
+.moatcard--us { background: var(--gold-light); }
+.moatcard-h { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 500; margin-bottom: .7rem; }
+.moatcard--us .moatcard-h { color: var(--gold-deep); }
+.moatcard p { font-size: .86rem; line-height: 1.55; color: var(--ink-muted); }
+.moatcard--us p { color: var(--ink); }
 </style>
 </head>
 <body>
@@ -559,6 +688,42 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     </div>
   </section>
 
+  <!-- S6b: Where intent now lives — the surfaces -->
+  <section class="slide"
+    data-note="The front door isn't one place anymore — it's multiplying. Walk the four surfaces: the LLM assistants, Google's AI Mode in search, Meta AI inside WhatsApp (where billions already live), and the fast-rising wave of autonomous agents that browse and book on our behalf. The point: intent is fragmenting across all of them — and every one needs a layer that turns 'what I want' into a booking. None of them owns taste. That's the gap we fill, everywhere at once.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">Where intent now lives</span>
+      <h2 class="line line--sm" data-rise style="--d:.22s">
+        The front door<br>is <em>multiplying.</em>
+      </h2>
+      <div class="surfaces" data-rise style="--d:.42s">
+        <div class="surface">
+          <div class="surface-ico">💬</div>
+          <div class="surface-name">AI assistants</div>
+          <div class="surface-sub">ChatGPT · Claude · Gemini — where the asking already happens</div>
+        </div>
+        <div class="surface">
+          <div class="surface-ico">🔍</div>
+          <div class="surface-name">Google AI Mode</div>
+          <div class="surface-sub">Search itself becomes a conversation that books</div>
+        </div>
+        <div class="surface">
+          <div class="surface-ico">🟢</div>
+          <div class="surface-name">Meta AI</div>
+          <div class="surface-sub">Inside WhatsApp — billions already live in the inbox</div>
+        </div>
+        <div class="surface">
+          <div class="surface-ico">🤖</div>
+          <div class="surface-name">Agentic web <span class="surface-rising">Rising</span></div>
+          <div class="surface-sub">Autonomous agents that browse and book for us</div>
+        </div>
+      </div>
+      <p class="surfaces-foot" data-rise style="--d:.66s">
+        Every surface needs to turn intent into a booking. <strong>None of them owns taste.</strong>
+      </p>
+    </div>
+  </section>
+
   <!-- S7: The opportunity -->
   <section class="slide"
     data-note="Don't lead with TAM numbers — lead with the moments. Every meal, every birthday, every date night — those are the units of this market. Then zoom out: that intent is moving to AI surfaces, and the infrastructure to capture it doesn't exist yet.">
@@ -571,6 +736,78 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         All of it begins with intent — and that intent is moving to AI.
         <strong>We capture it, and turn it into bookings.</strong>
       </p>
+    </div>
+  </section>
+
+  <!-- S8: Quantifying the opportunity — the funnel -->
+  <section class="slide"
+    data-note="This is the 'how do you size it' slide. You can't measure lost intent directly, so you triangulate it: dining occasions that begin with discovery, the share that never convert to a booking, priced at what a booking is worth. That product is the pool of value falling through the cracks today. Every input here is a real, sourceable number — say it's conservative and validated by your own research.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">Sizing it</span>
+      <h2 class="line line--sm" data-rise style="--d:.24s">
+        You can't count lost intent.<br>You can <em>price</em> it.
+      </h2>
+      <div class="funnel" data-rise style="--d:.44s">
+        <div class="fstep">
+          <span class="fstep-k">Occasions / yr</span>
+          <span class="fstep-v">Dining-out<br>decisions</span>
+        </div>
+        <div class="ftimes">×</div>
+        <div class="fstep">
+          <span class="fstep-k">Discovery-driven</span>
+          <span class="fstep-v">New place,<br>group, occasion</span>
+        </div>
+        <div class="ftimes">×</div>
+        <div class="fstep">
+          <span class="fstep-k">Abandoned</span>
+          <span class="fstep-v"><em>Never</em><br>booked</span>
+        </div>
+        <div class="ftimes">×</div>
+        <div class="fstep">
+          <span class="fstep-k">Booking value</span>
+          <span class="fstep-v">Party ×<br>avg check</span>
+        </div>
+        <div class="ftimes" style="font-size:1.6rem">=</div>
+        <div class="fresult">
+          <span class="fstep-k">The pool</span>
+          <span class="fstep-v">Unconverted<br>intent / year</span>
+        </div>
+      </div>
+      <span class="caption" data-rise style="--d:.62s">Every input is a real, sourceable number — reservation look-to-book rates, empty-cover data, avg check.</span>
+    </div>
+  </section>
+
+  <!-- S9: Regional scale -->
+  <section class="slide"
+    data-note="Four markets, one formula. Israel is the beachhead — small, contained, winnable. Europe is the wedge — large and fragmented. US and APAC show the ceiling. IMPORTANT: these figures are ILLUSTRATIVE placeholders showing the shape of the argument — replace each with your researched number before presenting. Anchor: full-service dining spend × discovery share × abandonment × booking value.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">The scale of unconverted intent</span>
+      <h2 class="line line--sm" data-rise style="--d:.22s">
+        One formula.<br><em>Four markets.</em>
+      </h2>
+      <div class="regions" data-rise style="--d:.42s">
+        <div class="region region--beach">
+          <div class="region-name">Israel<small>Beachhead</small></div>
+          <div class="region-track"><div class="region-fill" style="--w:6%"></div></div>
+          <div class="region-val">~$0.5B<span class="region-tag">Lab</span></div>
+        </div>
+        <div class="region">
+          <div class="region-name">Europe<small>GTM wedge</small></div>
+          <div class="region-track"><div class="region-fill" style="--w:70%"></div></div>
+          <div class="region-val">~$18B</div>
+        </div>
+        <div class="region">
+          <div class="region-name">United States<small>Later / exit</small></div>
+          <div class="region-track"><div class="region-fill" style="--w:58%"></div></div>
+          <div class="region-val">~$15B</div>
+        </div>
+        <div class="region">
+          <div class="region-name">APAC<small>The ceiling</small></div>
+          <div class="region-track"><div class="region-fill" style="--w:100%"></div></div>
+          <div class="region-val">~$26B</div>
+        </div>
+      </div>
+      <span class="disclaim" data-rise style="--d:.7s">Illustrative — annual value of abandoned discovery. Replace with validated figures. Taist earns a take-rate slice of what it recovers, plus a venue-insights layer.</span>
     </div>
   </section>
 
@@ -688,6 +925,164 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     </div>
   </section>
 
+  <!-- S12: Mic drop (ink) — callback to the cold open -->
+  <section class="slide slide--ink micdrop"
+    data-note="The mic drop. Callback to the very first slide — the failed search that booked zero tables. Deliver the small line quietly, then hit 'Booked.' and STOP. Don't say anything after. Let the silence be the ending. (Alternates if you prefer: 'Zero tables. Never again.' / 'When the world asks AI where to go — Taist is the answer.')">
+    <div class="inner">
+      <div class="micdrop-pre" data-rise style="--d:.15s">Eight people. Two restless kids. One simple ask.</div>
+      <div class="micdrop-big" data-rise style="--d:.5s">Booked.</div>
+      <div class="micdrop-mark" data-rise style="--d:1s">Taist</div>
+    </div>
+  </section>
+
+  <!-- ═══════════ APPENDIX ═══════════ -->
+
+  <!-- A0: Divider -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The pitch ended at 'Booked.' This is the Q&A holding slide — the questions investors tend to ask, mapped out so you can jump straight to the answer.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Appendix</span>
+      <h2 class="line" data-rise style="--d:.28s">
+        For the <em>questions</em><br>you're about to ask.
+      </h2>
+      <p class="lede" data-rise style="--d:.5s">The pitch ends at "Booked." What follows is the map of hard questions — and where we stand on each.</p>
+    </div>
+  </section>
+
+  <!-- A1: Why won't the giants build this -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The #1 investor question. Key points: OpenTable and Google own inventory and the transaction, but not taste-with-memory — and they have no incentive to build it and can't absorb it from usage logs. Being a booking pipe actually invites disintermediation (OpenTable got made the exclusive ChatGPT partner; Google shipped native). So we deliberately don't compete as a pipe — we own the layer underneath: an accumulating taste-and-context graph that compounds per diner and can't be retrained into existence.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 01</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"Why won't OpenTable or Google just build this?"<span class="qmark"></span></span>
+      <div class="moat2" data-rise style="--d:.44s">
+        <div class="moatcard moatcard--them">
+          <div class="moatcard-h">What they own</div>
+          <p>Inventory and the transaction. But being the <strong>booking pipe</strong> is exactly what gets you replaced — the model maker ships it natively, or anoints an exclusive partner. It already happened.</p>
+        </div>
+        <div class="moatcard moatcard--us">
+          <div class="moatcard-h">What we own</div>
+          <p>The layer beneath: an <strong>accumulating taste-and-context graph</strong> — who this diner is, what they chose, what they loved after. It compounds per person, and a foundation model can't retrain it into existence because it never sees it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A2: How does Taist make money -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="Business model. Three surfaces. Near-term: venue-facing AI-visibility + qualified demand + booking actions (a take rate on bookings we route). The commercial wedge, not the thesis. Longer-term: the insights product — the booking exhaust becomes anonymized diner-segment intelligence sold to venues. Say the data product is stage-2, gated on booking volume.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 02</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist actually make money?"</span>
+      <div class="revcards" data-rise style="--d:.44s">
+        <div class="revcard">
+          <div class="revcard-n">Now</div>
+          <div class="revcard-t">Qualified demand</div>
+          <div class="revcard-d">AI-visibility + best-fit guests routed to venues. We earn on the bookings we convert.</div>
+        </div>
+        <div class="revcard">
+          <div class="revcard-n">Now</div>
+          <div class="revcard-t">Booking take-rate</div>
+          <div class="revcard-d">A slice of each reservation we complete through whichever rail exists — rail-agnostic by design.</div>
+        </div>
+        <div class="revcard revcard--soon">
+          <div class="revcard-n">Stage 2</div>
+          <div class="revcard-t">Intent as insight</div>
+          <div class="revcard-d">Anonymized diner-segment intelligence, sold back to venues. Gated on booking volume.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A3: The insights product (featured) -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="Jaque's addition — the second product. Once diners book through Taist, the booking exhaust is REVEALED preference: what people actually reserved, not what they said they liked. At volume that segments into cohorts ('date-night wine-bar seekers', 'group-celebration bookers'). Sold to venues two ways — targeting (reach the segments you want) and insight (understand who's booking you). Must be framed as anonymized cohort intelligence, never identifiable diner data. This is the taste graph becoming a venue-facing revenue surface — closer to a demand-side data platform than to how OpenTable monetizes.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03 · The second product</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">Every search is a signal.<br>The exhaust becomes a <em>product.</em></span>
+      <p class="answer" data-rise style="--d:.44s">
+        What people actually book is <strong>revealed preference</strong> — richer than any survey. At volume it segments into diner cohorts: <em>date-night wine-bar seekers, group-celebration bookers, solo-lunch regulars.</em>
+      </p>
+      <div class="pillrow" data-rise style="--d:.6s">
+        <div class="pill"><b>Targeting</b><small>reach the segments a venue actually wants</small></div>
+        <div class="pill"><b>Insight</b><small>show a venue who's booking, and what they prefer</small></div>
+      </div>
+      <span class="disclaim" data-rise style="--d:.72s">Sold only as anonymized cohort intelligence — venues get aggregates, never names.</span>
+    </div>
+  </section>
+
+  <!-- A4: Why Israel then Europe -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="GTM + timing. Israel = lab: contained home turf where Ontopo (not OpenTable) owns booking, so it's partner-able, not a war. Prove discoverability → earn leverage. Europe = the real wedge: culinarily rich, structurally fragmented across rails, US platforms barely penetrated, and incumbents in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by DoorDash, OpenTable backlash. The window is real but TIMED — Google is already exporting AI-Mode booking.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 04</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"Why start in Israel — isn't it small?"</span>
+      <div class="moat2" data-rise style="--d:.44s">
+        <div class="moatcard moatcard--them">
+          <div class="moatcard-h">Israel — the lab</div>
+          <p>Contained, home turf, and owned by <strong>Ontopo, not OpenTable</strong> — so it's a partnership, not a war. We prove discovery and answer-quality here, and turn the proof into leverage.</p>
+        </div>
+        <div class="moatcard moatcard--us">
+          <div class="moatcard-h">Europe — the wedge</div>
+          <p>Fragmented rails, US giants barely present, incumbents in rare disarray — <strong>Quandoo closing, TheFork for sale, SevenRooms sold, OpenTable backlash.</strong> A timed window into an open door.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A5: Competitive landscape -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The landscape. Consolidated and AI-partnered in the US, destabilized in Europe. Walk the signal column — that's the story: everyone above us is either platform-gated or in motion, and none of them own taste. We're not another rail; we sit on top of all of them.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 05</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"Who else is in this space?"</span>
+      <div class="land" data-rise style="--d:.42s">
+        <div class="land-row land-row--h"><div>Player</div><div>Signal</div><div>Owner</div></div>
+        <div class="land-row"><div><b>OpenTable</b></div><div class="land-sig">Exclusive ChatGPT partner · forcing all bookings → backlash</div><div class="land-sig">Booking Holdings</div></div>
+        <div class="land-row"><div><b>Reserve w/ Google</b></div><div class="land-sig">Default on Maps · AI-Mode booking now in 8 countries</div><div class="land-sig">Google</div></div>
+        <div class="land-row"><div><b>TheFork</b></div><div class="land-sig">Largest in Europe — but up for sale</div><div class="land-sig">TripAdvisor</div></div>
+        <div class="land-row"><div><b>SevenRooms</b></div><div class="land-sig">Enterprise CRM — owned by a delivery company</div><div class="land-sig">DoorDash</div></div>
+        <div class="land-row"><div><b>Quandoo</b></div><div class="land-sig">Shutting down end of 2026</div><div class="land-sig">—</div></div>
+        <div class="land-row land-row--us"><div><b>Taist</b></div><div class="land-sig">Not a rail — the taste layer that sits on top of all of them</div><div class="land-sig">Us</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- A6: Distribution / how it gets invoked -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The distribution question — how do you get inside the assistant? Three ways a tool gets invoked: the user connects it, the user names it, or the platform blesses it. Assistants increasingly won't auto-pick a pipe the user didn't name (neutrality). Our answer: we're not trying to be the silent default pipe — we win diner mindshare through curation and memory (you come back because it knows YOU), and because we're rail-agnostic we're partner-able to the platforms rather than a threat they route around.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 06</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist get invoked inside an assistant?"</span>
+      <p class="answer" data-rise style="--d:.42s">
+        A tool gets called three ways: the user <strong>connects</strong> it, the user <strong>names</strong> it, or the platform <strong>blesses</strong> it. Assistants increasingly won't auto-pick a pipe you didn't ask for — neutrality by design.
+      </p>
+      <p class="answer" data-rise style="--d:.56s">
+        So we don't fight to be the silent default. We earn the diner's <strong>name recall</strong> through taste and memory — you return because it knows you — and because we're <strong>rail-agnostic</strong>, we're a partner to the platforms, not a threat they route around.
+      </p>
+    </div>
+  </section>
+
+  <!-- A7: Endgame -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="Endgame — investors want to know how they get their return. Two live paths, and we design toward both: independent scale on the taste-graph moat, OR build-to-acquisition into one of the destabilized incumbents who need exactly this and can't build it. The unownable asset is what makes either path real.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 07</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"What's the endgame?"</span>
+      <div class="moat2" data-rise style="--d:.44s">
+        <div class="moatcard moatcard--us">
+          <div class="moatcard-h">Independent scale</div>
+          <p>The taste graph compounds into a diner-facing discovery layer no one can retrain — a standalone company on an unownable asset.</p>
+        </div>
+        <div class="moatcard moatcard--them">
+          <div class="moatcard-h">Build-to-acquisition</div>
+          <p>The destabilized incumbents need exactly this layer and can't build it. The same asset makes us the obvious acquisition.</p>
+        </div>
+      </div>
+      <span class="disclaim" data-rise style="--d:.62s">We design toward both — the unownable asset is what keeps either path open.</span>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -701,10 +1096,14 @@ const nbody  = document.getElementById('notesBody');
 const nsMark = document.getElementById('nsMark');
 let cur = 0, notesOpen = false;
 const N = slides.length;
+const isAppx = i => slides[i].hasAttribute('data-appendix');
+const mainCount = slides.filter((_, i) => !isAppx(i)).length;
+const firstAppx = slides.findIndex((_, i) => isAppx(i));
 
 slides.forEach((_, i) => {
   const d = document.createElement('div');
   d.className = 'dot';
+  if (i === firstAppx) d.style.marginLeft = '.9rem';
   d.addEventListener('click', () => go(i));
   dotsEl.appendChild(d);
 });
@@ -716,10 +1115,18 @@ function render() {
     s.classList.toggle('active', i === cur);
     allDots[i].classList.toggle('on', i === cur);
   });
-  ctrEl.textContent = `${String(cur + 1).padStart(2, '0')} / ${String(N).padStart(2, '0')}`;
-  prog.style.width   = `${((cur + 1) / N) * 100}%`;
+  if (isAppx(cur)) {
+    const k = cur - firstAppx + 1, A = N - firstAppx;
+    ctrEl.textContent = `APPENDIX · ${k} / ${A}`;
+    prog.style.width = '100%';
+    prog.style.opacity = '.35';
+  } else {
+    ctrEl.textContent = `${String(cur + 1).padStart(2, '0')} / ${String(mainCount).padStart(2, '0')}`;
+    prog.style.width = `${((cur + 1) / mainCount) * 100}%`;
+    prog.style.opacity = '1';
+  }
   document.body.classList.toggle('on-ink', slides[cur].classList.contains('slide--ink'));
-  nsMark.classList.toggle('show', cur >= 4);
+  nsMark.classList.toggle('show', cur >= 4 && !isAppx(cur));
   nbody.textContent = slides[cur].dataset.note || '';
 }
 
