@@ -49,9 +49,9 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 > "So how big? You can't count intent that never converted — but you can **price** it. Take the dining-out decisions in a market. The share that begin with discovery — a new place, a group, an occasion. The share that get abandoned before any booking. Times what a booking is worth. That product is the pool of value falling through the cracks — and every input is a real, sourceable number."
 
 ## ▸ 10 — Four markets
-> "One formula, four markets. Israel is our beachhead — small, contained, winnable. Europe is the wedge — large and fragmented. The US and APAC show the ceiling."
+> "One formula, four markets. Israel is our beachhead — small, contained, winnable. Europe is the wedge. The US and APAC show the ceiling. Add them up and it's roughly **$85 billion of dining intent abandoned every year.**"
 >
-> *(Be honest:)* "These figures are illustrative — the shape of the argument. We're validating each with real data. But the shape is the point: this scales from a beachhead we can win to a market measured in tens of billions."
+> *(If pressed on the math, go to appendix A1:)* "We anchor on real full-service restaurant revenue — the US alone is $522 billion. Then three conservative cuts: about a third of those occasions begin with discovery, just under half of that is already digital, and about a third never convert. That's roughly 6% of the full-service economy leaking out — and we're validating each cut market by market. Even recovering 5% of it at a 10% take is $100M+ per major market."
 
 ## ▸ 11 — The solution *(dark)*
 *(Say it once, slowly. Then stop.)*
