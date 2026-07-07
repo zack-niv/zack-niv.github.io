@@ -48,8 +48,11 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## ▸ 9 — Where the value is *(the wedge)*
 > "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just sixty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
 
-## ▸ 10 — The market, bottom-up
-> "And you can size it without any hand-waving. Every full-service restaurant is a customer, and each already pays thousands a year to fill seats. Take a fraction of that — three thousand a year. Israel, our beachhead, is about ten thousand venues — thirty million, and it's winnable now. Europe, our wedge, is a million venues — a **three-billion-dollar** market, fragmented and wide open. Globally it's tens of billions. One number you can look up, one price anchored to what they already pay. No funnel."
+## ▸ 10 — Every venue has its own zero tables
+*(This is the callback. My zero tables — from the open — is every venue's problem too.)*
+> "Remember my zero tables? That wasn't just my loss. The booking I never made is a table a venue never filled. **Every venue has its own zero tables** — demand that reached for them and never converted. Taist wins it back."
+>
+> "So the market isn't abstract — it's those recaptured bookings. Per venue, a few covers a week is worth about three thousand a year, a fraction of what they already pay OpenTable for *all* their covers. Israel, our beachhead: ten thousand venues, thirty million, winnable now. Europe, our wedge: a million venues — **three billion.** Worldwide, north of twenty. One count you can look up, one price grounded in real tables."
 
 ## ▸ 11 — The solution *(dark)*
 *(Say it once, slowly. Then stop.)*
