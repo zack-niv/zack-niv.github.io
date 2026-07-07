@@ -469,6 +469,22 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .land-row--us { background: var(--gold-light); }
 .land-row--us .land-sig { color: var(--gold-deep); }
 
+/* references / sources */
+.refs { margin-top: 1.7rem; display: flex; flex-direction: column; gap: .72rem;
+  text-align: left; max-width: 68ch; margin-left: auto; margin-right: auto; }
+.ref { display: grid; grid-template-columns: 20px 1fr; gap: .8rem;
+  font-size: .84rem; line-height: 1.5; align-items: baseline; }
+.ref-n { color: var(--gold-deep); font-size: .72rem; font-variant-numeric: tabular-nums;
+  padding-top: .05rem; }
+.ref-claim { color: var(--ink-muted); }
+.ref-claim strong { color: var(--ink); font-weight: 500; }
+a { color: var(--purple); text-decoration: none;
+  border-bottom: 1px solid rgba(91,75,138,.35); transition: border-color .2s; }
+a:hover { border-bottom-color: var(--purple); }
+.slide--ink a { color: var(--gold); border-bottom-color: rgba(201,168,76,.4); }
+.ref-src { white-space: nowrap; }
+.ref-jump { font-size: .82em; margin-left: .3rem; }
+
 /* sizing thesis table */
 .thesis { margin-top: 1.6rem; border: 1.5px solid var(--border-s); border-radius: 14px;
   overflow: hidden; text-align: left; }
@@ -796,7 +812,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
         </div>
         <div class="wstat">
           <div class="wstat-n">1.9B</div>
-          <div class="wstat-l">diners OpenTable seats a year — on just <strong>55k venues.</strong> One player, one surface.</div>
+          <div class="wstat-l">diners OpenTable seats a year — on just <strong>65k venues.</strong> One player, one surface.</div>
         </div>
       </div>
       <p class="wedge-edge" data-rise style="--d:.66s">
@@ -987,7 +1003,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
           <div>Israel</div><div>Europe</div><div>US</div><div>APAC</div>
         </div>
         <div class="trow">
-          <div class="tlabel">Count · Statista / NRA</div>
+          <div class="tlabel">Count · <a href="https://www.statista.com/topics/3966/restaurants-and-food-services-in-europe/" target="_blank" rel="noopener">Statista</a> / <a href="https://restaurant.org/research-and-media/research/research-reports/state-of-the-industry/" target="_blank" rel="noopener">NRA</a></div>
           <div>~10k</div><div>~1M</div><div>~330k</div><div>millions</div>
         </div>
         <div class="tmul">
@@ -1001,7 +1017,7 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
       <p class="thesis-foot" data-rise style="--d:.6s">
         One count you can look up, one price anchored to what venues already spend. <strong>Israel is winnable now; Europe is a €3B wedge;</strong> the world is the ceiling.
       </p>
-      <span class="disclaim" data-rise style="--d:.72s">Comparable: OpenTable subscriptions run $3.6k–12k+/yr per venue before cover fees — and it earns on 1.9B diners across 55k venues. The conversion layer already monetizes.</span>
+      <span class="disclaim" data-rise style="--d:.72s">Comparable: <a href="https://www.opentable.com/blog/newsroom/" target="_blank" rel="noopener">OpenTable</a> subscriptions run $3.6k–12k+/yr per venue before cover fees — and it seats 1.9B diners across 65k+ venues. The conversion layer already monetizes. <a href="#" class="ref-jump" data-jump="last">See all sources →</a></span>
     </div>
   </section>
 
@@ -1139,6 +1155,38 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     </div>
   </section>
 
+  <!-- A9: Sources & references -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="The receipts. Every number in the opportunity is sourced here, hyperlinked. Anchors: NRA for restaurant sales and full-service split; Statista for venue counts; Credence Research for the reservation-software market; OpenTable's own newsroom for its scale and pricing comparable; Grand View for the global/APAC foodservice ceiling. If an investor wants to check a figure, it's one click away.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Appendix · Sources</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">The receipts.</span>
+      <div class="refs" data-rise style="--d:.42s">
+        <div class="ref">
+          <span class="ref-n">01</span>
+          <span class="ref-claim"><strong>US restaurant industry $1.5T; full-service $533B (2025).</strong> National Restaurant Association — <a href="https://restaurant.org/research-and-media/media/press-releases/restaurant-industry-poised-for-growth-in-2025-industry-expected-to-employ-15-9-million-people-and-r/" target="_blank" rel="noopener" class="ref-src">2025 State of the Industry</a>.</span>
+        </div>
+        <div class="ref">
+          <span class="ref-n">02</span>
+          <span class="ref-claim"><strong>Full-service venue counts (US ~330k · Europe ~1M).</strong> <a href="https://www.statista.com/topics/3966/restaurants-and-food-services-in-europe/" target="_blank" rel="noopener" class="ref-src">Statista — Restaurants & food services in Europe</a>.</span>
+        </div>
+        <div class="ref">
+          <span class="ref-n">03</span>
+          <span class="ref-claim"><strong>Restaurant-reservation software market ~$2B, ~10–15% CAGR.</strong> <a href="https://www.credenceresearch.com/report/restaurant-reservations-software-market" target="_blank" rel="noopener" class="ref-src">Credence Research</a>.</span>
+        </div>
+        <div class="ref">
+          <span class="ref-n">04</span>
+          <span class="ref-claim"><strong>OpenTable: 1.9B diners seated / yr across 65k+ restaurants; venue pricing.</strong> <a href="https://www.opentable.com/blog/newsroom/" target="_blank" rel="noopener" class="ref-src">OpenTable Newsroom</a> (Booking Holdings).</span>
+        </div>
+        <div class="ref">
+          <span class="ref-n">05</span>
+          <span class="ref-claim"><strong>Global &amp; APAC foodservice market ($3T+ global; the TAM ceiling).</strong> <a href="https://www.grandviewresearch.com/horizon/outlook/foodservice-market/asia-pacific" target="_blank" rel="noopener" class="ref-src">Grand View Research</a>.</span>
+        </div>
+      </div>
+      <span class="disclaim" data-rise style="--d:.66s">ARPU (~€3k/yr) is our own conservative assumption, anchored below OpenTable's published venue pricing. Market-research totals vary by source — figures are rounded to order of magnitude.</span>
+    </div>
+  </section>
+
 </div>
 
 <script>
@@ -1205,7 +1253,9 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('click', e => {
-  if (e.target.closest('.dots') || e.target.closest('.notes-panel') || e.target.closest('.hint')) return;
+  const jump = e.target.closest('.ref-jump');
+  if (jump) { e.preventDefault(); go(N - 1); return; }
+  if (e.target.closest('.dots') || e.target.closest('.notes-panel') || e.target.closest('.hint') || e.target.closest('a')) return;
   next();
 });
 
