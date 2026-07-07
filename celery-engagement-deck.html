@@ -168,6 +168,8 @@
   .chip.approve{border-color:color-mix(in srgb,var(--green) 55%,var(--line));color:var(--green);background:var(--green-050);font-weight:600;}
   .chip.reject{border-color:color-mix(in srgb,var(--red) 45%,var(--line));color:var(--red);}
   .chip.route{border-color:color-mix(in srgb,var(--teal) 45%,var(--line));color:var(--teal);font-weight:600;}
+  .chip.primary{background:var(--teal);border-color:var(--teal);color:#fff;font-weight:700;}
+  .chip.big{padding:10px 18px;font-size:13px;}
   .thread{display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--line-2);padding-left:11px;margin:10px 0 0 2px;}
   .cmt{font-size:11.5px;color:var(--ink-2);}
   .cmt .au{font-weight:650;color:var(--ink);}
@@ -271,6 +273,7 @@
   .matrix{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;}
   .matrix th,.matrix td{padding:10px 11px;text-align:center;border-bottom:1px solid var(--line);}
   .matrix th{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;}
+  .matrix th .orig{display:block;font-family:var(--sans);font-size:10px;letter-spacing:0;text-transform:none;font-weight:400;font-style:italic;color:var(--ink-3);opacity:.8;margin-top:3px;}
   .matrix td:first-child,.matrix th:first-child{text-align:left;font-weight:600;color:var(--ink);font-family:var(--sans);}
   .matrix .yes{color:var(--teal);font-weight:800;font-size:16px;}
   .matrix .rsr{background:var(--green-050);color:var(--green);font-weight:700;font-family:var(--mono);font-size:11px;}
@@ -289,7 +292,6 @@
 
   /* payslip canned + snapshot */
   .cta-row{display:flex;gap:9px;align-items:center;margin-top:11px;flex-wrap:wrap;}
-  .btn.big{padding:11px 18px;font-size:13.5px;}
   .canned{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;}
   .cbox{border:1px dashed var(--line-2);border-radius:9px;padding:10px 12px;font-size:12.5px;color:var(--ink-3);font-style:italic;line-height:1.4;}
   .cbox b{color:var(--teal);font-style:normal;}
@@ -474,7 +476,7 @@
           </div>
           <p style="margin:14px 0 0;font-size:13.5px;color:var(--ink-2)"><b>Resolved</b> = a real error <span class="greenhl">salvaged</span>, or a false alarm <span class="mut">cleared</span>. Headline for the CFO: absolute <span class="greenhl">$ Salvaged.</span></p>
         </div>
-        <div class="card" style="border-color:color-mix(in srgb,var(--red) 38%,var(--line));padding:13px 16px"><div class="mlabel redhl">⚠ Guardrail</div><p style="margin:4px 0 0;font-size:13px;color:var(--ink-2)"><b style="color:var(--ink)">Reversal rate</b> keeps velocity honest — "resolved" must never mean blind-approved.</p></div>
+        <div class="card" style="border-color:color-mix(in srgb,var(--red) 38%,var(--line));padding:13px 16px"><div class="mlabel redhl">⚠ Guardrail</div><p style="margin:4px 0 0;font-size:13px;color:var(--ink-2)"><b style="color:var(--ink)">Reversal rate</b> keeps velocity honest — "resolved" must never mean blind-approved. <span class="mut">(% of resolutions later disputed or recurring — paired with RSR, not chased alone.)</span></p></div>
       </div>
     </div>
   </section>
@@ -636,7 +638,7 @@
                 <h4>Anomaly <span class="cnt">1</span></h4>
                 <div class="anom" style="border:none;padding:2px 0"><span class="x">✕</span><span>Unauthorized overtime · 14 hrs above schedule · <b style="color:var(--ink)">recurring, 3rd cycle</b></span><span style="margin-left:auto;color:var(--amber);font-weight:700;font-variant-numeric:tabular-nums">$612</span></div>
                 <div class="nba"><span class="spark">✨</span><span class="txt"><b>Suggested:</b> Approve · scheduled OT — matches the last 3 cycles &amp; the unit's storm-coverage policy.</span></div>
-                <div class="cta-row"><span class="btn primary big">✓ Approve · scheduled OT</span><span class="chip reject">Reject</span><span class="chip route">Route →</span></div>
+                <div class="cta-row"><span class="chip primary big">✓ Approve · scheduled OT</span><span class="chip reject">Reject</span><span class="chip route">Route →</span></div>
               </div>
               <div class="panel">
                 <h4>Comment <span class="mut" style="font-weight:500;font-size:11px">· one tap, or type</span></h4>
@@ -770,7 +772,7 @@
     <h2 class="title">Every moment maps to a KPI — and up to RSR.</h2>
     <div class="fill col cy" style="margin-top:6px">
       <table class="matrix">
-        <thead><tr><th>Experience moment</th><th>Coverage<br>KPI 1</th><th>Velocity<br>KPI 2</th><th>Depth<br>KPI 3 ★</th><th>Drives</th></tr></thead>
+        <thead><tr><th>Experience moment</th><th>Coverage · KPI 1<span class="orig">"payslips reviewed / cycle"</span></th><th>Velocity · KPI 2<span class="orig">"% alerts promptly approved"</span></th><th>Depth · KPI 3 ★<span class="orig">"comments written on payslips"</span></th><th>Drives</th></tr></thead>
         <tbody>
           <tr><td>Invite &amp; calendar hold</td><td class="yes">●</td><td></td><td></td><td class="rsr">RSR ↑</td></tr>
           <tr><td>Arrival summary &amp; prioritization</td><td class="yes">●</td><td class="yes">●</td><td></td><td class="rsr">RSR ↑</td></tr>
