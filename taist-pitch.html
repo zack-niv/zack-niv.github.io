@@ -354,6 +354,31 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .fresult .fstep-k { color: var(--gold); }
 .fresult .fstep-v { color: var(--cream); font-size: 1.15rem; }
 
+/* ── Wedge proof tiles ── */
+.wedge-stats { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.2rem;
+  margin: 2.3rem auto 0; max-width: 720px; }
+.wstat { background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 16px;
+  padding: 1.6rem 1.8rem; box-shadow: 0 4px 18px rgba(0,0,0,.05); text-align: left; }
+.wstat-n { font-family: 'Playfair Display', serif; font-size: 2.3rem; font-weight: 600;
+  color: var(--gold-deep); line-height: 1; letter-spacing: -.02em; }
+.wstat-l { font-size: .84rem; color: var(--ink-muted); margin-top: .55rem; line-height: 1.45; }
+.wstat-l strong { color: var(--ink); font-weight: 500; }
+.wedge-edge { margin-top: 1.9rem; font-size: clamp(.9rem,1.45vw,1.08rem); color: var(--ink-muted); }
+.wedge-edge strong { color: var(--ink); font-weight: 500; }
+
+/* ── TAM / SAM / SOM tiles ── */
+.sam3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.3rem; align-items: stretch; }
+.samtile { border: 1.5px solid var(--border-s); border-radius: 16px; padding: 1.7rem 1.5rem;
+  background: var(--surface); display: flex; flex-direction: column; gap: .55rem; text-align: left; }
+.samtile--focus { background: var(--gold-light); border-color: rgba(201,168,76,.5); box-shadow: 0 6px 24px rgba(201,168,76,.16); }
+.samtier { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); }
+.samtile--focus .samtier { color: var(--gold-deep); }
+.samwho { font-size: .92rem; font-weight: 500; }
+.samval { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 600;
+  letter-spacing: -.02em; line-height: 1; margin-top: .1rem; }
+.samtile--focus .samval { color: var(--gold-deep); }
+.sammath { font-size: .77rem; color: var(--ink-muted); line-height: 1.45; margin-top: auto; padding-top: .7rem; }
+
 /* ── Regional bars ── */
 .regions { margin-top: 2.2rem; display: flex; flex-direction: column; gap: 1.05rem; }
 .region { display: grid; grid-template-columns: 108px 1fr 128px; align-items: center; gap: 1.2rem; }
@@ -756,75 +781,59 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
     </div>
   </section>
 
-  <!-- S8: Quantifying the opportunity — the funnel -->
+  <!-- S8: The wedge — the conversion is where the money is -->
   <section class="slide"
-    data-note="This is the 'how do you size it' slide. You can't measure lost intent directly, so you triangulate it: dining occasions that begin with discovery, the share that never convert to a booking, priced at what a booking is worth. That product is the pool of value falling through the cracks today. Every input here is a real, sourceable number — say it's conservative and validated by your own research.">
+    data-note="This is the sizing setup — the wedge. Don't build a formula. Make one point: the value isn't the search, it's the booking it becomes — and that conversion ALREADY makes money. Proof points: restaurant-reservation tech is already a ~$2B market growing double digits; OpenTable earns on 1.9 billion diners a year across just 55,000 venues. So the conversion pays. Our wedge is to make it native to every AI surface and extend it to the long tail no rail covers. We're not inventing the transaction — we're moving it to where discovery is going.">
     <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">Sizing it</span>
+      <span class="eyebrow" data-rise style="--d:.1s">Where the value is</span>
       <h2 class="line line--sm" data-rise style="--d:.24s">
-        You can't count lost intent.<br>You can <em>price</em> it.
+        The value isn't the search.<br>It's the <em>booking</em> it becomes.
       </h2>
-      <div class="funnel" data-rise style="--d:.44s">
-        <div class="fstep">
-          <span class="fstep-k">Occasions / yr</span>
-          <span class="fstep-v">Dining-out<br>decisions</span>
+      <div class="wedge-stats" data-rise style="--d:.46s">
+        <div class="wstat">
+          <div class="wstat-n">$2B+</div>
+          <div class="wstat-l">restaurant-booking software today — <strong>growing ~12% a year.</strong> The conversion already pays.</div>
         </div>
-        <div class="ftimes">×</div>
-        <div class="fstep">
-          <span class="fstep-k">Discovery-driven</span>
-          <span class="fstep-v">New place,<br>group, occasion</span>
-        </div>
-        <div class="ftimes">×</div>
-        <div class="fstep">
-          <span class="fstep-k">Abandoned</span>
-          <span class="fstep-v"><em>Never</em><br>booked</span>
-        </div>
-        <div class="ftimes">×</div>
-        <div class="fstep">
-          <span class="fstep-k">Booking value</span>
-          <span class="fstep-v">Party ×<br>avg check</span>
-        </div>
-        <div class="ftimes" style="font-size:1.6rem">=</div>
-        <div class="fresult">
-          <span class="fstep-k">The pool</span>
-          <span class="fstep-v">Unconverted<br>intent / year</span>
+        <div class="wstat">
+          <div class="wstat-n">1.9B</div>
+          <div class="wstat-l">diners OpenTable seats a year — on just <strong>55k venues.</strong> One player, one surface.</div>
         </div>
       </div>
-      <span class="caption" data-rise style="--d:.62s">Every input is a real, sourceable number — reservation look-to-book rates, empty-cover data, avg check.</span>
+      <p class="wedge-edge" data-rise style="--d:.66s">
+        Our wedge: make that conversion <strong>native to every AI surface</strong> — and reach the long tail no rail covers.
+      </p>
     </div>
   </section>
 
-  <!-- S9: Regional scale -->
+  <!-- S9: The market, bottom-up (TAM/SAM/SOM) -->
   <section class="slide"
-    data-note="Four markets, one formula. Israel is the beachhead — small, contained, winnable. Europe is the wedge — large and fragmented. US and APAC show the ceiling. IMPORTANT: these figures are ILLUSTRATIVE placeholders showing the shape of the argument — replace each with your researched number before presenting. Anchor: full-service dining spend × discovery share × abandonment × booking value.">
+    data-note="The market, bottom-up — one verifiable count times one stated price. Every full-service restaurant is a customer, and each already pays thousands a year to fill seats (OpenTable, TheFork, marketing). We use ~€3k/year — a fraction of that. Israel is the beachhead we can actually win (~10k venues → ~€30M). Europe is our wedge (~1M venues → ~€3B). Global is the ceiling (millions of venues → tens of billions). Only one judgment call here — the per-venue price — and it's anchored to what venues already pay. Everything else is a lookup.">
     <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">The scale of unconverted intent</span>
+      <span class="eyebrow" data-rise style="--d:.1s">The market, bottom-up</span>
       <h2 class="line line--sm" data-rise style="--d:.22s">
-        One formula.<br><em>Four markets.</em>
+        Every venue<br>is a <em>customer.</em>
       </h2>
-      <div class="regions" data-rise style="--d:.42s">
-        <div class="region region--beach">
-          <div class="region-name">Israel<small>Beachhead</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:4%"></div></div>
-          <div class="region-val">~$0.2B<span class="region-tag">Lab</span></div>
+      <div class="sam3" data-rise style="--d:.44s">
+        <div class="samtile">
+          <div class="samtier">SOM · Beachhead</div>
+          <div class="samwho">Israel</div>
+          <div class="samval">~€30M</div>
+          <div class="sammath">~10k full-service venues × ~€3k / yr. The market we win first.</div>
         </div>
-        <div class="region">
-          <div class="region-name">Europe<small>GTM wedge</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:72%"></div></div>
-          <div class="region-val">~$23B</div>
+        <div class="samtile samtile--focus">
+          <div class="samtier">SAM · Our wedge</div>
+          <div class="samwho">Europe</div>
+          <div class="samval">~€3B</div>
+          <div class="sammath">~1M full-service venues × ~€3k / yr. Fragmented, and wide open.</div>
         </div>
-        <div class="region">
-          <div class="region-name">United States<small>Later / exit</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:94%"></div></div>
-          <div class="region-val">~$30B</div>
-        </div>
-        <div class="region">
-          <div class="region-name">APAC<small>The ceiling</small></div>
-          <div class="region-track"><div class="region-fill" style="--w:100%"></div></div>
-          <div class="region-val">~$32B</div>
+        <div class="samtile">
+          <div class="samtier">TAM · The ceiling</div>
+          <div class="samwho">Global</div>
+          <div class="samval">€15B+</div>
+          <div class="sammath">Millions of full-service venues worldwide, and every AI surface.</div>
         </div>
       </div>
-      <span class="disclaim" data-rise style="--d:.7s">≈ <strong style="color:var(--ink)">$85B of dining intent abandoned every year</strong> across four markets — built up from full-service restaurant revenue × discovery × digital × abandonment. Full assumption stack in the appendix.</span>
+      <span class="disclaim" data-rise style="--d:.7s">~€3k / venue is a <strong style="color:var(--ink)">fraction of what a venue already pays OpenTable or TheFork.</strong> Venue counts: Statista · NRA. One price, one lookup — no funnel.</span>
     </div>
   </section>
 
@@ -968,31 +977,31 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 
   <!-- A1: The sizing thesis -->
   <section class="slide slide--appendix" data-appendix
-    data-note="The drill-down on the opportunity numbers. Anchor on real 2025 full-service restaurant revenue per region (NRA, Datassential, Fortune, USDA). Then three conservative multipliers: ~30% of full-service occasions begin with discovery (a new place, a group, an occasion — not habit), ~45% of that is surfaced digitally today and rising, ~30% never converts to a booking. Product ≈ 5.8% of full-service revenue = the annual unconverted-intent pool. Four markets ≈ $85B/yr. Taist's revenue is a take-rate slice of what it recovers plus the insights layer — recover even 5% at a 10% blended take and it's $100M+ per major market. Every anchor is sourced; every multiplier is ours and conservative.">
+    data-note="The drill-down on the numbers — kept deliberately simple. One verifiable input (full-service venue counts, from Statista/NRA) times one stated price (~€3k/yr per venue, a fraction of what venues already pay OpenTable/TheFork). No multiplier funnel. Israel ~10k → ~€30M (the beachhead we win first). Europe ~1M → ~€3B (the wedge). US ~330k → ~€1B. APAC millions → €15B+ (the ceiling). If asked to defend the ARPU: OpenTable subscriptions alone run $3,600–12,000+/yr per venue before cover fees — we're well under that, and we add qualified demand plus insights on top.">
     <div class="inner">
       <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 01 · The sizing thesis</span>
-      <span class="q-eyebrow" data-rise style="--d:.24s">"Where does ~$85B come from?"</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"Where do the numbers come from?"</span>
       <div class="thesis" data-rise style="--d:.42s">
         <div class="trow trow--h">
-          <div>Full-service restaurant revenue · 2025</div>
+          <div>Full-service venues</div>
           <div>Israel</div><div>Europe</div><div>US</div><div>APAC</div>
         </div>
         <div class="trow">
-          <div class="tlabel">The bookable dining economy</div>
-          <div>~$4B</div><div>~$400B</div><div>~$522B</div><div>~$550B</div>
+          <div class="tlabel">Count · Statista / NRA</div>
+          <div>~10k</div><div>~1M</div><div>~330k</div><div>millions</div>
         </div>
         <div class="tmul">
-          × <em>~30%</em> begin with discovery&nbsp; · &nbsp;× <em>~45%</em> surfaced digitally&nbsp; · &nbsp;× <em>~30%</em> never book
+          × <em>~€3k / year per venue</em> — a fraction of what they already pay OpenTable / TheFork
         </div>
         <div class="trow trow--res">
-          <div class="tlabel">Unconverted intent / year</div>
-          <div>~$0.2B</div><div>~$23B</div><div>~$30B</div><div>~$32B</div>
+          <div class="tlabel">Addressable market</div>
+          <div>~€30M</div><div>~€3B</div><div>~€1B</div><div>€15B+</div>
         </div>
       </div>
       <p class="thesis-foot" data-rise style="--d:.6s">
-        ≈ <strong>$85B abandoned every year</strong> across four markets. Recover even ~5% of it at a ~10% blended take — booking fee, qualified demand, insights — and that's <strong>$100M+ per major market.</strong>
+        One count you can look up, one price anchored to what venues already spend. <strong>Israel is winnable now; Europe is a €3B wedge;</strong> the world is the ceiling.
       </p>
-      <span class="disclaim" data-rise style="--d:.72s">Anchors: NRA 2025 · Datassential / Fortune · USDA FAS. Multipliers are our thesis — deliberately conservative, and being validated market by market.</span>
+      <span class="disclaim" data-rise style="--d:.72s">Comparable: OpenTable subscriptions run $3.6k–12k+/yr per venue before cover fees — and it earns on 1.9B diners across 55k venues. The conversion layer already monetizes.</span>
     </div>
   </section>
 

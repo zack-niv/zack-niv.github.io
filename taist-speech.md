@@ -45,13 +45,11 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## ▸ 8 — The opportunity
 > "Which is an enormous opening — in human terms. Every meal out. Every date night. Every birthday. Every celebration. All of it begins with intent, and that intent is now moving to AI. We capture it, and turn it into bookings."
 
-## ▸ 9 — Sizing it *(the funnel)*
-> "So how big? You can't count intent that never converted — but you can **price** it. Take the dining-out decisions in a market. The share that begin with discovery — a new place, a group, an occasion. The share that get abandoned before any booking. Times what a booking is worth. That product is the pool of value falling through the cracks — and every input is a real, sourceable number."
+## ▸ 9 — Where the value is *(the wedge)*
+> "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just fifty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
 
-## ▸ 10 — Four markets
-> "One formula, four markets. Israel is our beachhead — small, contained, winnable. Europe is the wedge. The US and APAC show the ceiling. Add them up and it's roughly **$85 billion of dining intent abandoned every year.**"
->
-> *(If pressed on the math, go to appendix A1:)* "We anchor on real full-service restaurant revenue — the US alone is $522 billion. Then three conservative cuts: about a third of those occasions begin with discovery, just under half of that is already digital, and about a third never convert. That's roughly 6% of the full-service economy leaking out — and we're validating each cut market by market. Even recovering 5% of it at a 10% take is $100M+ per major market."
+## ▸ 10 — The market, bottom-up
+> "And you can size it without any hand-waving. Every full-service restaurant is a customer, and each already pays thousands a year to fill seats. Take a fraction of that — three thousand a year. Israel, our beachhead, is about ten thousand venues — thirty million, and it's winnable now. Europe, our wedge, is a million venues — a **three-billion-dollar** market, fragmented and wide open. Globally it's tens of billions. One number you can look up, one price anchored to what they already pay. No funnel."
 
 ## ▸ 11 — The solution *(dark)*
 *(Say it once, slowly. Then stop.)*
@@ -94,7 +92,7 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
 - **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 15 ("Booked.").
-- **Numbers stay honest.** On slide 10, say out loud that the figures are illustrative and being validated. Founders who flag their own placeholders earn trust; the *funnel logic* is what you're selling, not the exact number.
+- **Numbers stay simple and defensible.** Slides 9–10 use one verifiable input (venue counts) × one anchored price (~€3k/yr, a fraction of OpenTable/TheFork). No multiplier funnel — every figure is a lookup. If an investor pushes on ARPU, the appendix (A1) shows OpenTable already charges venues $3.6k–12k/yr.
 - **Surfaces (slide 7) is a scale move** — it turns "an AI feature" into "the layer every surface needs." Don't rush it.
 - **Dark slides (2, 5, 11, 14, 15) are your turns to slow down.**
 - **The name lands on slide 11**, as the answer the story earned. The mic drop (15) resolves the exact human moment you opened on — in one word.
