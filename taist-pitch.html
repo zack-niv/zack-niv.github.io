@@ -487,7 +487,10 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .micdrop-big { font-family: 'Playfair Display', serif; font-weight: 600;
   font-size: clamp(3.2rem, 9vw, 7rem); letter-spacing: -.03em; color: var(--gold);
   line-height: 1; }
-.micdrop-mark { margin-top: 2.4rem; font-size: .72rem; letter-spacing: .42em;
+.micdrop-coda { margin-top: 1.5rem; font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: clamp(1.05rem, 2.2vw, 1.65rem); color: rgba(250,247,242,.6); }
+.micdrop-coda strong { color: var(--gold); font-weight: 600; font-style: italic; }
+.micdrop-mark { margin-top: 2rem; font-size: .72rem; letter-spacing: .42em;
   text-transform: uppercase; color: rgba(250,247,242,.5); }
 
 /* ── Appendix ── */
@@ -638,7 +641,7 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- S3: The double loss -->
   <section class="slide"
-    data-note="Two sides of the same broken moment. The guest gave up on the night. The restaurant kept an empty table. Make them feel both sides — this isn't a tech story, it's a people story.">
+    data-note="Two sides of the same broken moment. The guest gave up on the night. The restaurant kept an empty table. Make them feel both sides — this isn't a tech story, it's a people story. Then the twist on the foot line: it's not only the searches that end in nothing. When the search DOES land, today's tools push you to whoever paid to be seen — not what fits. So the venue 'wins' a poorly-matched guest who spends less, won't come back, and may leave a lukewarm review. A bad match is a third kind of loss.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">One search. Two losses.</span>
       <h2 class="line line--sm" data-rise style="--d:.25s">
@@ -668,6 +671,10 @@ a:hover { border-bottom-color: var(--purple); }
           <div class="lp-sub">The right table sat open. The guests never came.</div>
         </div>
       </div>
+      <p class="surfaces-foot" data-rise style="--d:.66s">
+        And when the search <em>does</em> land, it lands on whoever paid to be seen —
+        <strong>not on what fits.</strong> A mediocre night; a guest who spends less and won't be back.
+      </p>
     </div>
   </section>
 
@@ -789,7 +796,8 @@ a:hover { border-bottom-color: var(--purple); }
       </h2>
       <p class="lede" data-rise style="--d:.5s">
         All of it begins with intent — and that intent is moving to AI.
-        <strong>We capture it, and turn it into bookings.</strong>
+        <strong>We capture it, and turn it into the right booking</strong> — a table that fits,
+        a better night, a guest who returns.
       </p>
     </div>
   </section>
@@ -813,7 +821,8 @@ a:hover { border-bottom-color: var(--purple); }
         </div>
       </div>
       <p class="wedge-edge" data-rise style="--d:.66s">
-        Our wedge: make that conversion <strong>native to every AI surface</strong> — and reach the long tail no rail covers.
+        Our wedge: make that conversion <strong>native to every AI surface.</strong> And the real prize is
+        bigger than booking fees — it's the <strong>marketing spend venues already burn on reach that doesn't fit.</strong>
       </p>
     </div>
   </section>
@@ -850,7 +859,7 @@ a:hover { border-bottom-color: var(--purple); }
           <div class="sammath"><strong style="color:var(--ink)">Scale on the taste graph</strong> — or acquisition by an incumbent who can't build it. Every AI surface.</div>
         </div>
       </div>
-      <span class="disclaim" data-rise style="--d:.72s">Numbers = venues × ~€3k of recaptured bookings a year ≈ a few covers a week — a <strong style="color:var(--ink)">fraction of what a venue already pays OpenTable.</strong> Counts: Statista · NRA.</span>
+      <span class="disclaim" data-rise style="--d:.72s">Numbers = venues × ~€3k of recaptured bookings a year — the <strong style="color:var(--ink)">defensible floor.</strong> Matched, higher-spend demand against the marketing budget venues already spend is the ceiling. Counts: Statista · NRA.</span>
     </div>
   </section>
 
@@ -955,34 +964,35 @@ a:hover { border-bottom-color: var(--purple); }
     </div>
   </section>
 
-  <!-- S10: Why different — and why it compounds (the moat) -->
+  <!-- S10: Why different — the match, and the two-sided graph (the moat) -->
   <section class="slide"
-    data-note="Walk the contrast, then land the moat. The insight is structural: existing platforms optimise for the platform and forget you at checkout. Taist optimises for the match — and remembers. That's the payoff to 'none of them owns taste' from the surfaces slide: every surface can book, but only Taist compounds a taste-and-context graph — who each diner is, what they chose, what they loved after. It gets better per diner, a foundation model can't retrain it into existence because it never sees it, and it's the seed of the diner-segment insight we later sell to venues. This is the durable asset — don't rush the last line.">
+    data-note="Walk the contrast, then land the moat. The structural insight: everyone else ranks by who PAID and forgets you at checkout. Taist ranks by who FITS — and remembers. That's the payoff to 'none of them owns taste' from the surfaces slide. The moat is two graphs that compound and meet: the diner graph (who each diner is, what they chose, what they loved after) and the venue graph (what each venue is truly great for — not what it bid). Their join is a match that fits — which means a bigger night, a better review, a guest who returns, and a venue that finally spends its marketing budget on demand that converts. No foundation model can retrain that into existence — it never sees it — and it's the same asset we later turn into diner-segment insight. Don't rush the last line.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">Why we're different</span>
       <h2 class="line line--sm" data-rise style="--d:.24s">
-        Not another filter.<br><em>An understanding that remembers.</em>
+        Not another filter.<br><em>A match — that compounds.</em>
       </h2>
       <div class="compare" data-rise style="--d:.44s">
         <div class="ccol ccol--them">
           <div class="ccol-head">Existing platforms</div>
           <div class="crow">Optimise filters</div>
-          <div class="crow">Return lists</div>
+          <div class="crow">Rank by who pays</div>
           <div class="crow">Stop at discovery</div>
           <div class="crow">Forget you at checkout</div>
         </div>
         <div class="ccol ccol--us">
           <div class="ccol-head">Taist</div>
           <div class="crow">Understand experiences</div>
-          <div class="crow">Make recommendations</div>
-          <div class="crow">Complete the journey</div>
+          <div class="crow">Match on who fits</div>
+          <div class="crow">Deliver the evening</div>
           <div class="crow">Remember — and compound</div>
         </div>
       </div>
       <p class="surfaces-foot" data-rise style="--d:.7s">
-        Every surface can book. <strong>Only Taist owns the taste</strong> — an accumulating graph of
-        who each diner is, what they chose, what they loved after. It compounds per diner, can't be
-        retrained into existence, and becomes the segment insight venues pay for.
+        Every surface can book. <strong>Only Taist owns the taste</strong> — two graphs that compound and meet:
+        who each diner <em>is</em>, and what each venue is truly <em>for</em>. Their join is a match that fits —
+        a bigger night, a better review, a guest who returns. No model can retrain it into existence, and it's
+        the segment insight venues later pay for.
       </p>
     </div>
   </section>
@@ -1009,11 +1019,12 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- S12: Mic drop (ink) — callback to the cold open -->
   <section class="slide slide--ink micdrop"
-    data-note="The mic drop. Callback to the very first slide — the failed search that booked zero tables. Deliver the small line quietly, then hit 'Booked.' and STOP. Don't say anything after. Let the silence be the ending. (Alternates if you prefer: 'Zero tables. Never again.' / 'When the world asks AI where to go — Taist is the answer.')">
+    data-note="The mic drop. Callback to the very first slide — the failed search that booked zero tables. Deliver the small line quietly, then hit 'Booked.' — full beat. Then, softer, the three-beat that says we go further than the transaction: 'Discovered. Matched.' — and land hard on 'Savored.' Then stop. That's the elevation: not just a table filled, an evening delivered. (If you want the pure single-word ending instead, cut the coda and stop on 'Booked.')">
     <div class="inner">
       <div class="micdrop-pre" data-rise style="--d:.15s">Eight people. Two restless kids. One simple ask.</div>
       <div class="micdrop-big" data-rise style="--d:.5s">Booked.</div>
-      <div class="micdrop-mark" data-rise style="--d:1s">Taist</div>
+      <div class="micdrop-coda" data-rise style="--d:.9s">Discovered. Matched. <strong>Savored.</strong></div>
+      <div class="micdrop-mark" data-rise style="--d:1.2s">Taist</div>
     </div>
   </section>
 
@@ -1082,15 +1093,15 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- A2: How does Taist make money -->
   <section class="slide slide--appendix" data-appendix
-    data-note="Business model. Three surfaces. Near-term: venue-facing AI-visibility + qualified demand + booking actions (a take rate on bookings we route). The commercial wedge, not the thesis. Longer-term: the insights product — the booking exhaust becomes anonymized diner-segment intelligence sold to venues. Say the data product is stage-2, gated on booking volume.">
+    data-note="Business model, and note the frame: we compete for the venue's MARKETING budget, not just its reservation-software line. Near-term surfaces: (1) Matched demand — best-fit, higher-spend guests routed to venues, priced as performance (pay for diners who fit and convert), a far bigger pool than booking software. (2) Booking take-rate — a slice of each reservation we complete, rail-agnostic. Stage 2: the insights product — booking exhaust becomes anonymized diner-segment intelligence. CRUCIAL guardrail: we deliberately do NOT sell pay-to-play placement regardless of fit — that's the incumbent flaw we're beating, and it would poison the match quality that is our moat.">
     <div class="inner">
       <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist actually make money?"</span>
       <div class="revcards" data-rise style="--d:.44s">
         <div class="revcard">
           <div class="revcard-n">Now</div>
-          <div class="revcard-t">Qualified demand</div>
-          <div class="revcard-d">AI-visibility + best-fit guests routed to venues. We earn on the bookings we convert.</div>
+          <div class="revcard-t">Matched demand</div>
+          <div class="revcard-d">Best-fit, higher-spend guests routed to venues — priced against the marketing budget they already spend, but on performance: they pay for diners who fit and convert, not reach.</div>
         </div>
         <div class="revcard">
           <div class="revcard-n">Now</div>
@@ -1103,6 +1114,7 @@ a:hover { border-bottom-color: var(--purple); }
           <div class="revcard-d">Anonymized diner-segment intelligence, sold back to venues. Gated on booking volume.</div>
         </div>
       </div>
+      <span class="disclaim" data-rise style="--d:.66s">We do <strong style="color:var(--ink)">not</strong> sell pay-to-play placement regardless of fit — that's the incumbent flaw we beat, and it would poison the match quality that is our moat.</span>
     </div>
   </section>
 
