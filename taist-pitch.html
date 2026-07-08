@@ -77,6 +77,10 @@ body {
 .lede strong { font-weight: 500; color: var(--ink); }
 .lede--narrow { max-width: 38ch; }
 .lede--italic { font-style: italic; margin-top: 1rem; }
+.lede--example {
+  font-size: clamp(1.05rem, 2vw, 1.52rem);
+  color: rgba(250,247,242,.92);
+}
 .caption {
   display: block;
   font-size: .72rem; letter-spacing: .09em; text-transform: uppercase;
@@ -755,13 +759,13 @@ a:hover { border-bottom-color: var(--purple); }
     data-note="The intellectual pivot. Slow right down. The real problem isn't bad UX — it's a mismatch between how humans express intent and how software receives it. Pause between the two lines.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">The real problem</span>
-      <h2 class="line" data-rise style="--d:.28s">
-        People think<br>in <em>experiences.</em>
-      </h2>
-      <h2 class="line line--dim" data-rise style="--d:.46s">
+      <h2 class="line line--dim" data-rise style="--d:.28s">
         Systems think<br>in filters.
       </h2>
-      <p class="lede lede--narrow lede--italic" data-rise style="--d:.66s">
+      <h2 class="line" data-rise style="--d:.46s">
+        People think<br>in <em>experiences.</em>
+      </h2>
+      <p class="lede lede--narrow lede--italic lede--example" data-rise style="--d:.66s">
         "Room for kids, good cocktails, a Friday table for eight" —
         that's not a filter. It's an intention.
       </p>
