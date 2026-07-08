@@ -1,10 +1,10 @@
 # Taist — the pitch, spoken
 
-A rehearsal script aligned to `taist-pitch.html` — **17 main slides + a 10-slide appendix** for Q&A.
+A rehearsal script aligned to `taist-pitch.html` — **15 main slides + a 10-slide appendix** for Q&A.
 One thought per slide. The slide holds the room; **your voice carries the story.**
 Advance on the line marked **▸**. Press `S` in the deck to see these notes while you rehearse.
 
-Main deck ≈ 4–5 minutes. Slow down. The pauses are the point.
+Main deck ≈ 3–4 minutes. Slow down. The pauses are the point.
 
 ---
 
@@ -28,61 +28,55 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## ▸ 3 — The double loss
 > "Two sides of the same broken moment. The search went too long, the tabs piled up, and at some point you just stop — the night stays home. And across town, a restaurant set their tables, had the space, wanted exactly us — and never got the chance to say so. One failed search. Two real losses. Every night, everywhere."
 
-## ▸ 4 — The fragmented journey
-> "Here's how it actually works today. Google it. Open Maps. Instagram for the vibe. Forty reviews. The website. Try to book. Call — no table for eight. Seven steps, forty minutes, and I still didn't know if the place could handle two kids. None of these tools were listening to me. They were waiting for me to speak *their* language."
+## ▸ 4 — The intent problem *(dark — now carries the fragmented journey)*
+*(Open with the fatigue spoken, not shown. Then land the diagnosis. Slow right down; pause before "Systems think in filters.")*
+> "Here's how it actually works today. Google it. Open Maps. Instagram for the vibe. Forty reviews. A phone call — no table for eight. Seven touchpoints, forty minutes, and not one of them knew I had two kids."
+>
+> "That's the real problem. People think in **experiences** — 'room for kids, good cocktails, a Friday table for eight.' That's not a filter. It's an intention. Systems think in filters. The gap between those two is where every night out gets lost."
 
-## ▸ 5 — The intent problem *(dark)*
-> "That's the real problem. People think in **experiences** — 'room for kids, good cocktails, a Friday table for eight.' That's not a filter. It's an intention. Systems think in filters. The gap between those two things is where every night out gets lost."
-
-## ▸ 6 — The inflection
+## ▸ 5 — The inflection
 > "Now, here's what's changing. For decades we adapted to software — learned the keywords, applied the filters, opened ten tabs. For the first time, software is learning to adapt to *us.* To hear an intention and act on it. Discovery is being rewritten right now. **This is the window.**"
 
-## ▸ 7 — The front door is multiplying *(surfaces)*
+## ▸ 6 — The front door is multiplying *(surfaces — plants the moat)*
 > "And it isn't happening in one place. The front door is multiplying — the AI assistants where the asking already happens, Google's AI Mode turning search into a conversation that books, Meta AI inside WhatsApp where billions already live, and the fast-rising wave of autonomous agents that browse and book *for* us."
 >
-> "Intent is fragmenting across all of them. Every one needs to turn that intent into a booking. **And not one of them owns taste.**"
+> "Intent is fragmenting across all of them. Every one needs to turn that intent into a booking. **And not one of them owns taste.** *(Hold that line — you pay it off on slide 13.)*"
 
-## ▸ 8 — The opportunity
+## ▸ 7 — The opportunity
 > "Which is an enormous opening — in human terms. Every meal out. Every date night. Every birthday. Every celebration. All of it begins with intent, and that intent is now moving to AI. We capture it, and turn it into bookings."
 
-## ▸ 9 — Where the value is *(the wedge)*
+## ▸ 8 — Where the value is *(the wedge)*
 > "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just sixty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
 
-## ▸ 10 — Be the layer that books the evening *(the opportunity, sized)*
-*(Tie the number to the mission — this is not "sell software to restaurants.")*
-> "So how big is this? The mission isn't to sell software to restaurants. It's to be the layer that turns an intention into a booked evening — inside the AI. Every intention that never became a booking is an evening that never happened, and a table a venue never filled. **Owning that conversion, market by market, is the prize.**"
+## ▸ 9 — Prove it. Win it. Own it. *(sizing IS the go-to-market — one ladder)*
+*(Lead with the mission, not the SaaS. Then walk the three rungs — each a number AND a reason to believe.)*
+> "So how big? The mission isn't to sell software to restaurants — it's to be the layer that turns an intention into a booked evening. Owning that conversion, market by market, is the prize. And you can ground it: per venue, winning back a few covers a week is about three thousand a year — a fraction of what they already pay OpenTable."
 >
-> "And you can ground it. Per venue, winning back a few covers a week is worth about three thousand a year — a fraction of what they already pay OpenTable. Prove it in Israel: ten thousand venues, thirty million, winnable now. Win Europe: a million venues, **three billion.** Own it worldwide: north of twenty. That's the commercial floor under a much bigger mission."
+> "Same ladder, three rungs. **Prove it** in Israel — ten thousand venues, thirty million, winnable now — and here's the key: Ontopo owns booking here, not OpenTable, so it's a partner, not a war. **Win it** across Europe — a million venues, **three billion** — fragmented rails, US giants barely present, incumbents in rare disarray: TheFork up for sale, SevenRooms sold. A timed, open door. **Own it** worldwide — north of twenty billion, every AI surface — where we either scale on the taste graph, or get acquired by an incumbent who can't build it. **Prove the layer, earn the leverage, walk through the open door.**"
 
-## ▸ 11 — Prove it. Win it. Own it. *(go to market)*
-*(Same ladder as the sizing — say that out loud.)*
-> "And that ladder *is* our go-to-market. Israel is the lab — and here's the key: Ontopo owns booking here, not OpenTable. So it's a partner, not a war. We prove the layer where we live: real discoverability and answer-quality in Tel Aviv."
->
-> "Europe is the wedge. The rails are fragmented, the US giants are barely present, and the incumbents are in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by a delivery company. A timed, open door. And the world is the ceiling — every AI surface — where we either scale on the taste graph, or get acquired by an incumbent who needs exactly this and can't build it. **Prove the layer, earn the leverage, walk through the open door.**"
-
-## ▸ 12 — The solution *(dark)*
+## ▸ 10 — The solution *(dark)*
 *(Say it once, slowly. Then stop.)*
 > "People describe the evening they want. Taist understands it, finds venues with real availability, and turns the search into a confirmed booking."
 
-## ▸ 13 — How it works
+## ▸ 11 — How it works
 > "Three steps. You describe what you want, like you'd tell a friend. Taist matches it against venues with real, live availability. And it completes the booking — not a link, not a list. A confirmation. The intent is the input. The evening is the output."
 
-## ▸ 14 — In the moment *(the micro-prototype — you can tap it live)*
+## ▸ 12 — In the moment *(the micro-prototype — you can tap it live)*
 *(Show, don't tell. Optionally tap a time-slot on screen — it books.)*
 > "Here's what that actually feels like. You ask for The Palomar tonight — fully booked, waitlist packed. A dead end. But Taist knows your taste: 'The Barbary, round the corner — same Levantine energy, a natural-wine list you'd love. Here's tonight.' Three slots. One tap — booked."
 >
 > "That's the highest-value moment we own: the booking that was *lost* — no availability — turned into a confirmed table. Same for the birthday eight, same for a vague 'quiet first-date spot.' Every one of these dies today. We convert it."
 
-## ▸ 15 — Why we're different *(and the moat)*
-*(This is where you cash the promise from slide 7 — "none of them owns taste." Land the last two lines slowly.)*
+## ▸ 13 — Why we're different *(and the moat)*
+*(This is where you cash the promise from slide 6 — "none of them owns taste." Land the last two lines slowly.)*
 > "Every platform out there optimises filters, returns a list, stops when you click — and forgets you. We complete the evening. But here's the part none of them can copy: every time you book through Taist, it learns — who you are, what you chose, what you loved after. That's a taste-and-context graph, and it compounds with every diner."
 >
-> "Remember slide seven? Every surface can turn intent into a booking. **Only we own the taste.** A foundation model can't retrain that into existence — it never sees it. And it's the same asset we later turn into insight venues will pay for."
+> "Remember the surfaces? Every surface can turn intent into a booking. **Only we own the taste.** A foundation model can't retrain that into existence — it never sees it. And it's the same asset we later turn into insight venues will pay for."
 
-## ▸ 16 — The vision *(dark)*
+## ▸ 14 — The vision *(dark)*
 > "As AI becomes how we discover the physical world, every agent will need a way to turn human intent into real experiences. We start with restaurants — highest frequency, highest intent, ready to transact — and we build the layer every AI will rely on. *Every intention deserves an unforgettable evening.*"
 
-## ▸ 17 — Booked. *(dark — the mic drop)*
+## ▸ 15 — Booked. *(dark — the mic drop)*
 *(Callback to slide 1. Deliver the small line quietly, then hit the one word and STOP. Say nothing after. Let the silence end it.)*
 > "Eight people. Two restless kids. One simple ask."
 >
@@ -111,13 +105,12 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
-- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 17 ("Booked.").
-- **Why-now (slide 6) is now a picture, not a list** — crammed venue filters on the left, a natural-language chat on the right. Let the contrast land before you speak.
-- **The micro-prototype (slide 14) is your product demo.** Tap a slot live if the room is engaged — a real booking on screen beats any diagram. The Palomar→Barbary "sold-out → saved" moment is the one to sell.
-- **Sizing ties to the mission, not to SaaS (slide 10).** Say it out loud: "the mission isn't to sell software to restaurants." The number is the *commercial floor* under being the intent→booking layer — grounded in venue counts × ~€3k (a fraction of OpenTable). If pushed on ARPU, jump to appendix A1.
-- **Sizing and GTM are the same ladder (slides 10–11).** Prove it (Israel) → win it (Europe) → own it (world). The Ontopo-not-OpenTable point on slide 11 is the one to land — it makes Israel a partnership, not a war.
-- **Surfaces (slide 7) plants the moat** — "none of them owns taste" is a promissory note. It's a scale move (an AI feature → the layer every surface needs), *and* it sets up the payoff on slide 15. Don't rush it.
-- **Slide 15 cashes the moat** — "why we're different" is no longer just filter-vs-understanding; it's the *durable asset*. The taste-and-context graph compounds per diner, can't be retrained into existence, and seeds the segment-insight product (appendix A4). This is your answer to "what stops OpenTable/Google copying you?" — say it slowly.
-- **Dark slides (2, 5, 12, 16, 17) are your turns to slow down.**
-- **The name lands on slide 12**, as the answer the story earned. The mic drop (17) resolves the exact human moment you opened on — in one word.
+- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 15 ("Booked.").
+- **Intent problem (slide 4) now carries the journey too.** Speak the fatigue — seven touchpoints, forty minutes, nobody knew about the kids — then land "systems think in filters / people think in experiences." One dark slide does the work two used to.
+- **The micro-prototype (slide 12) is your product demo.** Tap a slot live if the room is engaged — a real booking on screen beats any diagram. The Palomar→Barbary "sold-out → saved" moment is the one to sell.
+- **Sizing and GTM are one slide now (slide 9).** Prove it (Israel) → win it (Europe) → own it (world) — the number *and* the reason to believe on each rung. Lead with the mission ("not sell software to restaurants"). The Ontopo-not-OpenTable point is the one to land — it makes Israel a partnership, not a war. If pushed on ARPU, jump to appendix A1.
+- **Surfaces (slide 6) plants the moat** — "none of them owns taste" is a promissory note. It's a scale move (an AI feature → the layer every surface needs), *and* it sets up the payoff on slide 13. Don't rush it.
+- **Slide 13 cashes the moat** — "why we're different" is no longer just filter-vs-understanding; it's the *durable asset*. The taste-and-context graph compounds per diner, can't be retrained into existence, and seeds the segment-insight product (appendix A4). This is your answer to "what stops OpenTable/Google copying you?" — say it slowly.
+- **Dark slides (2, 4, 10, 14, 15) are your turns to slow down.**
+- **The name lands on slide 10**, as the answer the story earned. The mic drop (15) resolves the exact human moment you opened on — in one word.
 - **You are the dad with two kids the whole way through.** That thread turns a market thesis into a person.
