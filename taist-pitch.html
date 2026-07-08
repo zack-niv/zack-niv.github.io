@@ -225,6 +225,47 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
   font-size: .86rem; color: var(--ink-muted); line-height: 1.5;
 }
 .journey-stat strong { color: var(--ink); }
+.journey-sponsor { margin-top: .5rem; font-size: .82rem; color: var(--gold-deep); line-height: 1.5; }
+.journey-sponsor strong { font-weight: 600; }
+
+/* S3 double loss — 2x2 (diner / venue × two moments) */
+.loss2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+  margin-top: 2.2rem; border-radius: 18px; overflow: hidden; }
+.loss2-col { padding: 1.6rem 1.9rem; display: flex; flex-direction: column; gap: 1.1rem; }
+.loss2-col--diner { background: var(--purple-light); }
+.loss2-col--venue { background: #FFF8E6; }
+.loss2-col--diner .loss2-ico { color: var(--purple); }
+.loss2-col--venue .loss2-ico { color: var(--gold-deep); }
+.loss2-head { font-size: .6rem; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-faint); text-align: left; }
+.loss2-item { display: flex; align-items: center; gap: 1rem; text-align: left; }
+.loss2-item + .loss2-item { padding-top: 1.1rem; border-top: 1px solid rgba(26,23,20,.09); }
+.loss2-ico { width: 38px; height: 38px; flex-shrink: 0; }
+.loss2-t { font-family: 'Playfair Display', serif; font-size: .98rem; font-weight: 500; letter-spacing: -.005em; }
+.loss2-s { font-size: .74rem; color: var(--ink-muted); line-height: 1.4; margin-top: .12rem; }
+
+/* S5 pivot — intent problem + inflection, merged (ink) */
+.pivot-visual { display: flex; align-items: center; justify-content: center;
+  gap: 1.1rem; margin-top: 2.1rem; flex-wrap: wrap; }
+.pivot-before { display: flex; gap: .4rem; flex-wrap: wrap; max-width: 300px; justify-content: flex-end; }
+.pchip { font-size: .66rem; padding: .32rem .65rem; border: 1px solid rgba(250,247,242,.16);
+  border-radius: 20px; color: rgba(250,247,242,.4); white-space: nowrap; }
+.pivot-arrow-ink { color: var(--gold); font-size: 1.4rem; font-family: 'Playfair Display', serif; }
+.pivot-after { font-size: .84rem; padding: .65rem 1.05rem; border: 1.5px solid rgba(201,168,76,.5);
+  border-radius: 14px; color: var(--cream); background: rgba(201,168,76,.08); max-width: 250px; text-align: left; }
+
+/* S8 match-flow — two graphs → match → booked */
+.match-flow { display: flex; align-items: center; justify-content: center;
+  gap: .9rem; margin-top: 2.2rem; flex-wrap: wrap; }
+.match-flow-graphs { display: flex; flex-direction: column; gap: .6rem; }
+.fnode--sm { padding: .8rem 1.1rem; min-width: 168px; gap: .35rem; }
+.fnode--sm .fnode-ico svg { width: 22px; height: 22px; }
+.fnode--sm .fnode-title { font-size: .82rem; }
+.fnode--sm .fnode-detail { font-size: .66rem; max-width: 20ch; }
+.farrow--converge svg { width: 26px; }
+
+/* S6b surface icons */
+.surface-ico svg { width: 27px; height: 27px; }
 
 /* S6 before/after */
 .shift-wrap {
@@ -369,6 +410,11 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .wstat-l strong { color: var(--ink); font-weight: 500; }
 .wedge-edge { margin-top: 1.9rem; font-size: clamp(.9rem,1.45vw,1.08rem); color: var(--ink-muted); }
 .wedge-edge strong { color: var(--ink); font-weight: 500; }
+.wedge-mini { display: flex; gap: 2.4rem; justify-content: center; margin: 1.3rem 0 1.9rem; flex-wrap: wrap; }
+.wedge-mini-item { text-align: left; max-width: 220px; }
+.wedge-mini-n { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 600;
+  color: var(--gold-deep); line-height: 1; letter-spacing: -.02em; }
+.wedge-mini-l { font-size: .72rem; color: var(--ink-muted); margin-top: .3rem; line-height: 1.4; }
 
 /* ── TAM / SAM / SOM tiles ── */
 .sam3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.3rem; align-items: stretch; }
@@ -567,6 +613,11 @@ a:hover { border-bottom-color: var(--purple); }
 .thesis-foot { margin-top: 1.5rem; font-size: clamp(.9rem,1.4vw,1.05rem);
   color: var(--ink-muted); line-height: 1.6; max-width: 62ch; margin-left: auto; margin-right: auto; }
 .thesis-foot strong { color: var(--ink); font-weight: 500; }
+.thesis-ceiling { margin: 1.3rem auto 0; max-width: 62ch; border: 1.5px dashed rgba(201,168,76,.4);
+  border-radius: 12px; padding: .95rem 1.2rem; background: rgba(201,168,76,.06); text-align: left; }
+.tc-label { font-size: .58rem; letter-spacing: .14em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: .35rem; }
+.tc-row { font-size: .82rem; color: var(--ink-muted); line-height: 1.55; }
+.tc-row strong { color: var(--ink); font-weight: 500; }
 
 /* two-col compare for moat */
 .moat2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 2rem; text-align: left; }
@@ -641,118 +692,185 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- S3: The double loss -->
   <section class="slide"
-    data-note="Two sides of the same broken moment. The guest gave up on the night. The restaurant kept an empty table. Make them feel both sides — this isn't a tech story, it's a people story. Then the twist on the foot line: it's not only the searches that end in nothing. When the search DOES land, today's tools push you to whoever paid to be seen — not what fits. So the venue 'wins' a poorly-matched guest who spends less, won't come back, and may leave a lukewarm review. A bad match is a third kind of loss.">
+    data-note="Two sides, two moments each. Walk down the diner column, then the venue column. Moment one: the search dies — the diner gives up (couch/TV, stayed home), the venue's table sits empty. Moment two, the quieter one: the search DOES land, but on whoever paid to be seen, not what fits — so the diner settles for a mediocre night, and the venue 'wins' a guest who spends less and won't be back. Four small losses, two sides, one broken moment.">
     <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">One search. Two losses.</span>
+      <span class="eyebrow" data-rise style="--d:.1s">One search. Two losses, twice over.</span>
       <h2 class="line line--sm" data-rise style="--d:.25s">
         When discovery fails,<br>everyone <em>loses.</em>
       </h2>
-      <div class="loss-panels" data-rise style="--d:.44s">
-        <div class="loss-panel loss-panel--l">
-          <svg class="lp-icon" viewBox="0 0 60 60" fill="none">
-            <circle cx="30" cy="17" r="8" stroke="#5B4B8A" stroke-width="1.5" fill="rgba(91,75,138,.1)"/>
-            <path d="M14 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M10 52h40" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M14 46v6M46 46v6" stroke="#5B4B8A" stroke-width="1.5" stroke-linecap="round"/>
-            <path d="M10 50c0-2.209 1.791-4 4-4h32c2.209 0 4 1.791 4 4" stroke="#5B4B8A" stroke-width="1.5"/>
-          </svg>
-          <div class="lp-title">The evening was abandoned.</div>
-          <div class="lp-sub">Fatigue. Too many tabs. The night stayed home.</div>
+      <div class="loss2" data-rise style="--d:.44s">
+        <div class="loss2-col loss2-col--diner">
+          <div class="loss2-head">The diner</div>
+          <div class="loss2-item">
+            <svg class="loss2-ico" viewBox="0 0 40 40" fill="none">
+              <rect x="19" y="5" width="15" height="10" rx="1.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M26.5 15v3M22 19h9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M4 30v-5c0-2.2 1.8-4 4-4h1c2.2 0 4 1.8 4 4M25 30v-5c0-2.2-1.8-4-4-4h-1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <rect x="2" y="24" width="24" height="8" rx="2.5" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M2 30v3a1.5 1.5 0 001.5 1.5M26 30v3a1.5 1.5 0 01-1.5 1.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <div>
+              <div class="loss2-t">The evening was abandoned.</div>
+              <div class="loss2-s">Fatigue. Too many tabs. The night stayed home.</div>
+            </div>
+          </div>
+          <div class="loss2-item">
+            <svg class="loss2-ico" viewBox="0 0 40 40" fill="none">
+              <path d="M8 22l3-7 3 7-2.4-1.8h-1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="currentColor" fill-opacity=".9"/>
+              <path d="M19 22l3-7 3 7-2.4-1.8h-1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none" opacity=".55"/>
+              <path d="M30 22l3-7 3 7-2.4-1.8h-1.2z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" fill="none" opacity=".3"/>
+              <path d="M5 30h30" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".35"/>
+            </svg>
+            <div>
+              <div class="loss2-t">A mediocre night.</div>
+              <div class="loss2-s">Pushed to whoever paid — not what fit.</div>
+            </div>
+          </div>
         </div>
-        <div class="loss-panel loss-panel--r">
-          <svg class="lp-icon" viewBox="0 0 60 60" fill="none">
-            <ellipse cx="30" cy="32" rx="22" ry="13" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
-            <circle cx="30" cy="18" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
-            <circle cx="30" cy="46" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
-            <circle cx="12" cy="32" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
-            <circle cx="48" cy="32" r="4.5" stroke="#C9A84C" stroke-width="1.5" fill="rgba(201,168,76,.08)"/>
-          </svg>
-          <div class="lp-title">The table stayed empty.</div>
-          <div class="lp-sub">The right table sat open. The guests never came.</div>
+        <div class="loss2-col loss2-col--venue">
+          <div class="loss2-head">The venue</div>
+          <div class="loss2-item">
+            <svg class="loss2-ico" viewBox="0 0 40 40" fill="none">
+              <ellipse cx="20" cy="21" rx="15" ry="9" stroke="currentColor" stroke-width="1.4" fill="rgba(201,168,76,.08)"/>
+              <circle cx="20" cy="10" r="3" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="20" cy="32" r="3" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="6" cy="21" r="3" stroke="currentColor" stroke-width="1.4"/>
+              <circle cx="34" cy="21" r="3" stroke="currentColor" stroke-width="1.4"/>
+            </svg>
+            <div>
+              <div class="loss2-t">The table stayed empty.</div>
+              <div class="loss2-s">The right table sat open. The guests never came.</div>
+            </div>
+          </div>
+          <div class="loss2-item">
+            <svg class="loss2-ico" viewBox="0 0 40 40" fill="none">
+              <circle cx="12" cy="14" r="4" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M5 26c0-4 3.1-7 7-7s7 3 7 7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M23 16h11M30 11l4 5-4 5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".6"/>
+              <path d="M23 27h9M28 23l4 4-4 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/>
+            </svg>
+            <div>
+              <div class="loss2-t">A guest who won't be back.</div>
+              <div class="loss2-s">Spent less. Left lukewarm. No repeat visit.</div>
+            </div>
+          </div>
         </div>
       </div>
-      <p class="surfaces-foot" data-rise style="--d:.66s">
-        And when the search <em>does</em> land, it lands on whoever paid to be seen —
-        <strong>not on what fits.</strong> A mediocre night; a guest who spends less and won't be back.
-      </p>
     </div>
   </section>
 
-  <!-- S4: The intent problem (ink) — absorbs the fragmented-journey point -->
-  <section class="slide slide--ink"
-    data-note="The intellectual pivot — and it now carries the fragmentation point too. Open with the fatigue spoken, not shown: Google, Maps, Instagram, forty reviews, a phone call — seven touchpoints, forty minutes, and not one of them knew I had two kids. Then land the diagnosis: the real problem isn't bad UX, it's a mismatch between how humans express intent and how software receives it. Slow right down. Pause between the two lines.">
+  <!-- S4: The fragmented journey -->
+  <section class="slide"
+    data-note="Walk through every step. Let the audience count them. Each one reasonable. And yet — nothing at the end. The visual does the work; your voice guides them through the fatigue. Land the new closing line: even the results this whole slog produces are skewed — sponsored placement, not fit.">
     <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">The real problem</span>
-      <p class="lede lede--narrow" data-rise style="--d:.2s; margin-bottom:.4rem; opacity:.6">
-        Seven touchpoints. Forty minutes. And <strong>not one of them knew I had two kids.</strong>
-      </p>
-      <h2 class="line line--dim" data-rise style="--d:.34s">
+      <span class="eyebrow" data-rise style="--d:.1s">How we search today</span>
+      <h2 class="line line--sm" data-rise style="--d:.24s">
+        Seven touchpoints.<br>Forty minutes.<br><em>Still nothing certain.</em>
+      </h2>
+      <div class="journey-outer" data-rise style="--d:.42s">
+        <div class="journey-map">
+        <div class="journey-row">
+          <div class="jchip">
+            <span class="jchip-ico">🔍</span>
+            <span class="jchip-name">Google it</span>
+            <span class="jchip-sub">Start searching</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📍</span>
+            <span class="jchip-name">Open Maps</span>
+            <span class="jchip-sub">Scan area</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📸</span>
+            <span class="jchip-name">Instagram</span>
+            <span class="jchip-sub">Check the vibe</span>
+          </div>
+          <div class="jarrow">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">⭐</span>
+            <span class="jchip-name">Read reviews</span>
+            <span class="jchip-sub">40+ of them</span>
+          </div>
+        </div>
+        <div class="jdown">
+          <svg width="22" height="20" viewBox="0 0 22 20" fill="none"><path d="M11 1v15M5 11l6 6 6-6" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="journey-row">
+          <div class="jchip jchip--end">
+            <span class="jchip-ico">❓</span>
+            <span class="jchip-name">Give up</span>
+            <span class="jchip-sub">Start over</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📞</span>
+            <span class="jchip-name">Phone call</span>
+            <span class="jchip-sub">No table for 8</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">📅</span>
+            <span class="jchip-name">Try to book</span>
+            <span class="jchip-sub">OpenTable…</span>
+          </div>
+          <div class="jarrow" style="transform:scaleX(-1)">
+            <svg width="22" height="10" viewBox="0 0 22 10" fill="none"><path d="M1 5h17M13 1.5l5 3.5-5 3.5" stroke="#B5AFA8" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="jchip">
+            <span class="jchip-ico">🌐</span>
+            <span class="jchip-name">Website</span>
+            <span class="jchip-sub">Find info</span>
+          </div>
+        </div>
+        </div><!-- .journey-map -->
+        <p class="journey-stat" data-rise style="--d:.6s">
+          Not one of them knew I had <strong>two kids.</strong>
+        </p>
+        <p class="journey-sponsor" data-rise style="--d:.68s">
+          And half of what surfaced was <strong>sponsored — not matched</strong> to what I asked for.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- S5: Intent problem + inflection, merged (ink) -->
+  <section class="slide slide--ink"
+    data-note="The intellectual pivot, now in one dark beat instead of two slides. Land the diagnosis first — pause between the two lines. Then the compact visual: rigid filters, dimmed, versus one real sentence in a highlighted bubble. That contrast IS the inflection — for decades we adapted to software, now software adapts to us. Caption: this is the window.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">The real problem — and the window</span>
+      <h2 class="line line--dim" data-rise style="--d:.24s">
         Systems think<br>in filters.
       </h2>
-      <h2 class="line" data-rise style="--d:.5s">
+      <h2 class="line" data-rise style="--d:.4s">
         People think<br>in <em>experiences.</em>
       </h2>
-      <p class="lede lede--narrow lede--italic lede--example" data-rise style="--d:.68s">
-        "Room for kids, good cocktails, a Friday table for eight" —
-        that's not a filter. It's an intention.
-      </p>
-    </div>
-  </section>
-
-  <!-- S6: Why now -->
-  <section class="slide"
-    data-note="Market timing — not a complaint, an observation. The shift is already happening. AI is learning to understand natural language. Discovery is being rewritten. We are building at exactly the right moment.">
-    <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">The inflection</span>
-      <h2 class="line line--sm" data-rise style="--d:.24s">
-        For decades, we learned<br>to talk to software.
-      </h2>
-      <div class="shift-wrap" data-rise style="--d:.42s">
-        <div class="shift-panel shift-panel--b">
-          <div class="shift-era">Until now — you adapt to software</div>
-          <div class="filtpanel">
-            <div class="filt-row">
-              <div class="filt">Cuisine <span>▾</span></div>
-              <div class="filt">Party size <span>▾</span></div>
-            </div>
-            <div class="filt-row">
-              <div class="filt">Date <span>▾</span></div>
-              <div class="filt">Time <span>▾</span></div>
-            </div>
-            <div class="filt-row">
-              <div class="filt">Price · $$$ <span>▾</span></div>
-              <div class="filt">Rating · 4★+ <span>▾</span></div>
-            </div>
-            <div class="filt-checks">
-              <span class="filt-check">☐ Outdoor</span>
-              <span class="filt-check">☐ Kid-friendly</span>
-              <span class="filt-check">☐ Vegan</span>
-              <span class="filt-check">☐ Parking</span>
-              <span class="filt-check">☐ Accessible</span>
-            </div>
-            <span class="filt-go">Search →</span>
-          </div>
+      <div class="pivot-visual" data-rise style="--d:.56s">
+        <div class="pivot-before">
+          <span class="pchip">Cuisine ▾</span><span class="pchip">Party size ▾</span>
+          <span class="pchip">Price ▾</span><span class="pchip">Rating ▾</span><span class="pchip">+8 more</span>
         </div>
-        <div class="shift-mid">
-          <svg width="20" height="34" viewBox="0 0 20 34" fill="none">
-            <path d="M10 2v26M3 22l7 8 7-8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </div>
-        <div class="shift-panel shift-panel--a">
-          <div class="shift-era">Now — software adapts to you</div>
-          <div class="chat">
-            <div class="bubble bubble--user">8 of us this Friday — 2 kids who need room to move, and great cocktails 🍸</div>
-            <div class="bubble bubble--ai">Say less. A lively spot with space for the kids and a proper bar — here are <strong>3 that seat 8 on Friday.</strong></div>
-          </div>
-        </div>
+        <div class="pivot-arrow-ink">→</div>
+        <div class="pivot-after">"8 of us Friday — 2 kids who need room to move, great cocktails"</div>
       </div>
-      <span class="caption" data-rise style="--d:.62s">Rigid filters → natural language that holds the whole intention. This is the window.</span>
+      <span class="caption" data-rise style="--d:.74s">For decades we adapted to software. Now it adapts to us. <strong>This is the window.</strong></span>
     </div>
   </section>
 
   <!-- S6b: Where intent now lives — the surfaces -->
   <section class="slide"
-    data-note="The front door isn't one place anymore — it's multiplying. Walk the four surfaces: the LLM assistants, Google's AI Mode in search, Meta AI inside WhatsApp (where billions already live), and the fast-rising wave of autonomous agents that browse and book on our behalf. The point: intent is fragmenting across all of them — and every one needs a layer that turns 'what I want' into a booking. None of them owns taste. That's the gap we fill, everywhere at once.">
+    data-note="The front door isn't one place anymore — it's multiplying. Walk the four surfaces: the LLM assistants, Google's AI Mode in search, Meta AI inside WhatsApp (where billions already live), and the fast-rising wave of autonomous agents that browse and book on our behalf. The point: intent is fragmenting across all of them — and every one needs a layer that turns 'what I want' into a booking. None of them owns taste. That's the gap we fill, everywhere at once. (This promise now pays off on the how-it-works slide's learning-loop line, and in full in the appendix 'why we're different.')">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">Where intent now lives</span>
       <h2 class="line line--sm" data-rise style="--d:.22s">
@@ -760,22 +878,48 @@ a:hover { border-bottom-color: var(--purple); }
       </h2>
       <div class="surfaces" data-rise style="--d:.42s">
         <div class="surface">
-          <div class="surface-ico">💬</div>
+          <div class="surface-ico">
+            <svg viewBox="0 0 46 46" fill="none">
+              <path d="M10 14c0-1.9 3.1-3.5 7-3.5s7 1.6 7 3.5-3.1 3.5-7 3.5c-.7 0-1.4-.05-2-.15L11.5 20l.6-3.3C10.6 15.9 10 15 10 14z" fill="#D97757"/>
+              <circle cx="26" cy="24" r="6.3" fill="none" stroke="#10A37F" stroke-width="1.6"/>
+              <path d="M26 20v8M22 24h8" stroke="#10A37F" stroke-width="1.4" stroke-linecap="round"/>
+              <path d="M35 10c.6 3 1 3.4 4 4-3 .6-3.4 1-4 4-.6-3-1-3.4-4-4 3-.6 3.4-1 4-4z" fill="#4285F4"/>
+            </svg>
+          </div>
           <div class="surface-name">AI assistants</div>
           <div class="surface-sub">ChatGPT · Claude · Gemini — where the asking already happens</div>
         </div>
         <div class="surface">
-          <div class="surface-ico">🔍</div>
+          <div class="surface-ico">
+            <svg viewBox="0 0 46 46" fill="none">
+              <circle cx="19" cy="19" r="10.5" stroke="#5B564F" stroke-width="1.7"/>
+              <path d="M27 27l7.5 7.5" stroke="#5B564F" stroke-width="1.9" stroke-linecap="round"/>
+              <path d="M30 9c.6 3 1 3.4 4 4-3 .6-3.4 1-4 4-.6-3-1-3.4-4-4 3-.6 3.4-1 4-4z" fill="#4285F4"/>
+            </svg>
+          </div>
           <div class="surface-name">Google AI Mode</div>
           <div class="surface-sub">Search itself becomes a conversation that books</div>
         </div>
         <div class="surface">
-          <div class="surface-ico">🟢</div>
+          <div class="surface-ico">
+            <svg viewBox="0 0 46 46" fill="none">
+              <path d="M11 23c0-5.2 4-9.4 8.2-9.4 3 0 4.8 2 4.8 2s1.8-2 4.8-2c4.2 0 8.2 4.2 8.2 9.4s-4 9.4-8.2 9.4c-3 0-4.8-2-4.8-2s-1.8 2-4.8 2c-4.2 0-8.2-4.2-8.2-9.4z" stroke="#0668E1" stroke-width="1.9"/>
+            </svg>
+          </div>
           <div class="surface-name">Meta AI</div>
           <div class="surface-sub">Inside WhatsApp — billions already live in the inbox</div>
         </div>
         <div class="surface">
-          <div class="surface-ico">🤖</div>
+          <div class="surface-ico">
+            <svg viewBox="0 0 46 46" fill="none">
+              <rect x="13" y="15" width="20" height="14" rx="4" stroke="currentColor" stroke-width="1.6"/>
+              <circle cx="19.5" cy="21.5" r="1.8" fill="currentColor"/>
+              <circle cx="26.5" cy="21.5" r="1.8" fill="currentColor"/>
+              <path d="M23 15v-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              <circle cx="23" cy="9" r="2" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M13 23H8M38 23h-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
           <div class="surface-name">Agentic web <span class="surface-rising">Rising</span></div>
           <div class="surface-sub">Autonomous agents that browse and book for us</div>
         </div>
@@ -786,115 +930,95 @@ a:hover { border-bottom-color: var(--purple); }
     </div>
   </section>
 
-  <!-- S7: The opportunity -->
+  <!-- S7: The opportunity — sizing + go-to-market, one slide, grounded in bookings + discovery spend -->
   <section class="slide"
-    data-note="Don't lead with TAM numbers — lead with the moments. Every meal, every birthday, every date night — those are the units of this market. Then zoom out: that intent is moving to AI surfaces, and the infrastructure to capture it doesn't exist yet.">
+    data-note="Merged: opportunity + wedge + sizing/GTM ladder — one slide so the room sees the whole shape of the number at once. Ground it fast: the value isn't the search, it's the booking ($2B+ reservation software already, growing ~12%/yr) and the marketing spend chasing it (OpenTable seats 1.9B diners on just 65k venues — one surface). Then the ladder — Israel (lab, Ontopo not OpenTable, partner not war) → Europe (wedge, incumbents in disarray) → Global (ceiling, taste graph or acquisition). Numbers = venue counts × ~€3k recaptured-booking floor; full calculation, sources, and the marketing-spend ceiling math live in appendix A1 — point there if pushed on ARPU.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">The opportunity</span>
-      <h2 class="line" data-rise style="--d:.26s">
-        Every meal.<br>Every celebration.<br><em>Every night out.</em>
-      </h2>
-      <p class="lede" data-rise style="--d:.5s">
-        All of it begins with intent — and that intent is moving to AI.
-        <strong>We capture it, and turn it into the right booking</strong> — a table that fits,
-        a better night, a guest who returns.
-      </p>
-    </div>
-  </section>
-
-  <!-- S8: The wedge — the conversion is where the money is -->
-  <section class="slide"
-    data-note="This is the sizing setup — the wedge. Don't build a formula. Make one point: the value isn't the search, it's the booking it becomes — and that conversion ALREADY makes money. Proof points: restaurant-reservation tech is already a ~$2B market growing double digits; OpenTable earns on 1.9 billion diners a year across just 55,000 venues. So the conversion pays. Our wedge is to make it native to every AI surface and extend it to the long tail no rail covers. We're not inventing the transaction — we're moving it to where discovery is going.">
-    <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">Where the value is</span>
-      <h2 class="line line--sm" data-rise style="--d:.24s">
-        The value isn't the search.<br>It's the <em>booking</em> it becomes.
-      </h2>
-      <div class="wedge-stats" data-rise style="--d:.46s">
-        <div class="wstat">
-          <div class="wstat-n">$2B+</div>
-          <div class="wstat-l">restaurant-booking software today — <strong>growing ~12% a year.</strong> The conversion already pays.</div>
-        </div>
-        <div class="wstat">
-          <div class="wstat-n">1.9B</div>
-          <div class="wstat-l">diners OpenTable seats a year — on just <strong>65k venues.</strong> One player, one surface.</div>
-        </div>
-      </div>
-      <p class="wedge-edge" data-rise style="--d:.66s">
-        Our wedge: make that conversion <strong>native to every AI surface.</strong> And the real prize is
-        bigger than booking fees — it's the <strong>marketing spend venues already burn on reach that doesn't fit.</strong>
-      </p>
-    </div>
-  </section>
-
-  <!-- S9: The opportunity, sized = the go-to-market ladder (merged) -->
-  <section class="slide"
-    data-note="Sizing and go-to-market are the SAME ladder — so it's one slide. Lead with the mission, not the SaaS: it isn't 'sell software to restaurants,' it's to be the layer that turns intent into a booked evening, won market by market. Walk the rungs — each is a number AND a reason to believe. PROVE IT · Israel (~€30M, winnable now) — and the key point: Ontopo owns booking here, not OpenTable, so it's a partner not a war. WIN IT · Europe (~€3B) — fragmented rails, US giants absent, incumbents in disarray (TheFork for sale, SevenRooms sold); a timed, open door. OWN IT · Global (€20B+, every AI surface) — scale on the taste graph, or acquisition by an incumbent who can't build it. Numbers are grounded in venues × ~€3k of recaptured bookings a year — a fraction of what they pay OpenTable. If pushed on ARPU, jump to appendix A1.">
-    <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">The opportunity — sizing is the go-to-market</span>
       <h2 class="line line--sm" data-rise style="--d:.22s">
         Prove it. Win it. <em>Own it.</em>
       </h2>
-      <p class="lede" data-rise style="--d:.36s; margin-top:.9rem">
-        Not "sell software to restaurants" — be the layer that turns intent into a booked evening.
-        <strong>Owning that conversion, market by market, is the prize.</strong>
+      <p class="lede" data-rise style="--d:.32s; margin-top:.7rem">
+        Not the search — the <strong>booking</strong> it becomes, and the <strong>marketing spend</strong>
+        venues already burn chasing it.
       </p>
-      <div class="sam3" data-rise style="--d:.5s">
+      <div class="wedge-mini" data-rise style="--d:.44s">
+        <div class="wedge-mini-item">
+          <div class="wedge-mini-n">$2B+</div>
+          <div class="wedge-mini-l">booking software today, growing ~12%/yr — the conversion already pays.</div>
+        </div>
+        <div class="wedge-mini-item">
+          <div class="wedge-mini-n">1.9B</div>
+          <div class="wedge-mini-l">diners OpenTable seats a year, on just 65k venues — one surface.</div>
+        </div>
+      </div>
+      <div class="sam3" data-rise style="--d:.56s">
         <div class="samtile">
           <div class="samtier">Prove it · The lab</div>
           <div class="samwho">Israel</div>
           <div class="samval">~€30M</div>
-          <div class="sammath"><strong style="color:var(--ink)">Ontopo owns booking here — not OpenTable.</strong> A partner, not a war. ~10k venues, winnable now.</div>
+          <div class="sammath"><strong style="color:var(--ink)">Ontopo, not OpenTable, owns booking here.</strong> A partner, not a war. ~10k venues.</div>
         </div>
         <div class="samtile samtile--focus">
           <div class="samtier">Win it · The wedge</div>
           <div class="samwho">Europe</div>
           <div class="samval">~€3B</div>
-          <div class="sammath">Fragmented rails, US giants absent, incumbents in disarray — <strong style="color:var(--ink)">TheFork for sale, SevenRooms sold.</strong> A timed, open door. ~1M venues.</div>
+          <div class="sammath">Fragmented rails, incumbents in disarray — <strong style="color:var(--ink)">TheFork for sale, SevenRooms sold.</strong> ~1M venues.</div>
         </div>
         <div class="samtile">
           <div class="samtier">Own it · The ceiling</div>
           <div class="samwho">Global</div>
           <div class="samval">€20B+</div>
-          <div class="sammath"><strong style="color:var(--ink)">Scale on the taste graph</strong> — or acquisition by an incumbent who can't build it. Every AI surface.</div>
+          <div class="sammath"><strong style="color:var(--ink)">Scale on the taste graph</strong> — or acquisition. Every AI surface.</div>
         </div>
       </div>
-      <span class="disclaim" data-rise style="--d:.72s">Numbers = venues × ~€3k of recaptured bookings a year — the <strong style="color:var(--ink)">defensible floor.</strong> Matched, higher-spend demand against the marketing budget venues already spend is the ceiling. Counts: Statista · NRA.</span>
+      <span class="disclaim" data-rise style="--d:.72s">Grounded in venue counts × ~€3k recaptured bookings — the <strong style="color:var(--ink)">floor.</strong> Marketing spend already in play is the ceiling. Full math → appendix.</span>
     </div>
   </section>
 
-  <!-- S8: The solution (ink) -->
-  <section class="slide slide--ink"
-    data-note="One sentence. Say it slowly, once. Don't expand or explain. The sentence is complete. After you finish — pause. Let it land.">
-    <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">Taist</span>
-      <h2 class="line line--sm" data-rise style="--d:.32s">
-        People describe the evening they want.
-        Taist understands it, finds venues with
-        <em>real availability,</em> and turns the search
-        into a confirmed booking.
-      </h2>
-    </div>
-  </section>
-
-  <!-- S9: How it works -->
+  <!-- S8: How it works — solution + mechanics merged, two graphs meeting -->
   <section class="slide"
-    data-note="Keep it visual, keep it simple. Three steps — each obvious. The audience should be nodding. The complexity lives inside Taist; they only see clean input and clean output.">
+    data-note="Merged: the one-sentence solution now opens this slide as a short lede, then the diagram does the rest. Two graphs — diner (taste, history, context) and venue (what it's truly great for) — converge into the match, checked against real availability, and booked. Close the loop: every booking sharpens both graphs. This is where 'none of them owns taste' (surfaces slide) gets its on-stage payoff, briefly — the full contrast lives in appendix.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">How it works</span>
-      <div class="flow-nodes" data-rise style="--d:.3s">
-        <div class="fnode">
-          <div class="fnode-ico">
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-              <rect x="3" y="7" width="24" height="17" rx="4" stroke="currentColor" stroke-width="1.4"/>
-              <path d="M9 13h12M9 18h8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-              <path d="M15 7V4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-            </svg>
+      <h2 class="line line--sm" data-rise style="--d:.22s">
+        Two graphs.<br>One <em>match.</em>
+      </h2>
+      <p class="lede" data-rise style="--d:.34s; margin-top:.6rem">
+        You describe the evening. Taist matches it against real availability — and books it.
+      </p>
+      <div class="match-flow" data-rise style="--d:.48s">
+        <div class="match-flow-graphs">
+          <div class="fnode fnode--sm">
+            <div class="fnode-ico">
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <circle cx="10" cy="8" r="4" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M3 22c0-5 3-8 7-8s7 3 7 8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                <circle cx="23" cy="6" r="1.8" fill="currentColor"/>
+                <circle cx="27" cy="14" r="1.8" fill="currentColor"/>
+                <circle cx="22" cy="21" r="1.8" fill="currentColor"/>
+                <path d="M23 6l4 8M27 14l-5 7M22 21l1-15" stroke="currentColor" stroke-width="1" opacity=".5"/>
+              </svg>
+            </div>
+            <div class="fnode-title">Diner graph</div>
+            <div class="fnode-detail">Taste · history · context</div>
           </div>
-          <div class="fnode-title">You describe it</div>
-          <div class="fnode-detail">"8 people, 2 kids, Friday, space to move, good drinks"</div>
+          <div class="fnode fnode--sm">
+            <div class="fnode-ico">
+              <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+                <rect x="3" y="14" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M6 14v-2a4 4 0 018 0v2" stroke="currentColor" stroke-width="1.3"/>
+                <circle cx="23" cy="8" r="1.8" fill="currentColor"/>
+                <circle cx="27" cy="16" r="1.8" fill="currentColor"/>
+                <circle cx="21" cy="22" r="1.8" fill="currentColor"/>
+                <path d="M23 8l4 8M27 16l-6 6M21 22l1-14" stroke="currentColor" stroke-width="1" opacity=".5"/>
+              </svg>
+            </div>
+            <div class="fnode-title">Venue graph</div>
+            <div class="fnode-detail">What it's truly great for</div>
+          </div>
         </div>
-        <div class="farrow">
+        <div class="farrow farrow--converge">
           <svg width="36" height="14" viewBox="0 0 36 14" fill="none">
             <path d="M2 7h28M22 2.5l8 4.5-8 4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -905,8 +1029,8 @@ a:hover { border-bottom-color: var(--purple); }
               <path d="M15 3l2.6 8H26l-6.8 5 2.6 8L15 19.4 8.2 24l2.6-8L4 11h8.4z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>
             </svg>
           </div>
-          <div class="fnode-title">Taist</div>
-          <div class="fnode-detail">Understands intent. Finds real availability.</div>
+          <div class="fnode-title">The match</div>
+          <div class="fnode-detail">Checked against real availability</div>
         </div>
         <div class="farrow">
           <svg width="36" height="14" viewBox="0 0 36 14" fill="none">
@@ -922,11 +1046,11 @@ a:hover { border-bottom-color: var(--purple); }
               <path d="M11 20v4M19 20v4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
             </svg>
           </div>
-          <div class="fnode-title">Table confirmed</div>
+          <div class="fnode-title">Booked</div>
           <div class="fnode-detail">The right venue. The right evening.</div>
         </div>
       </div>
-      <span class="caption" data-rise style="--d:.55s">The intent is the input. The evening is the output.</span>
+      <span class="caption" data-rise style="--d:.62s">Every booking sharpens both graphs — Taist learns your taste, every time.</span>
     </div>
   </section>
 
@@ -964,54 +1088,16 @@ a:hover { border-bottom-color: var(--purple); }
     </div>
   </section>
 
-  <!-- S10: Why different — the match, and the two-sided graph (the moat) -->
-  <section class="slide"
-    data-note="Walk the contrast, then land the moat. The structural insight: everyone else ranks by who PAID and forgets you at checkout. Taist ranks by who FITS — and remembers. That's the payoff to 'none of them owns taste' from the surfaces slide. The moat is two graphs that compound and meet: the diner graph (who each diner is, what they chose, what they loved after) and the venue graph (what each venue is truly great for — not what it bid). Their join is a match that fits — which means a bigger night, a better review, a guest who returns, and a venue that finally spends its marketing budget on demand that converts. No foundation model can retrain that into existence — it never sees it — and it's the same asset we later turn into diner-segment insight. Don't rush the last line.">
-    <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">Why we're different</span>
-      <h2 class="line line--sm" data-rise style="--d:.24s">
-        Not another filter.<br><em>A match — that compounds.</em>
-      </h2>
-      <div class="compare" data-rise style="--d:.44s">
-        <div class="ccol ccol--them">
-          <div class="ccol-head">Existing platforms</div>
-          <div class="crow">Optimise filters</div>
-          <div class="crow">Rank by who pays</div>
-          <div class="crow">Stop at discovery</div>
-          <div class="crow">Forget you at checkout</div>
-        </div>
-        <div class="ccol ccol--us">
-          <div class="ccol-head">Taist</div>
-          <div class="crow">Understand experiences</div>
-          <div class="crow">Match on who fits</div>
-          <div class="crow">Deliver the evening</div>
-          <div class="crow">Remember — and compound</div>
-        </div>
-      </div>
-      <p class="surfaces-foot" data-rise style="--d:.7s">
-        Every surface can book. <strong>Only Taist owns the taste</strong> — two graphs that compound and meet:
-        who each diner <em>is</em>, and what each venue is truly <em>for</em>. Their join is a match that fits —
-        a bigger night, a better review, a guest who returns. No model can retrain it into existence, and it's
-        the segment insight venues later pay for.
-      </p>
-    </div>
-  </section>
-
-  <!-- S11: Vision (ink) -->
+  <!-- S10: Vision (ink) -->
   <section class="slide slide--ink"
-    data-note="The close. Slow right down. 'As AI becomes the primary interface for the physical world' — that's the macro frame. Then narrow to restaurants. End with the north star. The final line should stay with them.">
+    data-note="The close. Slow right down. One breath, one image, one line to end on. 'Why we're different' — the full contrast and the two-sided-graph moat — now lives in the appendix; this slide stays pure vision.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">The vision</span>
       <h2 class="line line--sm" data-rise style="--d:.3s">
-        As AI becomes how we discover<br>
-        <em>the physical world,</em> every agent will need<br>
-        to turn human intent into real experiences.
+        AI is becoming how the world<br>
+        discovers <em>experiences.</em>
       </h2>
-      <p class="lede" data-rise style="--d:.58s">
-        We start with restaurants — highest frequency, highest intent,
-        ready to transact.
-      </p>
-      <div class="vision-quote" data-rise style="--d:.82s">
+      <div class="vision-quote" data-rise style="--d:.7s">
         Every intention deserves an unforgettable evening.
       </div>
     </div>
@@ -1066,9 +1152,19 @@ a:hover { border-bottom-color: var(--purple); }
         </div>
       </div>
       <p class="thesis-foot" data-rise style="--d:.6s">
-        Every venue has its own zero-tables. Priced, that's <strong>~€3k a year — a fraction of what they pay OpenTable</strong> for all their covers. Israel is winnable now; Europe is a €3B wedge.
+        Every venue has its own zero-tables. Priced, that's <strong>~€3k a year — a fraction of what they pay OpenTable</strong> for all their covers. This is the <strong>floor.</strong>
       </p>
-      <span class="disclaim" data-rise style="--d:.72s">Comparable: <a href="https://www.opentable.com/blog/newsroom/" target="_blank" rel="noopener">OpenTable</a> subscriptions run $3.6k–12k+/yr per venue before cover fees — and it seats 1.9B diners across 65k+ venues. The conversion layer already monetizes. <a href="#" class="ref-jump" data-jump="last">See all sources →</a></span>
+      <div class="thesis-ceiling" data-rise style="--d:.66s">
+        <div class="tc-label">The ceiling — a second, independent check</div>
+        <div class="tc-row">
+          Restaurants already spend <strong>3–6% of revenue on marketing</strong>
+          (<a href="https://pos.toasttab.com/blog/on-the-line/average-marketing-budget-for-a-restaurant" target="_blank" rel="noopener">Toast</a> ·
+          <a href="https://get.chownow.com/blog/restaurant-marketing-budget/" target="_blank" rel="noopener">ChowNow</a>) —
+          mostly on reach, regardless of fit. Applied to US full-service revenue alone
+          (<strong>$533B</strong>, NRA), that's <strong>~$16–32B/yr</strong> already being spent, badly.
+        </div>
+      </div>
+      <span class="disclaim" data-rise style="--d:.72s">Two separate methodologies, not additive: the floor is per-venue booking recapture; the ceiling is existing marketing spend redirected to performance. Comparable: <a href="https://www.opentable.com/blog/newsroom/" target="_blank" rel="noopener">OpenTable</a> subscriptions run $3.6k–12k+/yr per venue before cover fees — and it seats 1.9B diners across 65k+ venues. <a href="#" class="ref-jump" data-jump="last">See all sources →</a></span>
     </div>
   </section>
 
@@ -1091,11 +1187,42 @@ a:hover { border-bottom-color: var(--purple); }
     </div>
   </section>
 
+  <!-- A3: Why we're different — the match, and the two-sided graph (moved from main deck) -->
+  <section class="slide slide--appendix" data-appendix
+    data-note="Moved off the main deck to keep the pitch under 4 minutes — the how-it-works slide's two-graph diagram and 'learns every time' caption already carry this on stage; this is the deep version for Q&A. The structural insight: everyone else ranks by who PAID and forgets you at checkout. Taist ranks by who FITS — and remembers. That's the full payoff to 'none of them owns taste' from the surfaces slide.">
+    <div class="inner">
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03 · Why we're different</span>
+      <span class="q-eyebrow" data-rise style="--d:.24s">"What makes the match itself defensible?"</span>
+      <div class="compare" data-rise style="--d:.44s">
+        <div class="ccol ccol--them">
+          <div class="ccol-head">Existing platforms</div>
+          <div class="crow">Optimise filters</div>
+          <div class="crow">Rank by who pays</div>
+          <div class="crow">Stop at discovery</div>
+          <div class="crow">Forget you at checkout</div>
+        </div>
+        <div class="ccol ccol--us">
+          <div class="ccol-head">Taist</div>
+          <div class="crow">Understand experiences</div>
+          <div class="crow">Match on who fits</div>
+          <div class="crow">Deliver the evening</div>
+          <div class="crow">Remember — and compound</div>
+        </div>
+      </div>
+      <p class="surfaces-foot" data-rise style="--d:.7s">
+        Every surface can book. <strong>Only Taist owns the taste</strong> — two graphs that compound and meet:
+        who each diner <em>is</em>, and what each venue is truly <em>for</em>. Their join is a match that fits —
+        a bigger night, a better review, a guest who returns. No model can retrain it into existence, and it's
+        the segment insight venues later pay for.
+      </p>
+    </div>
+  </section>
+
   <!-- A2: How does Taist make money -->
   <section class="slide slide--appendix" data-appendix
     data-note="Business model, and note the frame: we compete for the venue's MARKETING budget, not just its reservation-software line — but we REPLACE what that budget buys. Traditional spend buys a top slot even when the venue doesn't fit the search; we sell the data and insight that let a venue optimize its positioning and earn the match honestly. Surfaces: (1) Matched demand — best-fit, higher-spend guests, priced on performance. (2) Booking take-rate — a slice of each reservation, rail-agnostic. (3) Positioning insight — the honest replacement for ad spend: which segments book them, where they win and lose, how to capture more of the intent already searching. Anonymized cohort data, never names; deepens with booking volume. The one-liner: we don't sell the top slot — we sell the insight to deserve it. That guardrail IS the moat; pay-to-play would poison the match quality.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 03</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 04</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist actually make money?"</span>
       <div class="revcards" data-rise style="--d:.44s">
         <div class="revcard">
@@ -1122,7 +1249,7 @@ a:hover { border-bottom-color: var(--purple); }
   <section class="slide slide--appendix" data-appendix
     data-note="Jaque's addition — the second product. Once diners book through Taist, the booking exhaust is REVEALED preference: what people actually reserved, not what they said they liked. At volume that segments into cohorts ('date-night wine-bar seekers', 'group-celebration bookers'). Sold to venues two ways — targeting (reach the segments you want) and insight (understand who's booking you). Must be framed as anonymized cohort intelligence, never identifiable diner data. This is the taste graph becoming a venue-facing revenue surface — closer to a demand-side data platform than to how OpenTable monetizes.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 04 · The second product</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 05 · The second product</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">Every search is a signal.<br>The exhaust becomes a <em>product.</em></span>
       <p class="answer" data-rise style="--d:.44s">
         What people actually book is <strong>revealed preference</strong> — richer than any survey. At volume it segments into diner cohorts: <em>date-night wine-bar seekers, group-celebration bookers, solo-lunch regulars.</em>
@@ -1139,7 +1266,7 @@ a:hover { border-bottom-color: var(--purple); }
   <section class="slide slide--appendix" data-appendix
     data-note="GTM + timing. Israel = lab: contained home turf where Ontopo (not OpenTable) owns booking, so it's partner-able, not a war. Prove discoverability → earn leverage. Europe = the real wedge: culinarily rich, structurally fragmented across rails, US platforms barely penetrated, and incumbents in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by DoorDash, OpenTable backlash. The window is real but TIMED — Google is already exporting AI-Mode booking.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 05</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 06</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"Why start in Israel — isn't it small?"</span>
       <div class="moat2" data-rise style="--d:.44s">
         <div class="moatcard moatcard--them">
@@ -1158,7 +1285,7 @@ a:hover { border-bottom-color: var(--purple); }
   <section class="slide slide--appendix" data-appendix
     data-note="The landscape. Consolidated and AI-partnered in the US, destabilized in Europe. Walk the signal column — that's the story: everyone above us is either platform-gated or in motion, and none of them own taste. We're not another rail; we sit on top of all of them.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 06</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 07</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"Who else is in this space?"</span>
       <div class="land" data-rise style="--d:.42s">
         <div class="land-row land-row--h"><div>Player</div><div>Signal</div><div>Owner</div></div>
@@ -1176,7 +1303,7 @@ a:hover { border-bottom-color: var(--purple); }
   <section class="slide slide--appendix" data-appendix
     data-note="The distribution question — how do you get inside the assistant? Three ways a tool gets invoked: the user connects it, the user names it, or the platform blesses it. Assistants increasingly won't auto-pick a pipe the user didn't name (neutrality). Our answer: we're not trying to be the silent default pipe — we win diner mindshare through curation and memory (you come back because it knows YOU), and because we're rail-agnostic we're partner-able to the platforms rather than a threat they route around.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 07</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 08</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"How does Taist get invoked inside an assistant?"</span>
       <p class="answer" data-rise style="--d:.42s">
         A tool gets called three ways: the user <strong>connects</strong> it, the user <strong>names</strong> it, or the platform <strong>blesses</strong> it. Assistants increasingly won't auto-pick a pipe you didn't ask for — neutrality by design.
@@ -1191,7 +1318,7 @@ a:hover { border-bottom-color: var(--purple); }
   <section class="slide slide--appendix" data-appendix
     data-note="Endgame — investors want to know how they get their return. Two live paths, and we design toward both: independent scale on the taste-graph moat, OR build-to-acquisition into one of the destabilized incumbents who need exactly this and can't build it. The unownable asset is what makes either path real.">
     <div class="inner">
-      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 08</span>
+      <span class="appendix-kicker" data-rise style="--d:.1s">Q&A · 09</span>
       <span class="q-eyebrow" data-rise style="--d:.24s">"What's the endgame?"</span>
       <div class="moat2" data-rise style="--d:.44s">
         <div class="moatcard moatcard--us">
