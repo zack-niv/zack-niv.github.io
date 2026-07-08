@@ -73,22 +73,21 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 >
 > "That's the highest-value moment we own: the booking that was *lost* — no availability — turned into a confirmed table. Same for the birthday eight, same for a vague 'quiet first-date spot.' Every one of these dies today. We convert it."
 
-## ▸ 10 — The vision *(dark, trimmed)*
-> "AI is becoming how the world discovers experiences. *(spoken, not shown: we start with restaurants — highest frequency, highest intent, ready to transact.)* **Every intention deserves an unforgettable evening.**"
+## ▸ 10 — The vision *(dark — the name lands here)*
+*(Say "This is Taist" plainly and clearly — it's the reveal, don't rush past it or bury it in the vision line.)*
+> "AI is becoming how the world discovers experiences. *(spoken, not shown: we start with restaurants — highest frequency, highest intent, ready to transact.)* **This is Taist.** Every intention deserves an unforgettable evening — and every venue, the guests who were always meant to fill it."
 
-## ▸ 11 — Booked. *(dark — the mic drop)*
-*(Callback to slide 1. Deliver the small line quietly, hit "Booked." — full beat — then the three-beat softer, landing hard on "Savored." Then stop. If you want the purest ending, cut the three-beat and stop on "Booked.")*
+## ▸ 11 — Discovered. Matched. Savored. *(dark — the mic drop)*
+*(Callback to slide 1. Deliver the small line quietly. Then the triplet — a small beat between each word, land hardest on "Savored." Then, softer, "with Taist." Then stop. Say nothing after. Let the silence end it.)*
 > "Eight people. Two restless kids. One simple ask."
 >
 > *(beat)*
 >
-> "**Booked.**"
+> "**Discovered. Matched. Savored.**"
 >
-> *(beat)*
+> *(beat, softer)*
 >
-> "Discovered. Matched. **Savored.**"
-
-*(Mic-drop alternates, if you prefer: "Zero tables. Never again." / "When the world asks AI where to go — Taist is the answer.")*
+> "With **Taist.**"
 
 ---
 
@@ -110,7 +109,7 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
-- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 11 ("Booked.").
+- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 11 ("Discovered. Matched. Savored.").
 - **The double loss (slide 3) is now four losses, not two** — diner and venue, two moments each, with real icons (sofa, chair, yawn, dollar sign). The second moment is the quieter, more important one — it's the sponsored-bias critique in miniature. On the venue side, lead with the **money** ("a guest who spent less") — the no-return point is secondary, not the headline. Don't rush past it.
 - **The journey slide is back (slide 4)** with a new twist ending: even the results that seven-touchpoint slog produces are skewed by sponsorship, not fit. That's the bridge into the "systems vs. people" diagnosis.
 - **Slide 5 does the work two slides used to** — the stark statement (systems/filters vs. people/experiences) AND the inflection visual (dropdowns → one sentence), on one dark beat.
@@ -121,5 +120,5 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 - **"Why we're different" now lives in the appendix (A3), not the main deck** — the full two-column contrast and the complete moat paragraph are there if an investor pushes on defensibility. On stage, the how-it-works diagram already carries the idea visually.
 - **Vision (slide 10) is trimmed to one line + the quote** — say "we start with restaurants" out loud even though it's not on screen; the slide itself stays pure vision.
 - **Dark slides (2, 5, 10, 11) are your turns to slow down.**
-- **The name lands on slide 8**, as the answer the story earned. The mic drop (11) resolves the human moment you opened on — "Booked." for the callback, then "Discovered. Matched. **Savored.**" to land the fuller value. (Cut the three-beat if you want the pure single word.)
+- **The name now lands twice.** First quietly in prose on slide 8 ("Taist matches it..."), then as a deliberate reveal on slide 10 ("**This is Taist.**") right before the closing vision line. The mic drop (11) doesn't re-say "Booked" — it resolves the human moment straight into "Discovered. Matched. Savored," then names the company once more, softer: "with Taist." Three touches in the back third of the deck; none in the cold open.
 - **You are the dad with two kids the whole way through.** That thread turns a market thesis into a person.

@@ -367,10 +367,12 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .ccol--us .crow::before { content: '✓'; color: var(--green); font-weight: 600; flex-shrink: 0; }
 
 /* S11 vision */
+.vision-mark { margin-top: 2.1rem; font-family: 'Playfair Display', serif; font-weight: 600;
+  font-size: clamp(1.35rem, 3.1vw, 2.15rem); color: var(--gold); letter-spacing: -.005em; }
 .vision-quote {
   font-family: 'Playfair Display', serif; font-style: italic;
   font-size: clamp(1.5rem, 3.6vw, 2.6rem);
-  color: rgba(201,168,76,.85); margin-top: 2.6rem;
+  color: rgba(201,168,76,.85); margin-top: 2rem;
   line-height: 1.4; letter-spacing: .005em;
 }
 
@@ -542,6 +544,12 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .micdrop-coda strong { color: var(--gold); font-weight: 600; font-style: italic; }
 .micdrop-mark { margin-top: 2rem; font-size: .72rem; letter-spacing: .42em;
   text-transform: uppercase; color: rgba(250,247,242,.5); }
+.micdrop-triplet { font-family: 'Playfair Display', serif; font-weight: 600;
+  font-size: clamp(2.1rem, 5.6vw, 4.3rem); letter-spacing: -.02em; color: var(--gold);
+  line-height: 1.1; }
+.micdrop-with { margin-top: 1.9rem; font-family: 'Playfair Display', serif; font-style: italic;
+  font-size: clamp(1.3rem, 3vw, 2.15rem); color: rgba(250,247,242,.7); }
+.micdrop-with strong { color: var(--gold); font-weight: 600; font-style: normal; }
 
 /* ── Appendix ── */
 .slide--appendix { background: #F4F0E9; }
@@ -1135,14 +1143,15 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- S10: Vision (ink) -->
   <section class="slide slide--ink"
-    data-note="The close. Slow right down. One breath, one image, one line to end on — but the line now closes both loops the pitch opened: the diner's unforgettable evening AND the venue's filled table with the right guests. 'Why we're different' — the full contrast and the two-sided-graph moat — lives in the appendix; this slide stays pure vision.">
+    data-note="The close. Slow right down. Headline, then the name — say 'This is Taist' plainly, it's the reveal, not a throwaway — then the quote closes both loops the pitch opened: the diner's unforgettable evening AND the venue's filled table with the right guests. 'Why we're different' — the full contrast and the two-sided-graph moat — lives in the appendix; this slide stays pure vision.">
     <div class="inner">
       <span class="eyebrow" data-rise style="--d:.1s">The vision</span>
       <h2 class="line line--sm" data-rise style="--d:.3s">
         AI is becoming how the world<br>
         discovers <em>experiences.</em>
       </h2>
-      <div class="vision-quote" data-rise style="--d:.7s">
+      <div class="vision-mark" data-rise style="--d:.5s">This is Taist.</div>
+      <div class="vision-quote" data-rise style="--d:.84s">
         Every intention deserves an unforgettable evening — and every venue, the guests who were always meant to fill it.
       </div>
     </div>
@@ -1150,12 +1159,11 @@ a:hover { border-bottom-color: var(--purple); }
 
   <!-- S12: Mic drop (ink) — callback to the cold open -->
   <section class="slide slide--ink micdrop"
-    data-note="The mic drop. Callback to the very first slide — the failed search that booked zero tables. Deliver the small line quietly, then hit 'Booked.' — full beat. Then, softer, the three-beat that says we go further than the transaction: 'Discovered. Matched.' — and land hard on 'Savored.' Then stop. That's the elevation: not just a table filled, an evening delivered. (If you want the pure single-word ending instead, cut the coda and stop on 'Booked.')">
+    data-note="The mic drop. Callback to the very first slide — the failed search that booked zero tables. Deliver the small line quietly. Then the triplet, big and gold — a beat between each word, land hardest on 'Savored.' Then, softer, name the company: 'with Taist.' Then stop. Say nothing after. Let the silence end it.">
     <div class="inner">
       <div class="micdrop-pre" data-rise style="--d:.15s">Eight people. Two restless kids. One simple ask.</div>
-      <div class="micdrop-big" data-rise style="--d:.5s">Booked.</div>
-      <div class="micdrop-coda" data-rise style="--d:.9s">Discovered. Matched. <strong>Savored.</strong></div>
-      <div class="micdrop-mark" data-rise style="--d:1.2s">Taist</div>
+      <div class="micdrop-triplet" data-rise style="--d:.5s">Discovered. Matched.<br>Savored.</div>
+      <div class="micdrop-with" data-rise style="--d:1.1s">with <strong>Taist</strong></div>
     </div>
   </section>
 
