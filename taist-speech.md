@@ -73,8 +73,11 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 >
 > "That's the highest-value moment we own: the booking that was *lost* — no availability — turned into a confirmed table. Same for the birthday eight, same for a vague 'quiet first-date spot.' Every one of these dies today. We convert it."
 
-## ▸ 15 — Why we're different
-> "Every platform out there optimises filters, returns a list, and stops when you click. We think the job is the *evening* — making sure the right guests find the right venue, and that it actually happens. We complete the journey. And we help venues welcome the guests who were always looking for them."
+## ▸ 15 — Why we're different *(and the moat)*
+*(This is where you cash the promise from slide 7 — "none of them owns taste." Land the last two lines slowly.)*
+> "Every platform out there optimises filters, returns a list, stops when you click — and forgets you. We complete the evening. But here's the part none of them can copy: every time you book through Taist, it learns — who you are, what you chose, what you loved after. That's a taste-and-context graph, and it compounds with every diner."
+>
+> "Remember slide seven? Every surface can turn intent into a booking. **Only we own the taste.** A foundation model can't retrain that into existence — it never sees it. And it's the same asset we later turn into insight venues will pay for."
 
 ## ▸ 16 — The vision *(dark)*
 > "As AI becomes how we discover the physical world, every agent will need a way to turn human intent into real experiences. We start with restaurants — highest frequency, highest intent, ready to transact — and we build the layer every AI will rely on. *Every intention deserves an unforgettable evening.*"
@@ -113,7 +116,8 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 - **The micro-prototype (slide 14) is your product demo.** Tap a slot live if the room is engaged — a real booking on screen beats any diagram. The Palomar→Barbary "sold-out → saved" moment is the one to sell.
 - **Sizing ties to the mission, not to SaaS (slide 10).** Say it out loud: "the mission isn't to sell software to restaurants." The number is the *commercial floor* under being the intent→booking layer — grounded in venue counts × ~€3k (a fraction of OpenTable). If pushed on ARPU, jump to appendix A1.
 - **Sizing and GTM are the same ladder (slides 10–11).** Prove it (Israel) → win it (Europe) → own it (world). The Ontopo-not-OpenTable point on slide 11 is the one to land — it makes Israel a partnership, not a war.
-- **Surfaces (slide 7) is a scale move** — it turns "an AI feature" into "the layer every surface needs." Don't rush it.
+- **Surfaces (slide 7) plants the moat** — "none of them owns taste" is a promissory note. It's a scale move (an AI feature → the layer every surface needs), *and* it sets up the payoff on slide 15. Don't rush it.
+- **Slide 15 cashes the moat** — "why we're different" is no longer just filter-vs-understanding; it's the *durable asset*. The taste-and-context graph compounds per diner, can't be retrained into existence, and seeds the segment-insight product (appendix A4). This is your answer to "what stops OpenTable/Google copying you?" — say it slowly.
 - **Dark slides (2, 5, 12, 16, 17) are your turns to slow down.**
 - **The name lands on slide 12**, as the answer the story earned. The mic drop (17) resolves the exact human moment you opened on — in one word.
 - **You are the dad with two kids the whole way through.** That thread turns a market thesis into a person.
