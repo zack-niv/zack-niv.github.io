@@ -25,11 +25,11 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 >
 > "And somewhere in this city, a restaurant with a big table and room for kids was open that evening — and never knew we were asking."
 
-## ▸ 3 — The double loss *(now 2×2 — diner and venue, two moments each)*
-*(Walk down the diner column, then the venue column. The second row is the quieter, bigger point — don't rush it.)*
-> "Two sides of the same broken moment — and it happens twice. First: the search just dies. I gave up, the night stayed home. And across town, a restaurant's right table sat empty, waiting for guests who never came."
+## ▸ 3 — The double loss *(2×2 — diner and venue, two moments each)*
+*(Walk down the diner column, then the venue column. The second row is the quieter, bigger point — don't rush it. Lead the last line with the money, not the return visit.)*
+> "Two sides of the same broken moment — and it happens twice. First: the search just dies. I gave up, the night stayed home. And across town, a restaurant's right seat sat empty, held for a guest who never came."
 >
-> "But there's a second, quieter loss. When the search *does* land, it lands on whoever paid to be seen — not what fits. So I settle for a mediocre night. And the venue 'wins' a guest who spends less, leaves lukewarm, and never comes back. Four losses. One broken moment."
+> "But there's a second, quieter loss. When the search *does* land, it lands on whoever paid to be seen — not what fits. So I settle for a mediocre night. And the venue gets a guest who **spends less** — a lower ticket, a thinner margin, and not much reason to come back. Four losses. One broken moment."
 
 ## ▸ 4 — Seven touchpoints *(the fragmented journey, restored)*
 *(Walk every step. Let them count. Land the sponsored-results line at the end — it's the twist.)*
@@ -111,7 +111,7 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
 - **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 11 ("Booked.").
-- **The double loss (slide 3) is now four losses, not two** — diner and venue, two moments each. The second moment (mediocre night / guest who won't return) is the quieter, more important one — it's the sponsored-bias critique in miniature. Don't rush past it.
+- **The double loss (slide 3) is now four losses, not two** — diner and venue, two moments each, with real icons (sofa, chair, yawn, dollar sign). The second moment is the quieter, more important one — it's the sponsored-bias critique in miniature. On the venue side, lead with the **money** ("a guest who spent less") — the no-return point is secondary, not the headline. Don't rush past it.
 - **The journey slide is back (slide 4)** with a new twist ending: even the results that seven-touchpoint slog produces are skewed by sponsorship, not fit. That's the bridge into the "systems vs. people" diagnosis.
 - **Slide 5 does the work two slides used to** — the stark statement (systems/filters vs. people/experiences) AND the inflection visual (dropdowns → one sentence), on one dark beat.
 - **Surfaces (slide 6) has real brand-flavored icons now** — walk them fast, they're recognizable at a glance. "None of them owns taste" is the promissory note the deck now pays off twice: briefly on slide 8's learning-loop line, fully in appendix A3.
