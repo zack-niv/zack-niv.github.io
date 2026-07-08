@@ -1,6 +1,6 @@
 # Taist — the pitch, spoken
 
-A rehearsal script aligned to `taist-pitch.html` — **16 main slides + a 10-slide appendix** for Q&A.
+A rehearsal script aligned to `taist-pitch.html` — **17 main slides + a 10-slide appendix** for Q&A.
 One thought per slide. The slide holds the room; **your voice carries the story.**
 Advance on the line marked **▸**. Press `S` in the deck to see these notes while you rehearse.
 
@@ -67,13 +67,19 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## ▸ 13 — How it works
 > "Three steps. You describe what you want, like you'd tell a friend. Taist matches it against venues with real, live availability. And it completes the booking — not a link, not a list. A confirmation. The intent is the input. The evening is the output."
 
-## ▸ 14 — Why we're different
+## ▸ 14 — In the moment *(the micro-prototype — you can tap it live)*
+*(Show, don't tell. Optionally tap a time-slot on screen — it books.)*
+> "Here's what that actually feels like. You ask for The Palomar tonight — fully booked, waitlist packed. A dead end. But Taist knows your taste: 'The Barbary, round the corner — same Levantine energy, a natural-wine list you'd love. Here's tonight.' Three slots. One tap — booked."
+>
+> "That's the highest-value moment we own: the booking that was *lost* — no availability — turned into a confirmed table. Same for the birthday eight, same for a vague 'quiet first-date spot.' Every one of these dies today. We convert it."
+
+## ▸ 15 — Why we're different
 > "Every platform out there optimises filters, returns a list, and stops when you click. We think the job is the *evening* — making sure the right guests find the right venue, and that it actually happens. We complete the journey. And we help venues welcome the guests who were always looking for them."
 
-## ▸ 15 — The vision *(dark)*
+## ▸ 16 — The vision *(dark)*
 > "As AI becomes how we discover the physical world, every agent will need a way to turn human intent into real experiences. We start with restaurants — highest frequency, highest intent, ready to transact — and we build the layer every AI will rely on. *Every intention deserves an unforgettable evening.*"
 
-## ▸ 16 — Booked. *(dark — the mic drop)*
+## ▸ 17 — Booked. *(dark — the mic drop)*
 *(Callback to slide 1. Deliver the small line quietly, then hit the one word and STOP. Say nothing after. Let the silence end it.)*
 > "Eight people. Two restless kids. One simple ask."
 >
@@ -102,10 +108,12 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
-- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 16 ("Booked.").
+- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 17 ("Booked.").
+- **Why-now (slide 6) is now a picture, not a list** — crammed venue filters on the left, a natural-language chat on the right. Let the contrast land before you speak.
+- **The micro-prototype (slide 14) is your product demo.** Tap a slot live if the room is engaged — a real booking on screen beats any diagram. The Palomar→Barbary "sold-out → saved" moment is the one to sell.
 - **Sizing ties to the mission, not to SaaS (slide 10).** Say it out loud: "the mission isn't to sell software to restaurants." The number is the *commercial floor* under being the intent→booking layer — grounded in venue counts × ~€3k (a fraction of OpenTable). If pushed on ARPU, jump to appendix A1.
 - **Sizing and GTM are the same ladder (slides 10–11).** Prove it (Israel) → win it (Europe) → own it (world). The Ontopo-not-OpenTable point on slide 11 is the one to land — it makes Israel a partnership, not a war.
 - **Surfaces (slide 7) is a scale move** — it turns "an AI feature" into "the layer every surface needs." Don't rush it.
-- **Dark slides (2, 5, 12, 15, 16) are your turns to slow down.**
-- **The name lands on slide 12**, as the answer the story earned. The mic drop (16) resolves the exact human moment you opened on — in one word.
+- **Dark slides (2, 5, 12, 16, 17) are your turns to slow down.**
+- **The name lands on slide 12**, as the answer the story earned. The mic drop (17) resolves the exact human moment you opened on — in one word.
 - **You are the dad with two kids the whole way through.** That thread turns a market thesis into a person.

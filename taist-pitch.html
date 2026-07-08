@@ -432,6 +432,50 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .surfaces-foot { margin-top: 1.9rem; font-size: .95rem; color: var(--ink-muted); }
 .surfaces-foot strong { color: var(--ink); font-weight: 500; }
 
+/* ── Filter mock (why-now FROM) ── */
+.filtpanel { display: flex; flex-direction: column; gap: .5rem; }
+.filt-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.filt { border: 1.5px solid var(--border-s); border-radius: 8px; padding: .48rem .7rem;
+  font-size: .76rem; display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface); color: var(--ink-muted); }
+.filt span { color: var(--ink-faint); font-size: .7rem; }
+.filt-checks { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .25rem; }
+.filt-check { font-size: .68rem; border: 1.5px solid var(--border-s); border-radius: 20px;
+  padding: .24rem .6rem; color: var(--ink-muted); background: var(--surface); }
+.filt-go { margin-top: .35rem; align-self: flex-start; font-size: .72rem; color: var(--ink-faint);
+  border: 1.5px dashed var(--border-s); border-radius: 8px; padding: .35rem .9rem; }
+
+/* ── Chat UI (why-now TO + micro-prototypes) ── */
+.chat { background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 16px;
+  padding: 1rem 1rem 1.1rem; display: flex; flex-direction: column; gap: .55rem;
+  box-shadow: 0 4px 18px rgba(0,0,0,.05); }
+.chat-top { display: flex; align-items: center; gap: .45rem; font-size: .6rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-faint); padding-bottom: .55rem;
+  border-bottom: 1px solid var(--border); }
+.bubble { max-width: 88%; padding: .58rem .8rem; border-radius: 14px; font-size: .84rem; line-height: 1.5; }
+.bubble--user { align-self: flex-end; background: var(--ink); color: var(--cream); border-bottom-right-radius: 4px; }
+.bubble--ai { align-self: flex-start; background: var(--cream); color: var(--ink);
+  border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.bubble--ai strong { color: var(--gold-deep); }
+.slots { display: flex; gap: .5rem; align-self: flex-start; margin-top: .15rem; flex-wrap: wrap; }
+.slot { border: 1.5px solid var(--gold); color: var(--gold-deep); background: var(--gold-light);
+  border-radius: 10px; padding: .4rem .75rem; font-size: .82rem; font-weight: 500; cursor: pointer;
+  transition: background .2s, color .2s; }
+.slot:hover { background: var(--gold); color: #fff; }
+.slot-booked { align-self: flex-start; margin-top: .15rem; background: var(--green-light);
+  color: var(--green); border: 1.5px solid rgba(45,106,79,.4); border-radius: 10px;
+  padding: .4rem .8rem; font-size: .82rem; font-weight: 500; }
+
+/* ── Micro-prototype slide ── */
+.proto { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1.4rem; margin-top: 2rem;
+  align-items: start; text-align: left; }
+.proto-more { display: flex; flex-direction: column; gap: 1rem; }
+.moment { background: var(--surface); border: 1.5px solid var(--border-s); border-radius: 14px;
+  padding: 1.1rem 1.2rem; }
+.moment-q { font-family: 'Playfair Display', serif; font-style: italic; font-size: 1rem; color: var(--ink); line-height: 1.3; }
+.moment-a { font-size: .82rem; color: var(--ink-muted); margin-top: .5rem; line-height: 1.45; }
+.moment-a b { color: var(--green); font-weight: 500; }
+
 /* ── Mic drop ── */
 .micdrop .line { line-height: 1.05; }
 .micdrop-pre { font-size: clamp(.95rem,1.7vw,1.3rem); color: rgba(250,247,242,.55);
@@ -734,13 +778,29 @@ a:hover { border-bottom-color: var(--purple); }
       </h2>
       <div class="shift-wrap" data-rise style="--d:.42s">
         <div class="shift-panel shift-panel--b">
-          <div class="shift-era">Until now</div>
-          <div class="shift-head">You adapt<br>to software.</div>
-          <ul class="shift-list">
-            <li>Learn the keywords</li>
-            <li>Apply the filters</li>
-            <li>Open ten tabs</li>
-          </ul>
+          <div class="shift-era">Until now — you adapt to software</div>
+          <div class="filtpanel">
+            <div class="filt-row">
+              <div class="filt">Cuisine <span>▾</span></div>
+              <div class="filt">Party size <span>▾</span></div>
+            </div>
+            <div class="filt-row">
+              <div class="filt">Date <span>▾</span></div>
+              <div class="filt">Time <span>▾</span></div>
+            </div>
+            <div class="filt-row">
+              <div class="filt">Price · $$$ <span>▾</span></div>
+              <div class="filt">Rating · 4★+ <span>▾</span></div>
+            </div>
+            <div class="filt-checks">
+              <span class="filt-check">☐ Outdoor</span>
+              <span class="filt-check">☐ Kid-friendly</span>
+              <span class="filt-check">☐ Vegan</span>
+              <span class="filt-check">☐ Parking</span>
+              <span class="filt-check">☐ Accessible</span>
+            </div>
+            <span class="filt-go">Search →</span>
+          </div>
         </div>
         <div class="shift-mid">
           <svg width="20" height="34" viewBox="0 0 20 34" fill="none">
@@ -748,16 +808,14 @@ a:hover { border-bottom-color: var(--purple); }
           </svg>
         </div>
         <div class="shift-panel shift-panel--a">
-          <div class="shift-era">Now</div>
-          <div class="shift-head">Software adapts<br>to you.</div>
-          <ul class="shift-list">
-            <li>Just describe it</li>
-            <li>Context is understood</li>
-            <li>Intent becomes action</li>
-          </ul>
+          <div class="shift-era">Now — software adapts to you</div>
+          <div class="chat">
+            <div class="bubble bubble--user">8 of us this Friday — 2 kids who need room to move, and great cocktails 🍸</div>
+            <div class="bubble bubble--ai">Say less. A lively spot with space for the kids and a proper bar — here are <strong>3 that seat 8 on Friday.</strong></div>
+          </div>
         </div>
       </div>
-      <span class="caption" data-rise style="--d:.62s">Discovery is being rewritten. This is the window.</span>
+      <span class="caption" data-rise style="--d:.62s">Rigid filters → natural language that holds the whole intention. This is the window.</span>
     </div>
   </section>
 
@@ -967,6 +1025,40 @@ a:hover { border-bottom-color: var(--purple); }
         </div>
       </div>
       <span class="caption" data-rise style="--d:.55s">The intent is the input. The evening is the output.</span>
+    </div>
+  </section>
+
+  <!-- S9b: In the moment — micro-prototypes -->
+  <section class="slide"
+    data-note="Make it real. This is Taist in a live moment — the highest-value conversion: the first choice is sold out, a dead end, and Taist saves the booking with a taste-matched alternative and real time-slots. Tap a slot on screen — it books. Then two more moments: the birthday-dinner callback (the search that booked zero now converts), and a vague experiential ask where filters fail. The point: each of these is a booking that dies today, and Taist turns it into a confirmed table.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">In the moment</span>
+      <h2 class="line line--sm" data-rise style="--d:.22s">
+        A dead end<br>becomes a <em>booking.</em>
+      </h2>
+      <div class="proto" data-rise style="--d:.44s">
+        <div class="chat" data-venue="The Barbary">
+          <div class="chat-top">🍽 via ChatGPT · tonight</div>
+          <div class="bubble bubble--user">Table for 2 at The Palomar tonight, 8pm?</div>
+          <div class="bubble bubble--ai">The Palomar's fully booked tonight — and the waitlist's packed. But <strong>The Barbary</strong>, right around the corner, has the same Levantine energy and a natural-wine list you'd love. Tonight:</div>
+          <div class="slots">
+            <span class="slot">7:00</span>
+            <span class="slot">7:45</span>
+            <span class="slot">9:15</span>
+          </div>
+        </div>
+        <div class="proto-more">
+          <div class="moment">
+            <div class="moment-q">"8 of us Friday — 2 kids who need space"</div>
+            <div class="moment-a">→ the one lively room in town that can seat you, <b>booked</b>.</div>
+          </div>
+          <div class="moment">
+            <div class="moment-q">"Quiet first-date spot, great wine"</div>
+            <div class="moment-a">→ 3 taste-matched rooms with a table tonight, <b>one tap to book</b>.</div>
+          </div>
+        </div>
+      </div>
+      <span class="caption" data-rise style="--d:.66s">Every one of these is a booking that dies today. Taist converts it.</span>
     </div>
   </section>
 
@@ -1305,8 +1397,20 @@ document.addEventListener('keydown', e => {
 document.addEventListener('click', e => {
   const jump = e.target.closest('.ref-jump');
   if (jump) { e.preventDefault(); go(N - 1); return; }
-  if (e.target.closest('.dots') || e.target.closest('.notes-panel') || e.target.closest('.hint') || e.target.closest('a')) return;
+  if (e.target.closest('.dots') || e.target.closest('.notes-panel') || e.target.closest('.hint') || e.target.closest('a') || e.target.closest('.slot')) return;
   next();
+});
+
+// Micro-prototype: tapping a time-slot "books" it (and doesn't advance the deck)
+document.querySelectorAll('.slots').forEach(row => {
+  const venue = row.closest('.chat')?.dataset.venue || 'the venue';
+  row.querySelectorAll('.slot').forEach(slot => {
+    slot.addEventListener('click', e => {
+      e.stopPropagation();
+      const t = slot.textContent.trim();
+      row.innerHTML = `<span class="slot-booked">✓ Booked · ${venue} · ${t} tonight</span>`;
+    });
+  });
 });
 
 render();
