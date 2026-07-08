@@ -49,9 +49,9 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 >
 > "Intent is fragmenting across all of them. Every one needs to turn that intent into a booking. **And not one of them owns taste.** *(Hold that line — the how-it-works slide starts paying it off, and appendix A3 cashes it in full.)*"
 
-## ▸ 7 — Prove it. Win it. Own it. *(opportunity + wedge + ladder, merged — grounded in bookings + discovery spend)*
-*(One slide now, not three. Ground it fast with the two stats, then walk the ladder — each rung is a number and a reason to believe.)*
-> "So how big? Not the search — the **booking** it becomes, and the **marketing spend** venues already burn chasing it."
+## ▸ 7 — Every meal. Every celebration. Every night out. *(opportunity + wedge + ladder, merged — grounded in bookings + discovery spend)*
+*(One slide now, not three. Open on the human units of the market, then ground it fast with the two stats, then walk the ladder — each tile still carries "Prove it / Win it / Own it" in its label, so say those words as you land on each one.)*
+> "Every meal. Every celebration. Every night out. All of it begins with intent — and that intent is moving to AI. We capture it: the **booking**, and the **marketing spend** already chasing it."
 >
 > "Two numbers to ground it: restaurant-booking software is already a two-billion-dollar market, growing about twelve percent a year — the conversion already pays. And OpenTable alone seats **1.9 billion diners a year**, on just sixty-five thousand venues — one surface."
 >
