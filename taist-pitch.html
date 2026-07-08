@@ -379,6 +379,21 @@ body.on-ink .hint { color: rgba(250,247,242,.26); }
 .samtile--focus .samval { color: var(--gold-deep); }
 .sammath { font-size: .77rem; color: var(--ink-muted); line-height: 1.45; margin-top: auto; padding-top: .7rem; }
 
+/* ── GTM ladder ── */
+.gtm3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 2.2rem; text-align: left; }
+.gtmcard { border: 1.5px solid var(--border-s); border-radius: 16px; padding: 1.6rem 1.45rem;
+  background: var(--surface); display: flex; flex-direction: column; gap: .55rem; }
+.gtmcard--focus { background: var(--gold-light); border-color: rgba(201,168,76,.5);
+  box-shadow: 0 6px 24px rgba(201,168,76,.16); }
+.gtm-stage { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-faint); }
+.gtmcard--focus .gtm-stage { color: var(--gold-deep); }
+.gtm-place { font-family: 'Playfair Display', serif; font-size: 1.32rem; font-weight: 500; letter-spacing: -.01em; }
+.gtm-desc { font-size: .82rem; color: var(--ink-muted); line-height: 1.52; }
+.gtm-desc strong { color: var(--ink); font-weight: 500; }
+.gtm-foot { margin-top: 1.9rem; font-size: clamp(.92rem,1.5vw,1.12rem); color: var(--ink-muted); }
+.gtm-foot strong { color: var(--ink); font-weight: 500; }
+.gtm-foot em { font-style: italic; color: var(--gold-deep); }
+
 /* ── Regional bars ── */
 .regions { margin-top: 2.2rem; display: flex; flex-direction: column; gap: 1.05rem; }
 .region { display: grid; grid-template-columns: 108px 1fr 128px; align-items: center; gap: 1.2rem; }
@@ -821,39 +836,70 @@ a:hover { border-bottom-color: var(--purple); }
     </div>
   </section>
 
-  <!-- S9: The market = every venue's own zero-tables, priced -->
+  <!-- S9: The opportunity, sized — being the layer, market by market -->
   <section class="slide"
-    data-note="Tie the number to the story. The cold open was MY zero tables. But every failed intent-conversion is a table a VENUE never filled — every venue has its own zero-tables. Size the market as the value of those recaptured bookings. Per venue, ~€3k/yr ≈ just a few covers a week won back — and a fraction of what they already pay OpenTable for all their covers. So the number isn't abstract SaaS: it's the bookings we recapture. ~10k Israeli venues → ~€30M (winnable now); ~1M European venues → ~€3B (the wedge); millions worldwide → €20B+. One count you can look up, one price grounded in real covers.">
+    data-note="Tie the number to the mission. The mission isn't 'sell software to restaurants' — it's to be the layer that turns intent into a booked evening inside AI. So the opportunity is the value of being that layer, won market by market. The number is grounded in venues × ~€3k of recaptured bookings a year (a few covers a week, a fraction of what they pay OpenTable) — but the point is the ladder: prove the layer in Israel (~€30M, winnable now), win it across Europe (~€3B), own it worldwide (€20B+). Sizing and go-to-market are the same ladder — which is the next slide.">
     <div class="inner">
-      <span class="eyebrow" data-rise style="--d:.1s">The market</span>
+      <span class="eyebrow" data-rise style="--d:.1s">The opportunity, sized</span>
       <h2 class="line line--sm" data-rise style="--d:.22s">
-        Every venue has<br>its own <em>zero tables.</em>
+        Be the layer that books<br>the <em>evening.</em>
       </h2>
       <p class="lede" data-rise style="--d:.4s; margin-top:1.1rem">
-        The booking a diner never made is a table a venue never filled.
-        <strong>Taist recaptures it</strong> — priced, that's a few covers a week per venue.
+        Every intention that never became a booking is an evening that never happened —
+        and a table a venue never filled. <strong>Owning that conversion, market by market, is the prize.</strong>
       </p>
       <div class="sam3" data-rise style="--d:.5s">
         <div class="samtile">
-          <div class="samtier">SOM · Beachhead</div>
+          <div class="samtier">Prove it · Beachhead</div>
           <div class="samwho">Israel</div>
           <div class="samval">~€30M</div>
           <div class="sammath">~10k venues × ~€3k of recaptured bookings a year. Winnable now.</div>
         </div>
         <div class="samtile samtile--focus">
-          <div class="samtier">SAM · Our wedge</div>
+          <div class="samtier">Win it · Our wedge</div>
           <div class="samwho">Europe</div>
           <div class="samval">~€3B</div>
           <div class="sammath">~1M venues × ~€3k a year. Fragmented, and wide open.</div>
         </div>
         <div class="samtile">
-          <div class="samtier">TAM · The ceiling</div>
+          <div class="samtier">Own it · The ceiling</div>
           <div class="samwho">Global</div>
           <div class="samval">€20B+</div>
           <div class="sammath">Millions of venues worldwide, on every AI surface.</div>
         </div>
       </div>
-      <span class="disclaim" data-rise style="--d:.72s">~€3k / venue ≈ a few covers a week won back — and a <strong style="color:var(--ink)">fraction of what a venue already pays OpenTable</strong> for all of theirs. Venue counts: Statista · NRA.</span>
+      <span class="disclaim" data-rise style="--d:.72s">~€3k / venue ≈ a few covers a week won back — a <strong style="color:var(--ink)">fraction of what a venue already pays OpenTable.</strong> The commercial floor under a bigger mission. Counts: Statista · NRA.</span>
+    </div>
+  </section>
+
+  <!-- S10: Go to market — the same ladder -->
+  <section class="slide"
+    data-note="The GTM carve-out — and it's the same ladder as the sizing. Israel is the lab: Ontopo (not OpenTable) owns booking here, so it's a partnership not a war — we prove real discoverability and answer-quality in Tel Aviv, then turn that proof into leverage. Europe is the wedge: rails are fragmented, US giants barely present, and incumbents are in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by DoorDash, OpenTable backlash. The window is real but TIMED (Google is already exporting AI-Mode booking). World is the ceiling: every AI surface — scale on the taste graph, or acquisition by an incumbent who needs exactly this and can't build it. The motion: prove the layer, earn the leverage, walk through the open door.">
+    <div class="inner">
+      <span class="eyebrow" data-rise style="--d:.1s">Go to market</span>
+      <h2 class="line line--sm" data-rise style="--d:.22s">
+        Prove it. Win it. <em>Own it.</em>
+      </h2>
+      <div class="gtm3" data-rise style="--d:.44s">
+        <div class="gtmcard">
+          <div class="gtm-stage">The lab</div>
+          <div class="gtm-place">Israel</div>
+          <div class="gtm-desc"><strong>Ontopo owns booking here — not OpenTable.</strong> So it's a partner, not a war. We prove the layer: real discoverability and answer-quality in Tel Aviv.</div>
+        </div>
+        <div class="gtmcard gtmcard--focus">
+          <div class="gtm-stage">The wedge</div>
+          <div class="gtm-place">Europe</div>
+          <div class="gtm-desc">Fragmented rails, US giants barely present, incumbents in chaos — <strong>Quandoo closing, TheFork for sale, SevenRooms sold.</strong> A timed, open door.</div>
+        </div>
+        <div class="gtmcard">
+          <div class="gtm-stage">The ceiling</div>
+          <div class="gtm-place">World</div>
+          <div class="gtm-desc">Every AI surface. Scale on the taste graph — <strong>or acquisition</strong> by an incumbent who needs exactly this and can't build it.</div>
+        </div>
+      </div>
+      <p class="gtm-foot" data-rise style="--d:.64s">
+        Prove the layer → earn the leverage → <em>walk through the open door.</em>
+      </p>
     </div>
   </section>
 

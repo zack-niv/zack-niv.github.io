@@ -1,6 +1,6 @@
 # Taist — the pitch, spoken
 
-A rehearsal script aligned to `taist-pitch.html` — **15 main slides + an 8-slide appendix** for Q&A.
+A rehearsal script aligned to `taist-pitch.html` — **16 main slides + a 10-slide appendix** for Q&A.
 One thought per slide. The slide holds the room; **your voice carries the story.**
 Advance on the line marked **▸**. Press `S` in the deck to see these notes while you rehearse.
 
@@ -48,26 +48,32 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ## ▸ 9 — Where the value is *(the wedge)*
 > "So how big? Here's the thing — the value was never the search. It's the **booking** it becomes. And that conversion already makes money: restaurant-booking software is already a two-billion-dollar market growing double digits, and OpenTable alone earns on **1.9 billion diners a year** — on just sixty-five thousand venues, one surface. Our wedge is to make that conversion native to *every* AI surface, and reach the long tail no reservation rail even covers."
 
-## ▸ 10 — Every venue has its own zero tables
-*(This is the callback. My zero tables — from the open — is every venue's problem too.)*
-> "Remember my zero tables? That wasn't just my loss. The booking I never made is a table a venue never filled. **Every venue has its own zero tables** — demand that reached for them and never converted. Taist wins it back."
+## ▸ 10 — Be the layer that books the evening *(the opportunity, sized)*
+*(Tie the number to the mission — this is not "sell software to restaurants.")*
+> "So how big is this? The mission isn't to sell software to restaurants. It's to be the layer that turns an intention into a booked evening — inside the AI. Every intention that never became a booking is an evening that never happened, and a table a venue never filled. **Owning that conversion, market by market, is the prize.**"
 >
-> "So the market isn't abstract — it's those recaptured bookings. Per venue, a few covers a week is worth about three thousand a year, a fraction of what they already pay OpenTable for *all* their covers. Israel, our beachhead: ten thousand venues, thirty million, winnable now. Europe, our wedge: a million venues — **three billion.** Worldwide, north of twenty. One count you can look up, one price grounded in real tables."
+> "And you can ground it. Per venue, winning back a few covers a week is worth about three thousand a year — a fraction of what they already pay OpenTable. Prove it in Israel: ten thousand venues, thirty million, winnable now. Win Europe: a million venues, **three billion.** Own it worldwide: north of twenty. That's the commercial floor under a much bigger mission."
 
-## ▸ 11 — The solution *(dark)*
+## ▸ 11 — Prove it. Win it. Own it. *(go to market)*
+*(Same ladder as the sizing — say that out loud.)*
+> "And that ladder *is* our go-to-market. Israel is the lab — and here's the key: Ontopo owns booking here, not OpenTable. So it's a partner, not a war. We prove the layer where we live: real discoverability and answer-quality in Tel Aviv."
+>
+> "Europe is the wedge. The rails are fragmented, the US giants are barely present, and the incumbents are in rare disarray — Quandoo shutting down, TheFork up for sale, SevenRooms swallowed by a delivery company. A timed, open door. And the world is the ceiling — every AI surface — where we either scale on the taste graph, or get acquired by an incumbent who needs exactly this and can't build it. **Prove the layer, earn the leverage, walk through the open door.**"
+
+## ▸ 12 — The solution *(dark)*
 *(Say it once, slowly. Then stop.)*
 > "People describe the evening they want. Taist understands it, finds venues with real availability, and turns the search into a confirmed booking."
 
-## ▸ 12 — How it works
+## ▸ 13 — How it works
 > "Three steps. You describe what you want, like you'd tell a friend. Taist matches it against venues with real, live availability. And it completes the booking — not a link, not a list. A confirmation. The intent is the input. The evening is the output."
 
-## ▸ 13 — Why we're different
+## ▸ 14 — Why we're different
 > "Every platform out there optimises filters, returns a list, and stops when you click. We think the job is the *evening* — making sure the right guests find the right venue, and that it actually happens. We complete the journey. And we help venues welcome the guests who were always looking for them."
 
-## ▸ 14 — The vision *(dark)*
+## ▸ 15 — The vision *(dark)*
 > "As AI becomes how we discover the physical world, every agent will need a way to turn human intent into real experiences. We start with restaurants — highest frequency, highest intent, ready to transact — and we build the layer every AI will rely on. *Every intention deserves an unforgettable evening.*"
 
-## ▸ 15 — Booked. *(dark — the mic drop)*
+## ▸ 16 — Booked. *(dark — the mic drop)*
 *(Callback to slide 1. Deliver the small line quietly, then hit the one word and STOP. Say nothing after. Let the silence end it.)*
 > "Eight people. Two restless kids. One simple ask."
 >
@@ -80,24 +86,26 @@ The protagonist is not AI and not restaurants — it's **human intent.** A dad w
 ---
 
 ## Appendix — for the Q&A
-*The pitch ends at "Booked." These slides are a map of the hard questions, so you can jump straight to the answer. Navigate to them only if asked. The counter reads "APPENDIX · n / 8."*
+*The pitch ends at "Booked." These slides are a map of the hard questions, so you can jump straight to the answer. Navigate to them only if asked. The counter reads "APPENDIX · n / 10."*
 
-- **A1 · "Why won't OpenTable or Google just build this?"** — They own inventory and the transaction, but being the *pipe* is what gets you replaced (OpenTable → exclusive ChatGPT partner; Google shipped native). We own the layer beneath: an accumulating taste-and-context graph that compounds per diner and can't be retrained into existence.
-- **A2 · "How does Taist make money?"** — Now: qualified demand + a booking take-rate, rail-agnostic. Stage 2: intent-as-insight (the data product).
-- **A3 · The second product** — Booking exhaust is *revealed preference*; at volume it segments into diner cohorts sold to venues as targeting + insight. Anonymized aggregates only, never names. *(Your parked Notion idea, made investor-facing.)*
-- **A4 · "Why Israel — isn't it small?"** — Lab market: contained, owned by Ontopo not OpenTable, so partner-able. Europe is the real wedge — fragmented rails, incumbents in rare disarray, a timed window.
-- **A5 · "Who else is in this space?"** — Consolidated + AI-partnered in the US, destabilized in Europe. We're not a rail; we sit on top of all of them.
-- **A6 · "How does Taist get invoked inside an assistant?"** — Three paths (connect / name / platform-bless); neutrality means no silent-default pipe. We win diner name-recall through taste + memory, and stay partner-able by being rail-agnostic.
-- **A7 · "What's the endgame?"** — Independent scale on the taste graph, or build-to-acquisition into a destabilized incumbent. The unownable asset keeps both open.
-- **A8 · Sources** — Every opportunity figure, hyperlinked: NRA (restaurant sales / full-service split), Statista (venue counts), Credence Research (reservation-software market), OpenTable Newsroom (scale + pricing comparable), Grand View (global/APAC ceiling). The "See all sources →" link on the wedge slide jumps here.
+- **A1 · The sizing thesis** — Where the numbers come from: full-service venue counts (Statista/NRA) × ~€3k/yr, a fraction of OpenTable's $3.6k–12k venue pricing. One lookup, one anchored price — no funnel.
+- **A2 · "Why won't OpenTable or Google just build this?"** — They own inventory and the transaction, but being the *pipe* is what gets you replaced (OpenTable → exclusive ChatGPT partner; Google shipped native). We own the layer beneath: an accumulating taste-and-context graph that compounds per diner and can't be retrained into existence.
+- **A3 · "How does Taist make money?"** — Now: qualified demand + a booking take-rate, rail-agnostic. Stage 2: intent-as-insight (the data product).
+- **A4 · The second product** — Booking exhaust is *revealed preference*; at volume it segments into diner cohorts sold to venues as targeting + insight. Anonymized aggregates only, never names. *(Your parked Notion idea, made investor-facing.)*
+- **A5 · "Why Israel — isn't it small?"** — Lab market: contained, owned by Ontopo not OpenTable, so partner-able. (Main-deck GTM covers this; the appendix goes deeper on the objection.)
+- **A6 · "Who else is in this space?"** — Consolidated + AI-partnered in the US, destabilized in Europe. We're not a rail; we sit on top of all of them.
+- **A7 · "How does Taist get invoked inside an assistant?"** — Three paths (connect / name / platform-bless); neutrality means no silent-default pipe. We win diner name-recall through taste + memory, and stay partner-able by being rail-agnostic.
+- **A8 · "What's the endgame?"** — Independent scale on the taste graph, or build-to-acquisition into a destabilized incumbent. The unownable asset keeps both open.
+- **A9 · Sources** — Every opportunity figure, hyperlinked: NRA (restaurant sales / full-service split), Statista (venue counts), Credence Research (reservation-software market), OpenTable Newsroom (scale + pricing comparable), Grand View (global/APAC ceiling). The "See all sources →" link on the wedge slide jumps here.
 
 ---
 
 ## Delivery notes
 - **Open cold on the screenshot.** No intro. The first thing they see is your real, failed search.
-- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 15 ("Booked.").
-- **Numbers stay simple and defensible.** Slides 9–10 use one verifiable input (venue counts) × one anchored price (~€3k/yr, a fraction of OpenTable/TheFork). No multiplier funnel — every figure is a lookup. If an investor pushes on ARPU, the appendix (A1) shows OpenTable already charges venues $3.6k–12k/yr.
+- **"Zero" is the heartbeat.** Land it on slide 2. Pay it off on slide 16 ("Booked.").
+- **Sizing ties to the mission, not to SaaS (slide 10).** Say it out loud: "the mission isn't to sell software to restaurants." The number is the *commercial floor* under being the intent→booking layer — grounded in venue counts × ~€3k (a fraction of OpenTable). If pushed on ARPU, jump to appendix A1.
+- **Sizing and GTM are the same ladder (slides 10–11).** Prove it (Israel) → win it (Europe) → own it (world). The Ontopo-not-OpenTable point on slide 11 is the one to land — it makes Israel a partnership, not a war.
 - **Surfaces (slide 7) is a scale move** — it turns "an AI feature" into "the layer every surface needs." Don't rush it.
-- **Dark slides (2, 5, 11, 14, 15) are your turns to slow down.**
-- **The name lands on slide 11**, as the answer the story earned. The mic drop (15) resolves the exact human moment you opened on — in one word.
+- **Dark slides (2, 5, 12, 15, 16) are your turns to slow down.**
+- **The name lands on slide 12**, as the answer the story earned. The mic drop (16) resolves the exact human moment you opened on — in one word.
 - **You are the dad with two kids the whole way through.** That thread turns a market thesis into a person.
