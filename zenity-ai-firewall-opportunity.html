@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zenity — AI Firewall Opportunity</title>
+<style>
+:root{--bg:#090817;--surface:#15132A;--s2:#1D1A38;--violet:#A77CFF;--aqua:#6CE5D4;
+--warm:#FFB36B;--white:#F7F5FF;--dim:#9A94BF;--line:#2C2850}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--white);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding-bottom:74px}
+#bar{position:fixed;top:0;left:0;right:0;height:50px;background:rgba(9,8,23,.93);backdrop-filter:blur(12px);
+border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 20px;z-index:100}
+.brand{font-weight:600;font-size:12.5px;letter-spacing:.02em}.brand span{color:var(--violet)}
+.modes{display:flex;gap:4px;margin-left:auto}
+button.m{background:transparent;border:1px solid var(--line);color:var(--dim);padding:6px 12px;
+border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit}
+button.m:hover{color:var(--white);border-color:var(--violet)}
+button.m.on{background:var(--violet);color:#0B0918;border-color:var(--violet);font-weight:600}
+.toggle{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+.toggle input{accent-color:var(--aqua);cursor:pointer}
+
+#stage{padding:72px 20px 16px;max-width:1140px;margin:0 auto}
+.slide{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:34px 42px;
+margin-bottom:20px;position:relative;min-height:530px;display:flex;flex-direction:column}
+.slide.hidden{display:none}
+.snum{position:absolute;top:16px;right:20px;font-size:10.5px;color:var(--dim);letter-spacing:.14em;font-weight:600}
+.kicker{font-size:10.5px;letter-spacing:.17em;text-transform:uppercase;color:var(--aqua);font-weight:700;margin-bottom:12px}
+h1{font-size:30px;line-height:1.24;font-weight:650;letter-spacing:-.016em;max-width:21ch;margin-bottom:7px}
+h1 em{font-style:normal;color:var(--violet)}
+h1 strong{font-weight:650;color:var(--warm)}
+h1.big{font-size:46px;max-width:16ch;line-height:1.14}
+.sub{color:var(--dim);font-size:13.5px;margin-bottom:22px;max-width:64ch;line-height:1.5}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center}
+
+/* atoms */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.card{background:var(--s2);border:1px solid var(--line);border-radius:10px;padding:15px 17px}
+.card h3{font-size:12.5px;font-weight:650;margin-bottom:7px}
+.card p,.card li{font-size:12.5px;line-height:1.5;color:var(--dim)}
+.card ul{padding-left:15px;margin-top:5px}.card li{margin-bottom:3px}
+.card.v{border-color:rgba(167,124,255,.45)}.card.v h3{color:var(--violet)}
+.card.a{border-color:rgba(108,229,212,.42)}.card.a h3{color:var(--aqua)}
+.card.w{border-color:rgba(255,179,107,.42)}.card.w h3{color:var(--warm)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);
+font-weight:700;padding:0 9px 8px 0;border-bottom:1px solid var(--line)}
+td{padding:9px 9px 9px 0;border-bottom:1px solid rgba(44,40,80,.5);vertical-align:top;line-height:1.4}
+td.k{font-weight:600;color:var(--white)}tr:last-child td{border-bottom:none}
+.mono{font-variant-numeric:tabular-nums}
+.big{display:flex;gap:38px;margin:4px 0 18px;flex-wrap:wrap}
+.big b{display:block;font-size:40px;font-weight:680;line-height:1;letter-spacing:-.02em}
+.big span{font-size:10.5px;color:var(--dim);letter-spacing:.09em;text-transform:uppercase;display:block;margin-top:6px}
+.note{border-left:2px solid var(--violet);padding:2px 0 2px 13px;font-size:12.5px;line-height:1.5;color:var(--dim);margin-top:14px}
+.note b{color:var(--white);font-weight:600}
+.todo{border:1px dashed rgba(255,179,107,.5);border-radius:10px;padding:18px 20px;background:rgba(255,179,107,.05)}
+.todo h3{color:var(--warm);font-size:12.5px;margin-bottom:8px}
+.todo li,.todo p{font-size:12.5px;color:var(--dim);line-height:1.55}
+.todo ul{padding-left:16px;margin-top:6px}.todo li{margin-bottom:4px}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.04em}
+.p-a{background:rgba(108,229,212,.16);color:var(--aqua)}
+.p-v{background:rgba(167,124,255,.16);color:var(--violet)}
+.p-w{background:rgba(255,179,107,.15);color:var(--warm)}
+.p-d{background:rgba(154,148,191,.14);color:var(--dim)}
+cite{font-style:normal;font-size:9.5px;color:var(--violet);cursor:pointer;vertical-align:super;
+font-weight:700;padding:0 1px}
+cite:hover{text-decoration:underline}
+a.axl{color:var(--violet);font-size:11.5px;cursor:pointer;font-weight:600;white-space:nowrap}
+a.axl:hover{text-decoration:underline}
+
+/* capability grid */
+.grid{width:100%;border-collapse:separate;border-spacing:5px;font-size:11.5px}
+.grid th{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);
+font-weight:700;padding:0 0 4px;border:none;text-align:center}
+.grid th.rh{text-align:left;width:24%}
+.grid td.rh{text-align:left;font-weight:600;color:var(--white);font-size:11.5px;
+background:none;border:none;padding-right:8px;line-height:1.3}
+.grid td{border-radius:7px;padding:9px 8px;text-align:center;line-height:1.3;
+background:var(--s2);border:1px solid var(--line);color:var(--dim)}
+.grid td.full{background:rgba(108,229,212,.17);border-color:var(--aqua);color:var(--aqua);font-weight:650}
+.grid td.part{background:rgba(108,229,212,.05);border-color:rgba(108,229,212,.5);color:var(--aqua)}
+.grid td.gap{background:rgba(255,179,107,.09);border:1px dashed var(--warm);color:var(--warm);font-weight:650}
+.grid td.na{background:transparent;border-color:transparent;color:#5B567F}
+.grid td.q{background:rgba(167,124,255,.09);border:1px dashed var(--violet);color:var(--violet)}
+.gcol-hl{background:rgba(255,179,107,.07)}
+.legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:10.5px;color:var(--dim)}
+.legend i{font-style:normal;display:inline-block;width:11px;height:11px;border-radius:3px;
+margin-right:5px;vertical-align:-1px}
+
+/* lean decision-story visuals */
+.fork{display:grid;grid-template-columns:1fr 34px 1fr;align-items:stretch;gap:14px}
+.fork .route{border-top:2px solid var(--violet);padding-top:13px}
+.fork .route b,.plane b,.comp b,.rail b,.signal b{display:block;font-size:13px;color:var(--white);margin-bottom:6px}
+.fork .route span,.plane span,.comp span,.rail span,.signal span{display:block;font-size:12px;line-height:1.45;color:var(--dim)}
+.fork .join{display:flex;align-items:center;justify-content:center;color:var(--violet);font-size:24px}
+.decision-line{margin:18px auto 0;max-width:680px;text-align:center;border:1px solid rgba(108,229,212,.45);background:rgba(108,229,212,.07);border-radius:9px;padding:11px 16px;font-size:13px;color:var(--aqua);font-weight:650}
+.planes{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.plane{padding:4px 0 0}.plane+.plane{border-left:1px solid var(--line);padding-left:26px}
+.plane h3{font-size:19px;margin-bottom:5px}.plane.h h3{color:var(--warm)}.plane.a h3{color:var(--aqua)}
+.uses{margin-top:14px;display:grid;gap:8px}.use{padding:9px 11px;border-left:2px solid var(--line);background:rgba(255,255,255,.018);font-size:12px;line-height:1.4;color:var(--dim)}
+.plane.h .use{border-color:var(--warm)}.plane.a .use{border-color:var(--aqua)}
+.coverage{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.coverage .lane{padding:16px 0;border-top:2px solid var(--line)}
+.coverage .lane.h{border-color:var(--warm)}.coverage .lane.a{border-color:var(--aqua)}
+.coverage h3{font-size:15px;margin-bottom:12px}.coverage .meter{height:8px;background:#252143;border-radius:8px;overflow:hidden;margin-bottom:9px}
+.coverage .fill{height:100%;background:var(--aqua)}.coverage .fill.partial{width:28%;background:var(--warm)}.coverage .fill.strong{width:88%}
+.coverage p{font-size:12px;line-height:1.5;color:var(--dim)}
+.numbers{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.number{padding:24px 22px}.number+.number{border-left:1px solid var(--line)}
+.number strong{display:block;font-size:36px;line-height:1;color:var(--aqua);margin-bottom:9px}.number:last-child strong{color:var(--warm)}
+.number b{font-size:12px;display:block;margin-bottom:5px}.number span{font-size:11.5px;line-height:1.45;color:var(--dim)}
+.competitors{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.comp{padding:18px 20px}.comp+.comp{border-left:1px solid var(--line)}.comp .tag{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--violet);margin-bottom:9px}
+.comp h3{font-size:17px;margin-bottom:7px}.comp ul{list-style:none;margin-top:11px}.comp li{font-size:11.5px;color:var(--dim);line-height:1.4;margin-bottom:6px}
+.options{display:grid;grid-template-columns:.85fr 1.25fr .9fr;align-items:stretch;gap:12px}
+.option{border-top:2px solid var(--line);padding:15px 12px 0}.option.pick{border-color:var(--violet);background:rgba(167,124,255,.06);padding:15px 16px;border-radius:0 0 9px 9px}
+.option h3{font-size:15px;margin-bottom:8px}.option.pick h3{color:var(--violet)}.option p{font-size:11.5px;line-height:1.45;color:var(--dim)}
+.rails{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rail{padding:18px 17px}.rail+.rail{border-left:1px solid var(--line)}.rail:nth-child(1) b{color:var(--aqua)}.rail:nth-child(2) b{color:var(--violet)}.rail:nth-child(3) b{color:var(--warm)}
+.integration{display:grid;grid-template-columns:1fr 34px 1.25fr 34px 1fr;align-items:center;gap:8px}
+.inode{min-height:148px;border:1px solid var(--line);border-radius:10px;padding:16px;background:var(--s2)}
+.inode h3{font-size:14px;margin-bottom:8px}.inode b{display:block;font-size:11px;color:var(--aqua);margin-top:10px}.inode p,.inode li{font-size:11.5px;color:var(--dim);line-height:1.45}.inode ul{padding-left:15px}.inode.partner{border-color:var(--warm)}.inode.zenity{border-color:var(--violet)}
+.flow{text-align:center;color:var(--violet);font-size:20px}.flow span{display:block;font-size:9px;line-height:1.2;color:var(--dim);margin-top:4px}
+.journey{display:grid;grid-template-columns:1fr 42px 1fr 42px 1fr;align-items:center;gap:8px}
+.step{min-height:142px;border-top:2px solid var(--line);padding:15px 13px}.step.current{border-color:var(--aqua)}.step.wedge{border-color:var(--violet);background:rgba(167,124,255,.06)}.step.no{border-color:var(--warm)}
+.step h3{font-size:14px;margin-bottom:8px}.step p,.step li{font-size:11.5px;color:var(--dim);line-height:1.45}.step ul{padding-left:14px}.arrow{text-align:center;color:var(--violet);font-size:22px}
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.signal{padding:18px 17px;position:relative}.signal+.signal{border-left:1px solid var(--line)}.signal:not(:last-child):after{content:'→';position:absolute;right:-8px;top:44%;color:var(--violet);z-index:2;background:var(--surface);padding:2px}
+.questions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.q{border-top:2px solid var(--violet);padding:13px 5px 0;display:grid;grid-template-columns:28px 1fr;gap:9px}.q i{font-style:normal;color:var(--violet);font-weight:700}.q b{font-size:12.5px}.q span{display:block;font-size:11.5px;color:var(--dim);line-height:1.4;margin-top:4px}
+
+/* method / chain of thought */
+.method{display:grid;grid-template-columns:repeat(3,1fr);min-height:250px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.phase{padding:22px 22px;position:relative}
+.phase+.phase{border-left:1px solid var(--line)}
+.phase:not(:last-child):after{content:'→';position:absolute;right:-10px;top:47%;font-size:19px;color:var(--violet);background:var(--surface);padding:2px;z-index:2}
+.phase>b{display:block;font-size:10px;letter-spacing:.15em;text-transform:uppercase;font-weight:700}
+.phase>em{font-style:normal;display:block;font-size:12px;color:var(--dim);margin:4px 0 15px}
+.phase:nth-child(1)>b{color:var(--aqua)}.phase:nth-child(2)>b{color:var(--violet)}.phase:nth-child(3)>b{color:var(--warm)}
+.mstep{display:grid;grid-template-columns:20px 1fr;gap:10px;padding:10px 0;border-top:1px solid rgba(44,40,80,.75)}
+.mstep i{font-style:normal;font-size:10.5px;font-weight:700;color:var(--dim);padding-top:2px;font-variant-numeric:tabular-nums}
+.mstep b{display:block;font-size:12.5px;font-weight:600;line-height:1.3}
+.mstep span{display:block;font-size:11px;color:var(--dim);line-height:1.35;margin-top:3px}
+
+/* full-canvas editorial visuals */
+.hero-rule{height:8px;width:78%;margin-top:auto;background:linear-gradient(90deg,var(--violet),var(--aqua),transparent);border-radius:8px}
+.category-map{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:stretch}
+.cat-plane{position:relative;padding:8px 0 0}.cat-plane+.cat-plane{border-left:1px solid var(--line);padding-left:36px}
+.cat-plane h3{font-size:22px;margin-bottom:4px}.cat-plane.h h3{color:var(--warm)}.cat-plane.a h3{color:var(--aqua)}
+.placement{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin-bottom:18px}
+.cap-row{display:grid;grid-template-columns:86px 1fr;gap:12px;padding:9px 0;border-top:1px solid rgba(44,40,80,.7)}
+.cap-row b{font-size:10px;letter-spacing:.1em;color:var(--dim)}.cap-row span{font-size:13px;line-height:1.35;color:var(--white)}
+.case-row{margin-top:15px;padding-top:12px;border-top:2px solid currentColor}.cat-plane.h .case-row{color:var(--warm)}.cat-plane.a .case-row{color:var(--aqua)}
+.case-row b{font-size:10px;letter-spacing:.12em;text-transform:uppercase}.case-row p{font-size:12px;line-height:1.45;color:var(--dim);margin-top:5px}
+.coverage-hit{display:grid;grid-template-columns:42% 58%;min-height:230px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.coverage-hit>div{padding:28px 26px}.coverage-hit>div+div{border-left:1px solid var(--line)}
+.coverage-hit .eyebrow{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.coverage-hit strong{display:block;font-size:38px;line-height:1;margin:18px 0 15px}.coverage-hit .human strong{color:var(--warm)}.coverage-hit .agent strong{color:var(--aqua)}
+.coverage-hit p{font-size:13px;line-height:1.5;color:var(--dim);max-width:34ch}.coverage-hit ul{list-style:none;margin-top:14px}.coverage-hit li{font-size:12px;color:var(--dim);margin:6px 0}.coverage-hit li:before{content:'→';color:var(--violet);margin-right:8px}
+.demand-proof{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.proof{padding:24px 22px}.proof+.proof{border-left:1px solid var(--line)}.proof strong{font-size:36px;line-height:1;color:var(--aqua)}.proof:nth-child(2) strong{color:var(--violet)}.proof:nth-child(3) strong{color:var(--warm)}
+.proof b{display:block;font-size:13px;margin:10px 0 6px}.proof span{font-size:11.5px;line-height:1.45;color:var(--dim)}
+.market-read{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}.market-read div{font-size:15px;line-height:1.35;padding-left:14px;border-left:3px solid var(--line)}.market-read .human{border-color:var(--warm)}.market-read .agent{border-color:var(--aqua)}.market-read small{display:block;font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px}
+.market-map{position:relative;height:255px;border-left:1px solid var(--line);border-bottom:1px solid var(--line);margin:2px 34px 0 64px;background:linear-gradient(90deg,rgba(255,179,107,.035),rgba(108,229,212,.035))}
+.axis-x,.axis-y{position:absolute;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}.axis-x{right:0;bottom:-22px}.axis-y{left:-53px;top:0;writing-mode:vertical-rl;transform:rotate(180deg)}
+.player{position:absolute;transform:translate(-50%,-50%);padding:7px 11px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font-size:11px;font-weight:650;white-space:nowrap}.player small{font-size:8px;color:var(--dim);margin-left:4px}.player.z{border-color:var(--aqua);color:var(--aqua);box-shadow:0 0 0 4px rgba(108,229,212,.07)}.player.c{border-color:var(--warm)}.player.p{border-color:var(--violet)}
+.choice-stage{display:grid;grid-template-columns:.9fr 1.25fr .95fr;gap:18px;align-items:end;min-height:250px}
+.choice{border-top:3px solid var(--line);padding:18px 14px;background:linear-gradient(180deg,rgba(255,255,255,.02),transparent)}.choice:nth-child(1){min-height:178px}.choice:nth-child(2){min-height:238px;border-color:var(--violet);background:rgba(167,124,255,.08)}.choice:nth-child(3){min-height:210px}
+.choice h3{font-size:17px;margin-bottom:12px}.choice:nth-child(2) h3{color:var(--violet)}.choice b{display:block;font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim);margin:11px 0 4px}.choice p{font-size:12px;line-height:1.45;color:var(--dim)}
+.heatmap{display:grid;grid-template-columns:44px 1fr;grid-template-rows:1fr 28px;height:275px;margin-top:2px}.hm-y{writing-mode:vertical-rl;transform:rotate(180deg);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center}.hm-x{grid-column:2;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center;padding-top:9px}
+.hm-field{position:relative;border-left:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(135deg,rgba(255,179,107,.04),transparent 45%,rgba(108,229,212,.07))}
+.hm-field:before{content:'';position:absolute;left:50%;top:0;bottom:0;border-left:1px dashed rgba(154,148,191,.22)}.hm-field:after{content:'';position:absolute;top:50%;left:0;right:0;border-top:1px dashed rgba(154,148,191,.22)}
+.bubble{position:absolute;transform:translate(-50%,-50%);width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;padding:9px;border:1px solid var(--line);background:rgba(21,19,42,.94);font-size:10.5px;line-height:1.2;font-weight:650;z-index:2}.bubble i{display:block;font-style:normal;font-size:14px;color:var(--aqua);margin-top:3px}.bubble.core{border:2px solid var(--aqua);box-shadow:0 0 0 5px rgba(108,229,212,.05)}.bubble.conditional{width:74px;height:74px;border-style:dashed;color:var(--dim);font-size:9.5px}
+.hm-wedge{position:absolute;left:35%;bottom:9px;width:28%;border-top:2px solid var(--violet);padding-top:6px;color:var(--violet);font-size:9.5px;line-height:1.25;font-weight:700;text-align:center;z-index:3;background:linear-gradient(90deg,transparent,var(--surface) 12%,var(--surface) 88%,transparent)}
+.risk-bridge{display:grid;grid-template-columns:1fr 46px 1.15fr 46px 1.1fr;align-items:center;gap:8px}.rb-node{min-height:166px;border-top:3px solid var(--line);padding:17px 12px;background:rgba(255,255,255,.018)}.rb-node.zs{border-color:var(--warm)}.rb-node.zen{border-color:var(--violet)}.rb-node h3{font-size:16px;margin-bottom:10px}.rb-node p,.rb-node li{font-size:11.5px;line-height:1.45;color:var(--dim)}.rb-node ul{padding-left:15px}.rb-arrow{text-align:center;color:var(--violet);font-size:22px}.rb-arrow small{display:block;font-size:8.5px;line-height:1.25;color:var(--dim);margin-top:5px}
+.validation-band{display:grid;grid-template-columns:repeat(4,1fr);min-height:245px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.vstep{padding:26px 20px;position:relative}.vstep+.vstep{border-left:1px solid var(--line)}.vstep:not(:last-child):after{content:'→';position:absolute;right:-10px;top:46%;font-size:20px;color:var(--violet);background:var(--surface);padding:2px}.vstep i{font-style:normal;font-size:34px;color:var(--violet);opacity:.55}.vstep b{display:block;font-size:17px;margin:14px 0 10px}.vstep span{font-size:12px;line-height:1.55;color:var(--dim)}
+.questions.bigq{min-height:250px;gap:20px}.questions.bigq .q{grid-template-columns:54px 1fr;padding-top:18px}.questions.bigq .q i{font-size:38px;line-height:1;color:var(--violet);opacity:.75}.questions.bigq .q b{font-size:16px}.questions.bigq .q span{font-size:12.5px;line-height:1.45;margin-top:7px}
+
+/* review layer */
+.review{margin-top:20px;padding-top:14px;border-top:1px solid var(--line);
+display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+body.clean .review{display:none}
+.review div{font-size:11px;line-height:1.45;color:var(--dim)}
+.review h4{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+font-weight:700;margin-bottom:4px;opacity:.7}
+.st{font-weight:700}.st.ready{color:var(--aqua)}.st.partial{color:var(--warm)}.st.none{color:#FF8A8A}
+.wc{font-weight:700}.wc.ok{color:var(--aqua)}.wc.over{color:var(--warm)}
+
+/* headline test */
+#hl{max-width:880px;margin:0 auto;padding:72px 20px 40px}
+#hl.hidden{display:none}
+#hl .r{display:flex;gap:18px;padding:15px 0;border-bottom:1px solid var(--line)}
+#hl .n{color:var(--violet);font-weight:700;font-size:12.5px;flex:0 0 24px;padding-top:3px}
+#hl .t{font-size:16px;line-height:1.42;font-weight:500}
+#hl .intro{color:var(--dim);font-size:13px;line-height:1.6;margin-bottom:24px;padding:15px 17px;
+background:var(--surface);border-radius:10px;border:1px solid var(--line)}
+
+/* appendix */
+#apx{max-width:940px;margin:0 auto;padding:72px 20px 40px}
+#apx.hidden{display:none}
+#apx h2{font-size:20px;margin-bottom:6px}
+#apx .lead{color:var(--dim);font-size:13px;margin-bottom:22px;line-height:1.55}
+.src{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 17px;margin-bottom:9px}
+.src:target{border-color:var(--violet);background:rgba(167,124,255,.07)}
+.src .id{font-size:10px;font-weight:700;color:var(--violet);letter-spacing:.08em}
+.src .ti{font-size:13.5px;font-weight:600;margin:3px 0 5px}
+.src .mt{font-size:11.5px;color:var(--dim);line-height:1.5}
+.src a{color:var(--aqua);font-size:11.5px;text-decoration:none;word-break:break-all}
+.src a:hover{text-decoration:underline}
+.lvl{display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;margin-left:6px}
+.E1{background:rgba(108,229,212,.18);color:var(--aqua)}
+.E2{background:rgba(167,124,255,.18);color:var(--violet)}
+.E3{background:rgba(255,179,107,.16);color:var(--warm)}
+
+#nav{position:fixed;bottom:0;left:0;right:0;height:54px;background:rgba(9,8,23,.94);
+backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;align-items:center;
+justify-content:center;gap:13px;z-index:100}
+#nav.hidden{display:none}
+#nav button{background:var(--s2);border:1px solid var(--line);color:var(--white);width:33px;height:33px;
+border-radius:8px;cursor:pointer;font-size:15px;font-family:inherit}
+#nav button:hover{border-color:var(--violet)}
+#nav .pos{font-size:11.5px;color:var(--dim);min-width:52px;text-align:center}
+.dots{display:flex;gap:5px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line);cursor:pointer;border:none;padding:0}
+.dot.on{background:var(--violet);transform:scale(1.3)}
+
+
+/* ============ added · right to win (pptx s5) ============ */
+.wedge{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.wsrc{border-top:3px solid var(--line);padding:13px 15px 0}
+.wsrc.h{border-color:var(--warm)}.wsrc.a{border-color:var(--aqua)}
+.wsrc span{display:block;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+.wsrc b{display:block;font-size:13.5px;line-height:1.4;color:var(--white);font-weight:600}
+.wconv{text-align:center;color:var(--violet);font-size:22px;line-height:1;margin:14px 0 10px}
+.wout{border:1px solid var(--violet);background:rgba(167,124,255,.09);border-radius:10px;padding:13px 17px;text-align:center}
+.wout span{display:block;font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--violet);font-weight:700;margin-bottom:5px}
+.wout b{display:block;font-size:13.5px;color:var(--white);font-weight:600}
+
+/* ============ added · architecture opportunities (deck.html s7) ============ */
+.arch-opportunities{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.arch-opp{position:relative;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.02);
+color:var(--white);padding:9px 11px;text-align:left;font:inherit;cursor:help}
+.arch-opp b{display:block;font-size:10px;margin-bottom:3px}
+.arch-opp span{font-size:9px;line-height:1.35;color:var(--dim)}
+.arch-opp.test{border-color:var(--warm)}.arch-opp.test b{color:var(--warm)}
+.arch-opp.verify{border-color:var(--violet)}.arch-opp.verify b{color:var(--violet)}
+.arch-opp.defer{border-style:dashed}
+.arch-opp:focus-visible{outline:2px solid var(--white);outline-offset:3px}
+.arch-opp[data-tip]:after{content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 9px);width:250px;
+white-space:normal;transform:translateX(-50%) translateY(5px);padding:10px 11px;border:1px solid var(--line);
+border-radius:8px;background:#0e0c20;color:#c9c5d8;font:10.5px/1.45 Inter,sans-serif;
+box-shadow:0 14px 38px rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:.16s ease;z-index:20}
+.arch-opp[data-tip]:hover:after,.arch-opp[data-tip]:focus-visible:after{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ============ added · MRD jobs to be done (pptx s8) ============ */
+.jtbd{display:grid;grid-template-columns:repeat(5,1fr);gap:0;margin-top:15px;
+border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.jt{padding:15px 14px}.jt+.jt{border-left:1px solid var(--line)}
+.jt i{font-style:normal;font-size:10px;font-weight:700;color:var(--violet);font-variant-numeric:tabular-nums}
+.jt b{display:block;font-size:15px;margin:7px 0 6px}
+.jt span{font-size:11px;line-height:1.4;color:var(--dim)}
+
+/* ============ added · PRD mvp steps (pptx s9) ============ */
+.mvp{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.mv{border-top:2px solid var(--aqua);padding:12px 10px 0;min-height:96px}
+.mv i{font-style:normal;font-size:10px;font-weight:700;color:var(--dim);font-variant-numeric:tabular-nums}
+.mv b{display:block;font-size:13.5px;margin:6px 0 6px}
+.mv span{font-size:11px;line-height:1.4;color:var(--dim)}
+.notslabel{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--warm);font-weight:700;margin-top:16px}
+.nots{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
+.nots i{font-style:normal;font-size:11px;color:var(--dim);border:1px dashed rgba(255,179,107,.45);
+background:rgba(255,179,107,.05);border-radius:20px;padding:5px 12px}
+.nots i:before{content:'×';color:var(--warm);font-weight:700;margin-right:7px}
+
+/* ============ added · success measurement (pptx s11) ============ */
+.star{margin-top:16px;border:1px solid var(--aqua);background:rgba(108,229,212,.07);border-radius:10px;
+padding:15px 19px;display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center}
+.star strong{font-size:30px;color:var(--aqua);line-height:1;font-weight:680}
+.star b{display:block;font-size:12.5px;margin-bottom:5px}
+.star span{display:block;font-size:11.5px;color:var(--dim);line-height:1.45}
+
+@media print{#bar,#nav{display:none}body{background:#fff;color:#111;padding:0}
+#stage{padding:0;max-width:none}.slide{page-break-after:always;border:none;background:#fff;
+min-height:0;padding:22px 0}.review{display:none}h1{color:#111}.card{background:#f6f5fb;border-color:#ddd}}
+@media(max-width:820px){.cols,.cols3,.review,.fork,.planes,.category-map,.coverage,.coverage-hit,.numbers,.demand-proof,.market-read,.competitors,.options,.choice-stage,.rails,.integration,.risk-bridge,.journey,.loop,.validation-band,.questions,.method,.wedge,.arch-opportunities,.jtbd,.mvp,.star{grid-template-columns:1fr}.join,.arrow,.flow,.rb-arrow{display:none}.cat-plane+.cat-plane,.coverage-hit>div+div,.plane+.plane,.comp+.comp,.number+.number,.proof+.proof,.rail+.rail,.signal+.signal,.vstep+.vstep,.phase+.phase{border-left:none;border-top:1px solid var(--line);padding-left:0}.signal:not(:last-child):after,.vstep:not(:last-child):after,.phase:not(:last-child):after{display:none}h1{font-size:23px}
+h1.big{font-size:31px}.slide{padding:24px 20px}.grid{font-size:10px}}
+</style>
+</head>
+<body class="clean">
+
+<div id="bar">
+  <div class="brand">ZENITY · <span>AI Firewall</span></div>
+  <label class="toggle"><input type="checkbox" id="rev"> Review layer</label>
+  <div class="modes">
+    <button class="m on" data-mode="present">Present</button>
+    <button class="m" data-mode="skim">Skim</button>
+    <button class="m" data-mode="headlines">Headline test</button>
+    <button class="m" data-mode="appendix">Appendix</button>
+  </div>
+</div>
+
+<div id="stage"></div>
+<div id="hl" class="hidden"></div>
+<div id="apx" class="hidden"></div>
+
+<div id="nav">
+  <button id="prev">←</button><div class="dots" id="dots"></div>
+  <button id="next">→</button><div class="pos" id="pos"></div>
+</div>
+
+<script>
+/* ============ SOURCES ============ */
+const SRC=[
+ {id:"S1",t:"AI Firewalls: The Runtime Layer AI Security Programs Are Missing",p:"Zenity · 17 Jul 2026",l:"E1",
+  u:"https://zenity.io/academy/ai-firewalls",n:"Zenity's own category definition. States AI firewalls are \"becoming a baseline control, not a differentiator\" and that risk shifted \"from what a model says to what an agent does.\""},
+ {id:"S2",t:"Runtime Boundaries",p:"Zenity",l:"E1",u:"https://zenity.io/platform/runtime-boundaries",
+  n:"Runtime enforcement engine. Allow / block / shut down on every agent action. Cross-step reasoning is ~⅓ of built-in rules. One rule enforced across all platforms."},
+ {id:"S3",t:"AI Detection and Response (AIDR)",p:"Zenity",l:"E1",u:"https://zenity.io/platform/ai-detection-and-response",
+  n:"Blocks direct and indirect prompt injection before the agent acts. Blocks exfiltration via conversations, tool calls, encoded payloads. Agent-to-agent visibility. Mapped to OWASP LLM + MITRE ATLAS."},
+ {id:"S4",t:"MCP Security",p:"Zenity",l:"E1",u:"https://zenity.io/platform/mcp-security",
+  n:"Inline gateway: \"publish a server, register one gateway URL, and agents keep working unchanged.\" Allow / modify / block tool calls on live context. Discovers shadow MCP servers."},
+ {id:"S5",t:"Data Leakage use case",p:"Zenity",l:"E1",u:"https://zenity.io/use-cases/risk-type/data-leakage",
+  n:"\"Agent interactions, tool calls, and connector activity are visible in near real time, so a leakage path can be traced back to the exact step that caused it.\" Note the framing is agent-shaped throughout."},
+ {id:"S6",t:"Emerging Tech: The Future of AI Security Is in Securing Agent Actions, Not Prompts",p:"Gartner · Wah & Senf · 20 Feb 2026",l:"E2",
+  u:"https://www.gartner.com/en/documents/7471626",
+  n:"Separates nonagentic prompt guardrails from agent action security. Predicts >50% of successful agent attacks through 2029 exploit access control. Recommends IAM for agents as prerequisite. Zenity is referenced — treat as evidence AND positioning. Paywalled; sourced from abstract + secondary coverage."},
+ {id:"S7",t:"OWASP Top 10 for Agentic Applications 2026",p:"OWASP · 9 Dec 2025",l:"E2",
+  u:"https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/",
+  n:"A separate list from the LLM Top 10, peer-reviewed by 100+ practitioners. That a second list was needed is independent confirmation agentic risk ≠ prompt risk."},
+ {id:"S8",t:"OWASP GenAI LLM Top 10 2026",p:"OWASP · 3 Aug 2026",l:"E2",u:"https://genai.owasp.org/resource/owasp-genai-llm-top-10-2026/",
+  n:"Prompt injection remains top-ranked. Mapped to NIST, MITRE ATLAS, CWE."},
+ {id:"S9",t:"Palo Alto completes acquisition of Protect AI",p:"Palo Alto Networks · 22 Jul 2025",l:"E1",
+  u:"https://www.paloaltonetworks.com/company/press/2025/palo-alto-networks-completes-acquisition-of-protect-ai",
+  n:"Price not disclosed officially (~$500-700M reported, unconfirmed). Now a cornerstone of Prisma AIRS."},
+ {id:"S10",t:"SentinelOne completes acquisition of Prompt Security",p:"SentinelOne · 5 Sep 2025",l:"E1",
+  u:"https://www.sentinelone.com/press/sentinelone-to-acquire-prompt-security-to-advance-genai-security/",
+  n:"~$180M cash and stock per SEC 8-K. CORRECTION: widely reported as ~$250M in trade press; the filing figure is authoritative."},
+ {id:"S11",t:"Check Point completes acquisition of Lakera",p:"Check Point · 22 Oct 2025",l:"E1",
+  u:"https://cyberscoop.com/check-point-lakera-acquistion-ai-security/",n:"~$300M. Anchors Check Point's end-to-end AI security platform."},
+ {id:"S12",t:"Prisma AIRS Agent Security / SaaS Agent Security",p:"Palo Alto Networks · 2026",l:"E1",
+  u:"https://www.paloaltonetworks.com/prisma/agent-security",
+  n:"Claims discovery and control across SaaS, cloud, low-code and custom agents, including tool calls, MCP and unauthorized actions. Product claims do not establish equal enforcement depth across every integration."},
+ {id:"S13",t:"EU AI Act — enforcement from 2 August 2026",p:"European Commission / Cooley",l:"E1",
+  u:"https://digital-strategy.ec.europa.eu/en/news/commission-starts-enforcing-ai-act-rules-and-new-transparency-requirements-2-august",
+  n:"Annex III high-risk obligations and Article 50 transparency now enforceable. Conformity assessment, CE marking, AI Office powers. Penalties to €15M or 3% of worldwide turnover."},
+ {id:"S14",t:"Open-source guardrail benchmarks",p:"Aggregated · NeMo, Llama Guard, LlamaFirewall",l:"E3",
+  u:"https://arxiv.org/pdf/2505.03574",
+  n:"Reported: NeMo ~89% vs Llama Guard ~67% on a prompt-injection comparison; Llama Guard 4 F1 0.961 clean → 0.796 adversarial at ~459ms p95. Methodologies differ — indicative of a quality plateau, not a leaderboard."},
+ {id:"S15",t:"Enterprise MCP gateway landscape 2026",p:"Aggregated vendor comparisons",l:"E3",
+  u:"https://obot.ai/blog/the-13-best-mcp-gateways-for-enterprise-teams/",
+  n:"13+ enterprise MCP gateways incl. Cloudflare, Docker, Kong, AWS AgentCore, Obot (OSS). Reported ~78% enterprise MCP adoption, ~9,400 public servers — figures unverified, use directionally."},
+ {id:"S16",t:"Shadow AI adoption surveys",p:"Aggregated · Help Net Security, MarkTechPost",l:"E3",
+  u:"https://www.helpnetsecurity.com/2026/05/01/shadow-ai-risks-it-oversight/",
+  n:"40-65% of employees using unapproved AI tools; ~29% using unsanctioned agents; ~74% planning agentic adoption vs ~21% with mature governance. Range is wide and mostly vendor-sponsored — direction only, never a single figure."},
+ {id:"S18",t:"F5 to acquire CalypsoAI",p:"F5 Networks · 11 Sep 2025",l:"E1",
+  u:"https://www.f5.com/company/news/press-releases/f5-to-acquire-calypsoai-to-bring-advanced-ai-guardrails-to-large-enterprises",
+  n:"F5's annual report records $145.2M cash consideration. Embeds AI guardrails into application-delivery infrastructure."},
+ {id:"S19",t:"Cato Networks acquires Aim Security",p:"Cato Networks · Sep 2025",l:"E3",
+  u:"https://www.securityweek.com/cybersecurity-ma-roundup-40-deals-announced-in-september-2025/",
+  n:"Terms undisclosed. Brings AI security into a SASE platform. Sourced from M&A roundup rather than a primary announcement — confirm before quoting."},
+ {id:"S17",t:"Zenity raises $125M Series C",p:"Zenity · Aug 2026",l:"E1",
+  u:"https://zenity.io/company-overview/newsroom/company-news/zenity-raises-125-million-to-secure-the-era-of-1-billion-ai-agents",
+  n:"Led by Norwest. A strong capacity and category-conviction signal; it does not reveal product allocation, risk appetite, or available engineering capacity."},
+ {id:"S20",t:"Lumia AI Usage Control platform",p:"Lumia Security · 2026",l:"E1",
+  u:"https://www.lumia.security/platform",
+  n:"Network/proxy control across browser, native-app and operating-system traffic. Claims prompt, response and agent-action analysis plus block, redact and log enforcement."},
+ {id:"S21",t:"Lumia raises $18M seed",p:"Lumia Security · 4 Dec 2025",l:"E3",
+  u:"https://www.lumia.security/blog/lumia-agentic-ai-security-platform-secures-18m-seed-round",
+  n:"Company announcement: $18M seed led by Team8 with New Era. Capital commitment and category-formation evidence—not proof of product efficacy or demand."},
+ {id:"S22",t:"Noma AI Runtime Protection",p:"Noma Security · 2026",l:"E1",
+  u:"https://noma.security/platform/runtime-protection/",
+  n:"Claims prompt, response, tool-call, MCP and agent-to-agent visibility with real-time masking or blocking. Direct overlap with Zenity's action-security narrative."},
+ {id:"S23",t:"Noma raises $100M Series B",p:"Noma Security · 31 Jul 2025",l:"E3",
+  u:"https://noma.security/blog/noma-security-raises-100m-to-drive-adoption-of-ai-agent-security/",
+  n:"Company announcement: $100M Series B led by Evolution Equity Partners. Company-reported growth and customer figures remain unaudited."},
+ {id:"S24",t:"Zenity + Claude Enterprise",p:"Zenity · Jun 2026",l:"E1",
+  u:"https://zenity.io/blog/product/claude-compliance-api-integration",
+  n:"Public evidence of full-lifecycle coverage across Claude Code, Cowork and Chat through the Compliance API. It does not establish arbitrary personal-account traffic coverage across public AI services."},
+ {id:"S25",t:"Securing Generative AI with Netskope One",p:"Netskope · 2026",l:"E1",
+  u:"https://www.netskope.com/products/securing-generative-ai",
+  n:"Claims personal-versus-corporate AI instance awareness, inline DLP, and block, coach or redirect responses. Vendor capability evidence; efficacy and latency are unverified."},
+ {id:"S26",t:"Netskope Cloud Exchange",p:"Netskope Knowledge Portal · 2026",l:"E1",
+  u:"https://docs.netskope.com/en/netskope-cloud-exchange",
+  n:"Documents export of Netskope telemetry and log events plus extensible plugins. Exact GenAI fields, event freshness, entitlements and operating ownership require diligence."},
+ {id:"S27",t:"Manage data security risks of AI apps with Microsoft Purview",p:"Microsoft Learn · 3 Apr 2026",l:"E1",
+  u:"https://learn.microsoft.com/en-us/purview/deploymentmodels/depmod-data-leak-shadow-ai-step3",
+  n:"Documents paste and upload controls for AI sites through Endpoint DLP and Edge Browser Data Security. Credible fallback for Microsoft-centric accounts."},
+ {id:"S28",t:"Geordie AI raises $30M Series A",p:"Geordie AI · 28 May 2026",l:"E3",
+  u:"https://www.geordie.ai/resources/geordie-ai-raises-30m-series-a-as-enterprises-race-to-govern-autonomous-ai-agents/",
+  n:"Company announcement. Useful agent-governance capital signal; not customer-demand proof."},
+ {id:"S29",t:"Cisco acquires Robust Intelligence",p:"Cisco · 26 Aug 2024",l:"E1",
+  u:"https://newsroom.cisco.com/c/r/newsroom/en/us/a/y2024/m08/cisco-to-acquire-robust-intelligence-to-protect-ai-models-throughout-the-lifecycle.html",
+  n:"Primary acquisition announcement. One of six incumbent moves absorbing AI inspection and guardrails into broader platforms."},
+ {id:"S30",t:"Secure Access to AI",p:"Zscaler · 2026",l:"E1",
+  u:"https://www.zscaler.com/products-and-solutions/ai-access-security",
+  n:"Claims shadow-AI discovery, prompt/response visibility, inline DLP, browser isolation, and user-based controls across GenAI, embedded AI, agents, and developer tools."},
+ {id:"S31",t:"What Is AI Guard?",p:"Zscaler Help · 2026",l:"E1",
+  u:"https://help.zscaler.com/secure-ai-users/what-ai-guard",
+  n:"Documents prompt/response guardrails in proxy and detection-as-a-service modes. Does not establish a supported synchronous external-detector integration."},
+ {id:"S32",t:"AI Guard Release Upgrade Summary 2026",p:"Zscaler Help · 2026",l:"E1",
+  u:"https://help.zscaler.com/secure-ai-users/release-upgrade-summary-2026",
+  n:"Documents Splunk, ADX/Event Hub and S3 event export; explicitly lists Codex blocking and GitHub Copilot prompt visibility/blocking."},
+ {id:"S33",t:"Cyera AI Guardian",p:"Cyera · 2026",l:"E1",
+  u:"https://www.cyera.com/platform/ai-guardian",
+  n:"Claims AI asset inventory, data and identity mapping, prompt analysis, and runtime policy enforcement across human and autonomous-agent interactions."},
+ {id:"S34",t:"Cyera acquires Trail Security for $162M",p:"Cyera · 17 Oct 2024",l:"E3",
+  u:"https://www.cyera.com/press-releases/cyera-acquires-trail-security-for-162m-redefining-ai-powered-data-security-with-comprehensive-data-loss-prevention",
+  n:"Primary transaction announcement. Shows Cyera's move from DSPM into DLP and runtime data control."}
+];
+const C=id=>`<cite data-s="${id}">${id}</cite>`;
+
+/* ============ ARCHITECTURE DIAGRAM (appendix A1) ============ */
+const ARCH=`
+<svg viewBox="0 0 900 330" style="width:100%;height:auto;margin:6px 0">
+ <defs>
+  <marker id="a" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#9A94BF"/></marker>
+  <marker id="av" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#6CE5D4"/></marker>
+ </defs>
+ <style>.bx{fill:#1D1A38;stroke:#2C2850}.lb{fill:#F7F5FF;font:600 13px Inter,sans-serif}
+ .sm{fill:#9A94BF;font:11px Inter,sans-serif}.ep{font:700 10px Inter,sans-serif}
+ .own{fill:#6CE5D4}.not{fill:#FFB36B}</style>
+ <rect class="bx" x="10" y="128" width="112" height="54" rx="9"/>
+ <text class="lb" x="66" y="152" text-anchor="middle">Human</text>
+ <text class="sm" x="66" y="169" text-anchor="middle">browser, app</text>
+ <rect class="bx" x="316" y="112" width="150" height="86" rx="9" style="stroke:#A77CFF"/>
+ <text class="lb" x="391" y="146" text-anchor="middle">Model / Agent</text>
+ <text class="sm" x="391" y="165" text-anchor="middle">plans, decides</text>
+ <rect class="bx" x="700" y="128" width="150" height="54" rx="9"/>
+ <text class="lb" x="775" y="152" text-anchor="middle">Tools / APIs</text>
+ <text class="sm" x="775" y="169" text-anchor="middle">CRM, mail, files</text>
+ <rect class="bx" x="316" y="16" width="150" height="48" rx="9"/>
+ <text class="lb" x="391" y="38" text-anchor="middle">Retrieval</text>
+ <text class="sm" x="391" y="54" text-anchor="middle">docs, mail, web</text>
+ <rect class="bx" x="316" y="252" width="150" height="48" rx="9"/>
+ <text class="lb" x="391" y="274" text-anchor="middle">Other agents</text>
+ <text class="sm" x="391" y="290" text-anchor="middle">handoffs</text>
+ <line x1="124" y1="155" x2="310" y2="155" stroke="#9A94BF" stroke-width="1.6" marker-end="url(#a)"/>
+ <line x1="470" y1="155" x2="694" y2="155" stroke="#6CE5D4" stroke-width="2.2" marker-end="url(#av)"/>
+ <line x1="391" y1="68" x2="391" y2="106" stroke="#6CE5D4" stroke-width="2.2" marker-end="url(#av)"/>
+ <line x1="391" y1="204" x2="391" y2="246" stroke="#6CE5D4" stroke-width="2.2" marker-end="url(#av)"/>
+ <circle cx="217" cy="155" r="15" fill="#090817" stroke="#FFB36B" stroke-width="2"/>
+ <text class="ep not" x="217" y="159" text-anchor="middle">1</text>
+ <circle cx="582" cy="155" r="15" fill="#090817" stroke="#6CE5D4" stroke-width="2"/>
+ <text class="ep own" x="582" y="159" text-anchor="middle">2</text>
+ <circle cx="391" cy="87" r="15" fill="#090817" stroke="#6CE5D4" stroke-width="2"/>
+ <text class="ep own" x="391" y="91" text-anchor="middle">3</text>
+ <circle cx="391" cy="225" r="15" fill="#090817" stroke="#A77CFF" stroke-width="2"/>
+ <text class="ep" x="391" y="229" text-anchor="middle" fill="#A77CFF">4</text>
+ <text class="sm not" x="217" y="124" text-anchor="middle">user → model</text>
+ <text class="sm not" x="217" y="197" text-anchor="middle" style="font-weight:700">NO GATEWAY</text>
+ <text class="sm own" x="582" y="124" text-anchor="middle">agent → tool</text>
+ <text class="sm own" x="582" y="197" text-anchor="middle" style="font-weight:700">MCP GATEWAY</text>
+ <text class="sm own" x="478" y="91">context ingestion — covered</text>
+ <text class="sm" x="478" y="229" fill="#A77CFF">agent → agent — observed, enforcement unverified</text>
+ <rect x="10" y="252" width="270" height="48" rx="9" fill="rgba(108,229,212,.07)" stroke="#6CE5D4" stroke-dasharray="4 3"/>
+ <text class="sm own" x="145" y="272" text-anchor="middle" style="font-weight:700">5 · Platform control plane</text>
+ <text class="sm" x="145" y="289" text-anchor="middle">14 integrated agent platforms</text>
+ <rect x="620" y="252" width="270" height="48" rx="9" fill="rgba(255,179,107,.06)" stroke="#FFB36B" stroke-dasharray="4 3"/>
+ <text class="sm not" x="755" y="272" text-anchor="middle" style="font-weight:700">6 · Network egress</text>
+ <text class="sm" x="755" y="289" text-anchor="middle">not occupied</text>
+</svg>`;
+
+/* ============ CAPABILITY GRID ============ */
+const ROWS=["Inspect what goes in","Filter what comes out","Authorize the action",
+            "Trace the whole session","Discover unsanctioned use","Prove it to an auditor"];
+const COLS=["Human → AI tool","Agent → Tool / API","Agent → Agent"];
+
+function grid(cells,hl){
+  let h=`<table class="grid"><tr><th class="rh"></th>`;
+  COLS.forEach((c,i)=>h+=`<th class="${hl===i?'gcol-hl':''}">${c}</th>`);
+  h+=`</tr>`;
+  ROWS.forEach((r,ri)=>{
+    h+=`<tr><td class="rh">${r}</td>`;
+    cells[ri].forEach((c,ci)=>{
+      h+=`<td class="${c[0]} ${hl===ci?'gcol-hl':''}">${c[1]}</td>`;});
+    h+=`</tr>`;});
+  return h+`</table>`;
+}
+const LEGEND=`<div class="legend">
+ <span><i style="background:rgba(108,229,212,.17);border:1px solid var(--aqua)"></i>Covered</span>
+ <span><i style="background:rgba(108,229,212,.05);border:1px solid rgba(108,229,212,.5)"></i>Partial</span>
+ <span><i style="background:rgba(255,179,107,.09);border:1px dashed var(--warm)"></i>Gap</span>
+ <span><i style="background:rgba(167,124,255,.09);border:1px dashed var(--violet)"></i>Unverified</span></div>`;
+
+// what the CATEGORY demands
+const G_CAT=[
+ [["full","Prompt scan"],["full","Tool input"],["full","Handoff content"]],
+ [["full","Response filter"],["full","Payload check"],["full","Return value"]],
+ [["na","—"],["full","Allow / block"],["full","Delegation rights"]],
+ [["full","Conversation"],["full","Multi-step chain"],["full","Chain of agents"]],
+ [["full","Shadow AI"],["full","Shadow tools"],["full","Rogue agents"]],
+ [["full","Audit log"],["full","Audit log"],["full","Audit log"]]];
+
+// what ZENITY covers today
+const G_ZEN=[
+ [["part","via platform"],["full","yes"],["full","yes"]],
+ [["part","via platform"],["full","incl. encoded"],["full","yes"]],
+ [["na","—"],["full","Boundaries"],["q","observe?"]],
+ [["gap","no session"],["full","~⅓ of rules"],["full","yes"]],
+ [["gap","not evidenced"],["full","MCP registry"],["full","yes"]],
+ [["part","data exists"],["full","step-level"],["full","step-level"]]];
+
+/* ============ SLIDES ============ */
+const S=[
+{n:1,kicker:"Recommendation",big:true,
+ h:"Become the <em>Agentic AI Firewall</em> — not the universal AI traffic proxy.",
+ sub:"Selective expansion now. Broaden only on evidence.",
+ body:`<div class="hero-rule"></div>`,
+ mp:"Open with one answer only; company-endgame nuance moves to the closing discussion.",risk:"The recommendation remains a hypothesis until internal demand and capability facts are tested.",st:"ready",min:2},
+
+{n:2,kicker:"How I got there",
+ h:"Map before deciding. Decide before <em>building</em>.",
+ sub:"Nine steps — each one a slide you can challenge.",
+ body:`<div class="method">
+  <div class="phase"><b>01 · Map</b><em>What is actually true</em>
+   <div class="mstep"><i>1</i><div><b>Define the category</b><span>What the market actually means</span></div></div>
+   <div class="mstep"><i>2</i><div><b>Map the competition</b><span>Who owns which control point</span></div></div>
+   <div class="mstep"><i>3</i><div><b>Map Zenity today</b><span>Public capability, honestly bounded</span></div></div>
+  </div>
+  <div class="phase"><b>02 · Decide</b><em>What actually matters</em>
+   <div class="mstep"><i>4</i><div><b>Join the maps</b><span>Overlap · adjacency · gap</span></div></div>
+   <div class="mstep"><i>5</i><div><b>Test the signal</b><span>Prove or falsify “strong interest”</span></div></div>
+   <div class="mstep"><i>6</i><div><b>Choose</b><span>Three options, one pick</span></div></div>
+  </div>
+  <div class="phase"><b>03 · Execute</b><em>What we actually do</em>
+   <div class="mstep"><i>7</i><div><b>Design the how</b><span>Architecture, wedge, intended impact</span></div></div>
+   <div class="mstep"><i>8</i><div><b>Define measurement</b><span>What proves it worked</span></div></div>
+   <div class="mstep"><i>9</i><div><b>Build the loop</b><span>How the next wedge is earned</span></div></div>
+  </div>
+ </div>
+ <div class="decision-line">No step skipped · no expansion without evidence</div>`,
+ mp:"Show the reasoning arc in ten seconds, and give leadership a place to interrupt.",risk:"The method is only credible if every step actually has a slide — a missing step here is more visible than a missing slide later.",st:"ready",min:2},
+
+{n:3,kicker:"Category",
+ h:"AI Firewall is <em>two control planes</em> with different use cases.",
+ sub:"The capability follows the actor—and the enforcement point.",
+ body:`<div class="category-map">
+  <div class="cat-plane h"><h3>Human ↔ AI</h3><div class="placement">Browser · endpoint · model gateway</div>
+   <div class="cap-row"><b>INSPECT</b><span>Prompts + responses</span></div>
+   <div class="cap-row"><b>PROTECT</b><span>Secrets, PII + proprietary data</span></div>
+   <div class="cap-row"><b>GOVERN</b><span>Approved apps, accounts + topics</span></div>
+   <div class="case-row"><b>Use cases</b><p>Payroll sent to public AI · production key pasted into a private LLM account</p></div>
+  </div>
+  <div class="cat-plane a"><h3>Agent → action</h3><div class="placement">Agent · MCP · tool boundary</div>
+   <div class="cap-row"><b>AUTHORIZE</b><span>Tool calls + agent handoffs</span></div>
+   <div class="cap-row"><b>CONSTRAIN</b><span>Identity, permissions + autonomy</span></div>
+   <div class="cap-row"><b>TRACE</b><span>Multi-step behavior + evidence</span></div>
+   <div class="case-row"><b>Use cases</b><p>Injected ticket triggers a refund · coding agent runs a destructive command</p></div>
+  </div>
+ </div>`,
+ mp:"Connect category, capability, enforcement point and use case in one skim-first visual.",risk:"Detailed capability taxonomy remains in the appendix.",st:"ready",min:3},
+
+{n:4,kicker:"Zenity today",
+ h:"Zenity is deep on agent actions—<strong>and thin on arbitrary human AI use.</strong>",
+ sub:"Public capability presence—not verified efficacy.",
+ body:`<div class="coverage-hit">
+  <div class="human"><div class="eyebrow">Human ↔ AI</div><strong>PARTIAL</strong><p>Coverage is platform-bound. Arbitrary personal-account traffic is not publicly evidenced.${C("S24")}</p></div>
+  <div class="agent"><div class="eyebrow">Agent → action</div><strong>CORE</strong><p>AIDR, Boundaries, Identity and MCP provide the strongest public right-to-win.</p><ul><li>Runtime behavior + tool enforcement</li><li>Multi-step context + evidence</li><li>A2A authorization still unverified</li></ul>${C("S2")}${C("S3")}${C("S4")}</div>
+ </div>
+ <div class="note"><b>The boundary:</b> managed agent activity may be controlled; a private web LLM session may bypass Zenity. <a class="axl" data-ax="A1">→ architecture</a></div>`,
+ mp:"Make the asymmetric coverage impossible to miss.",risk:"Do not convert public absence into a claim about internal product capability.",st:"ready",min:3},
+
+{n:5,kicker:"Demand",
+ h:"Market commitment spans both planes—<em>but the economics differ.</em>",
+ sub:"Three independent signals point to one strategic read.",
+ body:`<div class="demand-proof">
+  <div class="proof"><strong>2</strong><b>distinct OWASP lists</b><span>Human-content and agent-action risk are separate buyer problems.${C("S7")}${C("S8")}</span></div>
+  <div class="proof"><strong>6</strong><b>incumbent acquisitions</b><span>Prompt and content controls are being absorbed into platforms.${C("S9")}${C("S10")}${C("S11")}${C("S18")}${C("S19")}${C("S29")}</span></div>
+  <div class="proof"><strong>$255M</strong><b>agent-security funding</b><span>Zenity + Noma + Geordie show action and governance remain a distinct battlefield.${C("S17")}${C("S23")}${C("S28")}</span></div>
+ </div>
+ <div class="market-read"><div class="human"><small>Human-content plane</small>Must be covered—but is becoming bundled.</div><div class="agent"><small>Agent-action plane</small>Still attracts specialist capital and differentiation.</div></div>`,
+ mp:"Turn risk, M&A and funding into a clear economic implication.",risk:"These prove market commitment, not Zenity-specific willingness to pay; internal win/loss remains decisive.",st:"ready",min:3},
+
+{n:6,kicker:"Competition",
+ h:"Competition is closing from <em>every control point</em>.",
+ sub:"Cyera belongs: data platforms now claim runtime action control too.",
+ body:`<div class="market-map">
+   <div class="axis-y">Platform distribution ↑</div><div class="axis-x">Agent-action depth →</div>
+   <div class="player p" style="left:26%;top:18%">Palo Alto / Zscaler <small>network</small></div>
+   <div class="player c" style="left:38%;top:42%">Cyera <small>data</small></div>
+   <div class="player" style="left:28%;top:76%">Lumia <small>horizontal</small></div>
+   <div class="player" style="left:76%;top:72%">Noma <small>agent specialist</small></div>
+   <div class="player z" style="left:78%;top:30%">Zenity <small>agent-native</small></div>
+  </div>
+ <div class="note"><b>The race:</b> platforms bring breadth and bundling; specialists must prove deeper identity, context and enforcement.${C("S12")}${C("S20")}${C("S22")}${C("S30")}${C("S33")}</div>`,
+ mp:"Place Cyera in the correct archetype and show the strategic squeeze rather than another logo list.",risk:"Positions are inferred from public claims; the map is directional, not an efficacy benchmark.",st:"ready",min:4},
+
+{n:7,kicker:"Right to win",
+ h:"The wedge is <em>human intent + agent execution</em>.",
+ sub:"Three falsifiable use-case hypotheses—not claims about current product coverage.",
+ body:`<div class="wedge">
+  <div class="wsrc h"><span>Human AI interaction</span><b>intent · attempts · policy response</b></div>
+  <div class="wsrc a"><span>Agent lifecycle + runtime</span><b>builder · identity · permission · action${C("S2")}${C("S4")}</b></div>
+ </div>
+ <div class="wconv">↓</div>
+ <div class="wout"><span>Cross-layer intelligence</span><b>detection · policy · evidence</b></div>
+ <table style="margin-top:17px">
+  <tr><th style="width:28%">Use-case hypothesis</th><th style="width:22%">Firewall only</th><th style="width:22%">Agent only</th><th>Together</th></tr>
+  <tr><td class="k">Policy circumvention / agent laundering</td><td>Blocked human attempts</td><td>Valid-looking agent</td><td style="color:var(--aqua)">Intent transferred into automation</td></tr>
+  <tr><td class="k">Risky configuration lineage</td><td>Poor security hygiene</td><td>Separate over-privileged agents</td><td style="color:var(--aqua)">Common builder root cause</td></tr>
+  <tr><td class="k">Context-aware delegation risk</td><td>Allowed manual action</td><td>Allowed permissions</td><td style="color:var(--aqua)">Persistence + scale change the risk</td></tr>
+ </table>
+ <div class="decision-line">Build test: if valuable detections do not require both signal sets, partnering is stronger than building</div>`,
+ mp:"Show the differentiated wedge as testable hypotheses rather than a claim of existing coverage.",risk:"These are designed hypotheses from public capability maps; they must survive real customer data before funding a build.",st:"ready",min:4},
+
+{n:8,kicker:"Architecture · high-level PRD",
+ h:"Where a control sits decides <em>what it can ever know.</em>",
+ sub:"Six enforcement points show Zenity's public depth, visible gaps, and three bounded opportunity choices.",
+ body:`${ARCH}
+ <div class="arch-opportunities">
+  <button class="arch-opp test" data-tip="FEATURE · Human-to-Agent Coverage Bridge. USE CASE · correlate a partner-controlled human AI incident with agent ownership and activity. IMPACT · close a coverage objection without owning the browser or network pipe. MEASURE · identity resolution, correlation precision, deal influence."><b>P1 · TEST NOW</b><span>Human-channel bridge · partner first</span></button>
+  <button class="arch-opp verify" data-tip="FEATURE · Agent-to-Agent Authorization. USE CASE · evaluate identity, delegation scope, and context before an agent handoff executes. IMPACT · deepen the differentiated decision layer. MEASURE · enforced handoffs, prevented over-delegation, override quality."><b>P4 · VERIFY, THEN BUILD IF MISSING</b><span>A2A pre-execution authorization</span></button>
+  <button class="arch-opp defer" data-tip="FEATURE · Customer-Hosted Egress Attachment. USE CASE · one recurring traffic path requires Zenity-controlled synchronous human-channel enforcement. IMPACT · direct coverage only when partner-native control cannot close repeated deals. MEASURE · deal unblock, latency, reliability, deployment and support burden."><b>P6 · DEFER</b><span>Owned network egress · one surface only</span></button>
+ </div>`,
+ mp:"Anchor each product option to the gap or control point it would change.",risk:"Placement is based on public product evidence; exact internal architecture and any partner feasibility require validation.",st:"ready",min:4},
+
+{n:9,kicker:"Strategic choice",
+ h:"Selective expansion fits Zenity’s economics—and a fluid category.",
+ sub:"Choose leverage and reversibility over infrastructure breadth.",
+ body:`<div class="choice-stage">
+  <div class="choice"><h3>Stay agent-only</h3><b>Wins</b><p>Focus and execution speed.</p><b>Loses</b><p>Human-channel coverage and broader buyer outcome.</p></div>
+  <div class="choice"><h3>Selective expansion</h3><b>Own</b><p>Agent identity, context, action policy and evidence.</p><b>Partner</b><p>Human-channel reach and commodity detection.</p><b>Why it wins</b><p>Maximum leverage; evidence-gated and reversible.</p></div>
+  <div class="choice"><h3>Build broadly</h3><b>Wins</b><p>Full control and category breadth.</p><b>Loses</b><p>New endpoint, proxy and operating infrastructure.</p></div>
+ </div>`,
+ mp:"Explain why the middle posture wins beyond the numerical score.",risk:"Severe capacity constraints can still make strict focus the correct answer.",st:"ready",min:4},
+
+{n:10,kicker:"Scope and sourcing",
+ h:"Prioritization says: <em>deepen the core</em>; partner for reach.",
+ sub:"Market importance × Zenity right-to-win · fixed criteria, scored before the recommendation.",
+ body:`<div class="heatmap"><div class="hm-y">Customer / market importance</div><div class="hm-field">
+   <div class="bubble core" style="left:81%;top:18%">Runtime action<i>85.5</i></div>
+   <div class="bubble core" style="left:77%;top:52%">Governance + audit<i>83.5</i></div>
+   <div class="bubble core" style="left:70%;top:82%">Agent identity<i>81.0</i></div>
+   <div class="bubble conditional" style="left:35%;top:35%">Content deal defense<i>66.5</i></div>
+   <div class="bubble conditional" style="left:24%;top:76%">Human / model reach<i>63.0</i></div>
+   <div class="hm-wedge">Zscaler signals → strengthen identity + evidence</div>
+  </div><div class="hm-x">Zenity right-to-win →</div></div>`,
+ mp:"Bring back the fixed-criteria opportunity model and show how the partner wedge strengthens the top cluster.",risk:"Scores are comparative judgment aids; internal win/loss, traffic and roadmap data can override them.",st:"ready",min:4},
+
+{n:11,kicker:"MRD · if validated",
+ h:"The market need is <em>one risk story</em> across humans and agents.",
+ sub:"Target enterprises are deploying generative AI and agents broadly—but current controls see only part of the chain.",
+ body:`<div class="cols3">
+  <div class="card a"><h3>Target market</h3><p>Enterprises scaling generative AI and autonomous agents together.</p></div>
+  <div class="card v"><h3>Buyers</h3><ul><li>CISO / AI security leadership</li><li>Security engineering</li><li>AI governance stakeholders</li></ul></div>
+  <div class="card w"><h3>Primary users</h3><ul><li>Security teams</li><li>AI / agent platform owners</li><li>Builders, where intervention matters</li></ul></div>
+ </div>
+ <div class="jtbd">
+  <div class="jt"><i>01</i><b>See</b><span>Understand relevant enterprise AI usage</span></div>
+  <div class="jt"><i>02</i><b>Connect</b><span>Correlate users, builders, agents, identities, tools and data</span></div>
+  <div class="jt"><i>03</i><b>Judge</b><span>Identify risk emerging across human and agent activity</span></div>
+  <div class="jt"><i>04</i><b>Govern</b><span>Apply consistent policy across interaction and execution</span></div>
+  <div class="jt"><i>05</i><b>Prevent</b><span>Stop unsafe delegation and scaled automation</span></div>
+ </div>
+ <div class="note"><b>Standalone firewalls see interactions. Agent tools see execution.</b> The gap is the handoff.${C("S6")}${C("S16")}</div>`,
+ mp:"State the market requirement as one risk story, with the buyer and the job named.",risk:"Target market and buyer roles are inferred from public positioning; willingness to pay is not publicly evidenced.",st:"ready",min:3},
+
+{n:12,kicker:"PRD · MVP",
+ h:"MVP: prove <em>cross-layer value</em>, not firewall completeness.",
+ sub:"Start with observation and correlation; enforce only where Zenity has a differentiated reason to own the decision.",
+ body:`<div class="mvp">
+  <div class="mv"><i>01</i><b>Ingest</b><span>Human-to-AI policy events or signals${C("S32")}${C("S27")}</span></div>
+  <div class="mv"><i>02</i><b>Resolve</b><span>User ↔ builder ↔ agent ↔ identity</span></div>
+  <div class="mv"><i>03</i><b>Detect</b><span>2–3 risks requiring both contexts</span></div>
+  <div class="mv"><i>04</i><b>Surface</b><span>One incident in the Zenity experience</span></div>
+  <div class="mv"><i>05</i><b>Act</b><span>Alert · approve · restrict · block</span></div>
+ </div>
+ <div class="notslabel">Not in V1</div>
+ <div class="nots"><i>Generic network proxy</i><i>Secure web gateway replacement</i><i>Broad DLP replacement</i><i>Commodity prompt filtering</i><i>Infrastructure built for a checkbox</i></div>
+ <div class="note"><b>Technical enforcement remains conditional</b> on feasibility, latency, privacy and failure semantics.${C("S31")}</div>`,
+ mp:"Define the smallest commercially meaningful test, and make the exclusions as concrete as the inclusions.",risk:"Enforcement feasibility is the largest technical unknown; treating step 5 as committed would overstate what partner telemetry supports.",st:"ready",min:4},
+
+{n:13,kicker:"First wedge",
+ h:"First wedge: make human AI risk <em>actionable inside Zenity</em>.",
+ sub:"Zscaler sees the developer interaction. Zenity connects it to agent identity, behavior and policy.",
+ body:`<div class="risk-bridge">
+  <div class="rb-node"><h3>Human AI use</h3><p>Developer pastes a production key into a personal AI account.</p></div>
+  <div class="rb-arrow">→<small>endpoint / web</small></div>
+  <div class="rb-node zs"><h3>Zscaler AI Guard</h3><ul><li>Inspect + block inline</li><li>Identify user, app, detector + action</li><li>Export incident event</li></ul>${C("S30")}${C("S32")}</div>
+  <div class="rb-arrow">→<small>metadata-first event</small></div>
+  <div class="rb-node zen"><h3>Zenity risk bridge</h3><ul><li>Resolve human ↔ agent identity</li><li>Unify timeline + audit evidence</li><li>Propose approval / block context for next risky agent action</li></ul></div>
+ </div>
+ <div class="note"><b>Build:</b> export connector → event schema → identity correlation → incident view → optional policy-context hook. <b>Not:</b> a Zenity endpoint detector or proxy.</div>`,
+ mp:"Show the preferred wedge and high-level build while preserving enforcement ownership.",risk:"Milestone 0 must verify exact fields, freshness, entitlements, content minimization, policy-engine input and a shared customer.",st:"ready",min:4},
+
+{n:14,kicker:"Continuous validation",
+ h:"Every next wedge must be <em>earned continuously</em>.",
+ sub:"No fixed expansion roadmap before evidence.",
+ body:`<div class="validation-band">
+  <div class="vstep"><i>01</i><b>Observe</b><span>High-severity gaps<br>RFP + loss reasons<br>Competitive moves</span></div>
+  <div class="vstep"><i>02</i><b>Test</b><span>Partner coverage<br>Signal fidelity<br>User friction</span></div>
+  <div class="vstep"><i>03</i><b>Measure</b><span>Risk prevented<br>Repeat use<br>Deal influence</span></div>
+  <div class="vstep"><i>04</i><b>Decide</b><span>Deepen<br>Hold<br>Stop or switch</span></div>
+ </div>
+ <div class="decision-line">Next wedge = repeated pain + revenue evidence + acceptable operating cost</div>`,
+ mp:"Show the feedback loop and the evidence required to expand.",risk:"Do not invent thresholds without baseline telemetry and internal commercial data.",st:"ready",min:3},
+
+{n:15,kicker:"Success measurement",
+ h:"Measure <em>differentiated outcomes</em>—not traffic coverage.",
+ sub:"The north-star test: did combining human and agent context change the security or buying outcome?",
+ body:`<div class="cols3">
+  <div class="card v"><h3>Business</h3><ul><li>Revenue influenced</li><li>Win-rate movement</li><li>Recovered blocked deals</li><li>Expansion ARR</li><li>Existing-customer adoption</li></ul></div>
+  <div class="card a"><h3>Product</h3><ul><li>Time to value</li><li>Relevant interaction coverage</li><li>Customers enabling capability</li><li>Cross-layer policies created</li><li>Detection response rate</li></ul></div>
+  <div class="card w"><h3>Security</h3><ul><li>Unique cross-layer risks</li><li>Incidents prevented</li><li>Risky configuration reduction</li><li>False-positive rate</li></ul></div>
+ </div>
+ <div class="star"><strong>%</strong><div><b>Detections impossible from one dataset alone</b>
+  <span>The one metric that measures the thesis rather than the activity. Targets require internal baselines and a design partner.</span></div></div>`,
+ mp:"Tie success to the differentiation thesis rather than to coverage volume.",risk:"Every metric needs an internal baseline before a threshold is credible; no targets are invented here.",st:"ready",min:3},
+
+{n:16,kicker:"Leadership discussion",
+ h:"Four internal facts decide how far Zenity should expand.",
+ sub:"Public research cannot answer these.",
+ body:`<div class="questions bigq">
+  <div class="q"><i>01</i><div><b>What is the company endgame?</b><span>Independent AI-security platform—or the indispensable agent-control layer?</span></div></div>
+  <div class="q"><i>02</i><div><b>Where is revenue actually lost?</b><span>Human coverage, action depth, price or incumbent distribution?</span></div></div>
+  <div class="q"><i>03</i><div><b>What valuable usage bypasses Zenity?</b><span>The traffic denominator decides whether partner reach is enough.</span></div></div>
+  <div class="q"><i>04</i><div><b>What is already enforced A2A?</b><span>Visibility, policy evaluation—or pre-execution authorization?</span></div></div>
+ </div>
+ <div class="decision-line">Until those facts change the answer: selective expansion · partner-led human reach · no universal proxy</div>`,
+ mp:"Convert unknowns into a productive leadership discussion.",risk:"Keep the close on decision-changing facts, not a generic ask.",st:"ready",min:4}
+];
+
+/* ============ APPENDIX SLIDES ============ */
+const AX=[
+{id:"A1",kicker:"Appendix A1 · Architecture",
+ h:"Six enforcement points. Zenity occupies four.",
+ sub:"Where a control physically sits determines what it can ever know. Referenced from slide 4.",
+ body:ARCH+`<div class="cols" style="margin-top:8px">
+  <div class="card a"><h3>What the gateway proves</h3><p>MCP Security: <i>"publish a server, register one gateway URL, and agents keep working unchanged"</i> — inline allow / modify / block on live context. The proxy pattern and the operational muscle already exist.${C("S4")}</p></div>
+  <div class="card w"><h3>What point 1 costs</h3><p>Without a human-channel control, usage touching no integrated platform and no registered MCP server is not publicly evidenced. That is the personal-account developer case on slides 3 and 9.</p></div>
+ </div>
+ <div class="note"><b>The decision, precisely stated.</b> Not "should Zenity build a gateway" — it built one, and placed it deliberately. The question is whether that placement extends to point 1, or whether point 1 is deliberately ceded.</div>`},
+
+{id:"A2",kicker:"Appendix A2 · Postures",
+ h:"Three strategic postures. Partnering is a sourcing choice.",
+ sub:"Scored on six criteria fixed before scoring. Full weights and sensitivity in the data model.",
+ body:`<table>
+  <tr><th style="width:26%">Posture</th><th style="width:11%">Score</th><th>Why it ranks there</th></tr>
+  <tr><td class="k">Agentic AI Firewall<br><span style="color:var(--aqua);font-weight:400;font-size:11px">selective — recommended</span></td><td class="mono k">87.0</td><td>Captures the buyer outcome without moving Zenity's centre of gravity into incumbent territory</td></tr>
+  <tr><td class="k">Agent Security Specialist<br><span style="color:var(--dim);font-weight:400;font-size:11px">stay focused</span></td><td class="mono">77.0</td><td>Wins if capacity is fully committed and content gaps never appear in losses</td></tr>
+  <tr><td class="k">Enterprise AI Firewall Platform<br><span style="color:var(--dim);font-weight:400;font-size:11px">build broadly</span></td><td class="mono">65.0</td><td>Strongest completeness, weakest focus. Hardest to reverse once traffic routes through us</td></tr>
+ </table>
+ <div class="note" style="border-color:var(--violet)"><b>Why partner remains inside selective expansion.</b> Partner for human-channel placement while Zenity retains the policy, action-control and customer-value layer. Do not outsource the differentiated core.</div>
+ <div class="note" style="border-color:var(--warm)"><b>Model honesty.</b> The gap between ranks 1 and 2 is 10 points; between the top three opportunity bundles it is under 4. We trust the posture ordering more than the opportunity ordering, and say so.</div>`}
+];
+
+/* ============ RENDER ============ */
+const stage=document.getElementById('stage'),hlW=document.getElementById('hl'),apxW=document.getElementById('apx');
+const stM={ready:['ready','Ready'],partial:['partial','Partial'],none:['none','Not started']};
+const words=h=>{const d=document.createElement('div');d.innerHTML=h;
+  d.querySelectorAll('table.grid,svg,cite').forEach(e=>e.remove());
+  return (d.textContent||'').trim().split(/\s+/).filter(Boolean).length;};
+
+stage.innerHTML=S.map(s=>{const w=words(s.body);return `
+<section class="slide" data-n="${s.n}">
+ <div class="snum">${String(s.n).padStart(2,'0')} / ${S.length}</div>
+ <div class="kicker">${s.kicker}</div>
+ <h1 class="${s.big?'big':''}">${s.h}</h1>
+ ${s.sub?`<p class="sub">${s.sub}</p>`:''}
+ <div class="body">${s.body}</div>
+ <div class="review">
+  <div><h4>Must prove</h4>${s.mp}</div>
+  <div><h4>Risk</h4>${s.risk}</div>
+  <div><h4>Status</h4><span class="st ${stM[s.st][0]}">${stM[s.st][1]}</span></div>
+  <div><h4>Body words · ${s.min} min</h4><span class="wc ${w<=70?'ok':'over'}">${w} / 70</span></div>
+ </div></section>`}).join('');
+
+hlW.innerHTML=`<div class="intro"><b style="color:var(--white)">The headline test.</b> Read these sixteen lines in order. If a director can restate the recommendation and its logic, the deck works. If not, the problem is the argument — not the design.</div>`
++S.map(s=>`<div class="r"><div class="n">${String(s.n).padStart(2,'0')}</div><div class="t">${s.h.replace(/<\/?em>/g,'')}</div></div>`).join('');
+
+apxW.innerHTML=AX.map(a=>`
+ <section class="slide" id="ax-${a.id}" style="margin-bottom:20px">
+  <div class="snum">${a.id}</div>
+  <div class="kicker">${a.kicker}</div>
+  <h1>${a.h}</h1>
+  <p class="sub">${a.sub}</p>
+  <div class="body">${a.body}</div>
+ </section>`).join('')
++`<h2 style="margin-top:32px">Appendix — sources</h2>
+<p class="lead">Every citation marker in the deck links here. Every entry links to its source. Evidence level and known limitations are stated per source.</p>`
++SRC.map(s=>`<div class="src" id="src-${s.id}">
+ <div class="id">${s.id}<span class="lvl ${s.l}">${s.l}</span></div>
+ <div class="ti">${s.t}</div>
+ <div class="mt">${s.p}<br>${s.n}</div>
+ <a href="${s.u}" target="_blank" rel="noopener">${s.u}</a></div>`).join('');
+
+/* modes */
+let mode='present',cur=0;
+const slides=[...document.querySelectorAll('.slide')],dots=document.getElementById('dots');
+dots.innerHTML=S.map((_,i)=>`<button class="dot${i?'':' on'}" data-i="${i}"></button>`).join('');
+const dotEls=[...document.querySelectorAll('.dot')];
+function show(i){cur=Math.max(0,Math.min(S.length-1,i));
+ if(mode==='present')slides.forEach((s,j)=>s.classList.toggle('hidden',j!==cur));
+ dotEls.forEach((d,j)=>d.classList.toggle('on',j===cur));
+ document.getElementById('pos').textContent=`${cur+1} / ${S.length}`;
+ if(mode==='present')window.scrollTo(0,0);}
+function setMode(m){mode=m;
+ document.querySelectorAll('button.m').forEach(b=>b.classList.toggle('on',b.dataset.mode===m));
+ hlW.classList.toggle('hidden',m!=='headlines');
+ apxW.classList.toggle('hidden',m!=='appendix');
+ stage.style.display=(m==='headlines'||m==='appendix')?'none':'block';
+ document.getElementById('nav').classList.toggle('hidden',m!=='present');
+ if(m==='skim'){slides.forEach(s=>s.classList.remove('hidden'));window.scrollTo(0,0);}
+ if(m==='present')show(cur);}
+document.querySelectorAll('button.m').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.getElementById('prev').onclick=()=>show(cur-1);
+document.getElementById('next').onclick=()=>show(cur+1);
+dotEls.forEach(d=>d.onclick=()=>show(+d.dataset.i));
+document.getElementById('rev').onchange=e=>document.body.classList.toggle('clean',!e.target.checked);
+document.addEventListener('click',e=>{
+ const c=e.target.closest('cite');
+ if(c){setMode('appendix');setTimeout(()=>{const t=document.getElementById('src-'+c.dataset.s);
+  if(t){t.scrollIntoView({behavior:'smooth',block:'center'});location.hash='src-'+c.dataset.s;}},60);return;}
+ const a=e.target.closest('.axl');
+ if(a){setMode('appendix');setTimeout(()=>{const t=document.getElementById('ax-'+a.dataset.ax);
+  if(t)t.scrollIntoView({behavior:'smooth',block:'start'});},60);}});
+document.addEventListener('keydown',e=>{if(mode!=='present')return;
+ if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();show(cur+1)}
+ if(e.key==='ArrowLeft'){e.preventDefault();show(cur-1)}});
+show(0);
+</script>
+</body>
+</html>
