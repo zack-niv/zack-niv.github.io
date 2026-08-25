@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow,noarchive" />
+  <title>Zack × Attio · represented by his career agent</title>
+  <style>
+    :root {
+      --ink: #151515;
+      --muted: #66645f;
+      --paper: #f5f1e9;
+      --card: rgba(255,255,255,.76);
+      --line: rgba(21,21,21,.12);
+      --accent: #ff5a36;
+      --accent-soft: #ffe2d8;
+      --green: #1f7a52;
+      --green-soft: #daf2e6;
+      --shadow: 0 18px 50px rgba(25, 23, 20, .08);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 4%, rgba(255,90,54,.12), transparent 28rem),
+        radial-gradient(circle at 95% 36%, rgba(124,103,238,.10), transparent 32rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    button, input { font: inherit; }
+    a { color: inherit; }
+
+    .shell { width: min(1160px, calc(100% - 32px)); margin: 0 auto; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 0;
+      gap: 16px;
+    }
+
+    .agent-mark { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -.02em; }
+    .orb {
+      width: 31px; height: 31px; border-radius: 50%;
+      display: grid; place-items: center;
+      background: var(--ink); color: #fff; font-size: 15px;
+      box-shadow: 0 5px 18px rgba(0,0,0,.18);
+    }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase;
+      color: var(--muted);
+    }
+    .dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; box-shadow: 0 0 0 5px rgba(31,122,82,.09); }
+    .private-pill {
+      font-size: 12px; color: var(--muted); border: 1px solid var(--line);
+      padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,.45);
+    }
+
+    .hero { padding: 74px 0 44px; }
+    .hero-grid { display: grid; grid-template-columns: 1.35fr .65fr; gap: 54px; align-items: end; }
+    h1 { font-size: clamp(48px, 8vw, 92px); line-height: .94; letter-spacing: -.065em; margin: 14px 0 26px; max-width: 950px; }
+    .hero p { font-size: clamp(19px, 2vw, 25px); line-height: 1.42; max-width: 760px; color: #393835; letter-spacing: -.02em; }
+    .agent-note {
+      border-left: 3px solid var(--accent); padding: 2px 0 2px 18px; color: var(--muted); font-size: 14px;
+    }
+    .hero-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 26px;
+      box-shadow: var(--shadow); padding: 26px;
+      backdrop-filter: blur(12px);
+    }
+    .hero-card h3 { margin: 8px 0 8px; font-size: 23px; letter-spacing: -.035em; }
+    .hero-card p { margin: 0; font-size: 15px; color: var(--muted); }
+    .score { font-size: 58px; font-weight: 800; letter-spacing: -.07em; margin-top: 14px; }
+    .score small { font-size: 15px; letter-spacing: 0; color: var(--muted); font-weight: 650; }
+
+    .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+    .btn {
+      border: 1px solid var(--ink); border-radius: 999px; padding: 12px 18px; cursor: pointer;
+      background: transparent; transition: transform .15s ease, box-shadow .15s ease;
+      text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0,0,0,.08); }
+    .btn.primary { background: var(--ink); color: #fff; }
+
+    section { padding: 58px 0; }
+    .section-head { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 24px; }
+    .section-head h2 { margin: 5px 0 0; font-size: clamp(31px, 4vw, 48px); letter-spacing: -.05em; line-height: 1.02; }
+    .section-head p { color: var(--muted); max-width: 430px; margin: 0; }
+
+    .reasons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .reason {
+      min-height: 290px; border: 1px solid var(--line); border-radius: 24px; padding: 24px;
+      background: rgba(255,255,255,.58); display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .reason .num { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .reason h3 { font-size: 29px; line-height: 1.02; letter-spacing: -.045em; margin: 14px 0; }
+    .reason p { margin: 0; color: var(--muted); }
+    .tags { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+    .tag { padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: #4b4944; background: rgba(255,255,255,.4); }
+
+    .proof-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .proof {
+      padding: 26px; border-radius: 24px; border: 1px solid var(--line); background: var(--card);
+      min-height: 225px;
+    }
+    .proof h3 { font-size: 25px; line-height: 1.1; letter-spacing: -.04em; margin: 10px 0 12px; }
+    .proof p { color: var(--muted); margin: 0; }
+    .metric { display: inline-block; font-size: 35px; font-weight: 790; letter-spacing: -.05em; margin: 24px 18px 0 0; }
+    .metric span { display: block; font-size: 11px; color: var(--muted); letter-spacing: .02em; font-weight: 650; text-transform: uppercase; }
+
+    .concern {
+      display: grid; grid-template-columns: .72fr 1.28fr; gap: 26px; padding: 30px;
+      border-radius: 26px; background: #181817; color: #fff;
+    }
+    .concern h3 { font-size: 32px; letter-spacing: -.045em; line-height: 1.08; margin: 8px 0 0; }
+    .concern p { color: rgba(255,255,255,.72); margin: 0; font-size: 17px; }
+
+    .chat-wrap {
+      overflow: hidden; border-radius: 30px; border: 1px solid var(--line); background: rgba(255,255,255,.76);
+      box-shadow: var(--shadow);
+    }
+    .chat-head { padding: 22px 24px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .chat-head strong { letter-spacing: -.025em; }
+    .chat-head span { color: var(--muted); font-size: 12px; }
+    .messages { padding: 26px; min-height: 270px; max-height: 520px; overflow-y: auto; }
+    .message { max-width: 790px; margin: 0 0 18px; }
+    .message .who { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 750; margin-bottom: 5px; }
+    .message .bubble { padding: 16px 18px; border-radius: 18px; background: #f3f0e8; white-space: pre-wrap; }
+    .message.agent .bubble { background: #181817; color: #fff; }
+    .message.user { margin-left: auto; }
+    .message.user .who { text-align: right; }
+    .message.user .bubble { background: var(--accent-soft); }
+    .starters { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 26px 20px; }
+    .starter { border: 1px solid var(--line); background: transparent; padding: 8px 11px; border-radius: 999px; cursor: pointer; font-size: 13px; }
+    .composer { padding: 16px; display: flex; gap: 9px; border-top: 1px solid var(--line); background: rgba(245,241,233,.6); }
+    .composer input { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 12px 15px; outline: none; }
+    .composer button { border: 0; border-radius: 999px; background: var(--ink); color: #fff; padding: 0 17px; cursor: pointer; }
+    .demo-note { font-size: 11px; color: var(--muted); padding: 0 26px 16px; }
+
+    footer { padding: 48px 0 70px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 20px; }
+
+    .gate {
+      position: fixed; inset: 0; z-index: 100; display: none; place-items: center; padding: 24px;
+      background: #f4efe6;
+    }
+    .gate.show { display: grid; }
+    .gate-card { width: min(520px, 100%); padding: 34px; border-radius: 28px; background: #fff; border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .gate-card h2 { font-size: 40px; line-height: 1; letter-spacing: -.055em; margin: 12px 0; }
+    .gate-card p { color: var(--muted); }
+    .gate-form { display: flex; gap: 8px; margin-top: 22px; }
+    .gate-form input { flex: 1; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); }
+    .gate-form button { border: 0; border-radius: 12px; padding: 12px 16px; background: var(--ink); color: #fff; cursor: pointer; }
+    .gate-error { color: #a72828; font-size: 12px; min-height: 17px; margin-top: 8px; }
+
+    @media (max-width: 850px) {
+      .hero-grid, .concern { grid-template-columns: 1fr; }
+      .reasons { grid-template-columns: 1fr; }
+      .proof-grid { grid-template-columns: 1fr; }
+      .hero { padding-top: 42px; }
+      .section-head { align-items: start; flex-direction: column; }
+      footer { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="gate" id="gate">
+    <div class="gate-card">
+      <div class="eyebrow"><span class="dot"></span> Private candidate room</div>
+      <h2>This link was prepared for Attio.</h2>
+      <p>If you received the application link, the access token is already embedded. Otherwise, enter it below.</p>
+      <div class="gate-form">
+        <input id="tokenInput" autocomplete="off" placeholder="Access token" />
+        <button id="tokenButton">Enter</button>
+      </div>
+      <div class="gate-error" id="gateError"></div>
+    </div>
+  </div>
+
+  <main>
+    <div class="shell">
+      <div class="topbar">
+        <div class="agent-mark"><span class="orb">A</span> Zack's career agent</div>
+        <div class="private-pill">Prepared specifically for Attio · private link</div>
+      </div>
+
+      <section class="hero">
+        <div class="hero-grid">
+          <div>
+            <div class="eyebrow"><span class="dot"></span> Application · Product Lead</div>
+            <h1>I suggested Zack apply to Attio.</h1>
+            <p>
+              Attio is building for a world where agents do meaningful work on behalf of people.
+              So I thought I should introduce him myself.
+            </p>
+            <div class="cta-row">
+              <button class="btn primary" onclick="document.getElementById('ask').scrollIntoView()">Ask me about Zack ↓</button>
+              <a class="btn" href="#evidence">See the evidence</a>
+            </div>
+          </div>
+          <aside class="hero-card">
+            <div class="eyebrow">My assessment</div>
+            <div class="score">Strong <small>fit</small></div>
+            <h3>Why I made the match</h3>
+            <p>Systems thinking, technical product depth, enterprise scale, and a recurring habit of turning messy complexity into products people can actually use.</p>
+            <div class="agent-note" style="margin-top:22px">I’m here to advocate, not fabricate. If I don’t have evidence for an answer, I’ll say so.</div>
+          </aside>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Why I contacted you</div>
+            <h2>Three overlaps I wouldn’t ignore.</h2>
+          </div>
+          <p>These are not keyword matches. They are patterns I found repeatedly across Zack’s career.</p>
+        </div>
+
+        <div class="reasons">
+          <article class="reason">
+            <div>
+              <div class="num">01 · Systems</div>
+              <h3>Technical complexity is where he tends to become more useful.</h3>
+              <p>He moved from solution architecture into product and has repeatedly worked on optimization, APIs, data-heavy systems and enterprise workflows where product decisions cannot be separated from architecture.</p>
+            </div>
+            <div class="tags"><span class="tag">architecture</span><span class="tag">APIs</span><span class="tag">platform</span><span class="tag">enterprise</span></div>
+          </article>
+
+          <article class="reason">
+            <div>
+              <div class="num">02 · Product craft</div>
+              <h3>He likes removing friction before users learn to tolerate it.</h3>
+              <p>A recurring pattern in his work is observing where adoption breaks, encoding expert knowledge into the product, and then using the resulting signals to improve the core experience.</p>
+            </div>
+            <div class="tags"><span class="tag">adoption</span><span class="tag">workflow</span><span class="tag">TTV</span><span class="tag">feedback loops</span></div>
+          </article>
+
+          <article class="reason">
+            <div>
+              <div class="num">03 · Builder energy</div>
+              <h3>He doesn’t treat “product” as a spectator sport.</h3>
+              <p>He prototypes aggressively, experiments with agentic interfaces, and uses working artifacts to pressure-test ideas instead of waiting for perfect certainty.</p>
+            </div>
+            <div class="tags"><span class="tag">0→1</span><span class="tag">agents</span><span class="tag">prototype</span><span class="tag">ownership</span></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="evidence">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Selected evidence</div>
+            <h2>A few things behind the pitch.</h2>
+          </div>
+          <p>I chose these because they map most strongly to the Product Lead brief, not because they are the only impressive numbers on the résumé.</p>
+        </div>
+
+        <div class="proof-grid">
+          <article class="proof">
+            <div class="eyebrow">Salesforce Field Service</div>
+            <h3>Scaled complex operational software without making complexity the user’s problem.</h3>
+            <p>Product leadership across scheduling, optimization, workforce management, planning, analytics and platform consolidation following Salesforce’s acquisition of ClickSoftware.</p>
+            <div><div class="metric">5×<span>faster APIs</span></div><div class="metric">20%<span>less travel time</span></div></div>
+          </article>
+
+          <article class="proof">
+            <div class="eyebrow">Market expansion</div>
+            <h3>Turned a product limitation into a partnership and market-entry motion.</h3>
+            <p>Helped unlock Japan by recognizing the mapping stack as a blocker, building alignment with HERE and coordinating product-roadmap dependencies needed to enter the market.</p>
+            <div><div class="metric">Japan<span>new market</span></div><div class="metric">$MM+<span>revenue unlocked</span></div></div>
+          </article>
+
+          <article class="proof">
+            <div class="eyebrow">Adoption intelligence</div>
+            <h3>Made diagnosis part of the product loop, not just a support activity.</h3>
+            <p>Built a Field Service Health Check motion that became a mandatory step before support cases and during troubleshooting, reducing friction while turning recurring issues into roadmap intelligence.</p>
+            <div><div class="metric">↓50%<span>solve time</span></div><div class="metric">↓~20%<span>self-remediation cases</span></div></div>
+          </article>
+
+          <article class="proof">
+            <div class="eyebrow">Current builder mode</div>
+            <h3>Exploring what software looks like when agents become collaborators.</h3>
+            <p>Kumiau is an experimental collaboration product built around people and agents sharing, presenting and iterating on interactive artifacts. This very application is another experiment in the same direction.</p>
+            <div><div class="metric">Live<span>prototype mindset</span></div><div class="metric">AI-native<span>interaction design</span></div></div>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="concern">
+          <div>
+            <div class="eyebrow" style="color:rgba(255,255,255,.58)">What I’d probe</div>
+            <h3>I don’t think a good representative should hide the question marks.</h3>
+          </div>
+          <p>
+            Zack has spent much of his career in large-scale enterprise software rather than a company at Attio’s exact stage and product motion. I think that is a useful tension to test, not hand-wave away. My reason for still recommending the conversation is that his strongest pattern is adapting to technically complex environments, not relying on one domain playbook.
+          </p>
+        </div>
+      </section>
+
+      <section id="ask">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Interrogate the agent</div>
+            <h2>Don’t take the landing page’s word for it.</h2>
+          </div>
+          <p>Ask about strengths, gaps, projects, product judgement or specific evidence. The goal is a useful answer, not a flattering one.</p>
+        </div>
+
+        <div class="chat-wrap">
+          <div class="chat-head">
+            <strong>Zack’s career agent</strong>
+            <span>Grounded prototype · no invented career facts</span>
+          </div>
+          <div class="messages" id="messages">
+            <div class="message agent">
+              <div class="who">Agent</div>
+              <div class="bubble">I’m Zack’s career agent. I recommended he apply after comparing the Product Lead brief with the patterns in his career. Ask me what you’d want to know before deciding whether to spend 30 minutes with him.</div>
+            </div>
+          </div>
+          <div class="starters">
+            <button class="starter" data-q="What is the strongest argument for hiring Zack?">Strongest argument</button>
+            <button class="starter" data-q="Where is Zack weaker than our ideal candidate?">Where is he weaker?</button>
+            <button class="starter" data-q="Give me evidence that Zack is technical.">Evidence he’s technical</button>
+            <button class="starter" data-q="Tell me about a 0 to 1 example.">0→1 example</button>
+            <button class="starter" data-q="Why Attio specifically?">Why Attio?</button>
+          </div>
+          <div class="composer">
+            <input id="question" placeholder="Ask anything about Zack…" />
+            <button id="send">Ask</button>
+          </div>
+          <div class="demo-note">V0 note: this page currently uses a small grounded answer set. The next slice replaces this with the live career agent endpoint.</div>
+        </div>
+      </section>
+
+      <footer>
+        <span>Prepared by Zack’s career agent · application prototype v0</span>
+        <span>Human available when judgement, commitment or context requires one.</span>
+      </footer>
+    </div>
+  </main>
+
+  <script>
+    // V0 access gating only. Because this is a static prototype, this is not a security boundary.
+    const VALID_TOKEN = 'attio-v0';
+    const params = new URLSearchParams(location.search);
+    const gate = document.getElementById('gate');
+    const tokenInput = document.getElementById('tokenInput');
+    const gateError = document.getElementById('gateError');
+
+    function authorize(token) {
+      if (token === VALID_TOKEN) {
+        gate.classList.remove('show');
+        return true;
+      }
+      gate.classList.add('show');
+      return false;
+    }
+
+    authorize(params.get('t'));
+    document.getElementById('tokenButton').addEventListener('click', () => {
+      if (!authorize(tokenInput.value.trim())) gateError.textContent = 'That token doesn’t match this candidate room.';
+    });
+    tokenInput.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('tokenButton').click(); });
+
+    const grounded = [
+      {
+        test: /strongest|hire|best argument|why.*zack/i,
+        answer: `The strongest argument is the combination of systems thinking and product instinct. Zack started in solution architecture and then spent years owning technically complex product areas at Salesforce Field Service. He tends to be most useful when the underlying system is complicated but the customer experience still needs to feel obvious.\n\nFor Attio, I’d test that directly: give him a messy product/system tradeoff and see how quickly he turns it into a coherent product decision.`
+      },
+      {
+        test: /weaker|weakness|gap|concern|ideal candidate|risk/i,
+        answer: `The cleanest gap is company-context rather than capability: much of Zack’s deepest operating experience comes from large-scale enterprise software, not from spending the last five years inside a company at Attio’s exact stage.\n\nI would not pretend that difference is irrelevant. I recommended the conversation because his history shows repeated adaptation across architecture, product, market expansion and emerging-product work. I’d probe pace, taste and willingness to stay close to the details.`
+      },
+      {
+        test: /technical|architecture|api|engineering/i,
+        answer: `He is technical for a product leader, but I would not describe him as an engineer. He began as a Solution Architect, and later owned products involving optimization engines, scheduling, APIs, analytics and platform consolidation. One concrete outcome from that period was a 5× API performance improvement.\n\nThe useful signal is not that he can write production code. It’s that he can usually reason with engineering about architecture-level consequences without turning the conversation into translation theatre.`
+      },
+      {
+        test: /0.?to.?1|zero|built from|from scratch|new market|japan/i,
+        answer: `A useful example is the Japan expansion. The existing mapping setup was a meaningful market blocker. Zack helped frame the product problem, build the partnership path with HERE, and align roadmap dependencies needed to support the market. That work helped unlock a multi-million-dollar opportunity.\n\nA more recent, smaller-scale 0→1 signal is Kumiau: an experimental product he has been actively building around people and agents collaborating over interactive artifacts.`
+      },
+      {
+        test: /attio|why you|why here|crm/i,
+        answer: `Three reasons. First, the role explicitly values curiosity, systems thinking and technical complexity, which are unusually consistent themes in Zack’s career. Second, Attio is trying to make a highly flexible system feel simple, a product problem he has repeatedly worked on in enterprise operations. Third, the agentic direction is not abstract interest for him: he is actively prototyping agent-native product experiences.\n\nAnd, admittedly, an agent applying to the company building the CRM for agentic revenue felt like a hypothesis worth testing.`
+      },
+      {
+        test: /health|support|adoption|friction|customer/i,
+        answer: `One of the better examples is the Field Service Health Check. Zack helped turn expert troubleshooting knowledge into a repeatable productized motion. It became a mandatory step before opening support cases and during support itself, improved resolution speed, reduced avoidable cases, and produced signals that fed back into product priorities.\n\nThe pattern I’d pay attention to is: observe friction → encode expertise → reduce friction → collect signals → improve the core product.`
+      }
+    ];
+
+    function fallback(q) {
+      return `I don’t have a grounded answer to that in this V0 knowledge set yet. I’d rather say that than improvise a career fact.\n\nIf this were the live agent, I would either retrieve a relevant career story or route the question to Zack. For now, try asking about technical depth, 0→1 work, adoption, gaps, or why I matched him with Attio.`;
+    }
+
+    function answer(q) {
+      const hit = grounded.find(item => item.test.test(q));
+      return hit ? hit.answer : fallback(q);
+    }
+
+    const messages = document.getElementById('messages');
+    const input = document.getElementById('question');
+
+    function addMessage(kind, text) {
+      const el = document.createElement('div');
+      el.className = `message ${kind}`;
+      el.innerHTML = `<div class="who">${kind === 'agent' ? 'Agent' : 'You'}</div><div class="bubble"></div>`;
+      el.querySelector('.bubble').textContent = text;
+      messages.appendChild(el);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function ask(q) {
+      if (!q.trim()) return;
+      addMessage('user', q.trim());
+      input.value = '';
+      window.setTimeout(() => addMessage('agent', answer(q)), 260);
+    }
+
+    document.getElementById('send').addEventListener('click', () => ask(input.value));
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') ask(input.value); });
+    document.querySelectorAll('.starter').forEach(btn => btn.addEventListener('click', () => ask(btn.dataset.q)));
+  </script>
+</body>
+</html>
