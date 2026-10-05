@@ -30,6 +30,17 @@ export class Places {
     this.L = world.layout;
     this._portals(); this._platforms(); this._ramps(); this._biz(); this._gardens(); this._landmarks(); this._staffPosts();
     this.gates = fields.gates;
+    // lane directions from the transit system (in / out / both)
+    for (const G of this.gates) {
+      G.policy = G.lanes.map(() => 'both');
+      try {
+        const tl = ctx && ctx.transit && ctx.transit.gateLanes ? ctx.transit.gateLanes(G.id) : null;
+        if (tl && tl.length === G.lanes.length) {
+          tl.forEach((ln, i) => { G.policy[i] = ln.policy || 'both'; G.lanes[i] = G.axis === 'x' ? ln.x : ln.z; });
+          if (tl[0].paidSign) G.paidSide = Math.sign(tl[0].paidSign);
+        }
+      } catch (e) { /* transit optional */ }
+    }
     this.gatesByLevel = {};
     for (const g of this.gates) (this.gatesByLevel[g.level] = this.gatesByLevel[g.level] || []).push(g);
   }
@@ -79,7 +90,17 @@ export class Places {
         if (t.terminal) s1 = Math.min(s1, a0 + 150);
         const spacing = t.line === 'nankai' ? 6.7 : 4.6;
         const marks = [];
-        for (let a = s0 + spacing * 0.5; a < s1; a += spacing) {
+        // prefer the transit system's painted door markings
+        let tinfo = null;
+        try { tinfo = this.ctx && this.ctx.transit && this.ctx.transit.trackInfo ? this.ctx.transit.trackInfo(t.id) : null; } catch (e) { tinfo = null; }
+        if (tinfo && tinfo.stopDoors && tinfo.stopDoors.length) {
+          for (const d of tinfo.stopDoors) {
+            let mx = d.x + nx * 0.9, mz = d.z + nz * 0.9;
+            if (!this.col.walkable(lv, mx, mz) || !this.col.walkable(lv, mx + nx * 2.5, mz + nz * 2.5)) continue;
+            marks.push({ x: mx, z: mz, nx, nz, n: [0, 0], a: along === 'z' ? d.z : d.x, transit: true });
+          }
+        }
+        if (!marks.length) for (let a = s0 + spacing * 0.5; a < s1; a += spacing) {
           const mx = along === 'z' ? ex + nx * 0.9 : a, mz = along === 'z' ? a : ez + nz * 0.9;
           if (!this.col.walkable(lv, mx, mz) || !this.col.walkable(lv, mx + nx * 2.5, mz + nz * 2.5)) continue;
           marks.push({ x: mx, z: mz, nx, nz, n: [0, 0], a });

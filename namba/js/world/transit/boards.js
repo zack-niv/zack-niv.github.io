@@ -225,20 +225,20 @@ function drawMetroSection(g, x, y, w, h, r, page, blink, t, compact) {
   rows.forEach((s, k) => {
     const yy = y + hh + k * rh;
     g.fillStyle = k === 0 ? '#14284a' : '#0f1f3a'; g.fillRect(x, yy, w, rh - 2);
-    g.fillStyle = '#9fb3d1'; g.font = `700 ${rh * 0.34}px ${page === 0 ? JP : EN}`;
-    g.fillText(page === 0 ? (k === 0 ? '先発' : '次発') : (k === 0 ? 'Next' : 'Later'), x + w * 0.02, yy + rh * 0.62);
-    g.fillStyle = '#fff'; g.font = `700 ${rh * 0.5}px ${EN}`; g.fillText(clockTxt(s.dep), x + w * 0.16, yy + rh * 0.68);
-    g.fillStyle = '#ffd34d'; g.font = `800 ${rh * 0.52}px ${page === 0 ? JP : EN}`;
-    fitText(g, destLabel(s, page) + (page === 0 ? ' 行' : ''), x + w * 0.4, yy + rh * 0.7, w * 0.36);
-    // remaining minutes / status
+    g.fillStyle = '#9fb3d1'; g.font = `700 ${rh * 0.3}px ${page === 0 ? JP : EN}`;
+    fitText(g, page === 0 ? (k === 0 ? '先発' : '次発') : (k === 0 ? 'Next' : 'Later'), x + w * 0.02, yy + rh * 0.62, w * 0.1);
+    g.fillStyle = '#fff'; g.font = `700 ${rh * 0.42}px ${EN}`; fitText(g, clockTxt(s.dep), x + w * 0.14, yy + rh * 0.66, w * 0.2);
+    g.fillStyle = '#ffd34d'; g.font = `800 ${rh * 0.44}px ${page === 0 ? JP : EN}`;
+    fitText(g, destLabel(s, page) + (page === 0 ? ' 行' : ''), x + w * 0.37, yy + rh * 0.68, w * 0.36);
     let rem;
     if (k === 0 && approaching && st.svc === s) rem = page === 0 ? '電車がきます' : 'Arriving';
     else if (k === 0 && st && st.svc === s && st.state === 'doors') rem = page === 0 ? '発車します' : 'Boarding';
     else { const m = minsUntil(s, t); rem = page === 0 ? `あと${m}分` : `${m} min`; }
     const hot = k === 0 && st && st.svc === s && (approaching || st.state === 'doors');
     if (!hot || blink) {
-      g.fillStyle = hot ? '#ff5252' : '#cfd8e3'; g.font = `800 ${rh * 0.4}px ${page === 0 ? JP : EN}`;
-      g.textAlign = 'right'; g.fillText(rem, x + w * 0.98, yy + rh * 0.66); g.textAlign = 'left';
+      g.fillStyle = hot ? '#ff5252' : '#cfd8e3'; g.font = `800 ${rh * 0.32}px ${page === 0 ? JP : EN}`;
+      const tw = Math.min(g.measureText(rem).width, w * 0.22);
+      fitText(g, rem, x + w * 0.98 - tw, yy + rh * 0.64, w * 0.22);
     }
   });
 }
@@ -279,10 +279,10 @@ function drawNankaiPlatform(b, data, page, blink, t) {
     g.fillStyle = '#000'; g.font = `900 ${H * 0.34}px ${EN}`; g.textAlign = 'center'; g.fillText(String(r.info.no), x + 6 + H * 0.21, 6 + H * 0.35); g.textAlign = 'left';
     if (s) {
       const ty = TYPES[s.type];
-      g.fillStyle = ty.color; g.font = `900 ${H * 0.28}px ${page === 0 ? JP : EN}`;
-      fitText(g, typeLabel(s, page) + (typeName(s, page) ? (page ? ' ' : '') + typeName(s, page) : ''), x + H * 0.5, H * 0.33, w * 0.42);
-      g.fillStyle = '#fff'; g.font = `700 ${H * 0.28}px ${EN}`; g.fillText(clockTxt(s.dep), x + w * 0.56, H * 0.34);
-      g.fillStyle = '#ff9a2a'; g.font = `800 ${H * 0.3}px ${page === 0 ? JP : EN}`; fitText(g, destLabel(s, page), x + w * 0.74, H * 0.34, w * 0.25);
+      g.fillStyle = ty.color; g.font = `900 ${H * 0.26}px ${page === 0 ? JP : EN}`;
+      fitText(g, typeLabel(s, page) + (typeName(s, page) ? (page ? ' ' : '') + typeName(s, page) : ''), x + w * 0.235, H * 0.33, w * 0.27);
+      g.fillStyle = '#fff'; g.font = `700 ${H * 0.26}px ${EN}`; fitText(g, clockTxt(s.dep), x + w * 0.52, H * 0.34, w * 0.19);
+      g.fillStyle = '#ff9a2a'; g.font = `800 ${H * 0.27}px ${page === 0 ? JP : EN}`; fitText(g, destLabel(s, page), x + w * 0.73, H * 0.34, w * 0.26);
       const st = r.st;
       let line2 = '';
       if (st && st.svc === s && st.state === 'doors') line2 = page === 0 ? `ご乗車できます  ${s.cars}両` : `Now boarding  ${s.cars} cars`;

@@ -74,8 +74,9 @@ export class Input {
     this._pad = { index: -1, prevButtons: [], jogLatch: false };
     this._touchLookPending = { x: 0, y: 0 };
 
+    const typing = e => { const t = e.target; return !!(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))); };
     addEventListener('keydown', e => {
-      if (e.repeat) return;
+      if (e.repeat || typing(e)) return;
       this.device = 'kbm';
       this.keys.add(e.code); this._pressed.add(e.code);
       for (const a in ACTION_KEYS) if (ACTION_KEYS[a].includes(e.code)) this._actions.add(a);

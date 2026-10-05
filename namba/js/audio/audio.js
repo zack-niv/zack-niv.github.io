@@ -191,7 +191,7 @@ export class Audio {
     this._stepI = i;
     const name = `fs:${surf}:sneaker:${i}`;
     const inten = e.intensity != null ? e.intensity : Math.min(1.5, (e.speed || 1.4) / 1.5);
-    const g = (0.3 + 0.32 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
+    const g = (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
     const L = this.L;
     const outdoor = L && L.outdoorish;
     this.mixer.play(name, { bus: 'sfx', gain: g, rate: 0.95 + Math.random() * 0.1 - (inten > 1.1 ? 0.03 : 0), pan: (e.foot ? 0.07 : -0.07), send: outdoor ? 0.12 : 0.32, prio: 0, lp: surf === 'soft' ? 3500 : undefined });

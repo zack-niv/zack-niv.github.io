@@ -57,7 +57,9 @@ export class Exterior {
     for (const [path, fn] of mods) {
       try {
         const m = await import(path);
+        const t0 = performance.now();
         if (m[fn]) { const part = await m[fn](this.ctx, this); if (part) this.parts.push(part); }
+        (this.timings || (this.timings = {}))[fn] = Math.round(performance.now() - t0);
       } catch (e) {
         if (!/Failed to fetch|Cannot find module|error loading dynamically imported/i.test(e.message)) { console.error('[exterior]', path, e); this.ctx.errors.push(`exterior ${path}: ${e.message}`); }
       }

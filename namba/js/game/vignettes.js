@@ -15,11 +15,11 @@ function payIC(game, price) {
   const ic = game.ic;
   if (ic.balance >= price) {
     ic.balance -= price;
-    game.ctx.audio?.play?.('gate_ok');
+    game.ctx.audio?.play?.('pay');
     game.hud?.ic({ balance: ic.balance, fare: price, ok: true });
     return true;
   }
-  game.ctx.audio?.play?.('gate_ng');
+  game.ctx.audio?.play?.('gate_fail');
   game.hud?.ic({ balance: ic.balance, ok: false, reason: 'Paid in coins instead' });
   return false;
 }
@@ -84,7 +84,7 @@ export async function orderCoffee(game, b) {
   payIC(game, price);
   await sleep(700);
   await say(game, lines[1] || lines[0], key === 'coffee_kissa' ? 'Mama-san' : 'Barista');
-  ctx.audio?.play?.('coffee');
+  ctx.audio?.play?.('grinder'); setTimeout(() => ctx.audio?.play?.('cup'), 1800);
   const mins = key === 'coffee_great' ? 8 : key === 'coffee_kissa' ? 12 : 6;
   const scene = key === 'coffee_great'
     ? `<div class="h-fade-big">${esc(ja)}</div><div class="h-fade-small">You stand at the narrow counter and watch the kettle pour in slow circles.</div>`
@@ -214,7 +214,7 @@ export async function tendon(game, b) {
   if (c == null || c < 0) return;
   const [ja, en, price] = MENUS.tendon[c];
   payIC(game, price);
-  ctx.audio?.play?.('ticket');
+  ctx.audio?.play?.('order');
   await sleep(500);
   game.hud.caption({ ja: 'はい、天丼お待ち！', en: 'One tendon, here you go!', speaker: 'Staff', duration: 2.6 });
   await sleep(1400);
@@ -298,7 +298,7 @@ export async function chargeMachine(game, gate) {
     game.hud.caption({ en: 'The machine counts your notes with tremendous seriousness.', kind: 'thought', duration: 3 });
     await sleep(1400);
     game.ic.balance += c;
-    ctx.audio?.play?.('gate_ok');
+    ctx.audio?.play?.('pay');
     game.hud.ic({ balance: game.ic.balance, ok: true, reason: `+${yen(c)} チャージ` });
     game.ctx.events.emit('ic:charge', { amount: c, balance: game.ic.balance });
     return;

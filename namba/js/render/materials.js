@@ -19,6 +19,7 @@
 // GPU texture; only repeat differs).
 import * as THREE from 'three';
 import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js';
+// (generation runs in ./textures/worker.js; see texSet())
 
 const HDR = (r, g, b, k) => new THREE.Color(r, g, b).multiplyScalar(k);
 
@@ -127,21 +128,24 @@ export class Materials {
     D('esc_cladding', P('brushed', { color: 0xdfe3e8, scale: 3, rough: 0.8 }));
     D('esc_cladding_white', std(0xf0f0ee, 0.35, 0.05));
     // ---- light emitters (HDR, picked up by bloom) ------------------------------
-    D('light_panel', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.98, 0.94, 2.2) }));
-    D('light_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.82, 0.6, 2.0) }));
-    D('light_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.85, 0.93, 1.0, 2.4) }));
-    D('light_line_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.9, 0.95, 1.0, 3.0) }));
-    D('light_line_neutral', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.96, 0.9, 3.0) }));
-    D('light_line_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.83, 0.62, 2.8) }));
-    D('light_troffer', () => new THREE.MeshBasicMaterial({ color: HDR(0.92, 0.96, 1.0, 2.2), map: this.texture('diffuser', () => this._canvasTex(diffuserCanvas(64), false)) }));
-    D('light_troffer_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.76, 2.0), map: this.texture('diffuser', () => this._canvasTex(diffuserCanvas(64), false)) }));
-    D('light_down_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.84, 0.64, 3.0), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)) }));
-    D('light_down_neutral', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.95, 0.88, 3.0), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)) }));
-    D('light_cove_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.8, 0.58, 1.4) }));
-    D('light_cove_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.9, 0.95, 1.0, 1.4) }));
-    D('light_skylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.92, 1.0, 1.6) }));
-    D('light_pendant', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.75, 3.2) }));
-    D('esc_skirt_light', () => new THREE.MeshBasicMaterial({ color: HDR(0.85, 0.93, 1.0, 1.8) }));
+    D('light_panel', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.98, 0.94, 6) }));
+    D('light_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.82, 0.6, 6) }));
+    D('light_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.85, 0.93, 1.0, 6) }));
+    D('light_line_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.9, 0.95, 1.0, 7) }));
+    D('light_line_neutral', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.96, 0.9, 7) }));
+    D('light_line_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.83, 0.62, 6) }));
+    D('light_troffer', () => new THREE.MeshBasicMaterial({ color: HDR(0.92, 0.96, 1.0, 6), map: this.texture('diffuser', () => this._canvasTex(diffuserCanvas(64), false)) }));
+    D('light_troffer_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.76, 6), map: this.texture('diffuser', () => this._canvasTex(diffuserCanvas(64), false)) }));
+    D('light_down_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.84, 0.64, 8), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)), alphaMap: this.texture('radial'), alphaTest: 0.35 }));
+    D('light_down_neutral', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.95, 0.88, 8), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)), alphaMap: this.texture('radial'), alphaTest: 0.35 }));
+    D('light_cove_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.8, 0.58, 3.5) }));
+    D('light_cove_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.9, 0.95, 1.0, 3.5) }));
+    D('light_skylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.92, 1.0, 2.5) }));
+    D('light_pendant', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.75, 7) }));
+    D('esc_skirt_light', () => new THREE.MeshBasicMaterial({ color: HDR(0.85, 0.93, 1.0, 3) }));
+    D('arch_daylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.91, 1.0, 2.2) }));
+    D('arch_adbox', () => new THREE.MeshBasicMaterial({ color: HDR(0.96, 0.97, 1.0, 2.6) }));
+    D('arch_vault', P('ceil_linear', { color: 0xe9ecf0 }));
     // contact shadow / AO strip (transparent gradient, opaque at v=0)
     D('ao_strip', () => new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false, map: this.texture('ao', () => this._canvasTex(aoCanvas(64), false, true)), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
     // ---- trackbed -------------------------------------------------------------
@@ -185,28 +189,140 @@ export class Materials {
     return t;
   }
 
-  // Lazily generate (once) the canvases of a texture family.
+  // Texture families: a tiny synchronous placeholder (64 px) is created at
+  // once; the full-resolution set is generated in a worker pool and swapped
+  // into the same Source (all material clones update together).
+  _dataTex(arr, N, M, srgb) {
+    const t = new THREE.DataTexture(arr, N, M, THREE.RGBAFormat, THREE.UnsignedByteType);
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = this.aniso;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.needsUpdate = true;
+    return t;
+  }
   texSet(key) {
     let s = this.sets.get(key);
     if (s) return s;
     const def = TEX[key];
     if (!def) throw new Error('unknown texture ' + key);
     const t0 = performance.now();
-    const N = this.res[def.res] || 512;
-    const c = def.make(N);
+    const c = def.make(64);
     s = {
-      size: def.size,
-      map: this._canvasTex(c.albedo, true),
-      normalMap: c.normal ? this._canvasTex(c.normal, false) : null,
-      ormMap: this._canvasTex(c.orm, false),
+      key, size: def.size, full: false,
+      map: this._dataTex(c.albedo, c.N, c.M, true),
+      normalMap: c.normal ? this._dataTex(c.normal, c.N, c.M, false) : null,
+      ormMap: this._dataTex(c.orm, c.N, c.M, false),
     };
     this.stats.genMs += performance.now() - t0;
     this.sets.set(key, s);
+    this._request(key, this.res[def.res] || 512);
     return s;
+  }
+  _swap(s, d) {
+    const put = (tex, arr) => {
+      if (!tex || !arr) return;
+      // dispose every texture sharing the source so the GPU storage is
+      // re-allocated at the new size, then swap the pixels in
+      const src = tex.source;
+      for (const t of (this._bySource && this._bySource.get(src)) || [tex]) t.dispose();
+      src.data = { data: arr, width: d.N, height: d.M };
+      src.needsUpdate = true;
+      for (const t of (this._bySource && this._bySource.get(src)) || [tex]) t.needsUpdate = true;
+    };
+    put(s.map, d.albedo); put(s.normalMap, d.normal); put(s.ormMap, d.orm);
+    s.full = true;
+    this.stats.bytes += d.N * d.M * 4 * 1.33 * (d.normal ? 3 : 2);
+  }
+  _pool() {
+    if (this._workers !== undefined) return this._workers;
+    this._workers = null;
+    try {
+      const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
+      const url = new URL('./textures/worker.js', import.meta.url);
+      this._workers = [];
+      for (let i = 0; i < n; i++) {
+        const w = new Worker(url, { type: 'module' });
+        w.onmessage = (e) => this._onResult(e.data);
+        w.onerror = (e) => { console.warn('[materials] texture worker failed; generating on main thread', e.message || e); this._fallback(); };
+        this._workers.push({ w, busy: 0 });
+      }
+    } catch (e) { this._workers = null; }
+    return this._workers;
+  }
+  _request(key, N) {
+    this._pending = this._pending || new Map();
+    this._queue = this._queue || [];
+    this._pending.set(key, N);
+    const pool = this._pool();
+    if (!pool) { this._queue.push(key); this._drainSync(); return; }
+    // least busy worker
+    let best = pool[0];
+    for (const p of pool) if (p.busy < best.busy) best = p;
+    best.busy++;
+    best.w.postMessage({ id: key, key, N });
+  }
+  _onResult(d) {
+    if (!this._pending || !this._pending.has(d.key)) return;
+    for (const p of this._workers || []) if (p.busy > 0) { p.busy--; break; }
+    this._pending.delete(d.key);
+    if (d.error) { console.warn('[materials] texture', d.key, d.error); }
+    else { this.stats.workerMs = (this.stats.workerMs || 0) + d.ms; this._swap(this.sets.get(d.key), d); }
+    if (!this._pending.size && this._resolve) { const r = this._resolve; this._resolve = null; r(); }
+  }
+  // worker unavailable: generate what is left synchronously
+  _fallback() {
+    if (this._fellBack) return;
+    this._fellBack = true;
+    for (const p of this._workers || []) try { p.w.terminate(); } catch (e) { /* */ }
+    this._workers = null;
+    this._queue = [...(this._pending ? this._pending.keys() : [])];
+    this._drainSync();
+  }
+  _drainSync() {
+    while (this._queue && this._queue.length) {
+      const key = this._queue.shift();
+      const N = this._pending.get(key);
+      if (N == null) continue;
+      const t0 = performance.now();
+      const c = TEX[key].make(Math.min(N, 512));
+      this.stats.genMs += performance.now() - t0;
+      this._onResult({ key, N: c.N, M: c.M, albedo: c.albedo, orm: c.orm, normal: c.normal, ms: 0 });
+    }
+  }
+  // resolves when every requested texture family is at full resolution
+  whenReady(timeoutMs = 10000) {
+    if (!this._pending || !this._pending.size) return Promise.resolve(true);
+    return new Promise((res) => {
+      const prev = this._resolve;
+      this._resolve = () => { if (prev) prev(); res(true); };
+      setTimeout(() => res(false), timeoutMs);
+    });
+  }
+  get pendingTextures() { return this._pending ? this._pending.size : 0; }
+  // build-phase hook: textures are generated while other systems build; wait
+  // (bounded) for the rest so the first frames show final materials.
+  async afterBuild() {
+    const t0 = performance.now();
+    const p = this.ctx && this.ctx.params;
+    const ok = await this.whenReady(p && p.test ? 60000 : 6000);
+    this.stats.waitMs = performance.now() - t0;
+    if (!ok) console.warn('[materials] textures still generating after afterBuild wait:', this.pendingTextures);
+  }
+  // clone a texture sharing its pixels (tracked so worker swaps reach it)
+  cloneTexture(tex) {
+    const t = tex.clone();
+    this._bySource = this._bySource || new Map();
+    let l = this._bySource.get(tex.source);
+    if (!l) { l = [tex]; this._bySource.set(tex.source, l); }
+    l.push(t);
+    return t;
   }
   _rep(tex, su, sv) {
     if (!tex) return null;
-    const t = tex.clone();
+    const t = this.cloneTexture(tex);
     t.repeat.set(1 / su, 1 / sv);
     t.needsUpdate = false;
     return t;

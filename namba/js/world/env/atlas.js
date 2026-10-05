@@ -40,22 +40,27 @@ export class Atlas {
       mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0, emissiveMap: tex, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: this.boost });
     }
     mat.name = `${this.name}_${this.pages.length}`;
-    const page = { canvas: c, g, tex, mat, x: PAD, y: PAD, rowH: 0, used: 0 };
+    const page = { canvas: c, g, tex, mat, shelves: [], nextY: PAD, used: 0 };
     this.pages.push(page);
     return page;
   }
   // Allocate (or fetch cached) region of w×h pixels, drawn by draw(g, w, h).
+  // Shelf packing with best-fit height classes (few wasted pixels).
   add(key, w, h, draw) {
     if (key && this.cache.has(key)) return this.cache.get(key);
     w = Math.ceil(w); h = Math.ceil(h);
-    let page = this.pages[this.pages.length - 1];
-    if (page.x + w + PAD > this.size) { page.x = PAD; page.y += page.rowH + PAD; page.rowH = 0; }
-    if (page.y + h + PAD > this.size) {
-      // try earlier pages' remaining rows? keep it simple: new page
-      page = this._newPage();
+    let page = null, shelf = null;
+    for (const pg of this.pages) {
+      for (const sh of pg.shelves) if (sh.h >= h && sh.h <= h * 1.3 + 4 && sh.x + w + PAD <= this.size && (!shelf || sh.h < shelf.h)) { shelf = sh; page = pg; }
+      if (shelf) break;
     }
-    const x = page.x, y = page.y;
-    page.x += w + PAD; page.rowH = Math.max(page.rowH, h); page.used += w * h;
+    if (!shelf) {
+      page = this.pages.find(pg => pg.nextY + h + PAD <= this.size) || this._newPage();
+      shelf = { y: page.nextY, h, x: PAD };
+      page.shelves.push(shelf); page.nextY += h + PAD;
+    }
+    const x = shelf.x, y = shelf.y;
+    shelf.x += w + PAD; page.used += w * h;
     const g = page.g;
     g.save();
     g.beginPath(); g.rect(x, y, w, h); g.clip();

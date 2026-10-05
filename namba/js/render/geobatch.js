@@ -23,6 +23,11 @@ export class GeoBatch {
     if (!l) { l = { p: [], n: [], uv: [], c: [], hasC: false }; this.lists.set(mat, l); }
     return l;
   }
+  // vertex colours are stored lazily: back-fill white for earlier vertices
+  _col(l, col) {
+    if (!l.hasC) { l.hasC = true; const n = l.p.length / 3 - 1; for (let i = 0; i < n; i++) l.c.push(1, 1, 1); }
+    l.c.push(col[0], col[1], col[2]);
+  }
   // a,b,c,d counter-clockwise when viewed from the side the normal points to
   quad(mat, a, b, c, d, opt = {}) {
     const l = this._list(mat);
@@ -45,7 +50,7 @@ export class GeoBatch {
       if (sn) { const q = sn[[0, 1, 2, 0, 2, 3][i]]; l.n.push(q[0], q[1], q[2]); } else l.n.push(nx, ny, nz);
       l.uv.push(uvs[i][0], uvs[i][1]);
       const col = opt.cols ? opt.cols[[0, 1, 2, 0, 2, 3][i]] : opt.col;
-      if (col) { l.hasC = true; l.c.push(col[0], col[1], col[2]); } else l.c.push(1, 1, 1);
+      if (col) this._col(l, col); else if (l.hasC) l.c.push(1, 1, 1);
     }
   }
   // horizontal rectangle at height y; up=true faces +Y (floor), false faces -Y (ceiling)
@@ -83,8 +88,8 @@ export class GeoBatch {
       l.p.push(_v.x, _v.y, _v.z);
       if (N) { _n.fromBufferAttribute(N, i); if (matrix) _n.applyMatrix3(_m3).normalize(); l.n.push(_n.x, _n.y, _n.z); } else l.n.push(0, 1, 0);
       if (UV) l.uv.push(UV.getX(i), UV.getY(i)); else l.uv.push(0, 0);
-      if (C) { l.hasC = true; l.c.push(C.getX(i), C.getY(i), C.getZ(i)); }
-      else if (col) { l.hasC = true; l.c.push(col[0], col[1], col[2]); } else l.c.push(1, 1, 1);
+      if (C) this._col(l, [C.getX(i), C.getY(i), C.getZ(i)]);
+      else if (col) this._col(l, col); else if (l.hasC) l.c.push(1, 1, 1);
     }
     if (g !== geom) g.dispose();
   }
@@ -114,7 +119,7 @@ export class GeoBatch {
     for (const p of [a, b, c]) {
       l.p.push(p[0], p[1], p[2]); l.n.push(nx, ny, nz);
       if (ay >= ax && ay >= az) l.uv.push(p[0], p[2]); else if (ax >= az) l.uv.push(p[2] * -Math.sign(nx), p[1]); else l.uv.push(p[0] * Math.sign(nz), p[1]);
-      const col = opt.col; if (col) { l.hasC = true; l.c.push(col[0], col[1], col[2]); } else l.c.push(1, 1, 1);
+      const col = opt.col; if (col) this._col(l, col); else if (l.hasC) l.c.push(1, 1, 1);
     }
   }
   // Sweep a closed/open 2D profile along a 3D polyline. profile: [[a, b], ...]

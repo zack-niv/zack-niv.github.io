@@ -90,13 +90,6 @@ export class Game {
     canvas.addEventListener('click', () => {
       if (this.started && !this.paused && !this._endCard && !this.ctx.input.locked) this.ctx.input.requestLock();
     });
-    addEventListener('keydown', (e) => {
-      if (e.code !== 'Escape' || e.repeat) return;
-      if (!this.started || this._endCard || this.ctx.input.locked) return;
-      if (this.phoneOpen) return;
-      if (this.panels.open && !this.paused) return;
-      if (this.paused) this.resume(); else this.pause();
-    });
     addEventListener('blur', () => { if (this.started && !this.paused && !this._endCard && this._everLocked && !this.quiet) this.pause(); });
   }
 
@@ -165,7 +158,7 @@ export class Game {
     this.ctx.events.emit('quest:update', { id, state, text: q.text, textJa: q.textJa, detail: q.detail });
     if (prev !== state && !this.quiet) {
       if (state === 'active') this.hud?.toast({ kind: 'quest', title: 'New goal', en: q.text, ja: q.textJa, duration: 5.5 });
-      if (state === 'done') { this.hud?.toast({ kind: 'done', title: 'Done', en: q.text, ja: q.textJa, duration: 6 }); this.ctx.audio?.play?.('quest_done'); }
+      if (state === 'done') { this.hud?.toast({ kind: 'done', title: 'Done', en: q.text, ja: q.textJa, duration: 6 }); this.ctx.audio?.play?.('bell'); }
     }
   }
   noteQuest(id, note) {
@@ -178,7 +171,6 @@ export class Game {
     if (!text) return;
     const send = () => {
       const m = { id: ++this._msgId, from, text, time: this.ctx.clock.hhmm };
-      this.ctx.audio?.play?.('phone_buzz');
       this.ctx.events.emit('phone:message', m);
     };
     if (delaySec > 0) this.after(delaySec, send); else send();
@@ -234,6 +226,7 @@ export class Game {
   pause() {
     if (this.paused || !this.started) return;
     this.paused = true; this.ctx.paused = true;
+    this._pauseAt = performance.now();
     this.ctx.clock.paused = true;
     const p = this.ctx.player;
     const lv = p ? p.body.level : '';
@@ -279,11 +272,19 @@ export class Game {
 
   // ---------------------------------------------------------------------------
   // Interactables: shops & restaurants
-  _shopAnchor(b) {
-    const c = this.ctx.shops && this.ctx.shops.counter ? safe(() => this.ctx.shops.counter(b.slot)) : null;
-    if (c && isFinite(c.x) && isFinite(c.z)) return { x: c.x, z: c.z, radius: 2.4, counter: true };
-    // fallback: just inside the door
-    return { x: b.door.x - b.door.nx * 1.2, z: b.door.z - b.door.nz * 1.2, radius: 3.6 };
+  // where to stand to use a business: the service counter inside (coffee),
+  // or the doorway (restaurants: the line, the ticket machine, the sign)
+  _shopAnchor(b, atDoor) {
+    const sh = this.ctx.shops;
+    if (!atDoor && sh && sh.counter) {
+      const c = safe(() => sh.counter(b.slot));
+      if (c && isFinite(c.x) && isFinite(c.z)) return { x: c.x, z: c.z, radius: 3.6, counter: true };
+    }
+    if (atDoor && sh && sh.queuePoints) {
+      const q = safe(() => sh.queuePoints(b.slot));
+      if (q && q[0] && isFinite(q[0].x)) return { x: (q[0].x + b.door.x) / 2, z: (q[0].z + b.door.z) / 2, radius: 3.4 };
+    }
+    return { x: b.door.x - b.door.nx * 0.6, z: b.door.z - b.door.nz * 0.6, radius: 3.6 };
   }
   _registerShops() {
     for (const b of BUSINESSES) {
@@ -310,7 +311,8 @@ export class Game {
         def = { prompt: cat === 'closed' ? 'Peer in' : 'Look inside', promptJa: 'のぞく', onUse: () => V.peek(this, b) };
       }
       if (!def) continue;
-      const a = this._shopAnchor(b);
+      const atDoor = !COFFEE_CATS.has(cat) || cat === 'closed';
+      const a = this._shopAnchor(b, atDoor);
       this.interactions.add(Object.assign({
         id: 'shop:' + b.slot, level: b.level, x: a.x, z: a.z, radius: a.radius, space: b.slot,
         facing: a.counter ? null : { nx: b.door.nx, nz: b.door.nz }, sub, business: b,
@@ -318,10 +320,9 @@ export class Game {
     }
   }
   _refreshShopAnchors() {
-    if (!this.ctx.shops || !this.ctx.shops.counter) return;
     for (const b of BUSINESSES) {
-      const it = this.interactions.get('shop:' + b.slot); if (!it) continue;
-      const a = this._shopAnchor(b);
+      const it = this.interactions.get('shop:' + b.slot); if (!it || !COFFEE_CATS.has(b.cat)) continue;
+      const a = this._shopAnchor(b, false);
       if (a.counter) { it.x = a.x; it.z = a.z; it.radius = a.radius; it.facing = null; }
     }
   }
@@ -341,9 +342,15 @@ export class Game {
   _registerMachines() {
     const machines = this.ctx.transit && this.ctx.transit.ticketMachines ? safe(() => this.ctx.transit.ticketMachines()) : null;
     if (Array.isArray(machines) && machines.length) {
+      const KIND = {
+        ticket: ['Buy a ticket / charge ICOCA', 'きっぷ・チャージ', '券売機'],
+        charge: ['Charge ICOCA', 'チャージ', 'チャージ機'],
+        adjust: ['Fare adjustment', '精算機', 'のりこし精算機'],
+      };
       machines.forEach((m, i) => {
         const g = this._gates.find(g => g.gt.id === m.gate) || this._gates.find(g => g.gt.level === m.level) || this._gates[0];
-        this.interactions.add({ id: `machine:${i}`, level: m.level, x: m.x, z: m.z, radius: 2.0, prompt: 'Charge ICOCA / tickets', promptJa: 'きっぷ・チャージ', sub: `券売機 · ${g.gt.name}`,
+        const [en, ja, label] = KIND[m.kind] || KIND.ticket;
+        this.interactions.add({ id: `machine:${i}`, gate: g.gt.id, level: m.level, x: m.x, z: m.z, radius: 1.9, prompt: en, promptJa: ja, sub: `${label} · ${g.gt.ja} ${g.gt.name}`,
           onUse: () => this.vignette('charge', () => V.chargeMachine(this, g.gt)) });
       });
     } else {
@@ -409,30 +416,50 @@ export class Game {
       const along = gt.axis === 'x' ? b.x : b.z;
       if (along < gt.from - 0.5 || along > gt.to + 0.5) continue;
       const entering = Math.sign(ca) === paidSign;
-      if (entering) this._tapIn(g, prev); else this._tapOut(g);
+      // which lane, and is it the right way round? (transit animates the flaps)
+      const tr = this.ctx.transit;
+      let lane = -1, policy = 'both';
+      if (tr && tr.laneAt) {
+        lane = safe(() => tr.laneAt(gt.id, b.x, b.z));
+        const lanes = tr.gateLanes ? safe(() => tr.gateLanes(gt.id)) : null;
+        if (lanes && lane >= 0 && lanes[lane]) policy = lanes[lane].policy || 'both';
+      }
+      const tap = { g, prev, lane, dir: entering ? 1 : -1 };
+      if ((entering && policy === 'out') || (!entering && policy === 'in')) { this._refuse(tap, 'lane'); continue; }
+      if (entering) this._tapIn(tap); else this._tapOut(tap);
     }
   }
-  _tapIn(g, prev) {
-    const { gt } = g;
+  _flaps(tap, ok) {
+    const tr = this.ctx.transit;
+    if (tr && tr.gatePass && tap.lane != null && tap.lane >= 0) safe(() => tr.gatePass(tap.g.gt.id, tap.lane, tap.dir, ok));
+  }
+  // the flaps close: push back to where we were, and say why (once in a while)
+  _refuse(tap, reason) {
+    const { gt } = tap.g;
+    const b = this.ctx.player.body;
+    b.x = tap.prev.x; b.z = tap.prev.z;
+    const v = this.ctx.player.vel; if (v && v.set) v.set(0, 0);
     const now = performance.now();
-    if (this.ic.balance < MIN_FARE) {
-      // the flaps close: push back to where we were
-      const b = this.ctx.player.body;
-      b.x = prev.x; b.z = prev.z;
-      const v = this.ctx.player.vel; if (v && v.set) v.set(0, 0);
-      if (!this._ngT || now - this._ngT > 1800) {
-        this._ngT = now;
-        this.ctx.audio?.play?.('gate_ng');
-        this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
-        this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });
-        this.ctx.events.emit('ic:tap', { ok: false, gate: gt.id, balance: this.ic.balance, fare: 0, reason: 'balance' });
-      }
+    if (this._ngT && now - this._ngT < 1800) return;
+    this._ngT = now;
+    this._flaps(tap, false);
+    if (reason === 'lane') {
+      this.hud?.caption({ ja: tap.dir > 0 ? 'この改札機は出場専用です。' : 'この改札機は入場専用です。', en: tap.dir > 0 ? 'Red ✕ — this lane is exit-only. Try the one with the green arrow.' : 'Red ✕ — this lane is entry-only. Try the next one.', kind: 'machine', duration: 3.4 });
+      this.ctx.events.emit('ic:tap', { ok: false, gate: gt.id, balance: this.ic.balance, fare: 0, reason: 'lane', x: b.x, z: b.z, level: b.level });
       return;
     }
+    this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
+    this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });
+    this.ctx.events.emit('ic:tap', { ok: false, gate: gt.id, balance: this.ic.balance, fare: 0, reason: 'balance', x: b.x, z: b.z, level: b.level });
+  }
+  _tapIn(tap) {
+    const { gt } = tap.g;
+    const b = this.ctx.player.body;
+    if (this.ic.balance < MIN_FARE) return this._refuse(tap, 'balance');
     this.paidArea = gt.line;
-    this.ctx.audio?.play?.('gate_ok');
+    this._flaps(tap, true);
     this.hud?.ic({ balance: this.ic.balance, ok: true, reason: gt.ja });
-    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0 });
+    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, x: b.x, z: b.z, level: b.level });
     if (gt.line === 'midosuji') {
       if (this.quests.subway.state === 'active' && !this._noteMido) { this._noteMido = true; this.noteQuest('subway', 'Through the red Midosuji gates. Now: which platform goes north?'); }
     } else if (gt.line === 'sennichimae' && !this._wrongLine) {
@@ -440,18 +467,19 @@ export class Game {
       this.message(REACTIONS.wrongLine, 'Aya', 12);
     }
   }
-  _tapOut(g) {
-    const { gt } = g;
+  _tapOut(tap) {
+    const { gt } = tap.g;
+    const b = this.ctx.player.body;
     this.paidArea = null;
+    this._flaps(tap, true);
     if (gt.line === 'nankai' && !this._rapitDone) {
       this._rapitDone = true;
       this.ctx.audio?.play?.('gate_ok');
       this.hud?.caption({ en: 'The gate swallows your rapi:t ticket with a satisfied little whirr.', kind: 'thought', duration: 3.4 });
       return;
     }
-    this.ctx.audio?.play?.('gate_ok');
     this.hud?.ic({ balance: this.ic.balance, ok: true, reason: gt.ja });
-    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, exit: true });
+    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, exit: true, x: b.x, z: b.z, level: b.level });
   }
 
   // ---------------------------------------------------------------------------
@@ -511,10 +539,8 @@ export class Game {
   }
   async _wrongWay() {
     const { ctx, hud } = this;
-    ctx.audio?.play?.('train_doors');
-    hud.caption({ ja: 'ドアが閉まります。ご注意ください。', en: 'The doors are closing. Please stand clear.', kind: 'announce', duration: 3 });
+    this._pa('ドアが閉まります。ご注意ください。', 'The doors are closing. Please stand clear.', 3);
     await sleep(1800);
-    ctx.audio?.play?.('train_depart');
     await hud.fade(1, 1800);
     hud.fadeText(`<div class="h-fade-kicker">御堂筋線 · 天王寺・なかもず方面</div><div class="h-fade-big">次は、大国町</div><div class="h-fade-small">The next station is Daikokuchō.</div>`);
     await sleep(3400);
@@ -549,6 +575,16 @@ export class Game {
     await this._ending();
   }
 
+  // a PA line: spoken by the sound system (which emits its own caption) or,
+  // without audio, just captioned
+  _pa(ja, en, dur = 3) {
+    const a = this.ctx.audio;
+    this.ctx.audio?.play?.('train_depart');
+    let spoken = null;
+    if (a && a.enabled && typeof a.say === 'function') { try { spoken = a.say({ ja, en, kind: 'platform', chime: null }); } catch (e) { spoken = null; } }
+    if (!spoken) this.hud?.caption({ ja, en, kind: 'announce', duration: dur });
+  }
+
   // ---------------------------------------------------------------------------
   // Ending
   async _ending() {
@@ -556,10 +592,8 @@ export class Game {
     this.ended = true; this._syncFrozen();
     hud.prompt(null);
     const boardAt = ctx.clock.minutes;
-    ctx.audio?.play?.('train_doors');
-    hud.caption({ ja: 'ドアが閉まります。ご注意ください。', en: 'The doors are closing. Please stand clear.', kind: 'announce', duration: 3.2 });
+    this._pa('ドアが閉まります。ご注意ください。', 'The doors are closing. Please stand clear.', 3.2);
     await sleep(2200);
-    ctx.audio?.play?.('train_depart');
     await hud.fade(1, 2600);
     hud.fadeText(`<div class="h-fade-kicker">御堂筋線 · 梅田・新大阪方面</div><div class="h-fade-big">次は、心斎橋</div><div class="h-fade-small">The next station is Shinsaibashi.</div>`);
     await sleep(3600);
@@ -659,6 +693,7 @@ export class Game {
     const { ctx } = this;
     if (this.titleUp) { this.title.update(dt); return; }
     if (!this.started || !ctx.player) return;
+    this._menuInput();
     if (!this.paused) {
       // timers (real seconds, pause-aware)
       for (let i = this._timers.length - 1; i >= 0; i--) {
@@ -679,6 +714,20 @@ export class Game {
     const canUse = !this.paused && !this.busy && !this.ended && !this.phoneOpen && !this.panels.open;
     if (canUse && !this.quiet) this.interactions.update(dt, true);
     else if (this.hud) this.hud.prompt(null);
+  }
+  // Esc / gamepad Start toggles the pause menu when the pointer isn't locked
+  // (a locked pointer is released by the browser on Esc → pointerlockchange).
+  _menuInput() {
+    const inp = this.ctx.input;
+    const menu = typeof inp.action === 'function' ? inp.action('menu') : inp.pressed('Escape');
+    if (menu && !this._endCard && !this.phoneOpen && !this.panels.open) {
+      const now = performance.now();
+      if (!this._pauseAt || now - this._pauseAt > 350) {
+        if (this.paused) this.resume(); else this.pause();
+      }
+    }
+    // gamepad A / touch E confirms the highlighted choice in a vignette panel
+    if (this.panels.current && !this.paused && typeof inp.action === 'function' && inp.action('interact')) this.panels.current.key('KeyE');
   }
   // soft time pressure & hints, by game clock
   _timeBased() {

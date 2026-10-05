@@ -99,9 +99,9 @@ export class Lighting {
   addProbe(p) { this.probes.push(p); return this.probes.length - 1; }
 
   // ---------------------------------------------------------------------------
-  afterBuild() {
+  async afterBuild() {
     const t0 = performance.now();
-    const { world, engine } = this.ctx;
+    const { world } = this.ctx;
     // fallback fixtures for spaces nobody lit
     const fb = synthesiseFallback(world, this.lights);
     this.stats.fallback = fb.length;
@@ -112,18 +112,57 @@ export class Lighting {
     const by = {};
     for (const l of this.lights) (by[l.level] = by[l.level] || []).push(l);
     this.byLevel = by;
-    const res = [];
+    const jobs = [];
     LEVEL_ORDER.forEach((lv, i) => {
       if (!world.grids[lv]) return;
       const up = LEVEL_ORDER[i + 1];
-      const upper = up && world.grids[up] ? { level: up, grid: world.grids[up], lights: by[up] || [] } : null;
-      res.push(bakeLevel(world, lv, by[lv] || [], upper, {}));
+      const upper = up && world.grids[up] ? { level: up, lights: by[up] || [] } : null;
+      const g = world.grids[lv];
+      jobs.push({ level: lv, lights: by[lv] || [], upper, cost: g.w * g.h * 0.3 + (by[lv] || []).length * 60 });
     });
+    let res = null;
+    try { res = await this._bakeWorkers(jobs); } catch (e) { console.warn('[render] worker bake failed, baking on main thread', e); }
+    if (!res) {
+      res = jobs.map(j => bakeLevel(world, j.level, j.lights, j.upper ? { level: j.upper.level, grid: world.grids[j.upper.level], lights: j.upper.lights } : null, {}));
+      this.stats.bakeMode = 'main';
+    }
     this._upload(res);
     this._markShadowCasters();
     this.baked = true;
     this.stats.bakeMs = Math.round(performance.now() - t0);
-    console.log(`[render] light field: ${this.stats.lights} fixtures (${fb.length} fallback), atlas ${this.stats.atlas}, bake ${this.stats.bakeMs} ms`);
+    console.log(`[render] light field: ${this.stats.lights} fixtures (${fb.length} fallback), atlas ${this.stats.atlas}, bake ${this.stats.bakeMs} ms (${this.stats.bakeMode})`);
+  }
+
+  // split the levels over a few module workers (falls back to null on failure)
+  _bakeWorkers(jobs) {
+    if (typeof Worker === 'undefined' || this.ctx.params.has('syncbake')) return Promise.resolve(null);
+    const { world } = this.ctx;
+    const L = world.layout;
+    const snap = {
+      grids: {}, edges: world.edges, obstacles: world.obstacles,
+      spaces: L.spaces.map(s => ({ outdoor: !!s.outdoor, outdoorish: !!s.outdoorish, rect: s.rect || null })),
+      ramps: L.ramps.map(r => ({ lower: r.lower, upper: r.upper, rect: r.rect, axis: r.axis, up: r.up })),
+    };
+    for (const lv in world.grids) { const g = world.grids[lv]; snap.grids[lv] = { x0: g.x0, z0: g.z0, w: g.w, h: g.h, type: g.type, space: g.space }; }
+    const nW = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 4) - 1, jobs.length));
+    const buckets = Array.from({ length: nW }, () => ({ cost: 0, jobs: [] }));
+    for (const j of jobs.slice().sort((a, b) => b.cost - a.cost)) {
+      const b = buckets.reduce((m, x) => (x.cost < m.cost ? x : m));
+      b.cost += j.cost; b.jobs.push({ level: j.level, lights: j.lights, upper: j.upper });
+    }
+    const out = [];
+    return Promise.all(buckets.filter(b => b.jobs.length).map(b => new Promise((resolve, reject) => {
+      const w = new Worker(new URL('./lighting/bakeworker.js', import.meta.url), { type: 'module' });
+      const timer = setTimeout(() => { w.terminate(); reject(new Error('bake worker timeout')); }, 60000);
+      w.onmessage = (ev) => {
+        const d = ev.data;
+        if (d.ok) out.push(d.r);
+        else if (d.done) { clearTimeout(timer); w.terminate(); resolve(); }
+        else { clearTimeout(timer); w.terminate(); reject(new Error(d.error)); }
+      };
+      w.onerror = (e) => { clearTimeout(timer); w.terminate(); reject(e.message || e); };
+      w.postMessage({ snap, jobs: b.jobs });
+    }))).then(() => { this.stats.bakeMode = `${nW} workers`; return out; });
   }
 
   _upload(res) {
@@ -333,10 +372,13 @@ export class Lighting {
     const sunInfo = ext && ext.sun;
     const dir = this._sunDir || (this._sunDir = new THREE.Vector3(0.45, 0.8, 0.4).normalize());
     let inten = 1, col = this._sunCol || (this._sunCol = new THREE.Color(1, 0.95, 0.86));
+    let amb = null;
     if (sunInfo && sunInfo.direction) {
       dir.copy(sunInfo.direction).normalize();
       if (sunInfo.color) col.copy(sunInfo.color);
-      if (sunInfo.intensity != null) inten = sunInfo.intensity;
+      inten = sunInfo.baseIntensity != null ? sunInfo.baseIntensity : sunInfo.intensity != null ? sunInfo.intensity : 1;
+      const D = ext.daylight;
+      if (D && D.amb != null) amb = D;
     } else {
       // no exterior system yet: derive from the clock
       const hh = this.ctx.clock && this.ctx.clock.minutes != null ? this.ctx.clock.minutes / 60 : 12.5;
@@ -350,8 +392,18 @@ export class Lighting {
     const day = Math.min(1, elev * 3) * Math.min(1.5, inten);
     // irradiance budget (shader units): interiors ≈ 2.5, sun ≈ 18, sky ≈ 4
     this._sunE = 18 * inten * Math.min(1, elev * 4);
-    const skyE = 0.06 + 4.2 * day;
-    U.nbSky.value.set(skyE * 0.82, skyE * 0.93, skyE * 1.12);
+    if (amb) {
+      // sky irradiance from the exterior's palette: level from `amb`, tint from zenith/horizon
+      const skyE = 0.05 + 4.2 * amb.amb;
+      const t = this._skyTint || (this._skyTint = new THREE.Color());
+      t.copy(amb.zen).lerp(amb.hor, 0.6);
+      const m = Math.max(1e-4, 0.2126 * t.r + 0.7152 * t.g + 0.0722 * t.b);
+      // keep it mostly neutral: real sky fill is bluish but not saturated
+      U.nbSky.value.set(skyE * (0.55 + 0.45 * t.r / m), skyE * (0.55 + 0.45 * t.g / m), skyE * (0.55 + 0.45 * t.b / m));
+    } else {
+      const skyE = 0.06 + 4.2 * day;
+      U.nbSky.value.set(skyE * 0.82, skyE * 0.93, skyE * 1.12);
+    }
     const sun = this.sun;
     sun.color.copy(col);
     sun.intensity = this._sunE;

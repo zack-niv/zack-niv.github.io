@@ -111,7 +111,7 @@ export function buildTrackEnv(ctx, cfgs) {
         const s1 = Math.min(r1, s + step);
         const b = bAt((s + s1) / 2);
         const a = T.P(s, ceil, lo), bb = T.P(s1, ceil, lo), c = T.P(s1, ceil, hi), d = T.P(s, ceil, hi);
-        b.quad('transit_tunnel_dark', a, d, c, bb); b.quad('transit_tunnel_dark', a, bb, c, d);
+        b.quad('ceiling_metal', a, d, c, bb); b.quad('transit_tunnel_dark', a, bb, c, d);
         // cable trays on the tunnel wall
         const cw = centre - inward * 2.75;
         T.box(b, 'transit_cable', (s + s1) / 2, y + 2.6, cw, s1 - s, 0.06, 0.25);

@@ -25,13 +25,17 @@ export class Parks {
       ['./outdoor/terraces.js', 'buildTerraces'],
       ['./outdoor/garden.js', 'buildGardens'],
     ];
+    this.timings = {};
     for (const [path, fn] of steps) {
       try {
         const m = await import(path);
+        const t0 = performance.now();
         const r = m[fn] && await m[fn](ctx, this);
+        this.timings[fn] = Math.round(performance.now() - t0);
         if (r && r.update) this.updaters.push(r);
       } catch (e) { console.error('[parks]', path, e); ctx.errors.push(`parks ${path}: ${e.message}`); }
     }
   }
+  // (timings in ms per build step: ctx.parks.timings)
   update(dt) { for (const u of this.updaters) u.update(dt, this); }
 }

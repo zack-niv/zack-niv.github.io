@@ -23,11 +23,11 @@ function norm2([L, R], target) {
 export function hvac(sr, variant = 'tile', seconds = 12) {
   const r = rng(500 + variant.length * 13);
   const v = {
-    tile:   { rumble: 0.5, air: 0.3, hiss: 0.05, hum: 0.025, fan: 0, airF: 900 },
-    arcade: { rumble: 0.45, air: 0.3, hiss: 0.03, hum: 0.02, fan: 0.03, airF: 700 },
-    big:    { rumble: 0.7, air: 0.35, hiss: 0.03, hum: 0.012, fan: 0, airF: 600 },
-    mall:   { rumble: 0.45, air: 0.3, hiss: 0.04, hum: 0.012, fan: 0.015, airF: 800 },
-    dept:   { rumble: 0.35, air: 0.25, hiss: 0.025, hum: 0.008, fan: 0, airF: 700 },
+    tile:   { rumble: 0.22, air: 0.3, hiss: 0.05, hum: 0.018, fan: 0, airF: 900 },
+    arcade: { rumble: 0.2, air: 0.3, hiss: 0.035, hum: 0.014, fan: 0.02, airF: 750 },
+    big:    { rumble: 0.32, air: 0.35, hiss: 0.03, hum: 0.008, fan: 0, airF: 600 },
+    mall:   { rumble: 0.2, air: 0.3, hiss: 0.04, hum: 0.008, fan: 0.012, airF: 800 },
+    dept:   { rumble: 0.16, air: 0.25, hiss: 0.03, hum: 0.006, fan: 0, airF: 750 },
   }[variant] || {};
   return norm2(loopStereo(sr, seconds, (L, R, n) => {
     for (const [ch, k] of [[L, 0], [R, 1]]) {
@@ -89,12 +89,12 @@ export function traffic(sr, seconds = 24) {
         const t = s / sr - tc;
         const x = t / dur;
         const env = Math.exp(-x * x * 2.2) / (1 + dist);
-        if ((s & 63) === 0) bp.set('lowpass', 300 + 2600 * Math.exp(-x * x * 3) * (1.1 - dist * 0.5), 0.7);
+        if ((s & 63) === 0) bp.set('lowpass', 250 + 1700 * Math.exp(-x * x * 3) * (1.1 - dist * 0.5), 0.7);
         const dop = 1 - 0.045 * Math.tanh(x * 3) * (1.2 - dist);  // approaching high, receding low
         ph += f0 * dop / sr;
         const eng = kind === 'scooter' ? ((ph % 1) * 2 - 1) * 0.5 : (Math.sin(TAU * ph) + 0.6 * Math.sin(TAU * ph * 2) + 0.4 * Math.sin(TAU * ph * 3) + 0.25 * Math.sin(TAU * ph * 4.5));
         const w = r() * 2 - 1;
-        const v = (bp.tick(w) * 1.4 + tyre.tick(w) * 0.5 + eng * (kind === 'car' ? 0.08 : 0.2)) * env * gain;
+        const v = (bp.tick(w) * 1.4 + tyre.tick(w) * 0.22 + eng * (kind === 'car' ? 0.08 : 0.2)) * env * gain;
         const pan = clamp(Math.tanh(x * 1.5) * dir * (1 - dist * 0.4), -1, 1);
         const a = (pan + 1) * Math.PI / 4;
         // write modulo the loop length, mirroring the head into the overhang

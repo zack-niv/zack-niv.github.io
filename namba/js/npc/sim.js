@@ -14,6 +14,7 @@
 import { FieldStore, GridCollider, localPath } from './fields.js';
 import { Places } from './places.js';
 import { rampProfile, LEVELS } from '../world/layout.js';
+import { rng } from '../core/rng.js';
 
 export const MODE = { NONE: 0, FIELD: 1, PATH: 2, STAND: 3, RIDE: 4, GATE: 5, FOLLOW: 6 };
 export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12 };
@@ -51,7 +52,7 @@ export class CrowdSim {
     this.places = new Places({ world, nav, fields: this.fields, col: this.col, ctx });
     this.agents = []; this.free = []; this.count = 0;
     this.time = 0; this.frame = 0;
-    this.viewer = { level: '3F', x: 0, z: 0, vx: 0, vz: 0, ramp: -1, has: false };
+    this.viewer = { level: '3F', x: 0, z: 0, vx: 0, vz: 0, yaw: 0, ramp: -1, has: false };
     this.visibleLevel = () => true;
     this.drawDist = quality.drawDist || 200;
     this.behave = null; // set by crowd.js (behave.js)
@@ -61,6 +62,7 @@ export class CrowdSim {
     this._initHash();
     this._excuseGlobal = 0;
     this.serial = 0;
+    this.rnd = rng(((params && params.seed) || 20261005) ^ 0xc0ffee);
   }
 
   // ---------------------------------------------------------------------------
@@ -122,10 +124,13 @@ export class CrowdSim {
       off += w * h;
     }
     this.hCells = off;
-    this.hStart = new Int32Array(off + 1);
-    this.hCount = new Int32Array(off);
+    // sorted (cellKey, agent) pairs + open-addressing table cellKey -> [start, end)
+    this.hSorted = new Float64Array(4096);
     this.hItems = new Int32Array(4096);
-    this.hKey = new Int32Array(4096);
+    this.hTabK = new Int32Array(8192).fill(-1);
+    this.hTabS = new Int32Array(8192);
+    this.hTabE = new Int32Array(8192);
+    this.hMask = 8191;
   }
   _hkey(level, x, z) {
     const L = this.hl[level]; if (!L) return -1;
@@ -135,19 +140,32 @@ export class CrowdSim {
   }
   _buildHash() {
     const A = this.agents, n = A.length;
-    if (this.hItems.length < n) { this.hItems = new Int32Array(n * 2); this.hKey = new Int32Array(n * 2); }
-    const cnt = this.hCount; cnt.fill(0);
-    const key = this.hKey;
+    if (this.hSorted.length < n) { this.hSorted = new Float64Array(n * 2); this.hItems = new Int32Array(n * 2); }
+    const tsz = Math.max(8192, 1 << Math.ceil(Math.log2(n * 4 + 1)));
+    if (this.hTabK.length !== tsz) { this.hTabK = new Int32Array(tsz); this.hTabS = new Int32Array(tsz); this.hTabE = new Int32Array(tsz); this.hMask = tsz - 1; }
+    let m = 0;
+    const so = this.hSorted;
     for (let i = 0; i < n; i++) {
       const a = A[i];
-      const k = a.alive && a.ramp < 0 ? this._hkey(a.level, a.x, a.z) : -1;
-      key[i] = k; if (k >= 0) cnt[k]++;
+      if (!a.alive || a.ramp >= 0) continue;
+      const k = this._hkey(a.level, a.x, a.z);
+      if (k >= 0) so[m++] = k * 8192 + i;
     }
-    const st = this.hStart; let s = 0;
-    for (let k = 0; k < this.hCells; k++) { st[k] = s; s += cnt[k]; }
-    st[this.hCells] = s;
-    cnt.fill(0);
-    for (let i = 0; i < n; i++) { const k = key[i]; if (k >= 0) this.hItems[st[k] + cnt[k]++] = i; }
+    const view = so.subarray(0, m); view.sort();
+    const TK = this.hTabK, TS = this.hTabS, TE = this.hTabE, mask = this.hMask;
+    TK.fill(-1);
+    const it = this.hItems;
+    let prev = -1, slot = -1;
+    for (let j = 0; j < m; j++) {
+      const v = view[j]; const k = Math.floor(v / 8192); it[j] = v - k * 8192;
+      if (k !== prev) {
+        if (slot >= 0) TE[slot] = j;
+        slot = (k * 2654435761 >>> 0) & mask;
+        while (TK[slot] !== -1) slot = (slot + 1) & mask;
+        TK[slot] = k; TS[slot] = j; prev = k;
+      }
+    }
+    if (slot >= 0) TE[slot] = m;
   }
   // iterate agents near (level,x,z) within r; fn(agent, dx, dz, d2)
   near(level, x, z, r, fn) {
@@ -155,10 +173,13 @@ export class CrowdSim {
     const H = this.H;
     const cx0 = Math.max(0, Math.floor((x - r - L.x0) / H)), cx1 = Math.min(L.w - 1, Math.floor((x + r - L.x0) / H));
     const cz0 = Math.max(0, Math.floor((z - r - L.z0) / H)), cz1 = Math.min(L.h - 1, Math.floor((z + r - L.z0) / H));
-    const r2 = r * r, A = this.agents, st = this.hStart, it = this.hItems;
+    const r2 = r * r, A = this.agents, it = this.hItems, TK = this.hTabK, mask = this.hMask;
     for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
       const k = L.off + cz * L.w + cx;
-      for (let j = st[k], j1 = st[k + 1]; j < j1; j++) {
+      let slot = (k * 2654435761 >>> 0) & mask;
+      while (TK[slot] !== -1 && TK[slot] !== k) slot = (slot + 1) & mask;
+      if (TK[slot] === -1) continue;
+      for (let j = this.hTabS[slot], j1 = this.hTabE[slot]; j < j1; j++) {
         const b = A[it[j]];
         const dx = b.x - x, dz = b.z - z, d2 = dx * dx + dz * dz;
         if (d2 <= r2) fn(b, dx, dz, d2);
@@ -389,7 +410,7 @@ export class CrowdSim {
     } else {
       a.walkLane = true;
       const hw = Math.max(0.3, R.hw - 0.3);
-      u = (0.15 + Math.random() * 0.85) * hw * (Math.random() < 0.85 ? 1 : -1);
+      u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? 1 : -1);
     }
     a.rampU = u;
     a.aimX = end.x + end.dx * 0.45 + rx * u; a.aimZ = end.z + end.dz * 0.45 + rz * u;
@@ -406,7 +427,7 @@ export class CrowdSim {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
-        if (a.walkLane) R.nextWalk = this.time + 0.62 + Math.random() * 0.25; else R.nextStand = this.time + 0.95 + Math.random() * 0.45;
+        if (a.walkLane) R.nextWalk = this.time + 0.62 + this.rnd() * 0.25; else R.nextStand = this.time + 0.95 + this.rnd() * 0.45;
       }
       this._startRide(a);
       return;
@@ -486,7 +507,10 @@ export class CrowdSim {
     const side = pa > 0 ? 1 : -1;
     const want = (lat + (ax ? a.aimX : a.aimZ)) * 0.5;
     let best = -1, bc = Infinity;
+    const entering = G.paidSide !== 0 && -side === G.paidSide;
     for (let i = 0; i < G.lanes.length; i++) {
+      const pol = G.policy ? G.policy[i] : 'both';
+      if (G.paidSide && ((pol === 'in' && !entering) || (pol === 'out' && entering))) continue;
       const c = Math.abs(G.lanes[i] - want) + G.load[i] * 1.7 + (G.occDir[i] === side ? 1.5 : 0);
       if (c < bc) { bc = c; best = i; }
     }
@@ -506,7 +530,7 @@ export class CrowdSim {
       const passed = ((ax ? a.z : a.x) - G.at) * side < 1.25;
       if (l < 0.4 || (passed && l < 1.0)) {
         if (this.time >= G.busy[a.lane] && (G.occDir[a.lane] === 0)) {
-          a.gstage = 1; G.occDir[a.lane] = side; G.busy[a.lane] = this.time + 0.55 + Math.random() * 0.5;
+          a.gstage = 1; G.occDir[a.lane] = side; G.busy[a.lane] = this.time + 0.55 + this.rnd() * 0.5;
         } else { this._steer(a, dx * 0.5, dz * 0.5, dt); return; }
       } else {
         const sp = a.pref * (l < 2 ? Math.max(0.45, l / 2) : 1);

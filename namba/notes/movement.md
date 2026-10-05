@@ -83,7 +83,40 @@ speed (actual m/s incl. belt), walkSpeed (own m/s), headBob (0..1), gait
   escalator hum while `ctx.player.riding`.
 * **Game**: settings UI could expose `invertY`, `fov`, `reduceMotion` via `ctx.input.set(key, v)`.
 
-## Measurements (headless, fixed dt 1/60, scripted input; see "Iterations")
-(see below)
+## How it's tested
+Playwright harness (scratch, not in repo): pauses the RAF loop (`ctx.tick = noop`), drives
+`input.setScript({x,y,jog,slow})` + yaw at a fixed dt, records per-frame body/camera/speed/
+wall-distance/events, plots them. Routes: 30° into the B1 mall wall, start/stop/jog/reverse/
+strafe, 90°/s arcs + 600°/s flick, up+down `stair_city_n` (walk & jog), ride/walk/descend
+`esc_city_a`, door-jamb corners, head-on walk+jog into a wall, pillar, stepped canyon edge,
+mock crowd bumps, phone glance; plus 20 fps (dt 0.05) and reduce-motion reruns; live RAF
+smoke test with real keyboard and synthetic touch events.
+
+## Measurements (latest)
+| | value |
+|---|---|
+| walk / jog / browse / back / strafe | 1.50 / 3.20 / 0.80 / 1.02 / 1.29 m/s |
+| 0 → walk (95%) / walk → stop | ~0.8 s / ~0.6 s; peak accel 2.6, brake 4.2 m/s², jerk-limited |
+| step cadence walk / jog / browse | 1.9 / 2.6 / 1.3 Hz (0.53 s / 0.38 s / 0.75 s) |
+| bob p-p browse / walk / jog | ~1 / 2.3 / 4.5 cm, roll ±0.24° walk, ±0.34° jog |
+| 30° wall slide | 1.30 m/s (= 1.5·cos30), no oscillation; camera ≥ 0.27 m from walls everywhere |
+| head-on wall stop | walk: 1.5→0 over ~0.35 s; jog: 3.0→0 over ~0.5 s (max decel ≈ 9 m/s², was 168) |
+| 90°/s walking arc | heading lags view by 2.5°, speed holds 1.50; 90° flick re-aligns in ~0.4 s |
+| stairs up / down | 0.71 / 0.87 m/s horizontal, 2.1 / 2.6 steps/s, 37 up + 38 down strikes, identical at 60 and 20 fps; each strike lifts the eye one riser in ~0.25 s, monotonic plateaus |
+| stairs jog up | 1.57 m/s, two treads per step at 2.4 Hz |
+| escalator board / exit | total speed 1.5→0.5 over ~0.6 s, no step; stand drifts 0.16 m right; walking lane 0.16 m left; exit continuous |
+| pillar / 1 m grid step head-on | stepped around, speed dips to ~0.8 for ~1 s instead of stopping dead |
+| person bump (mock) | eases from 1.5 to ~0.6 before contact, max overlap 1.8 cm, slips past |
 
 ## Iterations
+1. Baseline (old controller): exponential velocity, ramp glide on stairs, instant wall stops
+   (accel spikes up to 112 m/s²), escalator belt added/removed instantly, no surfaces.
+2. Second-order locomotion, head-cam, tread-quantised stairs, escalator latch/drift/comb-plate
+   velocity transfer, surfaces. Found: step-phase snap at stair entry (roll jump), double strike.
+3. Phase steering to the next tread; stride takes an extra tread if the foot is mid-swing;
+   jerk limit (starts no longer begin at full accel). Found: frame-rate-dependent stair steps
+   (89 vs 102) → skip only allowed on flight entry; now identical at 20/60 fps.
+4. Crowd soft collisions (personal-space easing, sidestep, nudge), wall easing for head-on
+   approaches, wall-bump jolt, look ray/point/target, touch UI, reduced-motion pass.
+5. Found sticking on rasterised diagonal walls (canyon) and pillars → step-around deflection
+   toward the open end of short faces, blended in from 0.4 m.

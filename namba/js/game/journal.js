@@ -69,7 +69,6 @@ export class Journal {
     this.ctx.events.emit('discover', { id, en, ja });
     if (!silent && this.game.started && !this.game.ended) {
       this.ctx.events.emit('toast', { kind: 'discover', title: 'Discovered', en, ja });
-      this.ctx.audio?.play?.('discover');
     }
     return true;
   }

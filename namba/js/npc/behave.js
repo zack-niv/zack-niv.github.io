@@ -59,6 +59,7 @@ export class Behave {
         if (!L.en.ready) { a.mode = MODE.STAND; a.waitField = true; if (a.fadeDir === 0 && a.fade <= 0) { /* stays hidden */ } return; }
         a.waitField = false;
         S.setField(a, L.en, L.arrive || 1.2);
+        if (a.nearStart) { a.nearStart = false; a.ffFrac = 0; if (!this.director.placeNear(a, false, 3, 90)) a.ffFrac = 0.5; }
         if (a.ffFrac > 0) this._fastForward(a);
         if (a.fadeDir === 0) this._reveal(a);
         a.hesT = 8 + this.r() * 30;
@@ -161,13 +162,16 @@ export class Behave {
     let left = total * a.ffFrac;
     a.ffFrac = 0;
     let v = v0, guard = 3000;
-    while (left > 0 && guard-- > 0) {
+    let lastFloor = v;
+    while (guard-- > 0) {
       const w = F.next(a.en, v);
-      if (w < 0 || nav.rmp[w] >= 0) break;
+      if (w < 0) break;
       if (a.en.dist[w] <= a.arriveDm + 20) break;
-      left -= Math.hypot(nav.x[w] - nav.x[v], nav.z[w] - nav.z[v]);
+      left -= nav.rmp[w] >= 0 ? 1.6 : Math.hypot(nav.x[w] - nav.x[v], nav.z[w] - nav.z[v]);
       v = w;
+      if (nav.rmp[v] < 0) { lastFloor = v; if (left <= 0) break; }
     }
+    v = lastFloor;
     if (v !== v0) {
       const lv = S.levelNames[nav.lvl[v]];
       S.setPos(a, lv, nav.x[v] + a.jx, nav.z[v] + a.jz);

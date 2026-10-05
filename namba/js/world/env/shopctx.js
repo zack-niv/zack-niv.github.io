@@ -63,6 +63,15 @@ export class ShopCtx {
     this.spots = []; this.queue = []; this.counterPt = null; this.boxes = [];
     this.lights = [];
   }
+  // restrict the door to cells [i0, i1) of the front row (counter-type fronts)
+  setDoor(i0, i1) {
+    i0 = Math.max(this.doorA0, Math.floor(i0)); i1 = Math.min(this.doorA1, Math.ceil(i1));
+    if (i1 <= i0) return;
+    for (let i = this.doorA0; i < this.doorA1; i++) {
+      if (i >= i0 && i < i1) this.occ[i] = RESERVED; else if (this.occ[i] === RESERVED && !(this.cj === 0 && this.ci === i)) this.occ[i] = FREE;
+    }
+    this.doorCells = [i0, i1];
+  }
   // world <-> local
   world(a, d) { return { x: this.f.x(a, d), z: this.f.z(a, d) }; }
   local(x, z) {
@@ -71,7 +80,7 @@ export class ShopCtx {
   }
   _cellsIn(a0, a1, d0, d1) {
     const out = [];
-    const A0 = Math.min(a0, a1) - 0.2, A1 = Math.max(a0, a1) + 0.2, D0 = Math.min(d0, d1) - 0.2, D1 = Math.max(d0, d1) + 0.2;
+    const A0 = Math.min(a0, a1) - 0.21, A1 = Math.max(a0, a1) + 0.21, D0 = Math.min(d0, d1) - 0.21, D1 = Math.max(d0, d1) + 0.21;
     for (let j = Math.max(0, Math.floor(D0)); j <= Math.min(this.D - 1, Math.floor(D1)); j++) {
       if (j + 0.5 <= D0 || j + 0.5 >= D1) continue;
       for (let i = Math.max(0, Math.floor(A0)); i <= Math.min(this.W - 1, Math.floor(A1)); i++) {
@@ -114,7 +123,8 @@ export class ShopCtx {
   }
   _addBox(a0, a1, d0, d1) {
     const p = this.world(a0, d0), q = this.world(a1, d1);
-    const cx = (p.x + q.x) / 2, cz = (p.z + q.z) / 2, hx = Math.abs(q.x - p.x) / 2, hz = Math.abs(q.z - p.z) / 2;
+    // shrink a hair so float error never blocks more cells than _cellsIn predicted
+    const cx = (p.x + q.x) / 2, cz = (p.z + q.z) / 2, hx = Math.abs(q.x - p.x) / 2 - 0.01, hz = Math.abs(q.z - p.z) / 2 - 0.01;
     this.env.world.addBox(this.level, cx, cz, Math.max(0.02, hx), Math.max(0.02, hz), 0);
     this.boxes.push([cx, cz, hx, hz]);
   }
@@ -125,9 +135,35 @@ export class ShopCtx {
   }
   // Corridor obstacle in front of the shop (d < 0). Only if the corridor
   // stays clear for `clear` metres beyond it.
+  // lateral cell range in front of the door that must stay clear
+  doorKeep() {
+    if (this.doorCells) return this.doorCells;
+    const n = this.doorA1 - this.doorA0;
+    return n >= 4 ? [this.doorA0 + 1, this.doorA1 - 1] : [this.doorA0, this.doorA1];
+  }
+  blocksDoor(a0, a1, d0, d1) {
+    if (Math.max(d0, d1) < -2.6) return false;
+    const [k0, k1] = this.doorKeep();
+    const A0 = Math.min(a0, a1) - 0.2, A1 = Math.max(a0, a1) + 0.2;
+    for (let i = k0; i < k1; i++) if (i + 0.5 > A0 && i + 0.5 < A1) return true;
+    return false;
+  }
+  nearTactile(a0, a1, d0, d1, m = 0.45) {
+    const T = this.env.tactile && this.env.tactile[this.level];
+    if (!T) return false;
+    const p = this.world((a0 + a1) / 2, (d0 + d1) / 2);
+    const r = Math.hypot(a1 - a0, d1 - d0) / 2 + m;
+    for (const [ax, az, bx, bz] of T) {
+      const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez;
+      let t = l2 ? ((p.x - ax) * ex + (p.z - az) * ez) / l2 : 0; t = Math.max(0, Math.min(1, t));
+      if (Math.hypot(p.x - ax - ex * t, p.z - az - ez * t) < r) return true;
+    }
+    return false;
+  }
   outside(a0, a1, d0, d1, clear = 3) {
     const g = this.env.world.grids[this.level];
     const A0 = Math.min(a0, a1), A1 = Math.max(a0, a1);
+    if (this.blocksDoor(a0, a1, d0, d1) || this.nearTactile(a0, a1, d0, d1)) return false;
     for (let a = Math.floor(A0) + 0.5; a < A1 + 0.5; a += 1) {
       for (let d = Math.min(d0, d1) - clear; d < Math.max(d0, d1) + 0.01; d += 0.5) {
         if (d > -0.05) continue;
@@ -144,6 +180,7 @@ export class ShopCtx {
   // corridor area check without registering
   outsideClear(a0, a1, d0, d1, clear = 3) {
     const g = this.env.world.grids[this.level];
+    if (this.blocksDoor(a0, a1, d0, d1) || this.nearTactile(a0, a1, d0, d1)) return false;
     for (let a = Math.min(a0, a1) + 0.25; a < Math.max(a0, a1); a += 0.5) {
       for (let d = Math.min(d0, d1) - clear; d < Math.max(d0, d1); d += 0.5) {
         if (d > -0.05) continue;
@@ -166,6 +203,9 @@ export class ShopCtx {
     return s;
   }
   light(a, y, d, color, intensity, range, kind = 'panel') {
+    // aggregate: one interior panel + one sign light per shop (featured get extras)
+    if (kind !== 'panel' && kind !== 'sign' && !this.b.key) return;
+    if (this.lights.some(l => l.kind === kind) && !this.b.key) return;
     const w = this.world(a, d);
     this.lights.push({ level: this.level, x: w.x, y: this.y + y, z: w.z, color, intensity, range, kind, shop: this.slot.id });
   }

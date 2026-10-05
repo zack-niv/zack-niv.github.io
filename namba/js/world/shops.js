@@ -36,6 +36,14 @@ export function envFor(ctx) {
     const maxA = ctx.engine.renderer.capabilities.getMaxAnisotropy();
     for (const a of [env.sign, env.print]) a._aniso = Math.min(8, maxA);
   } catch (e) { /* headless */ }
+  // tactile paving segments per level (dressing must keep clear of them)
+  env.tactile = {};
+  for (const t of LAYOUT.tactile || []) {
+    const L = env.tactile[t.level] || (env.tactile[t.level] = []);
+    const pts = t.pts || [];
+    for (let i = 0; i + 1 < pts.length; i++) L.push([pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]]);
+    for (const p of [...(t.stops || []), ...(pts.length === 1 ? pts : [])]) L.push([p[0], p[1], p[0] + 0.01, p[1]]);
+  }
   env.R = regions(env);
   ctx._envDressing = env;
   return env;
@@ -175,8 +183,22 @@ export class Shops {
     if (collide) this._shutterReady = true;
   }
 
+  // drop spots that ended up on nav-blocked / unreachable cells (staff excepted)
+  _validateSpots() {
+    const nav = this.ctx.nav; if (!nav) return;
+    const ok = (s) => { if (s.kind === 'staff') return true; const g = this.ctx.world.grids[s.level]; const i = g.cellOf(s.x, s.z); return i >= 0 && nav.cellNode[s.level][i] >= 0; };
+    for (const rec of this.recs.values()) {
+      rec.spots = rec.spots.filter(ok);
+      rec.queue = rec.queue.filter(ok);
+      if (rec.counter && !ok(rec.counter)) rec.counter = rec.spots.find(s => s.kind === 'counter') || rec.spots.find(s => s.kind !== 'staff') || rec.counter;
+    }
+    for (const h of Object.values(this.halls)) if (h) h.spots = h.spots.filter(ok);
+    this._spotsValid = true;
+  }
+
   update(dt) {
     if (!this._shutterReady && this.ctx.nav) this._applyShutters(this.ctx.clock.minutes, true);
+    if (!this._spotsValid && this.ctx.nav) this._validateSpots();
     // distance culling of interiors (every ~0.2 s)
     this._t -= dt;
     if (this._t > 0) return;

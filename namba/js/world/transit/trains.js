@@ -6,7 +6,7 @@
 // Draw calls are independent of the number of trains: ≤ 4 per model in view.
 // =============================================================================
 import * as THREE from 'three';
-import { buildCar, SPECS } from './cars.js';
+import { buildCar, SPECS, lampPoints } from './cars.js';
 import { buildCarAtlas, buildInteriorAtlas, buildEmissiveAtlas, ROW_H } from './textures.js';
 
 export function patchTrainMaterial(mat, uniforms) {
@@ -37,6 +37,7 @@ if (aKind > 2.5) vColor.rgb *= ((iA.w > -0.5 && iA.w < 0.5) ? 1.0 : 0.05);
   return mat;
 }
 
+const _v = new THREE.Vector3(), _m2 = new THREE.Matrix4(), _s2 = new THREE.Vector3();
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _p = new THREE.Vector3(), _s = new THREE.Vector3(1, 1, 1), _up = new THREE.Vector3(0, 1, 0);
 
 export class TrainRenderer {
@@ -75,8 +76,29 @@ export class TrainRenderer {
       this.ctx.engine.levelRoot(level).add(im);
       this.models[key] = { im, iA, cap, n: 0, level, spec: SPECS[key], tris: geo.attributes.position.count / 3 };
     }
+    this._buildGlow([...new Set(Object.values(modelLevels))]);
   }
-  begin() { for (const k in this.models) this.models[k].n = 0; }
+  _buildGlow(levels) {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.18, 'rgba(255,255,255,0.55)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.12)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+    mat.name = 'transit_glow'; mat.userData.nbUnlit = true;
+    this.glow = {};
+    for (const lv of levels) {
+      const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, 64);
+      im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(64 * 3), 3);
+      im.count = 0; im.frustumCulled = false; im.renderOrder = 5; im.name = 'transit_glow:' + lv;
+      this.ctx.engine.levelRoot(lv).add(im);
+      this.glow[lv] = { im, n: 0 };
+    }
+    this.lampPts = {};
+    for (const k in this.models) this.lampPts[k] = lampPoints(k);
+  }
+  begin() { for (const k in this.models) this.models[k].n = 0; if (this.glow) for (const lv in this.glow) this.glow[lv].n = 0; }
   // yaw: rotation about Y so that local +x points along (cos yaw, 0, -sin yaw)
   add(key, x, y, z, yaw, openP, openN, slot, lamp) {
     const m = this.models[key]; if (!m || m.n >= m.cap) return;
@@ -85,9 +107,21 @@ export class TrainRenderer {
     _p.set(x, y, z);
     _m.compose(_p, _q, _s);
     m.im.setMatrixAt(i, _m);
+    const lp = this.lampPts && this.lampPts[key];
+    if (lp && lamp >= 0 && this.glow[m.level]) {
+      const pts = lamp > 0.5 ? lp.head : lp.tail, col = lamp > 0.5 ? [1.0, 0.95, 0.85] : [0.9, 0.06, 0.03], sz = lamp > 0.5 ? 1.1 : 0.45;
+      const G = this.glow[m.level], cq = this.ctx.camera.quaternion;
+      for (const p of pts) {
+        if (G.n >= 64) break;
+        _v.set(p[0], p[1], p[2]).applyQuaternion(_q).add(_p);
+        _m2.compose(_v, cq, _s2.set(sz, sz, sz));
+        G.im.setMatrixAt(G.n, _m2); G.im.instanceColor.setXYZ(G.n, col[0], col[1], col[2]); G.n++;
+      }
+    }
     const a = m.iA.array; a[i * 4] = openP; a[i * 4 + 1] = openN; a[i * 4 + 2] = slot; a[i * 4 + 3] = lamp;
   }
   end() {
+    if (this.glow) for (const lv in this.glow) { const G = this.glow[lv]; G.im.count = G.n; G.im.visible = G.n > 0; if (G.n) { G.im.instanceMatrix.needsUpdate = true; G.im.instanceColor.needsUpdate = true; } }
     for (const k in this.models) {
       const m = this.models[k];
       const changed = m.n !== m.im.count || m.n > 0;

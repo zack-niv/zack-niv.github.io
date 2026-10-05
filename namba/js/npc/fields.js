@@ -196,7 +196,7 @@ export class FieldStore {
         this.inflight++;
         this.worker.postMessage({ type: 'field', id: en.id, goals, paidOk: en.paidOk });
       }
-    } else {
+    } else if (this.syncInUpdate !== false) {
       const t0 = now();
       while (this.queue.length && now() - t0 < budgetMs) this.computeNow(this.queue.shift());
     }
@@ -204,7 +204,8 @@ export class FieldStore {
   }
   computeNow(en) {
     const t = now();
-    en.dist = dijkstra({ N: this.N, inStart: this.nav.inStart, inSrc: this.nav.inSrc, inCost: this.nav.inCost, penalty: this.penalty, paid: this.paid, cut: this.cutIn, scratch: this._scr, heapN: this._hn, heapD: this._hd }, this._goals(en), en.paidOk);
+    if (!this._G) this._G = { N: this.N, inStart: this.nav.inStart, inSrc: this.nav.inSrc, inCost: this.nav.inCost, penalty: this.penalty, paid: this.paid, cut: this.cutIn };
+    en.dist = dijkstra(this._G, this._goals(en), en.paidOk);
     en.ready = true;
     this.stats.computed++; this.stats.ms += now() - t;
   }

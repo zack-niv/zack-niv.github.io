@@ -94,6 +94,7 @@ export class Trains {
     s.head = s.g.stop - s.g.dirIn * (V0 * TB / 2 + V0 * 10);
     this.prefetch();
     this._ensureEms(s);
+    if (this.sys.announcer) for (const t of [approach(tr), arrival(tr), doorsClosing(), departure(tr)]) this.sys.announcer.prefetch([{ lang: 'ja', text: t.ja }, { lang: 'en', text: t.en }], 3);
     // approach melody + announcement on the platform PA (metro lines)
     if (this._onPlatformZone(tr) && tr.line !== 'nankai') {
       const mel = MEL[tr.line];
@@ -116,7 +117,7 @@ export class Trains {
       this._fx(s, 'tr:air:0', 0.6);
     }
     s.phase = 'stopped'; s.v = 0; s.head = s.g.stop;
-    this._fx(s, 'tr:doors:open', 0.8, 0.1);
+    this._fx(s, 'tr:doors:open', 1.2, 0.1);
     if (tr.line !== 'nankai') this._fx(s, 'chime:door', 0.35, 0.0, 'voice');
     if (this._onPlatformZone(tr)) {
       const a = arrival(tr);
@@ -150,7 +151,7 @@ export class Trains {
       const d = doorsClosing();
       setTimeoutAudio(this.ac, Math.max(0, closeAt - 2.5), () => this.sys.announcer && this.sys.announcer.say({ kind: 'station', parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }], gain: 0.75, send: 0.9, seed: 3 }));
     }
-    this._fx(s, 'tr:doors:close', 0.8, closeAt);
+    this._fx(s, 'tr:doors:close', 1.2, closeAt);
     this._fx(s, 'tr:air:0', 0.3, closeAt + 1.6);
   }
   onAnnounce(e) {
@@ -190,13 +191,13 @@ export class Trains {
         if (now < tb0) { s.v = V0; s.head = g.stop - g.dirIn * (V0 * TB / 2 + V0 * (tb0 - now)); }
         else if (now < s.tStop) { const tt = s.tStop - now; s.v = V0 * tt / TB; s.head = g.stop - g.dirIn * (V0 / (2 * TB)) * tt * tt; }
         else { s.v = 0; s.head = g.stop; }
-        if (!s.vvvfOn && now >= s.vvvfAt) { s.vvvfOn = true; const b = this.bank.peek('tr:vvvf:decel:0'); if (b) this._ensureEms(s).motor.oneShot(b, { gain: 0.42, when: s.vvvfAt }); }
-        if (!s.squealOn && now >= s.squealAt) { s.squealOn = true; this._fx(s, 'tr:squeal:0', 0.32); }
-        if (!s.airOn && now >= s.airAt) { s.airOn = true; this._fx(s, 'tr:air:0', 0.55); }
+        if (!s.vvvfOn && now >= s.vvvfAt) { s.vvvfOn = true; const b = this.bank.peek('tr:vvvf:decel:0'); if (b) this._ensureEms(s).motor.oneShot(b, { gain: 0.9, when: s.vvvfAt }); }
+        if (!s.squealOn && now >= s.squealAt) { s.squealOn = true; this._fx(s, 'tr:squeal:0', 0.5); }
+        if (!s.airOn && now >= s.airAt) { s.airOn = true; this._fx(s, 'tr:air:0', 0.8); }
       } else if (s.phase === 'closing' && now >= s.tMove) {
         s.phase = 'leaving'; s.tLeave = now; s.vvvfOn = false;
         const b = this.bank.peek('tr:vvvf:accel:0');
-        if (b) this._ensureEms(s).motor.oneShot(b, { gain: 0.45 });
+        if (b) this._ensureEms(s).motor.oneShot(b, { gain: 0.95 });
       } else if (s.phase === 'leaving') {
         const t = now - s.tLeave;
         s.v = Math.min(V0 * 1.2, 0.95 * t);
@@ -214,11 +215,15 @@ export class Trains {
       for (const k of ['roll', 'motor', 'fx']) s.ems[k].setPos(pos.x, pos.y, pos.z);
       // roll: gain/brightness/rate with speed
       const sp = Math.min(1.3, s.v / V0);
+      // in the tunnel (beyond the platform ends) the train is a dark rumble; it brightens as it bursts in
+      const dist = Math.hypot(pos.x - L.x, pos.z - L.z);
+      const inTunnel = (s.head < g.lo - 5 || s.head > g.hi + 5) && !g.terminal ? 1 : 0;
+      const open = Math.max(0, Math.min(1, 1 - (dist - 12) / 90)) * (inTunnel ? 0.45 : 1);
       if (sp > 0.01 && !s.ems.roll.src) { const b = this.bank.peek('tr:roll'); if (b) s.ems.roll.setLoop(b); }
-      s.ems.roll.fade(0.95 * Math.pow(sp, 1.1) * hear, 0.25);
+      s.ems.roll.fade(2.8 * Math.pow(sp, 1.1) * hear, 0.25);
       s.ems.roll.setRate(0.65 + 0.45 * sp, 0.25);
-      s.ems.roll.setLP((hear < 1 ? 250 : 300 + 2600 * sp), 0.2);
-      s.ems.motor.setLP(hear < 1 ? 400 : 6000, 0.3);
+      s.ems.roll.setLP((hear < 1 ? 250 : 220 + 3200 * sp * open), 0.2);
+      s.ems.motor.setLP(hear < 1 ? 400 : 700 + 5300 * open, 0.3);
       s.ems.motor.fade(hear, 0.3);
       s.ems.fx.setLP(hear < 1 ? 500 : 18000, 0.3);
       // tunnel wind push ahead of an arriving subway train

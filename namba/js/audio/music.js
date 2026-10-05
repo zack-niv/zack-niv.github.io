@@ -30,12 +30,14 @@ function finish(tr, target = 0.7, drive = 1.2) {
 }
 
 // generic band render: chords per bar + comping/bass/drum pattern callbacks
-function band({ sr, bpm, bars, beatsPerBar = 4, seed = 1, fn }) {
+function band({ sr, bpm, bars, beatsPerBar = 4, seed = 1, fn, eq = [170, 7500] }) {
   const spb = 60 / bpm;
   const tr = new Track(sr, bars * beatsPerBar * spb, true);
   const r = rng(seed);
   const at = (beat) => beat * spb;
   fn({ tr, r, spb, at, sr });
+  // shop loops are heard through ceiling speakers and a doorway
+  if (eq) shopEQ(tr, eq[0], eq[1]);
   return tr;
 }
 
@@ -167,7 +169,7 @@ export function shopGame(sr) {
 export function bgmDept(sr) {
   const prog = [['C3', 'maj9'], ['A2', 'm7'], ['D3', 'm7'], ['G2', '9'], ['E3', 'm7'], ['A2', '7'], ['F3', 'maj7'], ['G3', 'sus4']];
   const mel = [[1, 'E5', 1], [2, 'G5', 1], [3, 'D5', 3], [9, 'F5', 1], [10, 'A5', 1], [11, 'C6', 2], [13, 'B5', 3], [17, 'G5', 1], [18, 'B5', 1], [19, 'E5', 3], [25, 'A5', 1], [26, 'C6', 1], [27, 'D6', 2], [29, 'G5', 3]];
-  return finish(band({ sr, bpm: 76, bars: 8, seed: 71, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, bpm: 76, bars: 8, seed: 71, eq: [90, 9000], fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 55, 74), b0 = b * 4;
       tr.add(bass(sr, rt - 12 + (rt < 45 ? 12 : 0), 3.8 * spb, 0.5), at(b0), 0.35, 0);

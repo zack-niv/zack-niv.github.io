@@ -143,6 +143,15 @@ const FACES = {
   },
 };
 
+// lamp centres (local) for glow sprites: { head: [[x,y,z]...], tail: [...] }
+export function lampPoints(key) {
+  const s = SPECS[key]; if (!s.face) return null;
+  const f = FACES[s.face], hw = s.W / 2, out = { head: [], tail: [] };
+  for (const lp of f.lamps || []) for (const sd of [1, -1]) { const z = sd * (lp.z0 + lp.z1) / 2 * hw, y = (lp.y0 + lp.y1) / 2; out[lp.kind === 2 ? 'head' : 'tail'].push([s.L / 2 - f.depth(z, y, s) + 0.06, y, z]); }
+  for (const dc of f.discs || []) for (const sd of [1, -1]) { const z = sd * dc.z; out[dc.kind === 2 ? 'head' : 'tail'].push([s.L / 2 - f.depth(z, dc.y, s) + 0.06, dc.y, z]); }
+  return out;
+}
+
 // ---- builder ----------------------------------------------------------------------------------
 export function buildCar(key) {
   const s = SPECS[key];
@@ -293,7 +302,7 @@ export function buildCar(key) {
     {
       const xl = doors.length > 1 ? (doors[0] + doors[1]) / 2 : 0;
       const w = 0.95, y0 = s.winStyle === 'oval' ? 1.86 : 1.96, y1 = y0 + 0.24;
-      const zz = side * (hw + 0.006);
+      const zz = side * (hw + 0.013);
       const [u0, v0, u1, v1] = LED_BASE;
       // housing
       mb.box(M.BODY, xl, (y0 + y1) / 2, side * (hw + 0.002), w + 0.08, y1 - y0 + 0.08, 0.012, B('black', { faces: side > 0 ? 's' : 'n' }));
@@ -526,7 +535,7 @@ function longSeats(mb, s, doors, x0, x1, zi, I, blocks) {
       mb.box(M.INT, (a + b) / 2, yb1, (zf1 + zb1) / 2, b - a, 0.03, 0.1, I(sw));
       // seat-end partition panels (袖仕切り)
       for (const xe of [a, b]) {
-        mb.box(M.INT, xe, 0.62, zw - sd * 0.32, 0.03, 1.2, 0.56, I('white'));
+        mb.box(M.INT, xe, 0.62, zw - sd * 0.32, 0.03, 1.2, 0.56, I('wall_grey'));
         mb.cyl(M.INT, [xe, 0.0, zw - sd * 0.62], [xe, s.ceil, zw - sd * 0.62], 0.018, 6, I('pole'));
       }
       // luggage rack
@@ -568,8 +577,9 @@ function transSeats(mb, s, doors, x0, x1, zi, I, blocks) {
   for (let k = 0; k < n; k++) {
     const xs = off + k * pitch + 0.25;
     for (const sd of [1, -1]) {
-      const zc = sd * (zi + 0.3) / 2 + sd * 0.12; // centre of the 2-seat block
-      const wz = zi - 0.38;
+      const zA0 = 0.34, zB0 = zi - 0.06;
+      const zc = sd * (zA0 + zB0) / 2; // centre of the 2-seat block
+      const wz = zB0 - zA0;
       mb.box(M.INT, xs, 0.42, zc, 0.5, 0.12, wz, I(s.seatSw));
       mb.box(M.INT, xs, 0.2, zc, 0.36, 0.36, wz * 0.8, I('seat_frame'));
       // backrest leaning back towards -x

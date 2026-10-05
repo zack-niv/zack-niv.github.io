@@ -64,7 +64,7 @@ export class Panels {
       paint();
       const choose = (i) => {
         const it = items[i];
-        if (!it || it.disabled) { this.ctx.audio?.play?.('ui_deny'); li_shake(lis[i]); return; }
+        if (!it || it.disabled) { li_shake(lis[i]); return; }
         this.ctx.audio?.play?.('ui_select');
         lis[i].classList.add('chosen');
         setTimeout(() => this.close(it.value !== undefined ? it.value : i), 160);
@@ -76,8 +76,8 @@ export class Panels {
       this.current = {
         el, resolve,
         key: (code) => {
-          if (code === 'KeyW' || code === 'ArrowUp') { sel = step(items, sel, -1); paint(); this.ctx.audio?.play?.('ui_tick'); return true; }
-          if (code === 'KeyS' || code === 'ArrowDown') { sel = step(items, sel, 1); paint(); this.ctx.audio?.play?.('ui_tick'); return true; }
+          if (code === 'KeyW' || code === 'ArrowUp') { sel = step(items, sel, -1); paint(); this.ctx.audio?.play?.('ui_select', { gain: 0.35 }); return true; }
+          if (code === 'KeyS' || code === 'ArrowDown') { sel = step(items, sel, 1); paint(); this.ctx.audio?.play?.('ui_select', { gain: 0.35 }); return true; }
           if (code === 'KeyE' || code === 'Enter' || code === 'Space') { choose(sel); return true; }
           const m = /^Digit([1-9])$/.exec(code) || /^Numpad([1-9])$/.exec(code);
           if (m) { const i = +m[1] - 1; if (i < items.length) { sel = i; paint(); choose(i); } return true; }

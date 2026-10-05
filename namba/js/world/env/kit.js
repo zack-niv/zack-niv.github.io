@@ -112,33 +112,33 @@ export function proto(name) {
   let g = PROTO.get(name);
   if (g) return g;
   switch (name) {
-    case 'cyl': g = new THREE.CylinderGeometry(1, 1, 1, 12, 1); g.translate(0, 0.5, 0); break;          // r=1, y 0..1
+    case 'cyl': g = new THREE.CylinderGeometry(1, 1, 1, 10, 1); g.translate(0, 0.5, 0); break;          // r=1, y 0..1
     case 'cyl6': g = new THREE.CylinderGeometry(1, 1, 1, 6, 1); g.translate(0, 0.5, 0); break;
-    case 'cylOpen': g = new THREE.CylinderGeometry(1, 1, 1, 12, 1, true); g.translate(0, 0.5, 0); break;
-    case 'sphere': g = new THREE.SphereGeometry(1, 10, 7); break;
+    case 'cylOpen': g = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true); g.translate(0, 0.5, 0); break;
+    case 'sphere': g = new THREE.SphereGeometry(1, 8, 6); break;
     case 'blob': g = new THREE.IcosahedronGeometry(1, 0); break;
-    case 'bowl': g = new THREE.LatheGeometry([[0.001, 0], [0.55, 0], [0.62, 0.05], [0.85, 0.4], [1.0, 0.75], [0.97, 0.78]].map(([x, y]) => new THREE.Vector2(x, y)), 12); break;
-    case 'plate': g = new THREE.LatheGeometry([[0.001, 0], [0.7, 0], [0.95, 0.06], [1.0, 0.1], [0.96, 0.11], [0.001, 0.05]].map(([x, y]) => new THREE.Vector2(x, y)), 14); break;
-    case 'disk': g = new THREE.CircleGeometry(1, 14); g.rotateX(-Math.PI / 2); break;                // facing up, uv 0..1
-    case 'bottle': g = new THREE.LatheGeometry([[0.001, 0], [0.33, 0], [0.35, 0.05], [0.35, 0.55], [0.22, 0.72], [0.13, 0.8], [0.13, 0.97], [0.001, 1]].map(([x, y]) => new THREE.Vector2(x, y)), 8); break;
+    case 'bowl': g = new THREE.LatheGeometry([[0.001, 0], [0.55, 0], [0.62, 0.05], [0.85, 0.4], [1.0, 0.75], [0.97, 0.78]].map(([x, y]) => new THREE.Vector2(x, y)), 8); break;
+    case 'plate': g = new THREE.LatheGeometry([[0.001, 0], [0.7, 0], [0.95, 0.06], [1.0, 0.1], [0.96, 0.11], [0.001, 0.05]].map(([x, y]) => new THREE.Vector2(x, y)), 10); break;
+    case 'disk': g = new THREE.CircleGeometry(1, 10); g.rotateX(-Math.PI / 2); break;                // facing up, uv 0..1
+    case 'bottle': g = new THREE.LatheGeometry([[0.001, 0], [0.33, 0], [0.35, 0.05], [0.35, 0.55], [0.22, 0.72], [0.13, 0.8], [0.13, 0.97], [0.001, 1]].map(([x, y]) => new THREE.Vector2(x, y)), 6); break;
     case 'lantern': { // chochin: unit height 1, radius 0.5, rings top/bottom
-      const pts = []; for (let i = 0; i <= 10; i++) { const t = i / 10; pts.push(new THREE.Vector2(0.06 + 0.44 * Math.sin(Math.PI * (0.08 + 0.84 * t)), t)); }
-      g = new THREE.LatheGeometry(pts, 14); break;
+      const pts = []; for (let i = 0; i <= 7; i++) { const t = i / 7; pts.push(new THREE.Vector2(0.06 + 0.44 * Math.sin(Math.PI * (0.08 + 0.84 * t)), t)); }
+      g = new THREE.LatheGeometry(pts, 10); break;
     }
-    case 'chair_frame': g = mergeGeometries([boxG(0.03, 0.45, 0.03, -0.2, 0.225, -0.2), boxG(0.03, 0.45, 0.03, 0.2, 0.225, -0.2), boxG(0.03, 0.45, 0.03, -0.2, 0.225, 0.2), boxG(0.03, 0.45, 0.03, 0.2, 0.225, 0.2), boxG(0.03, 0.42, 0.03, -0.2, 0.66, 0.2), boxG(0.03, 0.42, 0.03, 0.2, 0.66, 0.2)].map(nonIndexed)); break;
+    case 'chair_frame': g = mergeGeometries([boxG(0.03, 0.45, 0.42, -0.2, 0.225, 0), boxG(0.03, 0.45, 0.42, 0.2, 0.225, 0), boxG(0.03, 0.42, 0.03, -0.2, 0.66, 0.2), boxG(0.03, 0.42, 0.03, 0.2, 0.66, 0.2)].map(nonIndexed)); break;
     case 'chair_seat': g = mergeGeometries([boxG(0.44, 0.05, 0.44, 0, 0.47, 0), boxG(0.42, 0.24, 0.04, 0, 0.74, 0.21)].map(nonIndexed)); break;
-    case 'stool': g = mergeGeometries([new THREE.CylinderGeometry(0.18, 0.18, 0.06, 10).translate(0, 0.7, 0), new THREE.CylinderGeometry(0.03, 0.03, 0.68, 6).translate(0, 0.35, 0), new THREE.CylinderGeometry(0.2, 0.2, 0.02, 10).translate(0, 0.01, 0), new THREE.TorusGeometry(0.15, 0.012, 4, 10).rotateX(Math.PI / 2).translate(0, 0.3, 0)].map(nonIndexed)); break;
-    case 'table_leg': g = mergeGeometries([new THREE.CylinderGeometry(0.035, 0.035, 0.72, 6).translate(0, 0.36, 0), new THREE.CylinderGeometry(0.22, 0.24, 0.03, 10).translate(0, 0.015, 0)].map(nonIndexed)); break;
+    case 'stool': g = mergeGeometries([new THREE.CylinderGeometry(0.18, 0.18, 0.06, 6).translate(0, 0.7, 0), new THREE.CylinderGeometry(0.03, 0.03, 0.68, 5, 1, true).translate(0, 0.35, 0), new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8, 1, true).translate(0, 0.01, 0)].map(nonIndexed)); break;
+    case 'table_leg': g = mergeGeometries([new THREE.CylinderGeometry(0.035, 0.035, 0.72, 5, 1, true).translate(0, 0.36, 0), new THREE.CylinderGeometry(0.22, 0.24, 0.03, 6).translate(0, 0.015, 0)].map(nonIndexed)); break;
     case 'mannequin': {
       const parts = [
-        new THREE.SphereGeometry(0.11, 10, 8).scale(0.9, 1.15, 1).translate(0, 1.66, 0),   // head
-        new THREE.CylinderGeometry(0.045, 0.05, 0.1, 8).translate(0, 1.52, 0),             // neck
-        new THREE.CylinderGeometry(0.19, 0.15, 0.5, 10).scale(1, 1, 0.62).translate(0, 1.23, 0), // torso
-        new THREE.CylinderGeometry(0.15, 0.17, 0.22, 10).scale(1, 1, 0.66).translate(0, 0.9, 0),  // hips
-        new THREE.CylinderGeometry(0.07, 0.05, 0.8, 8).translate(-0.08, 0.42, 0),           // legs
-        new THREE.CylinderGeometry(0.07, 0.05, 0.8, 8).translate(0.08, 0.42, 0),
-        new THREE.CylinderGeometry(0.045, 0.035, 0.6, 8).rotateZ(0.12).translate(-0.24, 1.15, 0), // arms
-        new THREE.CylinderGeometry(0.045, 0.035, 0.6, 8).rotateZ(-0.12).translate(0.24, 1.15, 0),
+        new THREE.SphereGeometry(0.11, 8, 6).scale(0.9, 1.15, 1).translate(0, 1.66, 0),   // head
+        new THREE.CylinderGeometry(0.045, 0.05, 0.1, 6).translate(0, 1.52, 0),             // neck
+        new THREE.CylinderGeometry(0.19, 0.15, 0.5, 8).scale(1, 1, 0.62).translate(0, 1.23, 0), // torso
+        new THREE.CylinderGeometry(0.15, 0.17, 0.22, 8).scale(1, 1, 0.66).translate(0, 0.9, 0),  // hips
+        new THREE.CylinderGeometry(0.07, 0.05, 0.8, 6).translate(-0.08, 0.42, 0),           // legs
+        new THREE.CylinderGeometry(0.07, 0.05, 0.8, 6).translate(0.08, 0.42, 0),
+        new THREE.CylinderGeometry(0.045, 0.035, 0.6, 6).rotateZ(0.12).translate(-0.24, 1.15, 0), // arms
+        new THREE.CylinderGeometry(0.045, 0.035, 0.6, 6).rotateZ(-0.12).translate(0.24, 1.15, 0),
       ];
       g = mergeGeometries(parts.map(nonIndexed)); break;
     }
@@ -185,12 +185,12 @@ export class Painter {
     const f = this.f;
     const ca = (a0 + a1) / 2, cd = (d0 + d1) / 2;
     this.gb.box(mat, f.x(ca, cd), f.oy + (y0 + y1) / 2, f.z(ca, cd), Math.abs(a1 - a0), Math.abs(y1 - y0), Math.abs(d1 - d0), f.rot, faces ? { col, faces } : { col });
-    this.tris += 12;
+    this.tris += faces ? faces.length * 2 : 12;
   }
   // rotated box around its centre (local yaw rl)
-  rbox(mat, ca, cy, cd, sa, sy, sd, rl, col = WHITE) {
+  rbox(mat, ca, cy, cd, sa, sy, sd, rl, col = WHITE, faces) {
     const f = this.f;
-    this.gb.box(mat, f.x(ca, cd), f.oy + cy, f.z(ca, cd), sa, sy, sd, f.rot + rl, { col }); this.tris += 12;
+    this.gb.box(mat, f.x(ca, cd), f.oy + cy, f.z(ca, cd), sa, sy, sd, f.rot + rl, faces ? { col, faces } : { col }); this.tris += faces ? faces.length * 2 : 12;
   }
   // vertical quad in the a-y plane at depth d. face: -1 faces outward (-d), +1 inward (+d)
   qd(mat, a0, a1, y0, y1, d, face = -1, col = WHITE, uv) {

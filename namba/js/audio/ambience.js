@@ -40,7 +40,7 @@ const MOODS = {
   mall:      { hvac_mall: 0.26, bgm: 0.11, walla: 0.5, cloud: 0.9, steps: 'tile', pa: 'mall' },
   parks:     { hvac_mall: 0.22, bgm: 0.09, walla: 0.38, cloud: 0.8, steps: 'stone', pa: 'mall' },
   canyon:    { cityfar: 0.34, leaves: 0.16, traffic: 0.04, walla: 0.3, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.5 },
-  garden:    { cityfar: 0.3, leaves: 0.42, walla: 0.12, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
+  garden:    { cityfar: 0.2, leaves: 0.28, walla: 0.12, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
   shop:      { hvac_mall: 0.12, walla: 0.2, cloud: 0.35, steps: 'tile' },
 };
 // baseline people within ~12 m when the crowd system can't tell us
@@ -172,7 +172,7 @@ export class Ambience {
         wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 2600 });
         wv.em.setLoop(buf, { offset: i * buf.duration * 0.47, rate: i ? 1.035 : 0.975 });
       }
-      wv.em.fade(g * 0.5, 1.5);
+      wv.em.fade(g * 0.8, 1.5);
       // outdoors the murmur is drier & brighter, indoors wetter
       wv.em.setSend(outdoor > 0.5 ? 0.15 : 0.55, 1);
     });
@@ -254,12 +254,12 @@ export class Ambience {
     if (birds > 0.05) {
       T.bird -= dt * birds;
       if (T.bird <= 0) {
-        T.bird = 1.2 + this.rand() * 4.5;
+        T.bird = 0.7 + this.rand() * 3.2;
         const r = this.rand();
         const sp = r < 0.28 ? 'bulbul' : r < 0.58 ? 'sparrow' : r < 0.8 ? 'whiteeye' : r < 0.95 ? 'tit' : 'crow';
         const name = `bird:${sp}:${Math.floor(this.rand() * 2)}`;
         const p = sp === 'crow' ? at(25, 60, 12) : at(6, 30, 2 + this.rand() * 5);
-        this.mixer.play(name, { bus: 'ambience', pos: p, gain: sp === 'bulbul' ? 0.5 : sp === 'crow' ? 0.6 : 0.32, send: 0.25, ref: 4, hrtf: true, rate: 0.96 + this.rand() * 0.08, prio: 5 });
+        this.mixer.play(name, { bus: 'ambience', pos: p, gain: sp === 'bulbul' ? 1.0 : sp === 'crow' ? 0.9 : 0.8, send: 0.25, ref: 5, hrtf: true, rate: 0.96 + this.rand() * 0.08, prio: 5 });
       }
     }
     // crows over the streets & parks (very Osaka)

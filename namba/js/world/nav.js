@@ -189,14 +189,18 @@ export class Nav {
       heapN[i] = ln; heapD[i] = ld;
       return v;
     };
+    // settled flags: float32 rounding otherwise lets equal-cost duplicates re-expand (cascading work)
+    const done = new Uint8Array(N);
     for (const gl of goals) { if (gl >= 0) { dist[gl] = 0; push(gl, 0); } }
     const { inStart, inSrc, inCost } = this;
     while (hs > 0) {
       const d0 = heapD[0];
       const v = pop();
-      if (d0 > dist[v]) continue;
+      if (done[v]) continue;
+      done[v] = 1;
       for (let e = inStart[v]; e < inStart[v + 1]; e++) {
-        const u = inSrc[e], nd = d0 + inCost[e];
+        const u = inSrc[e]; if (done[u]) continue;
+        const nd = Math.fround(d0 + inCost[e]);
         if (nd < dist[u]) { dist[u] = nd; if (hs < heapN.length) push(u, nd); }
       }
     }

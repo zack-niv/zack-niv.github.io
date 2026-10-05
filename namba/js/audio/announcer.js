@@ -60,6 +60,10 @@ export class Announcer {
     while (this.queue.length > 6) this.queue.pop();
     return item.id;
   }
+  // render fallback voices ahead of time (no-op when TTS will be used)
+  prefetch(parts, seed = 3) {
+    for (const p of parts) if (!this._canSpeak({}, p)) this.bank.get(this._voiceName({ seed }, p), 5);
+  }
   busyWith(kind) { return (this.cur && this.cur.kind === kind) || this.queue.some(q => q.kind === kind); }
   cancelKind(kind) { this.queue = this.queue.filter(q => q.kind !== kind); if (this.cur && this.cur.kind === kind) this._interrupt(); }
 

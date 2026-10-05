@@ -45,6 +45,15 @@ export class Mixer {
     this.listener = ac.listener;
     this._lp = { x: 0, y: 0, z: 0 };
     this.liveOneShots = 0;
+    this.emitters = new Set();   // positional emitters (for distance-dependent reverb sends)
+  }
+  // Reverberant energy falls off much more slowly than the direct sound, but a
+  // source far down a tunnel or across the complex must not excite *your* room
+  // at full level. 1 within ~2.5×ref, then ∝ d^-0.8.
+  wetFalloff(x, y, z, ref = 2) {
+    const d = Math.hypot(x - this._lp.x, y - this._lp.y, z - this._lp.z);
+    const k = ref * 2.5;
+    return d <= k ? 1 : Math.pow(k / d, 0.8);
   }
   get now() { return this.ac.currentTime; }
 
@@ -99,6 +108,7 @@ export class Mixer {
     } else {
       L.setPosition(px, py, pz); L.setOrientation(fx, fy, fz, ux, uy, uz);
     }
+    for (const em of this.emitters) em._updateSend();
   }
 
   // ---- emitters --------------------------------------------------------------------
@@ -139,7 +149,7 @@ export class Mixer {
       const sp = ac.createStereoPanner(); sp.pan.value = opts.pan; tail.connect(sp); out = sp;
     }
     out.connect(bus.dry);
-    if (opts.send) { const s = ac.createGain(); s.gain.value = opts.send; tail.connect(s); s.connect(bus.wet); }
+    if (opts.send) { const s = ac.createGain(); s.gain.value = opts.send * (opts.pos ? this.wetFalloff(opts.pos.x, opts.pos.y, opts.pos.z, opts.ref ?? 2) : 1); tail.connect(s); s.connect(bus.wet); }
     const when = opts.when ?? ac.currentTime;
     src.start(when, opts.offset || 0);
     if (opts.duration) src.stop(when + opts.duration);
@@ -176,12 +186,19 @@ export class Emitter {
     } else this.filter.connect(b.dry);
     this.send = ac.createGain(); this.send.gain.value = send;
     this.filter.connect(this.send); this.send.connect(b.wet);
+    this.sendBase = send; this.ref = ref; this._wf = 1;
+    if (pos) { mixer.emitters.add(this); this._updateSend(true); }
     this.gainTarget = gain; this.level = 0;
     this.src = null; this.buffer = null;
     this.alive = true;
     this.pos = pos ? { ...pos } : null;
   }
   setPos(x, y, z) { if (!this.panner) return; this.pos = { x, y, z }; setPannerPos(this.panner, x, y, z, this.ac.currentTime); }
+  _updateSend(force = false) {
+    if (!this.pos) return;
+    const wf = this.mixer.wetFalloff(this.pos.x, this.pos.y, this.pos.z, this.ref);
+    if (force || Math.abs(wf - this._wf) > 0.04 * Math.max(wf, 0.05)) { this._wf = wf; this.send.gain.setTargetAtTime(this.sendBase * wf, this.ac.currentTime, force ? 0.005 : 0.08); }
+  }
   rampPos(x, y, z, dt) {
     if (!this.panner) return; this.pos = { x, y, z };
     const p = this.panner, t = this.ac.currentTime;
@@ -191,7 +208,7 @@ export class Emitter {
   // fade level (linear gain) with time-constant tc
   fade(v, tc = 0.4) { this.level = v; this.input.gain.setTargetAtTime(v, this.ac.currentTime, tc); }
   setLP(f, tc = 0.15) { this.filter.frequency.setTargetAtTime(Math.max(60, Math.min(20000, f)), this.ac.currentTime, tc); }
-  setSend(v, tc = 0.3) { this.send.gain.setTargetAtTime(v, this.ac.currentTime, tc); }
+  setSend(v, tc = 0.3) { this.sendBase = v; this.send.gain.setTargetAtTime(v * this._wf, this.ac.currentTime, tc); }
   setRate(r, tc = 0.2) { if (this.src) this.src.playbackRate.setTargetAtTime(r, this.ac.currentTime, tc); }
   // start a looping buffer (crossfades from the previous one)
   setLoop(buf, { offset = null, rate = 1 } = {}) {
@@ -227,6 +244,7 @@ export class Emitter {
   dispose(tc = 0.3) {
     if (!this.alive) return;
     this.alive = false;
+    this.mixer.emitters.delete(this);
     this.fade(0, tc);
     this.stopLoop(tc);
     const nodes = [this.input, this.filter, this.panner, this.stereo, this.send];

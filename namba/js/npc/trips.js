@@ -44,6 +44,8 @@ export class Director {
     // shop subsets so fields stay few: busy shops per zone + every restaurant/café
     this._shopPools();
     this._coreFields();
+    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.32;
+    this._publicNodes();
   }
   get minutes() { return this.sim.clock ? this.sim.clock.minutes : 12 * 60; }
   get hours() { return this.minutes / 60; }
@@ -99,6 +101,7 @@ export class Director {
     if (this.spawnAcc > 5) this.spawnAcc = 5;
     // trains when the transit system isn't driving them
     this._fallbackTrains();
+    this._keepDensity(dt);
   }
 
   // ---------------------------------------------------------------------------
@@ -395,8 +398,8 @@ export class Director {
   }
   _fallbackTrains() {
     const S = this.sim;
-    if (S.time - this.lastRealTrain < 150) return;
-    if (S.time < 2) return;
+    const hasTransit = !!(this.ctx && this.ctx.transit && this.ctx.transit.trackState);
+    if (hasTransit ? (S.time < 300 || S.time - this.lastRealTrain < 300) : (S.time < 2 || S.time - this.lastRealTrain < 150)) return;
     for (const pl of this.P.platforms) for (const T of pl.tracks) {
       let nt = this.fallback[T.id];
       const period = T.line === 'nankai' ? 150 : T.line === 'midosuji' ? 55 : 90;
@@ -405,6 +408,84 @@ export class Director {
         this.fallback[T.id] = S.time + period * (0.8 + this.r() * 0.4);
         this.onTrainArrive({ track: T.id, line: T.line, platform: pl.id, dwell: T.line === 'nankai' ? 40 : 20 }, false);
       }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Density follows the player: far-away walkers nobody can see are moved
+  // (mid-trip, same destination) onto public nodes around the player, out of
+  // view, and faded in. Keeps ~nearShare of the population within ~100 m.
+  _publicNodes() {
+    const S = this.sim, nav = S.nav, W = S.world, L = W.layout;
+    this.pub = {};
+    for (const lv of nav.levelNames) {
+      const g = W.grids[lv], map = nav.cellNode[lv], out = [];
+      for (let i = 0; i < map.length; i++) {
+        const v = map[i]; if (v < 0) continue;
+        const sp = L.spaces[g.space[i]];
+        if (!sp || sp.kind === 'room') continue;
+        if (S.fields.clear[v] < 2) continue;
+        out.push(v);
+      }
+      this.pub[lv] = Int32Array.from(out);
+    }
+  }
+  sampleNear(V, rMin, rMax, hidden = true) {
+    const S = this.sim, nav = S.nav;
+    const list = this.pub[V.level]; if (!list || !list.length) return -1;
+    const fx = -Math.sin(V.yaw || 0), fz = -Math.cos(V.yaw || 0);
+    for (let k = 0; k < 60; k++) {
+      const v = list[Math.floor(this.r() * list.length)];
+      const dx = nav.x[v] - V.x, dz = nav.z[v] - V.z, d = Math.hypot(dx, dz);
+      if (d < rMin || d > rMax) continue;
+      if (hidden && (dx * fx + dz * fz) / d > -0.1 && d < 70 && S.world.visible(V.level, V.x, V.z, nav.x[v], nav.z[v])) continue;
+      return v;
+    }
+    return -1;
+  }
+  placeNear(a, hidden = true, rMin = 12, rMax = 95) {
+    const S = this.sim, nav = S.nav, V = S.viewer;
+    if (!V.has || !a.en || !a.en.ready) return false;
+    for (let k = 0; k < 4; k++) {
+      const v = this.sampleNear(V, rMin, rMax, hidden);
+      if (v < 0) return false;
+      const d = a.en.dist[v];
+      if (d === 65535 || d < 250) continue;
+      S.setPos(a, V.level, nav.x[v] + a.jx, nav.z[v] + a.jz);
+      const w = S.fields.next(a.en, v);
+      if (w >= 0) a.yaw = Math.atan2(-(nav.x[w] - nav.x[v]), -(nav.z[w] - nav.z[v]));
+      a.vx = -Math.sin(a.yaw) * a.pref; a.vz = -Math.cos(a.yaw) * a.pref;
+      a.aimT = 0; a.rampNext = -1; a.acc = 0;
+      if (a.followers) for (const f of a.followers) { this.placeFollower(a, f); f.fade = 0; f.fadeDir = 1; f.rampNext = -1; f.mode = MODE.FOLLOW; }
+      return true;
+    }
+    return false;
+  }
+  _keepDensity(dt) {
+    const S = this.sim, V = S.viewer;
+    this._dkT -= dt;
+    if (this._dkT > 0 || !V.has) return;
+    this._dkT = 0.5;
+    const tgt = this.target();
+    const want = tgt * this.nearShare;
+    let near = 0;
+    const A = S.agents;
+    for (let i = 0; i < A.length; i++) { const a = A[i]; if (a.alive && a.level === V.level) { const dx = a.x - V.x, dz = a.z - V.z; if (dx * dx + dz * dz < 100 * 100) near++; } }
+    this.counts.near = near;
+    if (near >= want) { this.burst = 0; return; }
+    const burst = this.burst > 0;
+    let moves = Math.min(burst ? 160 : 14, Math.ceil((want - near) / 1.6));
+    this.burst = 0;
+    let guard = A.length;
+    while (moves > 0 && guard-- > 0) {
+      this._dkIdx = (this._dkIdx + 1) % A.length;
+      const a = A[this._dkIdx];
+      if (!a.alive || a.leader || a.tier !== 2 || a.mode !== MODE.FIELD || a.fadeDir < 0 || a.ramp >= 0) continue;
+      const L = a.legs && a.legs[a.leg]; if (!L || L.t !== 'go') continue;
+      if (a.level === V.level && Math.hypot(a.x - V.x, a.z - V.z) < 220) continue;
+      const fa = a.fade;
+      if (this.placeNear(a, !burst, burst ? 4 : 12)) { a.fade = 0; a.fadeDir = 1; moves -= 1 + (a.followers ? a.followers.length : 0); this.counts.moved = (this.counts.moved || 0) + 1; }
+      else { a.fade = fa; moves--; }
     }
   }
 
@@ -445,7 +526,7 @@ export class Director {
       P.spots(B);
       const busy = B.cafe ? 0.35 + 0.3 * gauss(h, 15, 2) : clamp(0.1 + lunch * 1.15 * (0.5 + B.pop), 0, 1);
       const nSeat = Math.round(B.cap * busy * (0.75 + r() * 0.3));
-      for (let i = 0; i < nSeat && seated < tgt * 0.2; i++) {
+      for (let i = 0; i < nSeat && seated < tgt * 0.11; i++) {
         const trip = B.cafe ? 'coffee' : 'lunch';
         const a = this.makeAgent(this._kindFor(trip), { trip });
         const dw = B.info.dwell || [600, 1200];
@@ -478,7 +559,7 @@ export class Director {
     for (const B of this.shops) {
       if (!P.bizOpen(B, m)) continue;
       const n = Math.floor(r() * 3.2 * (0.3 + B.pop));
-      for (let i = 0; i < n && browsing < tgt * 0.08; i++) {
+      for (let i = 0; i < n && browsing < tgt * 0.05; i++) {
         const a = this.makeAgent(this._kindFor('shop'), { trip: 'shop', look: { bags: 0.4 } });
         const legs = [{ t: 'browse', B, n: 1 + Math.floor(r() * 2), inside: true }];
         this._onward(legs, a, null, 7);
@@ -524,8 +605,9 @@ export class Director {
         origin = { portal: p };
       }
       const legs = this.plan(trip, a, origin);
-      // start somewhere along the first walking leg
+      // start somewhere along the first walking leg (a share right around the player)
       a.ffFrac = 0.05 + r() * 0.9;
+      if (r() < this.nearShare + 0.08) a.nearStart = true;
       this.B.begin(a, legs);
       rest -= 1 + (a.followers ? a.followers.length : 0);
     }

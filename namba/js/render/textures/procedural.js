@@ -56,9 +56,25 @@ function valueNoise(N, P, seed) {
 }
 // fbm in [0,1], normalised by its own range for good contrast.
 export function fbm(N, P, oct = 5, seed = 1, gain = 0.5) {
+  seed = seed % 3; // a small shared pool: materials sample them at different offsets
   const key = `${N}|${P}|${oct}|${seed}|${gain}`;
   let f = _fieldCache.get(key);
   if (f) return f;
+  if (N > 512) {
+    // compute at 512 and upsample bilinearly (all octaves are smooth at 512)
+    const h = fbm(512, P, oct, seed, gain), k = 512 / N;
+    f = new Float32Array(N * N);
+    for (let y = 0; y < N; y++) {
+      const fy = y * k, iy = fy | 0, ty = fy - iy, r0 = iy * 512, r1 = ((iy + 1) & 511) * 512;
+      for (let x = 0; x < N; x++) {
+        const fx = x * k, ix = fx | 0, tx = fx - ix, ix1 = (ix + 1) & 511;
+        const a = h[r0 + ix] + (h[r0 + ix1] - h[r0 + ix]) * tx, b = h[r1 + ix] + (h[r1 + ix1] - h[r1 + ix]) * tx;
+        f[y * N + x] = a + (b - a) * ty;
+      }
+    }
+    _fieldCache.set(key, f);
+    return f;
+  }
   f = new Float32Array(N * N);
   let amp = 1, p = P;
   for (let o = 0; o < oct && p <= N; o++) {
@@ -74,57 +90,52 @@ export function fbm(N, P, oct = 5, seed = 1, gain = 0.5) {
   return f;
 }
 // sample a field (size N) at integer pixel coords with wrap
-export const at = (F, N, x, y) => F[(((y % N) + N) % N) * N + (((x % N) + N) % N)];
+// N must be a power of two; integer coords (negative ok)
+export const at = (F, N, x, y) => F[((y | 0) & (N - 1)) * N + ((x | 0) & (N - 1))];
 
 // ---------------------------------------------------------------------------
-// canvas assembly
+// raw texture assembly (works in workers: no DOM). Rows are written bottom-up
+// so the arrays upload as DataTextures with flipY = false and v = 0 at row 0.
 // ---------------------------------------------------------------------------
-function canvasOf(N, data, M = N) {
-  const c = document.createElement('canvas');
-  c.width = N; c.height = M;
-  const g = c.getContext('2d');
-  const img = g.createImageData(N, M);
-  img.data.set(data);
-  g.putImageData(img, 0, 0);
-  return c;
-}
-
-// Run a per-pixel shader and build albedo/normal/orm canvases.
-//   opt.normal: height-to-normal strength (0 disables the normal canvas)
-//   opt.M: canvas height (default N) for non-square textures
+// Run a per-pixel shader and build albedo/normal/orm RGBA arrays.
+//   opt.normal: height-to-normal strength (0 disables the normal map)
+//   opt.M: texture height (default N) for non-square textures
 export function build(N, shade, opt = {}) {
   const M = opt.M || N;
-  const A = new Uint8ClampedArray(N * M * 4);
-  const R = new Uint8ClampedArray(N * M * 4);
+  const A = new Uint8Array(N * M * 4);
+  const R = new Uint8Array(N * M * 4);
   const H = new Float32Array(N * M);
   const o = { r: 0.5, g: 0.5, b: 0.5, h: 0.5, rough: 0.5, metal: 0, ao: 1 };
-  for (let y = 0; y < M; y++) for (let x = 0; x < N; x++) {
-    o.h = 0.5; o.rough = 0.5; o.metal = 0; o.ao = 1;
-    shade(x, y, o);
-    const i = y * N + x, j = i * 4;
-    A[j] = o.r * 255; A[j + 1] = o.g * 255; A[j + 2] = o.b * 255; A[j + 3] = 255;
-    R[j] = o.ao * 255; R[j + 1] = o.rough * 255; R[j + 2] = o.metal * 255; R[j + 3] = 255;
-    H[i] = o.h;
+  const c8 = (v) => v <= 0 ? 0 : v >= 1 ? 255 : (v * 255 + 0.5) | 0;
+  for (let y = 0; y < M; y++) {
+    const row = (M - 1 - y) * N;
+    for (let x = 0; x < N; x++) {
+      o.h = 0.5; o.rough = 0.5; o.metal = 0; o.ao = 1;
+      shade(x, y, o);
+      const j = (row + x) * 4;
+      A[j] = c8(o.r); A[j + 1] = c8(o.g); A[j + 2] = c8(o.b); A[j + 3] = 255;
+      R[j] = c8(o.ao); R[j + 1] = c8(o.rough); R[j + 2] = c8(o.metal); R[j + 3] = 255;
+      H[y * N + x] = o.h;
+    }
   }
-  const out = { albedo: canvasOf(N, A, M), orm: canvasOf(N, R, M), normal: null, N, M };
+  const out = { albedo: A, orm: R, normal: null, N, M };
   const s = opt.normal == null ? 2 : opt.normal;
   if (s > 0) {
-    const Nn = new Uint8ClampedArray(N * M * 4);
+    const Nn = new Uint8Array(N * M * 4);
     for (let y = 0; y < M; y++) {
       const yu = ((y - 1 + M) % M) * N, yd = ((y + 1) % M) * N, yr = y * N;
+      const orow = (M - 1 - y) * N;
       for (let x = 0; x < N; x++) {
         const xl = (x - 1 + N) % N, xr = (x + 1) % N;
-        // canvas row increases downward = -v, so dh/dv = (up - down)
+        // shader row y increases downward = -v, so dh/dv = (up - down)
         const dx = (H[yr + xr] - H[yr + xl]) * s;
         const dy = (H[yu + x] - H[yd + x]) * s;
-        let nx = -dx, ny = -dy, nz = 1;
-        const l = 1 / Math.hypot(nx, ny, nz);
-        nx *= l; ny *= l; nz *= l;
-        const j = (yr + x) * 4;
-        Nn[j] = (nx * 0.5 + 0.5) * 255; Nn[j + 1] = (ny * 0.5 + 0.5) * 255; Nn[j + 2] = (nz * 0.5 + 0.5) * 255; Nn[j + 3] = 255;
+        const l = 1 / Math.sqrt(dx * dx + dy * dy + 1);
+        const j = (orow + x) * 4;
+        Nn[j] = (-dx * l * 0.5 + 0.5) * 255; Nn[j + 1] = (-dy * l * 0.5 + 0.5) * 255; Nn[j + 2] = (l * 0.5 + 0.5) * 255; Nn[j + 3] = 255;
       }
     }
-    out.normal = canvasOf(N, Nn, M);
+    out.normal = Nn;
   }
   return out;
 }
@@ -140,8 +151,8 @@ export function tileAt(x, y, tw, th, stagger = 0, N = 0, M = 0) {
   const ty = Math.floor(y / th);
   const xx = x + ty * stagger * tw;
   const tx = Math.floor(xx / tw);
-  _T.tx = N ? ((tx % Math.round(N / tw)) + Math.round(N / tw)) % Math.round(N / tw) : tx;
-  _T.ty = M ? ty % Math.round(M / th) : ty;
+  if (N) { const c = (N / tw + 0.5) | 0; _T.tx = ((tx % c) + c) % c; } else _T.tx = tx;
+  _T.ty = M ? ty % ((M / th + 0.5) | 0) : ty;
   _T.lx = xx - tx * tw; _T.ly = y - ty * th;
   _T.d = Math.min(_T.lx + 0.5, tw - _T.lx - 0.5, _T.ly + 0.5, th - _T.ly - 0.5);
   return _T;
@@ -157,17 +168,18 @@ export function scatterChips(N, count, rMin, rMax, seed, cb) {
     const r = rMin + (rMax - rMin) * Math.pow(hash3(c, 3, seed), 2.2);
     const ar = 0.55 + 0.45 * hash3(c, 4, seed), rot = hash3(c, 5, seed) * Math.PI;
     const cr = Math.cos(rot), sr = Math.sin(rot);
-    const k = 5 + Math.floor(hash3(c, 6, seed) * 4); // polygon-ish lobes
-    const ph = hash3(c, 7, seed) * TAU, amp = 0.12 + 0.18 * hash3(c, 8, seed);
-    const R = Math.ceil(r + 1);
-    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-      const lx = dx * cr + dy * sr, ly = (-dx * sr + dy * cr) / ar;
-      const ang = Math.atan2(ly, lx);
-      const rr = r * (1 + amp * Math.cos(k * ang + ph));
-      const d = Math.hypot(lx, ly) / rr;
-      if (d > 1) continue;
-      const px = ((Math.floor(cx) + dx) % N + N) % N, py = ((Math.floor(cy) + dy) % N + N) % N;
-      cb(py * N + px, c, d);
+    const w1 = (hash3(c, 7, seed) - 0.5) * 0.5, w2 = (hash3(c, 8, seed) - 0.5) * 0.5;
+    const R = Math.ceil(r + 1), ir2 = 1 / (r * r);
+    const bx = Math.floor(cx), by = Math.floor(cy);
+    for (let dy = -R; dy <= R; dy++) {
+      const py = ((by + dy) % N + N) % N;
+      for (let dx = -R; dx <= R; dx++) {
+        const lx = dx * cr + dy * sr, ly = (-dx * sr + dy * cr) / ar;
+        // polygon-ish rim: squash by a couple of linear terms
+        const q = (lx * lx + ly * ly) * ir2 * (1 + w1 * lx / r + w2 * ly / r);
+        if (q > 1) continue;
+        cb(py * N + ((bx + dx) % N + N) % N, c, Math.sqrt(q));
+      }
     }
   }
 }

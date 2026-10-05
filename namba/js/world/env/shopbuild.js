@@ -22,16 +22,16 @@ export function regions(env) {
   const { sign, print } = env;
   const R = {
     fascia(b, st) {
-      const H = 96;
+      const H = 72;
       const g = sign.pages[0].g;
-      const w = Math.min(1200, Math.max(H * 3, D.fasciaWidth(g, b, st, H)));
+      const w = Math.min(900, Math.max(H * 3, D.fasciaWidth(g, b, st, H)));
       return sign.add(`fascia|${b.en}|${b.ja}|${st.bg}|${st.fg}|${st.mode}|${st.emblem || ''}`, w, H, (g2, W2, H2) => D.drawFascia(g2, W2, H2, b, st));
     },
-    blade(b, st, glyph) { return sign.add(`blade|${b.en}|${st.bg}|${glyph}`, 112, 168, (g, w, h) => D.drawBlade(g, w, h, b, st, glyph)); },
-    noren(text, sub, bg, fg) { return print.add(`noren|${text}|${sub}|${bg}`, 384, 176, (g, w, h) => D.drawNoren(g, w, h, text, sub, bg, fg)); },
+    blade(b, st, glyph) { return sign.add(`blade|${b.en}|${st.bg}|${glyph}`, 88, 132, (g, w, h) => D.drawBlade(g, w, h, b, st, glyph)); },
+    noren(text, sub, bg, fg) { return print.add(`noren|${text}|${sub}|${bg}`, 320, 144, (g, w, h) => D.drawNoren(g, w, h, text, sub, bg, fg)); },
     lantern(text, bg) { return sign.add(`lantern|${text}|${bg}`, 160, 128, (g, w, h) => D.drawLantern(g, w, h, text, bg)); },
-    chalk(title, items, seed) { return print.add(`chalk|${title}|${seed % 4}`, 160, 224, (g, w, h) => D.drawChalkMenu(g, w, h, title, items, seed)); },
-    photoMenu(title, items, foods, accent) { return print.add(`photo|${title}|${accent}`, 220, 300, (g, w, h) => D.drawPhotoMenu(g, w, h, title, items, (gg, x, y, ww, hh, i) => { gg.save(); gg.translate(x, y); D.drawFood(gg, ww, hh, foods[i % foods.length], i); gg.restore(); }, accent)); },
+    chalk(title, items, seed) { return print.add(`chalk|${title}|${seed % 3}`, 144, 200, (g, w, h) => D.drawChalkMenu(g, w, h, title, items, seed)); },
+    photoMenu(title, items, foods, accent) { return print.add(`photo|${title}|${accent}`, 176, 240, (g, w, h) => D.drawPhotoMenu(g, w, h, title, items, (gg, x, y, ww, hh, i) => { gg.save(); gg.translate(x, y); D.drawFood(gg, ww, hh, foods[i % foods.length], i); gg.restore(); }, accent)); },
     pop(kind, price) { return print.add(`pop|${kind}|${price}`, 96, 72, (g, w, h) => D.drawPOP(g, w, h, kind, price)); },
     food(kind) { return print.add(`food|${kind}`, 96, 96, (g, w, h) => D.drawFood(g, w, h, kind)); },
     prod(kind, v) { return print.add(`prod|${kind}|${v}`, 384, 64, (g, w, h) => D.drawProducts(g, w, h, kind, v + 1)); },
@@ -234,7 +234,7 @@ function glassFront(S, c) {
     const dark = S.st.mode === 'wood' || S.r() < 0.6;
     const bgN = S.b.key === 'tempura_great' ? '#f4f1e8' : S.b.cat === 'yakiniku' ? '#3a0a0a' : dark ? '#1d2b4a' : '#7a1612';
     const fgN = S.b.key === 'tempura_great' ? '#1a1a1a' : '#f5f1e8';
-    const reg = R.noren(nt, S.b.ja, bgN, fgN);
+    const reg = R.noren(nt, S.b.key ? S.b.ja : null, bgN, fgN);
     const panels = 3, pw = (dA1 - dA0 - 0.06) / panels;
     const ny1 = dt - 0.03, ny0 = ny1 - Math.min(0.9, dt - 1.6);
     P.box('env_wood', dA0, dA1, ny1, ny1 + 0.04, 0.03, 0.07, [0.4, 0.28, 0.16]);
@@ -276,7 +276,7 @@ function restaurantOutside(S, c, panes, dA0, dA1) {
     }
   }
   // --- A-frame / photo menu stand
-  const am = S.r() < 0.5 && !refined ? R.chalk(S.b.ja, MENU[cat] || MENU.izakaya, hash(S.b.slot)) : R.photoMenu(refined ? '昼の天ぷら定食' : (S.b.ja), MENU[cat] || MENU.izakaya, SAMPLES[cat] || ['tempura'], refined ? '#2b2b2b' : S.st.accent);
+  const am = S.r() < 0.5 && !refined ? R.chalk(S.b.info.ja + ' メニュー', MENU[cat] || MENU.izakaya, hash(S.b.slot)) : R.photoMenu(refined ? '昼の天ぷら定食' : 'おすすめ ' + S.b.info.ja, MENU[cat] || MENU.izakaya, SAMPLES[cat] || ['tempura'], refined ? '#2b2b2b' : S.st.accent);
   const aa = dA0 > S.W / 2 ? dA0 - 0.5 : dA1 + 0.5;
   if (S.outside(aa - 0.33, aa + 0.33, -1.05, -0.65, 2.5)) aFrame(P, am, aa, -0.85);
   // --- lanterns either side of the door
@@ -386,7 +386,7 @@ export function foodItem(S, P, kind, a, y, d, rad) {
     P.geo(reg.atlas.mat(reg), protoUV('disk', reg), a, y + 0.02, d, 0, rad * 0.95);
     if (['katsu', 'tempura', 'okonomi', 'omurice', 'cake', 'toast'].includes(kind)) {
       const cc = { katsu: [0.8, 0.55, 0.25], tempura: [0.92, 0.75, 0.35], okonomi: [0.6, 0.38, 0.18], omurice: [1, 0.82, 0.2], cake: [0.98, 0.9, 0.75], toast: [0.85, 0.6, 0.3] }[kind];
-      P.geo('env_gloss', 'sphere', a, y + 0.03, d, 0, [rad * 0.55, rad * 0.25, rad * 0.4], cc);
+      P.geo('env_gloss', 'blob', a, y + 0.03, d, 0, [rad * 0.55, rad * 0.25, rad * 0.4], cc);
     }
   }
 }
@@ -434,6 +434,12 @@ export function shelfRun(S, P, o) {
     const p = L(u0, n0), q = L(u1, n1);
     P.box(mat, Math.min(p.a, q.a), Math.max(p.a, q.a), y0, y1, Math.min(p.d, q.d), Math.max(p.d, q.d), col);
   };
+  const boxF = (mat, u0, u1, y0, y1, n0, n1, col) => {
+    const p = L(u0, n0), q = L(u1, n1);
+    // top + the two run-end sides only (front gets the texture, back/bottom hidden)
+    const sideFaces = na !== 0 ? 'nst' : 'ewt';
+    P.box(mat, Math.min(p.a, q.a), Math.max(p.a, q.a), y0, y1, Math.min(p.d, q.d), Math.max(p.d, q.d), col, sideFaces);
+  };
   const face = (reg, u0, u1, y0, y1, n, col = WHITE) => {
     const p = L(u0, n), q = L(u1, n);
     if (na !== 0) P.ta(reg, Math.min(p.d, q.d), Math.max(p.d, q.d), y0, y1, p.a, na > 0 ? 1 : -1, col);
@@ -454,7 +460,7 @@ export function shelfRun(S, P, o) {
       const kind = kinds[(lv + k * 3 + Math.floor(S.r() * 2)) % kinds.length];
       const reg = R.prod(kind, Math.floor(S.r() * 4));
       const u0 = k * sl + 0.03, u1 = (k + 1) * sl - 0.03;
-      box('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
+      boxF('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
       face(reg, u0, u1, y, y + ph, depth - 0.029);
       if (rail) face(R.rail(lv + k), u0, u1, y - 0.045, y - 0.003, depth + 0.012);
     }
@@ -669,10 +675,10 @@ INTERIOR.fashion = (S, c) => {
     const tiers = side === 0 && S.ceil > 3.2 ? [1.7, 0.95] : [1.55];
     for (const ty of tiers) {
       P.box('env_metal', a - 0.015, a + 0.015, ty, ty + 0.03, d0, d1, metal);
-      for (let d = d0 + 0.1; d < d1 - 0.1; d += 0.075 + r() * 0.06) {
+      for (let d = d0 + 0.1; d < d1 - 0.1; d += 0.09 + r() * 0.07) {
         const col = shopPal[Math.floor(r() * shopPal.length)];
         const len = ty < 1.2 ? 0.55 : 0.6 + r() * 0.35;
-        P.geo('env_matte', 'garment', a, ty, d, Math.PI / 2 + (r() - 0.5) * 0.1, [1, len / 0.62, 1], mix(col, [1, 1, 1], r() * 0.15));
+        P.rbox('env_matte', side ? a - 0.01 : a + 0.01, ty - len / 2, d, 0.42, len, 0.035, (r() - 0.5) * 0.08, mix(col, [1, 1, 1], r() * 0.15), 'nsew');
       }
     }
     // shelf above with folded stacks
@@ -697,7 +703,7 @@ INTERIOR.fashion = (S, c) => {
       // rolling rack
       P.box('env_metal', ac - 0.6, ac + 0.6, 1.45, 1.48, d + 0.24, d + 0.27, metal);
       for (const e of [-0.6, 0.6]) P.box('env_metal', ac + e - 0.015, ac + e + 0.015, 0, 1.48, d + 0.24, d + 0.27, metal);
-      for (let a = ac - 0.55; a < ac + 0.55; a += 0.08) P.geo('env_matte', 'garment', a, 1.46, d + 0.25, 0, [1, 1.2, 1], shopPal[Math.floor(r() * 4)]);
+      for (let a = ac - 0.55; a < ac + 0.55; a += 0.1) P.rbox('env_matte', a, 1.46 - 0.37, d + 0.255, 0.035, 0.74, 0.42, 0, shopPal[Math.floor(r() * 4)], 'nsew');
     }
   }
   // fitting rooms + register at the back
@@ -1029,14 +1035,14 @@ INTERIOR.cafe = (S, c) => {
     P.box('env_metal', ca + 0.1, ca + 0.5, 1.04, 1.45, cd1 - 1.2, cd1 - 0.5, [0.75, 0.75, 0.78]);
     P.box('env_matte', ca + 0.15, ca + 0.45, 1.04, 1.25, cd0 + 1.7, cd0 + 2.1, [0.15, 0.15, 0.16]);
     // menu board above
-    const mr = S.R.chalk(S.b.ja, MENU.cafe, hash(S.b.slot) + 1);
+    const mr = S.R.chalk('CAFE MENU', MENU.cafe, hash(S.b.slot) + 1);
     const side = right ? 1 : -1;
     P.ta(mr, cd0 + 1.4, cd0 + 3.0, 1.65, 2.75, right ? W - 0.03 : 0.03, right ? -1 : 1);
     // back bar shelves with cups
     const bw = right ? W - 0.02 : 0.02;
     for (let k = 0; k < 3; k++) {
       P.box('env_wood', right ? W - 0.3 : 0, right ? W : 0.3, 1.35 + k * 0.35, 1.38 + k * 0.35, cd0, cd1, wood);
-      for (let d = cd0 + 0.1; d < cd1 - 0.1; d += 0.13) P.cyl('env_gloss', right ? W - 0.15 : 0.15, 1.38 + k * 0.35, 1.47 + k * 0.35, d, 0.045, k === 1 ? [0.2, 0.2, 0.2] : [0.97, 0.97, 0.95]);
+      for (let d = cd0 + 0.1; d < cd1 - 0.1; d += 0.22) P.cyl('env_gloss', right ? W - 0.15 : 0.15, 1.38 + k * 0.35, 1.47 + k * 0.35, d, 0.045, k === 1 ? [0.2, 0.2, 0.2] : [0.97, 0.97, 0.95], 'cyl6');
     }
     void bw;
     // queue / counter / staff spots
@@ -1071,7 +1077,7 @@ INTERIOR.cafe = (S, c) => {
   // plant at the entrance
   if (S.solid(0.3, 0.8, 0.4, 0.9)) { P.cyl('env_matte', 0.55, 0, 0.4, 0.65, 0.2, [0.3, 0.3, 0.3]); P.geo('env_matte', 'tallplant', 0.55, 0.3, 0.65, 1, 0.8, [0.2, 0.42, 0.18]); }
   // A-frame outside
-  const am = S.R.chalk(S.b.en, MENU.cafe, hash(S.b.slot));
+  const am = S.R.chalk('本日のおすすめ', MENU.cafe, hash(S.b.slot));
   const aa = right ? 0.7 : S.W - 0.7;
   if (S.outside(aa - 0.33, aa + 0.33, -0.95, -0.55, 2.5)) aFrame(S.front, am, aa, -0.75);
   if (!counterOK) S.spot('counter', W / 2, 2, 0, 1);
@@ -1120,7 +1126,7 @@ INTERIOR.kissa = (S, c) => {
     // shelves of cups & bottles behind
     for (let k = 0; k < 3; k++) {
       P.box('env_wood', 0.8, W - 1.8, 1.4 + k * 0.38, 1.43 + k * 0.38, Dm - 0.35, Dm, dark);
-      for (let a = 0.9; a < W - 1.9; a += 0.16) P.cyl('env_gloss', a, 1.43 + k * 0.38, 1.55 + k * 0.38, Dm - 0.18, 0.045, [[0.95, 0.93, 0.88], [0.3, 0.5, 0.35], [0.6, 0.3, 0.1]][(Math.floor(a * 7) + k) % 3]);
+      for (let a = 0.9; a < W - 1.9; a += 0.24) P.cyl('env_gloss', a, 1.43 + k * 0.38, 1.55 + k * 0.38, Dm - 0.18, 0.045, [[0.95, 0.93, 0.88], [0.3, 0.5, 0.35], [0.6, 0.3, 0.1]][(Math.floor(a * 7) + k) % 3], 'cyl6');
     }
   }
   // booths along one wall: velvet benches with tables
@@ -1192,7 +1198,7 @@ INTERIOR.bakery = (S, c) => {
         P.box('env_wood', ta - 0.24, ta + 0.24, 0.8, 0.84, td - 0.2, td + 0.2, [0.5, 0.35, 0.2]);
         const reg = S.R.food('bread');
         P.qh(reg.atlas.mat(reg), ta - 0.22, ta + 0.22, td - 0.18, td + 0.18, 0.842, true, WHITE, reg.atlas.uv(reg));
-        for (let b = 0; b < 3; b++) P.geo('env_matte', 'sphere', ta - 0.12 + b * 0.12, 0.87, td + (b % 2 - 0.5) * 0.12, 0, [0.07, 0.04, 0.05], [0.75, 0.48, 0.2]);
+        for (let b = 0; b < 2; b++) P.geo('env_matte', 'blob', ta - 0.08 + b * 0.16, 0.87, td + (b % 2 - 0.5) * 0.12, b, [0.08, 0.045, 0.06], [0.75, 0.48, 0.2]);
       }
       const pr = S.R.label('焼きたて', '#c0392b', '#fff', 128, 48);
       P.tq(pr, a - 0.15, a + 0.15, 0.95, 1.06, d + 0.5, -1);
@@ -1213,15 +1219,19 @@ INTERIOR.sweets = (S, c) => {
   const P = S.inner, W = S.W;
   const Dm = Math.min(S.D, 6);
   const foods = { 'Taiyaki Namba': ['bread'], 'Kakigōri Yuki': ['parfait'] }[S.b.en] || ['cake', 'wagashi', 'cake', 'parfait'];
-  const ca0 = 0.4, ca1 = Math.max(1.6, W - 1.4);
+  const ca0 = 0.4, ca1 = Math.max(1.2, Math.min(S.doorA1 - 1, W - 1.4));
+  S.setDoor(Math.ceil(ca1 - 0.29), S.doorA1);
   if (S.solid(ca0, ca1, 0.55, 1.25, { pocket: 99 })) {
     P.box('env_gloss', ca0, ca1, 0, 0.85, 0.55, 1.25, [0.97, 0.96, 0.95]);
     P.box('env_glass_case', ca0 + 0.02, ca1 - 0.02, 0.85, 1.35, 0.57, 1.23, WHITE);
     P.qh('env_glow', ca0 + 0.04, ca1 - 0.04, 0.6, 1.2, 1.34, false, [2.1, 2.0, 1.85]);
-    for (let a = ca0 + 0.15; a < ca1 - 0.1; a += 0.22) {
+    let k = 0;
+    for (let a = ca0 + 0.15; a < ca1 - 0.1; a += 0.22, k++) {
       const f = foods[Math.floor(S.r() * foods.length)];
-      if (f === 'wagashi' || f === 'bread') { const reg = S.R.food(f); P.qh(reg.atlas.mat(reg), a - 0.1, a + 0.1, 0.65, 0.85, 0.86, true, WHITE, reg.atlas.uv(reg)); P.qh(reg.atlas.mat(reg), a - 0.1, a + 0.1, 0.92, 1.12, 0.86, true, WHITE, reg.atlas.uv(reg)); }
-      else { foodItem(S, P, f, a, 0.86, 0.78, 0.07); foodItem(S, P, f, a, 0.86, 1.02, 0.07); }
+      const reg = S.R.food(f);
+      P.qh(reg.atlas.mat(reg), a - 0.1, a + 0.1, 0.92, 1.12, 0.86, true, WHITE, reg.atlas.uv(reg));
+      if (k % 3 === 0 && f !== 'wagashi' && f !== 'bread') foodItem(S, P, f, a, 0.86, 0.75, 0.07);
+      else P.qh(reg.atlas.mat(reg), a - 0.1, a + 0.1, 0.65, 0.85, 0.86, true, WHITE, reg.atlas.uv(reg));
     }
     const nW = Math.floor((ca1 - ca0) / 0.9);
     for (let k = 0; k < Math.max(1, nW); k++) { const a = ca0 + 0.45 + k * 0.9; S.spot('counter', a, -0.4, 0, 1); S.spot('staff', a, 1.9, 0, -1); }
@@ -1241,7 +1251,8 @@ INTERIOR.sweets = (S, c) => {
 // takoyaki stand: griddle at the front + giant octopus
 INTERIOR.takoyaki = (S, c) => {
   const P = S.inner, F = S.front, W = S.W;
-  const ca0 = 0.4, ca1 = Math.max(1.6, W - 1.4);
+  const ca0 = 0.4, ca1 = Math.max(1.2, Math.min(S.doorA1 - 1, W - 1.4));
+  S.setDoor(Math.ceil(ca1 - 0.29), S.doorA1);
   if (S.solid(ca0, ca1, 0.4, 1.2, { pocket: 99 })) {
     P.box('env_metal', ca0, ca1, 0, 0.85, 0.4, 1.2, [0.7, 0.7, 0.72]);
     P.box('env_matte', ca0, ca1, 0, 0.85, 0.38, 0.4, K('#d6203a'));
@@ -1262,7 +1273,7 @@ INTERIOR.takoyaki = (S, c) => {
     for (let k = 0; k < 4; k++) F.geo('env_gloss', 'cyl', oa - 0.3 + k * 0.2, oy - 0.45, -0.55, 0, [0.06, 0.4, 0.06], K('#e0402a'));
   }
   // menu panel above the counter + lanterns
-  const mr = S.R.photoMenu(S.b.ja, MENU.takoyaki, ['takoyaki'], '#d6203a');
+  const mr = S.R.photoMenu('たこ焼き', MENU.takoyaki, ['takoyaki'], '#d6203a');
   P.tq(mr, ca0 + 0.2, ca0 + 0.2 + 0.75, 1.7, 2.7, 1.5, -1);
   const lr = S.R.lantern('たこ焼', '#c8231d');
   for (const la of [0.35, W - 0.35]) F.geo(lr.atlas.mat(lr), protoUV('lantern', lr), la, S.doorTop - 0.6, -0.3, 0, [0.38, 0.52, 0.38]);
@@ -1310,7 +1321,7 @@ INTERIOR.rcounter = (S, c) => {
   const tA0 = right ? 0.5 : ca1 + 1.2, tA1 = right ? ca0 - 1.2 : W - 0.5;
   for (let d = 1.8; d < Dm - 1.2; d += 2.0) for (let a = tA0 + 0.35; a < tA1 - 0.3; a += 1.8) cafeTable(S, P, a, d, wood, [0.2, 0.15, 0.1]);
   // posters
-  const pm = S.R.photoMenu(S.b.ja, MENU[cat] || MENU.ramen, SAMPLES[cat] || ['ramen'], S.st.accent);
+  const pm = S.R.photoMenu('おすすめ ' + S.b.info.ja, MENU[cat] || MENU.ramen, SAMPLES[cat] || ['ramen'], S.st.accent);
   P.ta(pm, 1.2, 2.0, 1.2, 2.3, right ? 0.03 : W - 0.03, right ? 1 : -1);
   // noren to the kitchen at the back
   const nr = S.R.noren('厨房', null, '#1d2b4a', '#f5f1e8');
@@ -1354,7 +1365,8 @@ INTERIOR.rtable = (S, c) => {
     for (let a = 1; a < W - 1; a += 1.4) S.spot('staff', a, kd + 1.1, 0, -1);
     S.spot('counter', 1.0, kd - 0.5, 0, 1);
     // sake bottles / beer crates
-    for (let a = 0.6; a < W - 0.6; a += 0.22) P.geo('env_gloss', 'bottle', a, 1.05, kd + 0.45, 0, [0.07, 0.3, 0.07], [[0.1, 0.3, 0.15], [0.35, 0.2, 0.05], [0.9, 0.9, 0.9]][Math.floor(a * 5) % 3]);
+    const bt = S.R.prod('bottles', 1);
+    for (let a = 0.6; a < W - 1.8; a += 1.2) P.tq(bt, a, a + 1.15, 1.05, 1.35, kd + 0.3, -1);
   }
   // tables of four
   for (let d = 1.6; d < kd - 1.4; d += 2.4) {
@@ -1389,7 +1401,7 @@ INTERIOR.rtable = (S, c) => {
     if (cat === 'kushikatsu') P.ta(pr, 2, 3, 2.0, 2.25, W - 0.03, -1);
   }
   if (cat === 'yakiniku' || cat === 'izakaya') S.light(W / 2, 2.2, Dm / 2, [1, 0.6, 0.35], 0.6, 6, 'lamp');
-  const pm = S.R.photoMenu(S.b.ja, MENU[cat] || MENU.izakaya, SAMPLES[cat] || ['salad'], S.st.accent);
+  const pm = S.R.photoMenu('おすすめ ' + S.b.info.ja, MENU[cat] || MENU.izakaya, SAMPLES[cat] || ['salad'], S.st.accent);
   P.ta(pm, 1.2, 2.0, 1.2, 2.3, W - 0.03, -1);
 };
 

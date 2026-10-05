@@ -36,6 +36,7 @@ export class Kit {
     this.lightCount = 0;
     this.reserved = {};   // level -> [{x,z,r}]
     this.lightLog = [];
+    this.ceilFns = {};    // space id -> (x, z) => absolute ceiling height (vaults, roofs)
   }
   B(lv, x, z) {
     const k = `${lv}|${Math.floor(x / CHUNK)}|${Math.floor(z / CHUNK)}`;
@@ -73,7 +74,8 @@ export class Kit {
   ceilAt(lv, x, z) {
     const c = this.cell(lv, x, z);
     if (c.t !== CELL.WALK || !c.sp || c.sp.outdoor) return null;
-    return this.y(lv) + c.sp.ceil;
+    const f = this.ceilFns[c.sp.id];
+    return f ? f(x, z) : this.y(lv) + c.sp.ceil;
   }
   reserve(lv, x, z, r) { (this.reserved[lv] || (this.reserved[lv] = [])).push({ x, z, r }); }
   clear(lv, x, z, r) {

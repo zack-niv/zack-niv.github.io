@@ -45,6 +45,8 @@ export function balustrade(b, ax, az, bx, bz, y, nx, nz, h = 1.1) {
   void sx; void sz;
 }
 
+const D2 = [[1, 0], [0, 1]];
+const D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export function buildSurfaces(K) {
   const { world, L } = K;
   const fascia = {};
@@ -74,7 +76,7 @@ export function buildSurfaces(K) {
     for (let cz = 0; cz < g.h; cz++) for (let cx = 0; cx < g.w; cx++) {
       const i = cz * g.w + cx;
       if (g.type[i] !== CELL.WALK) continue;
-      for (const [dx, dz] of [[1, 0], [0, 1]]) {
+      for (const [dx, dz] of D2) {
         if (cx + dx >= g.w || cz + dz >= g.h) continue;
         const j = i + dx + dz * g.w;
         if (g.type[j] !== CELL.WALK || g.space[j] === g.space[i]) continue;
@@ -190,7 +192,7 @@ export function buildSurfaces(K) {
     for (let cz = 0; cz < g.h; cz++) for (let cx = 0; cx < g.w; cx++) {
       const i = cz * g.w + cx;
       if (g.type[i] !== CELL.WALK) continue;
-      for (const [dx, dz] of [[1, 0], [0, 1]]) {
+      for (const [dx, dz] of D2) {
         if (cx + dx >= g.w || cz + dz >= g.h) continue;
         const j = i + dx + dz * g.w;
         if (g.type[j] !== CELL.WALK || g.space[j] === g.space[i]) continue;
@@ -266,7 +268,7 @@ function buildSlabEdges(K) {
     for (let cz = 0; cz < g.h; cz++) for (let cx = 0; cx < g.w; cx++) {
       const X = g.x0 + cx + 0.5, Z = g.z0 + cz + 0.5;
       if (!K.isHole(lv, X, Z)) continue;
-      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (const [dx, dz] of D4) {
         const nx0 = X + dx, nz0 = Z + dz;
         if (K.isHole(lv, nx0, nz0)) continue;
         const nc = K.cell(lv, nx0, nz0);

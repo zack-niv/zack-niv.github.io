@@ -83,7 +83,7 @@ export class Ramps {
     const base = mats.get('esc_handrail');
     const mk = (name) => {
       const m = base.clone();
-      if (base.map) m.map = base.map.clone();
+      if (base.map) { m.map = mats.cloneTexture ? mats.cloneTexture(base.map) : base.map.clone(); m.map.repeat.copy(base.map.repeat); }
       m.side = THREE.DoubleSide;
       m.name = name;
       return m;

@@ -98,7 +98,8 @@ export class Interactions {
     hud && hud.prompt(show);
     if (allowUse && !t.passive && !disabled) {
       const inp = this.ctx.input;
-      if (inp.pressed('KeyE') || inp.pressed('Enter')) {
+      const use = typeof inp.action === 'function' ? inp.action('interact') : (inp.pressed('KeyE') || inp.pressed('Enter'));
+      if (use) {
         this.ctx.events.emit('interact', { target: t.id });
         try { t.onUse && t.onUse(t); } catch (e) { console.error('[interact]', t.id, e); }
         return t;

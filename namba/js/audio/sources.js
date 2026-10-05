@@ -24,10 +24,10 @@ const CAT = {
   ramen: [null, 'kitchen', 0], udon: [null, 'kitchen', 0], sushi: [null, 'kitchen', 0], curry: [null, 'kitchen', 0], omurice: [null, 'kitchen', 0], izakaya: [null, 'kitchen', 0],
 };
 const ACT = {
-  tempura: { recipe: 'loop:tempura', gain: 0.55, ref: 1.6, rate: 1 },
-  fryer:   { recipe: 'loop:tempura', gain: 0.45, ref: 1.6, rate: 0.82 },
-  sizzle:  { recipe: 'loop:sizzle', gain: 0.5, ref: 2, rate: 1 },
-  kitchen: { recipe: 'loop:kitchen', gain: 0.4, ref: 2, rate: 1 },
+  tempura: { recipe: 'loop:tempura', gain: 1.4, ref: 3, rate: 1 },
+  fryer:   { recipe: 'loop:tempura', gain: 1.0, ref: 2.5, rate: 0.82 },
+  sizzle:  { recipe: 'loop:sizzle', gain: 0.9, ref: 2.5, rate: 1 },
+  kitchen: { recipe: 'loop:kitchen', gain: 0.55, ref: 2, rate: 1 },
   conbini: { recipe: 'loop:fridge', gain: 0.12, ref: 1.5, rate: 1 },
   cafe:    { recipe: null, gain: 0.5, ref: 2 },
   gacha:   { recipe: null, gain: 0.5, ref: 2 },
@@ -117,7 +117,7 @@ export class Sources {
         const a = s.act ? ACT[s.act] : null;
         const em = this.mixer.emitter({ bus: isMusic ? 'music' : 'sfx', pos: { x: s.x, y: s.y, z: s.z }, hrtf: !isMusic, ref: isMusic ? 3 : a ? a.ref : 2.5, rolloff: isMusic ? 1.3 : 1.2, send: isMusic ? 0.35 : 0.3, lp: 4000 });
         em.setLoop(buf, { rate: a && a.rate || 1 });
-        const base = isMusic ? 0.36 * s.gain : a ? a.gain : 0.42;
+        const base = isMusic ? 0.3 * s.gain : a ? a.gain : 0.42;
         this.live.set(k, { s, em, base, occ: 1 });
         this._occlude(this.live.get(k), L, true);
       } else {

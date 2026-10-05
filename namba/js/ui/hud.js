@@ -45,13 +45,20 @@ export class Hud {
     this.quiet = params.test && !params.has('play');
     if (this.quiet) root.style.display = 'none';
     const ev = this.ctx.events;
+    // PA announcements: the sound system speaks them and emits timed 'caption'
+    // events; only caption raw 'announce' events when there is no audio.
+    const audioCaptions = () => !!(this.ctx.audio && this.ctx.audio.enabled && this.ctx.audio.announcer);
+    const subsOn = () => !(this.ctx.settings && this.ctx.settings.subtitles === false);
     ev.on('announce', (a) => {
-      if (!a) return;
-      const st = this.ctx.settings;
-      if (st && st.subtitles === false) return;
+      if (!a || audioCaptions() || !subsOn()) return;
       this.caption({ ja: a.ja, en: a.text || a.en, kind: 'announce', duration: a.duration || Math.max(4.5, ((a.text || '').length + (a.ja || '').length) * 0.06) });
     });
-    ev.on('caption', (c) => c && this.caption(c));
+    ev.on('caption', (c) => {
+      if (!c) return;
+      const pa = c.speaker === 'PA' || c.kind === 'announce' || c.kind === 'platform' || c.kind === 'train' || c.distant;
+      if (pa && !subsOn()) return;
+      this.caption(Object.assign({}, c, { en: c.en != null ? c.en : (c.ja ? '' : c.text), speaker: c.speaker === 'PA' ? '' : c.speaker, kind: pa ? 'announce' : (c.kind || 'say'), distant: !!c.distant }));
+    });
     ev.on('toast', (t) => t && this.toast(t));
     ev.on('phone:message', (m) => {
       if (this.ctx.phone && this.ctx.phone.handlesMessages) return;
@@ -94,11 +101,11 @@ export class Hud {
   }
 
   // ---- subtitles ----------------------------------------------------------------
-  caption({ en = '', ja = '', speaker = '', duration, kind = 'say' } = {}) {
+  caption({ en = '', ja = '', speaker = '', duration, kind = 'say', distant = false } = {}) {
     if (this.quiet || (!en && !ja)) return;
     const dur = duration || Math.max(3.2, (en.length + ja.length * 1.6) * 0.055);
     const d = document.createElement('div');
-    d.className = `h-cap k-${kind}`;
+    d.className = `h-cap k-${kind}${distant ? ' distant' : ''}`;
     const who = speaker ? `<span class="h-cap-who">${esc(speaker)}</span>` : (kind === 'announce' ? '<span class="h-cap-who pa">案内</span>' : '');
     d.innerHTML = `${ja ? `<div class="h-cap-ja">${who}${esc(ja)}</div>` : ''}${en ? `<div class="h-cap-en">${ja ? '' : who}${esc(en)}</div>` : ''}`;
     this.el.captions.appendChild(d);

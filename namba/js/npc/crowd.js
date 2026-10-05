@@ -56,6 +56,7 @@ export class Crowd {
     this.renderer.init();
     const E = ctx.events;
     E.on('train:arrive', (ev) => { try { this.behave.director.onTrainArrive(ev || {}, true); } catch (e) { console.warn('[crowd] train:arrive', e); } });
+    E.on('player:teleport', () => { if (this.behave) { this.behave.director.burst = 1; this.behave.director._dkT = 0; } });
     E.on('train:depart', (ev) => { try { this.behave.director.onTrainDepart(ev || {}); } catch (e) { console.warn('[crowd] train:depart', e); } });
     this.initMs = performance.now() - t0;
   }
@@ -67,7 +68,7 @@ export class Crowd {
     const dt = Math.max(1e-3, this._dt || 0.016);
     if (V.has && V.level === b.level) { V.vx = (b.x - V.x) / dt; V.vz = (b.z - V.z) / dt; if (Math.hypot(V.vx, V.vz) > 12) { V.vx = V.vz = 0; } }
     else { V.vx = V.vz = 0; }
-    V.x = b.x; V.z = b.z; V.level = b.level; V.ramp = b.ramp; V.has = true;
+    V.x = b.x; V.z = b.z; V.level = b.level; V.ramp = b.ramp; V.yaw = p.yaw || 0; V.has = true;
   }
 
   update(dt) {
