@@ -1,0 +1,19 @@
+:root {
+  --ink: #f4f1ea; --ink-dim: rgba(244,241,234,.66); --bg: #07080a;
+  --accent: #ffcc33; --font: 'Inter', 'Noto Sans JP', system-ui, sans-serif; --font-ja: 'Noto Sans JP', 'Inter', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; touch-action: none; }
+#view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#ui { position: fixed; inset: 0; pointer-events: none; }
+#ui > * { pointer-events: none; }
+#loading { position: absolute; inset: 0; display: grid; place-items: center; background: #050506; transition: opacity 1.2s ease; z-index: 50; pointer-events: auto; }
+#loading.done { opacity: 0; pointer-events: none; }
+.ld-inner { text-align: center; }
+.ld-title { font-family: var(--font-ja); font-weight: 900; font-size: clamp(48px, 10vw, 120px); letter-spacing: .08em; }
+.ld-sub { font-weight: 600; letter-spacing: .6em; opacity: .6; margin: 4px 0 28px; padding-left: .6em; }
+.ld-bar { width: min(320px, 70vw); height: 2px; background: rgba(255,255,255,.12); margin: 0 auto; overflow: hidden; }
+.ld-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s ease; }
+.ld-msg { margin-top: 14px; font-size: 12px; letter-spacing: .1em; opacity: .55; }
+#hud { position: absolute; inset: 0; }
+#overlay { position: absolute; inset: 0; }
