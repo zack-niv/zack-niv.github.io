@@ -60,6 +60,10 @@ Static site, no build step. `python3 -m http.server` in `namba/` and open
 * `node tools/check-layout.mjs /tmp/<you>/plans` — rebuilds the world+nav in
   Node, verifies connectivity (every spawn & shop reachable), writes per-level
   PNG plans.
+* `node tools/loadprobe.mjs [--extra "&nocrowd"]` — prints which system the
+  loader is on over time + HTTP errors. Use it to keep your init fast. Budget:
+  the WHOLE load ≤ ~60 s in this headless probe (≈ ≤ 6–10 s on a laptop); no
+  single system > ~5 s headless. Generate lazily, cache, spread over frames.
 * In page: `window.__namba` is the shared ctx (teleport, systems, stats).
 
 ## Architecture (the contract)
