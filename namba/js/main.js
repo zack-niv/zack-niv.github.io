@@ -2,7 +2,8 @@
 // NAMBA — bootstrap & main loop.
 //
 // Systems are plain classes:  constructor(ctx) · async init() · update(dt)
-// Optional: lateUpdate(dt) (after all updates, before render), onStart().
+// Optional: afterBuild() (after all build systems), lateUpdate(dt) (after all
+// updates, before render), onStart().
 // Each is loaded with fault isolation: if one fails to import/init, the game
 // still runs (errors are logged and shown in ?debug).
 //
@@ -82,6 +83,10 @@ async function boot() {
     }
   };
   for (const s of SYSTEMS.filter(s => s[3] === 'build')) await load(s);
+  // post-build passes (lighting bakes, batching, etc.)
+  for (const { name, sys } of ctx.systems) if (sys.afterBuild) {
+    try { await sys.afterBuild(); } catch (e) { console.error(`[system ${name}] afterBuild failed`, e); ctx.errors.push(`${name}.afterBuild: ${e.message}`); }
+  }
   progress(step++ / total, 'Mapping every passage…');
   await frame();
   // finalise collision with obstacles registered by builders, then nav

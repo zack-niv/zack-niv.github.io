@@ -109,6 +109,14 @@ Visibility culling toggles these.
 and subscribe rather than reaching into other systems' internals. Add new
 events to the catalogue comment when you introduce them.
 
+**Lights**: builders declare light fixtures with
+`ctx.lighting.addLight({level, x, y, z, color, intensity, range, kind})`
+(kind: panel | down | strip | sign | spot | lamp) during `init()`, and build
+the visible emissive fixture geometry themselves. The rendering area decides
+how those lights are realised (baked vertex lighting, nearest-N dynamic
+lights, probes…). Systems may implement `afterBuild()` (runs after all build
+systems) for bake passes.
+
 **Materials**: `ctx.materials.get(name)`; define new ones with
 `ctx.materials.define(name, factory)` *inside your own module* (prefix the name
 with your area, e.g. `shop_counter_wood`) so you don't edit materials.js.
