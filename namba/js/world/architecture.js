@@ -93,6 +93,10 @@ export class Architecture {
         // the walkable side's space
         const walkSp = e.nx < 0 || e.nz < 0 ? spA : e.nx > 0 || e.nz > 0 ? spB : spA;
         const st = styleOf(walkSp);
+        // outdoor boundaries (streets, plaza, canyon, terraces, bridges) are
+        // dressed by exterior.js / parks.js (facades, strata, parapets, kerbs);
+        // collision is unchanged. [outdoors lead — see notes/outdoors.md]
+        if (e.kind === EDGE.WALL && walkSp && walkSp.outdoor) continue;
         if (e.kind === EDGE.WALL || e.kind === EDGE.PARTITION) {
           let h = walkSp ? (walkSp.outdoor ? 4.5 : walkSp.ceil) : 3.5;
           if (e.kind === EDGE.PARTITION) h = Math.max(spA ? spA.ceil : 3, spB ? spB.ceil : 3);

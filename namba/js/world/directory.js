@@ -65,43 +65,51 @@ const POOLS = {
 
 // name fragments per category: [en, ja]
 const NAMES = {
-  cafe: [['Café Komorebi', 'カフェ 木漏れ日'], ['Sunny Side Café', 'サニーサイドカフェ'], ['Café Lumière', 'カフェ ルミエール'], ['Blue Hour Coffee', 'ブルーアワー'], ['Mocca Rest', 'モッカ レスト'], ['Café Tsubame', 'カフェ つばめ']],
-  kissaten: [['Kissa Rondo', '喫茶 ロンド'], ['Kissa Hanabusa', '喫茶 はなぶさ'], ['Coffee Ginga', '珈琲 銀河']],
-  coffeestand: [['Stand Mame', 'スタンド 豆'], ['Kōhī Ippo', '珈琲 一歩']],
-  bakery: [['Boulangerie Kumo', 'ブーランジェリー 雲'], ['Pan no Mori', 'パンの森'], ['Melon Pan Factory', 'メロンパン工房']],
-  sweets: [['Warabi Mochi Nishiki', 'わらび餅 錦'], ['Crêpe Rabbit', 'クレープ ラビット'], ['Cheesecake Ojisan', 'おじさんのチーズケーキ'], ['Parfait Hoshi', 'パフェ 星'], ['Taiyaki Namba', 'たい焼き なんば']],
-  takoyaki: [['Takoyaki Hachibē', 'たこ焼き 八兵衛'], ['Kogane Tako', 'こがね たこ']],
-  ramen: [['Ramen Kanade', 'らーめん 奏'], ['Menya Tsuru', '麺屋 鶴'], ['Tonkotsu Kamikaze', '豚骨 神風']],
-  udon: [['Udon Kamatora', 'うどん 釜虎'], ['Kitsune Udon Dōtonbori-an', 'きつねうどん 道頓堀庵']],
-  okonomiyaki: [['Okonomiyaki Chibō-ya', 'お好み焼き ちぼう屋'], ['Teppan Mizuno-tei', '鉄板 水野亭']],
-  kushikatsu: [['Kushikatsu Daruma-ya', '串かつ だるま屋'], ['Shinsekai Kushi', '新世界 串']],
-  sushi: [['Sushi Uogashi', '寿司 魚河岸'], ['Kaiten Sushi Nami', '回転寿司 波'], ['Sushi Ginjō', '鮨 吟醸']],
-  tonkatsu: [['Tonkatsu Kurobuta', 'とんかつ 黒豚'], ['Katsu Sōbē', 'かつ 惣兵衛']],
-  curry: [['Curry no Hiroba', 'カレーの広場'], ['Spice Naniwa', 'スパイス なにわ']],
+  cafe: [['Café Komorebi', 'カフェ 木漏れ日'], ['Sunny Side Café', 'サニーサイドカフェ'], ['Café Lumière', 'カフェ ルミエール'], ['Blue Hour Coffee', 'ブルーアワー'], ['Mocca Rest', 'モッカ レスト'], ['Café Tsubame', 'カフェ つばめ'],
+    ['Hanabi Coffee', 'ハナビコーヒー'], ['Café de Kawa', 'カフェ・ド・川'], ['Pine Tree Coffee', 'パインツリー珈琲'], ['Café Mitsubachi', 'カフェ みつばち'], ['Toki Coffee Roasters', 'トキ コーヒーロースターズ'], ['Café Hidamari', 'カフェ ひだまり'],
+    ['Seven Beans', 'セブンビーンズ'], ['Café Ondo', 'カフェ 温度'], ['Lantern Coffee', 'ランタン珈琲'], ['Café Shirokuma', 'カフェ しろくま'], ['Moon Drip', 'ムーンドリップ'], ['Café Kotori', 'カフェ ことり']],
+  kissaten: [['Kissa Rondo', '喫茶 ロンド'], ['Kissa Hanabusa', '喫茶 はなぶさ'], ['Coffee Ginga', '珈琲 銀河'], ['Kissa Amadeus', '喫茶 アマデウス'], ['Jun-Kissa Momiji', '純喫茶 もみじ']],
+  coffeestand: [['Stand Mame', 'スタンド 豆'], ['Kōhī Ippo', '珈琲 一歩'], ['Drip Stand Kei', 'ドリップスタンド 景']],
+  bakery: [['Boulangerie Kumo', 'ブーランジェリー 雲'], ['Pan no Mori', 'パンの森'], ['Melon Pan Factory', 'メロンパン工房'], ['Bakery Komugi', 'ベーカリー 小麦'], ['Croissant Hachi', 'クロワッサン 八']],
+  sweets: [['Warabi Mochi Nishiki', 'わらび餅 錦'], ['Crêpe Rabbit', 'クレープ ラビット'], ['Cheesecake Ojisan', 'おじさんのチーズケーキ'], ['Parfait Hoshi', 'パフェ 星'], ['Taiyaki Namba', 'たい焼き なんば'],
+    ['Pudding Lab', 'プリン研究所'], ['Matcha Sōan', '抹茶 宗庵'], ['Baumkuchen Kirin', 'バウムクーヘン 麒麟'], ['Dorayaki Usagi-dō', 'どら焼き うさぎ堂'], ['Choux Crème Atelier', 'シュークリーム工房'], ['Kakigōri Yuki', 'かき氷 雪'],
+    ['Donut Marumaru', 'ドーナツ まるまる'], ['Mont Blanc Kuri', 'モンブラン 栗'], ['Senbei Ōya', 'せんべい 大屋'], ['Fruit Sando Mikan', 'フルーツサンド みかん'], ['Castella Nagasaki-ya', 'カステラ 長崎屋'], ['Gelato Sole', 'ジェラート ソーレ'], ['Imo Sweets Satsuma', '芋スイーツ さつま']],
+  takoyaki: [['Takoyaki Hachibē', 'たこ焼き 八兵衛'], ['Kogane Tako', 'こがね たこ'], ['Tako Tako King', 'たこたこキング']],
+  ramen: [['Ramen Kanade', 'らーめん 奏'], ['Menya Tsuru', '麺屋 鶴'], ['Tonkotsu Kamikaze', '豚骨 神風'], ['Chūka Soba Kōmyō', '中華そば 光明']],
+  udon: [['Udon Kamatora', 'うどん 釜虎'], ['Kitsune Udon Dōtonbori-an', 'きつねうどん 道頓堀庵'], ['Sanuki Udon Nagi', '讃岐うどん 凪'], ['Soba Udon Ichiban', 'そば・うどん 一番']],
+  okonomiyaki: [['Okonomiyaki Chibō-ya', 'お好み焼き ちぼう屋'], ['Teppan Mizuno-tei', '鉄板 水野亭'], ['Negiyaki Yamamoto-an', 'ねぎ焼 山本庵'], ['Okonomi Fūgetsu-dō', 'お好み 風月堂']],
+  kushikatsu: [['Kushikatsu Daruma-ya', '串かつ だるま屋'], ['Shinsekai Kushi', '新世界 串'], ['Kushiage Yaoki', '串揚げ 八起']],
+  sushi: [['Sushi Uogashi', '寿司 魚河岸'], ['Kaiten Sushi Nami', '回転寿司 波'], ['Sushi Ginjō', '鮨 吟醸'], ['Sushi Kurumi', '鮨 くるみ']],
+  tonkatsu: [['Tonkatsu Kurobuta', 'とんかつ 黒豚'], ['Katsu Sōbē', 'かつ 惣兵衛'], ['Tonkatsu Marugo', 'とんかつ まる五']],
+  curry: [['Curry no Hiroba', 'カレーの広場'], ['Spice Naniwa', 'スパイス なにわ'], ['Curry Jūbē', 'カレー 十兵衛'], ['Ceylon Curry Lanka', 'セイロンカレー ランカ'], ['Beef Curry Kotetsu', 'ビーフカレー 小鉄']],
   tendon: [['Tendon Tenmaru', '天丼 てんまる']],
   tempura: [['Tempura Sakaba Kitsune', '天ぷら酒場 きつね']],
-  izakaya: [['Izakaya Tōrō', '居酒屋 灯籠'], ['Sakaba Yoimachi', '酒場 宵町']],
-  yakiniku: [['Yakiniku Hinoki', '焼肉 ひのき'], ['Wagyu Kōbō', '和牛 工房']],
-  omurice: [['Omurice Pomme', 'オムライス ポム'], ['Yōshoku Kitchen Hanada', '洋食キッチン 花田']],
-  fashion: [['MONO-TONE', 'モノトーン'], ['Urban Kimono Lab', 'アーバン キモノ ラボ'], ['NORTH/SOUTH', 'ノースサウス'], ['Aoi Select', 'アオイ セレクト'], ['Daily Wear Co.', 'デイリーウェア'], ['GRAY HERON', 'グレイヘロン'], ['Shima Shima', 'しましま'], ['Lumen & Linen', 'ルーメン＆リネン'], ['KOTOBUKI DENIM', 'ことぶきデニム'], ['Petit Marché', 'プチマルシェ'], ['RE:STYLE', 'リスタイル'], ['Sakura Avenue', 'サクラアベニュー']],
-  shoes: [['Walk Walk', 'ウォークウォーク'], ['Ashioto Shoes', '足音シューズ']],
-  accessories: [['Hoshi-kuzu', '星くず'], ['Kirari', 'きらり'], ['Tokei-ya', '時計屋']],
-  cosmetics: [['Hada Lab', 'ハダラボ'], ['Beauty Kōjō', 'ビューティー工場']],
-  drugstore: [['Drug Kenkō', 'ドラッグ 健康'], ['Kusuri no Mori', 'くすりの森'], ['MATSUBA Drug', 'マツバドラッグ']],
-  conbini: [['Namba Mart', 'なんばマート'], ['Hi-Day Store', 'ハイデイストア']],
-  hyakuen: [['Daily 100', 'デイリー100'], ['Hyakkin Plaza', '百均プラザ']],
-  books: [['Shoseki Namba', '書籍 なんば'], ['Kinokuni Books', '紀之国書房']],
-  stationery: [['Bungu-dō', '文具堂']],
-  eyewear: [['Megane Square', 'メガネスクエア']],
-  phone: [['Mobile Station', 'モバイルステーション']],
-  souvenir: [['Naniwa Omiyage', 'なにわ おみやげ'], ['Osaka Kuidaore Shop', '大阪くいだおれ堂']],
-  florist: [['Hana-ya Kasumi', '花屋 かすみ']],
-  lifestyle: [['Kurashi no Dōgu', '暮らしの道具'], ['Tane Tane', 'たねたね'], ['Mokume Living', 'もくめリビング'], ['Moss & Stone', 'モス＆ストーン']],
-  outdoor: [['Trail Head', 'トレイルヘッド'], ['Yama to Umi', '山と海']],
-  electronics: [['Denki Land', 'でんきランド']],
-  gacha: [['Gacha Gacha no Mori', 'ガチャガチャの森']],
-  ticket: [['Kinken Shop Daikoku', '金券ショップ 大黒']],
-  exchange: [['World Exchange', 'ワールドエクスチェンジ']],
+  izakaya: [['Izakaya Tōrō', '居酒屋 灯籠'], ['Sakaba Yoimachi', '酒場 宵町'], ['Izakaya Tanuki', '居酒屋 たぬき'], ['Robata Hinokuruma', '炉端 火の車'], ['Sakaba Kanpai-dōri', '酒場 乾杯通り'], ['Yakitori Torikichi', '焼鳥 鳥吉'], ['Oden Kotobuki', 'おでん 寿'], ['Taishū Sakaba Ichimaru', '大衆酒場 一丸'], ['Izakaya Ume-chan', '居酒屋 うめちゃん'], ['Highball Sakaba Nami', 'ハイボール酒場 波']],
+  yakiniku: [['Yakiniku Hinoki', '焼肉 ひのき'], ['Wagyu Kōbō', '和牛 工房'], ['Yakiniku Manpuku', '焼肉 満腹'], ['Horumon Tetchan', 'ホルモン てっちゃん'], ['Yakiniku Jojo-en', '焼肉 上々苑'], ['Kalbi Ichiban', 'カルビ一番'], ['Yakiniku Gyūzō', '焼肉 牛蔵'], ['Sumibi Yakiniku Kaen', '炭火焼肉 火炎'], ['Yakiniku Namba Hanare', '焼肉 なんば離れ']],
+  omurice: [['Omurice Pomme', 'オムライス ポム'], ['Yōshoku Kitchen Hanada', '洋食キッチン 花田'], ['Grill Jūjiya', 'グリル 十字屋'], ['Hamburg Steak Kaguya', 'ハンバーグ かぐや'], ['Doria Mon', 'ドリア もん'], ['Yōshoku Akari', '洋食 あかり']],
+  fashion: [['MONO-TONE', 'モノトーン'], ['Urban Kimono Lab', 'アーバン キモノ ラボ'], ['NORTH/SOUTH', 'ノースサウス'], ['Aoi Select', 'アオイ セレクト'], ['Daily Wear Co.', 'デイリーウェア'], ['GRAY HERON', 'グレイヘロン'], ['Shima Shima', 'しましま'], ['Lumen & Linen', 'ルーメン＆リネン'], ['KOTOBUKI DENIM', 'ことぶきデニム'], ['Petit Marché', 'プチマルシェ'], ['RE:STYLE', 'リスタイル'], ['Sakura Avenue', 'サクラアベニュー'],
+    ['FOG & FERN', 'フォグ＆ファーン'], ['Hitotsubu', 'ひとつぶ'], ['ANCHOR STREET', 'アンカーストリート'], ['Mellow Days', 'メロウデイズ'], ['NAMI NAMI', 'ナミナミ'], ['Kinari Works', 'キナリワークス'], ['STUDIO KASANE', 'スタジオ カサネ'], ['Cotton Cloud', 'コットンクラウド'], ['BLACK PEPPER', 'ブラックペッパー'], ['Haru to Aki', '春と秋'],
+    ['OSAKA UNIFORM', 'オオサカユニフォーム'], ['La Fleur Mignonne', 'ラ・フルール'], ['TWO TONE TOKYO', 'ツートーントーキョー'], ['Nuance Room', 'ニュアンスルーム'], ['WEEKEND HOUSE', 'ウィークエンドハウス'], ['Kumo no Ue', '雲の上'], ['Velvet Siren', 'ベルベットサイレン'], ['URBAN FIELD', 'アーバンフィールド'],
+    ['Plain People', 'プレーンピープル'], ['SOU-SOU-KA', 'そうそうか'], ['Midnight Market', 'ミッドナイトマーケット'], ['AOZORA', 'あおぞら'], ['Garden Party', 'ガーデンパーティー'], ['STEEL BLUE', 'スティールブルー'], ['Mimosa', 'ミモザ'], ['GEN-KI', 'ゲンキ'], ['Linen Bird', 'リネンバード'], ['Basic Lab', 'ベーシックラボ'],
+    ['Heritage 1952', 'ヘリテージ1952'], ['Sorairo', 'そらいろ'], ['MOD SQUAD', 'モッドスクワッド'], ['Pastel Parade', 'パステルパレード'], ['Kitsune Knit', 'キツネニット'], ['Rue de Namba', 'リュ・ド・なんば'], ['BORDER LINE', 'ボーダーライン'], ['Tsumugi', 'つむぎ'], ['IRON & INK', 'アイアン＆インク'], ['Hello Sunday', 'ハローサンデー']],
+  shoes: [['Walk Walk', 'ウォークウォーク'], ['Ashioto Shoes', '足音シューズ'], ['Step Up', 'ステップアップ'], ['Sneaker Lab Kansai', 'スニーカーラボ関西'], ['Kutsu no Hanada', '靴の花田'], ['ABC Footwear', 'ABCフットウェア'], ['Rain or Shine', 'レインオアシャイン'], ['Loafer & Co.', 'ローファー＆コー'], ['Pumps Paris', 'パンプス パリ'], ['Run Run', 'ランラン']],
+  accessories: [['Hoshi-kuzu', '星くず'], ['Kirari', 'きらり'], ['Tokei-ya', '時計屋'], ['Bijou Momo', 'ビジュー もも'], ['Hat Trick', 'ハットトリック'], ['Bag Garden', 'バッグガーデン'], ['Silver Moon', 'シルバームーン'], ['Kanzashi-dō', 'かんざし堂'], ['Socks Oasis', 'ソックスオアシス'], ['Umbrella Tenki', '傘 てんき'], ['Pearl Osaka', 'パール大阪'], ['Wallet Works', 'ウォレットワークス'], ['Ribbon Room', 'リボンルーム']],
+  cosmetics: [['Hada Lab', 'ハダラボ'], ['Beauty Kōjō', 'ビューティー工場'], ['Cosme Kitchen Namba', 'コスメキッチン なんば'], ['Shiro Tsubaki', '白椿'], ['Nail Salon Kira', 'ネイル キラ'], ['Hana Cosme', 'はなコスメ'], ['Organic Mori', 'オーガニック森'], ['Lip & Eye', 'リップ＆アイ']],
+  drugstore: [['Drug Kenkō', 'ドラッグ 健康'], ['Kusuri no Mori', 'くすりの森'], ['MATSUBA Drug', 'マツバドラッグ'], ['Drug Hikari', 'ドラッグ ひかり'], ['Sun Drug Namba', 'サンドラッグ なんば'], ['Kokumin no Kusuri', 'こくみんの薬']],
+  conbini: [['Namba Mart', 'なんばマート'], ['Hi-Day Store', 'ハイデイストア'], ['Daily Smile', 'デイリースマイル']],
+  hyakuen: [['Daily 100', 'デイリー100'], ['Hyakkin Plaza', '百均プラザ'], ['Can★Do Namba', 'キャンドゥ なんば']],
+  books: [['Shoseki Namba', '書籍 なんば'], ['Kinokuni Books', '紀之国書房'], ['Manga Sōko', 'まんが倉庫'], ['Asahiya Books', '旭屋書房'], ['Bunko Hitotsubashi', '文庫 一ツ橋']],
+  stationery: [['Bungu-dō', '文具堂'], ['Pen & Note', 'ペン＆ノート'], ['Loft Note', 'ロフトノート']],
+  eyewear: [['Megane Square', 'メガネスクエア'], ['Zoff Eye Lab', 'アイラボ'], ['Megane no Sanjō', 'メガネの三城']],
+  phone: [['Mobile Station', 'モバイルステーション'], ['au Shop Namba', 'モバイル なんば'], ['Phone Square', 'フォンスクエア']],
+  souvenir: [['Naniwa Omiyage', 'なにわ おみやげ'], ['Osaka Kuidaore Shop', '大阪くいだおれ堂'], ['Kansai Meisan-dō', '関西名産堂']],
+  florist: [['Hana-ya Kasumi', '花屋 かすみ'], ['Flower Shop Tsubomi', 'フラワーショップ つぼみ']],
+  lifestyle: [['Kurashi no Dōgu', '暮らしの道具'], ['Tane Tane', 'たねたね'], ['Mokume Living', 'もくめリビング'], ['Moss & Stone', 'モス＆ストーン'], ['Kitchen Hakobune', 'キッチン 方舟'], ['Washi Paper Kami', '和紙 紙'], ['Candle House', 'キャンドルハウス'], ['Utsuwa Shiki', '器 四季'], ['Room Ninety', 'ルーム90'], ['Tenugui Kamawanu', '手ぬぐい かまわぬ'], ['Aroma Garden', 'アロマガーデン'], ['Tea Utensils Chaki', '茶器 ちゃき'], ['Ichigo Ichie Zakka', '一期一会 雑貨'], ['Sofa & Light', 'ソファ＆ライト']],
+  outdoor: [['Trail Head', 'トレイルヘッド'], ['Yama to Umi', '山と海'], ['Camp Kansai', 'キャンプ関西'], ['Summit Gear', 'サミットギア'], ['River Side Outdoor', 'リバーサイド アウトドア'], ['Mori Gurashi', '森ぐらし'], ['North Ridge', 'ノースリッジ']],
+  electronics: [['Denki Land', 'でんきランド'], ['Gadget Base', 'ガジェットベース'], ['Audio Plaza', 'オーディオプラザ']],
+  gacha: [['Gacha Gacha no Mori', 'ガチャガチャの森'], ['Capsule Land', 'カプセルランド'], ['Gacha Paradise', 'ガチャパラダイス']],
+  ticket: [['Kinken Shop Daikoku', '金券ショップ 大黒'], ['Ticket Center Namba', 'チケットセンター なんば'], ['Kinken Ōtani', '金券 大谷']],
+  exchange: [['World Exchange', 'ワールドエクスチェンジ'], ['Money Exchange Namba', '外貨両替 なんば']],
   closed: [['(closed)', '改装中']],
 };
 
@@ -138,11 +146,35 @@ function poolFor(slot) {
   return POOLS.city;
 }
 
+// realistic opening hours (minutes) per category; slight per-shop variation
+function hoursFor(cat, slot, r) {
+  const v = () => (r() < 0.5 ? 0 : 30);
+  switch (cat) {
+    case 'cafe': return [450 + v(), 1290];
+    case 'kissaten': return [480, 1260];
+    case 'coffeestand': return [450, 1140];
+    case 'bakery': return [480, 1260];
+    case 'conbini': return [420, 1380];
+    case 'izakaya': return [1020, 1440];
+    case 'kushikatsu': return [690, 1380];
+    case 'yakiniku': return [660, 1380];
+    case 'ramen': case 'udon': case 'curry': return [660, 1380];
+    case 'okonomiyaki': case 'sushi': case 'tonkatsu': case 'omurice': case 'tendon': case 'tempura': return [660, 1320];
+    case 'sweets': case 'takoyaki': return [600, 1260];
+    case 'drugstore': return [600, 1290];
+    case 'exchange': case 'ticket': return [600, 1200];
+    case 'phone': return [660, 1200];
+    case 'closed': return [0, 0];
+    default: return slot.zone === 'parks' ? [660, 1260] : [600 + v() * 0, 1260];
+  }
+}
+
 export const BUSINESSES = [];
 export const businessBySlot = {};
 export const businessByKey = {};
 {
   const used = {};
+  const perm = {};
   for (const slot of LAYOUT.shopSlots) {
     const r = rng(hash(slot.id));
     let b;
@@ -153,12 +185,16 @@ export const businessByKey = {};
       let cat = weighted(r, poolFor(slot));
       // avoid duplicate tempura businesses beyond the featured ones
       if (cat === 'tempura' || cat === 'tendon') cat = 'udon';
-      const names = NAMES[cat] || [['Shop', '店']];
+      // deterministic per-category permutation: names repeat only once a pool
+      // is exhausted (chains do have several branches), never the featured ones
+      const featuredNames = Object.values(FEATURED).map(f => f.en.replace(/^Café /, ''));
+      const names = (NAMES[cat] || [['Shop', '店']]).filter(([n]) => !featuredNames.some(f => n === f || n.endsWith(f) || f.endsWith(n)));
+      if (!perm[cat]) { const pr = rng(hash('names:' + cat)); perm[cat] = names.map((n, i) => [pr(), i]).sort((a, b) => a[0] - b[0]).map(([, i]) => i); }
       const k = (used[cat] = (used[cat] || 0) + 1) - 1;
-      const [en, ja] = names[(k + Math.floor(r() * names.length)) % names.length];
+      const [en, ja] = names[perm[cat][k % names.length]] || names[0];
       const isFood = CATEGORIES[cat].food;
       b = { cat, en, ja, rating: Math.round((3.0 + r() * 1.4) * 10) / 10, reviews: Math.floor(30 + r() * 900),
-            hours: cat === 'izakaya' ? [1020, 1440] : isFood ? [660, 1320] : [600, 1260] };
+            hours: hoursFor(cat, slot, r) };
       if (cat === 'closed') b.rating = 0;
     }
     b.slot = slot.id; b.level = slot.level; b.zone = slot.zone;

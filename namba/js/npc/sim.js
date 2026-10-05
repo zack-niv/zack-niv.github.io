@@ -1,0 +1,670 @@
+// =============================================================================
+// Crowd simulation core (no THREE — runs in Node for benchmarks).
+//
+// Agents follow destination-keyed flow fields, smoothed by look-ahead and a
+// per-agent lane offset, with social-force/anticipatory avoidance on a uniform
+// spatial hash. Escalators: stand on the RIGHT, walk on the LEFT, admission
+// intervals per lane produce queues at the mouths during surges. Ticket gates:
+// lanes chosen by proximity + load, one passenger per lane at a time.
+//
+// LOD: tier 0 (near the player): every frame, full steering. tier 1 (visible
+// range): every 2nd frame. tier 2 (elsewhere): every 4th frame, node hopping
+// along the field (trip progress stays correct; no avoidance).
+// =============================================================================
+import { FieldStore, GridCollider, localPath } from './fields.js';
+import { Places } from './places.js';
+import { rampProfile, LEVELS } from '../world/layout.js';
+
+export const MODE = { NONE: 0, FIELD: 1, PATH: 2, STAND: 3, RIDE: 4, GATE: 5, FOLLOW: 6 };
+export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12 };
+const TWO_PI = Math.PI * 2;
+
+export class Agent {
+  constructor(i) {
+    this.i = i; this.alive = false; this.serial = 0;
+    this.x = 0; this.z = 0; this.y = 0; this.level = 'B1'; this.lv = 0; this.ramp = -1;
+    this.rs = 0; this.ru = 0; this.rdir = 1; this.rspd = 0; this.walkLane = false;
+    this.vx = 0; this.vz = 0; this.yaw = 0; this.spd = 0; this.pref = 1.3; this.prefBase = 1.3;
+    this.node = -1; this.aimX = 0; this.aimZ = 0; this.aimT = 0; this.rampNext = -1; this.rampU = 0; this.rampFromLow = true;
+    this.en = null; this.arriveDm = 10; this.mode = MODE.NONE;
+    this.path = null; this.pi = 0; this.tx = 0; this.tz = 0; this.arriveR = 0.4;
+    this.gate = null; this.lane = -1; this.gstage = 0; this.gside = 1;
+    this.faceYaw = 0; this.faceSet = false; this.pose = POSE.STAND; this.lookYaw = 0; this.lookPitch = 0; this.lookT = 0;
+    this.tier = 2; this.lastUpd = 0; this.fade = 0; this.fadeDir = 1; this.dead = false;
+    this.leader = null; this.followers = null; this.offX = 0; this.offZ = 0; this.handHold = false;
+    this.laneOff = 0; this.jx = 0; this.jz = 0; this.acc = 0;
+    this.kind = 'commuter'; this.conf = 1; this.patience = 1; this.space = 0.5; this.hurry = 0.5; this.phoneUser = 0;
+    this.legs = null; this.leg = 0; this.st = 0; this.t = 0; this.t2 = 0; this.d = null; this.trip = '';
+    this.look = null; this.flags = 0; this.dyn = 0;
+    this.phase = 0; this.pAmt = 0; this.pSit = 0; this.pLean = 0; this.pHP = 0; this.pHY = 0; this.pInL = 0; this.pInR = 0;
+    this.aL = [0, 0.05, 0.12, 0]; this.aR = [0, 0.05, 0.12, 0];
+    this.blockT = 0; this.excuseT = 0; this.queueing = false; this.hesT = 0; this.waitField = false; this.ff = 0;
+    this.spot = null; this.biz = null; this.mark = null; this.markK = -1; this.track = null;
+  }
+}
+
+export class CrowdSim {
+  constructor({ world, nav, events, clock, params = {}, quality = {}, worker = true, ctx = null }) {
+    this.world = world; this.nav = nav; this.events = events; this.clock = clock; this.params = params; this.quality = quality; this.ctx = ctx;
+    this.fields = new FieldStore(nav, world, { worker, maxFields: quality.crowdMax && quality.crowdMax < 800 ? 100 : 170 });
+    this.col = new GridCollider(nav, world);
+    this.places = new Places({ world, nav, fields: this.fields, col: this.col, ctx });
+    this.agents = []; this.free = []; this.count = 0;
+    this.time = 0; this.frame = 0;
+    this.viewer = { level: '3F', x: 0, z: 0, vx: 0, vz: 0, ramp: -1, has: false };
+    this.visibleLevel = () => true;
+    this.drawDist = quality.drawDist || 200;
+    this.behave = null; // set by crowd.js (behave.js)
+    this.stats = { t0: 0, t1: 0, t2: 0, ms: 0, msAvg: 0, upd: 0 };
+    this.levelNames = nav.levelNames;
+    this.lvIndex = nav.levelIdx;
+    this._initHash();
+    this._excuseGlobal = 0;
+    this.serial = 0;
+  }
+
+  // ---------------------------------------------------------------------------
+  spawn() {
+    let a = this.free.pop();
+    if (!a) { a = new Agent(this.agents.length); this.agents.push(a); }
+    a.alive = true; a.dead = false; a.serial = ++this.serial;
+    a.mode = MODE.NONE; a.ramp = -1; a.en = null; a.path = null; a.gate = null; a.lane = -1; a.leader = null; a.followers = null;
+    a.legs = null; a.leg = 0; a.st = 0; a.t = 0; a.t2 = 0; a.d = null; a.fade = 0; a.fadeDir = 1; a.vx = a.vz = 0; a.spd = 0;
+    a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
+    a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0;
+    a.lastUpd = this.time; a.tier = 2; a.handHold = false;
+    this.count++;
+    return a;
+  }
+  kill(a) {
+    if (!a.alive) return;
+    if (this.behave) this.behave.cleanup(a);
+    if (a.gate && a.lane >= 0) { a.gate.load[a.lane] = Math.max(0, a.gate.load[a.lane] - 1); if (a.gstage === 1) a.gate.occDir[a.lane] = 0; }
+    if (a.ramp >= 0) this._leaveRide(a);
+    if (a.en) { this.fields.unref(a.en); a.en = null; }
+    if (a.followers) { for (const f of a.followers) if (f.alive && f.leader === a) { f.leader = null; this.kill(f); } a.followers = null; }
+    if (a.leader && a.leader.followers) { const fl = a.leader.followers; const k = fl.indexOf(a); if (k >= 0) fl.splice(k, 1); }
+    a.alive = false; a.leader = null;
+    this.free.push(a);
+    this.count--;
+  }
+  setPos(a, level, x, z) {
+    a.level = level; a.lv = this.lvIndex[level] ?? 0; a.x = x; a.z = z; a.ramp = -1; a.y = LEVELS[level] ? LEVELS[level].y : 0;
+    a.node = this.nav.nodeAtPoint(level, x, z);
+  }
+  setField(a, en, arriveM = 1.0) {
+    if (a.en !== en) { if (a.en) this.fields.unref(a.en); a.en = en; if (en) this.fields.ref(en); }
+    a.arriveDm = arriveM * 10; a.mode = MODE.FIELD; a.aimT = 0; a.rampNext = -1;
+  }
+  setPath(a, pts, arriveR = 0.35) { a.path = pts; a.pi = 0; a.mode = MODE.PATH; a.arriveR = arriveR; }
+  goTo(a, x, z, rect, arriveR = 0.35) {
+    let pts = null;
+    if (rect) pts = localPath(this.col, a.level, rect, a.x, a.z, x, z);
+    this.setPath(a, pts || [[x, z]], arriveR);
+  }
+  stand(a, yaw = null) { a.mode = MODE.STAND; a.path = null; if (yaw != null) { a.faceYaw = yaw; a.faceSet = true; } }
+  lookAt(a, x, z, dur = 1.5) {
+    const want = Math.atan2(-(x - a.x), -(z - a.z));
+    let rel = wrap(want - a.yaw);
+    rel = Math.max(-1.2, Math.min(1.2, rel));
+    a.lookYaw = rel; a.lookT = dur;
+  }
+
+  // ---------------------------------------------------------------------------
+  _initHash() {
+    this.H = 2.0;
+    this.hl = {};
+    let off = 0;
+    for (const lv of this.levelNames) {
+      const g = this.world.grids[lv];
+      const w = Math.ceil(g.w / this.H) + 1, h = Math.ceil(g.h / this.H) + 1;
+      this.hl[lv] = { off, w, h, x0: g.x0, z0: g.z0 };
+      off += w * h;
+    }
+    this.hCells = off;
+    this.hStart = new Int32Array(off + 1);
+    this.hCount = new Int32Array(off);
+    this.hItems = new Int32Array(4096);
+    this.hKey = new Int32Array(4096);
+  }
+  _hkey(level, x, z) {
+    const L = this.hl[level]; if (!L) return -1;
+    const cx = Math.floor((x - L.x0) / this.H), cz = Math.floor((z - L.z0) / this.H);
+    if (cx < 0 || cz < 0 || cx >= L.w || cz >= L.h) return -1;
+    return L.off + cz * L.w + cx;
+  }
+  _buildHash() {
+    const A = this.agents, n = A.length;
+    if (this.hItems.length < n) { this.hItems = new Int32Array(n * 2); this.hKey = new Int32Array(n * 2); }
+    const cnt = this.hCount; cnt.fill(0);
+    const key = this.hKey;
+    for (let i = 0; i < n; i++) {
+      const a = A[i];
+      const k = a.alive && a.ramp < 0 ? this._hkey(a.level, a.x, a.z) : -1;
+      key[i] = k; if (k >= 0) cnt[k]++;
+    }
+    const st = this.hStart; let s = 0;
+    for (let k = 0; k < this.hCells; k++) { st[k] = s; s += cnt[k]; }
+    st[this.hCells] = s;
+    cnt.fill(0);
+    for (let i = 0; i < n; i++) { const k = key[i]; if (k >= 0) this.hItems[st[k] + cnt[k]++] = i; }
+  }
+  // iterate agents near (level,x,z) within r; fn(agent, dx, dz, d2)
+  near(level, x, z, r, fn) {
+    const L = this.hl[level]; if (!L) return;
+    const H = this.H;
+    const cx0 = Math.max(0, Math.floor((x - r - L.x0) / H)), cx1 = Math.min(L.w - 1, Math.floor((x + r - L.x0) / H));
+    const cz0 = Math.max(0, Math.floor((z - r - L.z0) / H)), cz1 = Math.min(L.h - 1, Math.floor((z + r - L.z0) / H));
+    const r2 = r * r, A = this.agents, st = this.hStart, it = this.hItems;
+    for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
+      const k = L.off + cz * L.w + cx;
+      for (let j = st[k], j1 = st[k + 1]; j < j1; j++) {
+        const b = A[it[j]];
+        const dx = b.x - x, dz = b.z - z, d2 = dx * dx + dz * dz;
+        if (d2 <= r2) fn(b, dx, dz, d2);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  update(dt) {
+    const t0 = now();
+    this.time += dt; this.frame++;
+    this.fields.update();
+    const V = this.viewer;
+    if (this.behave) this.behave.director.update(dt);
+    this._buildHash();
+    const A = this.agents, n = A.length, f = this.frame;
+    let c0 = 0, c1 = 0, c2 = 0, upd = 0;
+    const dd2 = this.drawDist * this.drawDist;
+    for (let i = 0; i < n; i++) {
+      const a = A[i];
+      if (!a.alive) continue;
+      // tier assignment (cheap, every frame)
+      const dx = a.x - V.x, dz = a.z - V.z, d2 = dx * dx + dz * dz;
+      const sameLv = a.level === V.level || (a.ramp >= 0 && (this.places.ramps[a.ramp].r.upper === V.level));
+      let tier;
+      if (sameLv && d2 < 45 * 45) tier = 0;
+      else if (d2 < dd2 && this.visibleLevel(a.level, a)) tier = d2 < 30 * 30 ? 0 : 1;
+      else tier = 2;
+      a.tier = tier;
+      if (tier === 0) c0++; else if (tier === 1) c1++; else c2++;
+      const period = tier === 0 ? 1 : tier === 1 ? 2 : 4;
+      if ((f + i) % period !== 0) continue;
+      let adt = this.time - a.lastUpd; a.lastUpd = this.time;
+      if (adt > 0.3) adt = 0.3;
+      if (adt <= 0) continue;
+      upd++;
+      if (this.behave) this.behave.tick(a, adt);
+      if (!a.alive) continue;
+      this._move(a, adt);
+      // fade
+      if (a.fadeDir > 0 && a.fade < 1) a.fade = Math.min(1, a.fade + adt * 1.6);
+      else if (a.fadeDir < 0) { a.fade -= adt * 1.8; if (a.fade <= 0) { this.kill(a); continue; } }
+      if (a.lookT > 0) { a.lookT -= adt; if (a.lookT <= 0) a.lookYaw = 0; }
+    }
+    this.stats.t0 = c0; this.stats.t1 = c1; this.stats.t2 = c2; this.stats.upd = upd;
+    const ms = now() - t0;
+    this.stats.ms = ms; this.stats.msAvg = this.stats.msAvg * 0.95 + ms * 0.05;
+  }
+
+  // ---------------------------------------------------------------------------
+  _move(a, dt) {
+    switch (a.mode) {
+      case MODE.RIDE: this._ride(a, dt); return;
+      case MODE.FIELD:
+        if (!a.en || !a.en.ready) { this._steer(a, 0, 0, dt); return; }
+        if (a.tier === 2 && a.rampNext < 0) { this._hop(a, dt); return; }
+        this._fieldStep(a, dt); return;
+      case MODE.PATH: this._pathStep(a, dt); return;
+      case MODE.GATE: this._gateStep(a, dt); return;
+      case MODE.FOLLOW: this._followStep(a, dt); return;
+      case MODE.STAND:
+        if (a.tier === 2) { a.vx = a.vz = 0; a.spd = 0; return; }
+        this._steer(a, 0, 0, dt); return;
+      default: a.vx = a.vz = 0; a.spd = 0;
+    }
+  }
+
+  _updNode(a) {
+    const nav = this.nav, g = this.world.grids[a.level];
+    const ci = g.cellOf(a.x, a.z);
+    if (ci >= 0) { const v = nav.cellNode[a.level][ci]; if (v >= 0) { if (v !== a.node) { a.node = v; return true; } return false; } }
+    if (a.node < 0 || this.levelNames[nav.lvl[a.node]] !== a.level) { a.node = nav.nodeAtPoint(a.level, a.x, a.z); return true; }
+    return false;
+  }
+
+  _fieldStep(a, dt) {
+    const F = this.fields, nav = this.nav;
+    if (a.rampNext >= 0) { this._rampApproach(a, dt); return; }
+    const changed = this._updNode(a);
+    a.aimT -= dt;
+    if (changed || a.aimT <= 0) {
+      const v = a.node;
+      if (v < 0) { this._steer(a, 0, 0, dt); return; }
+      const d = a.en.dist[v];
+      if (d === 65535) { if (this.behave) this.behave.fail(a); return; }
+      if (d <= a.arriveDm) { if (this.behave) this.behave.arrive(a); return; }
+      const w1 = F.next(a.en, v);
+      if (w1 < 0) { if (this.behave) this.behave.arrive(a); return; }
+      if (nav.rmp[w1] >= 0) { this._beginRamp(a, nav.rmp[w1]); this._rampApproach(a, dt); return; }
+      const w2 = F.next(a.en, w1);
+      let t = w1;
+      if (w2 >= 0 && nav.rmp[w2] < 0) {
+        t = w2;
+        const w3 = F.next(a.en, w2);
+        if (w3 >= 0 && nav.rmp[w3] < 0 && a.hurry > 0.3) t = w3;
+      }
+      let dx = nav.x[t] - nav.x[v], dz = nav.z[t] - nav.z[v];
+      const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+      const cl = F.clear[t];
+      const off = a.laneOff * Math.max(0, Math.min(1, (cl - 1.5) / 2.5));
+      a.aimX = nav.x[t] - dz * off; a.aimZ = nav.z[t] + dx * off;
+      a.aimT = 0.5;
+      // ticket gates
+      const gl = this.places.gatesByLevel[a.level];
+      if (gl) for (const G of gl) if (this._gateCheck(a, G)) return;
+    }
+    let dx = a.aimX - a.x, dz = a.aimZ - a.z;
+    const l = Math.hypot(dx, dz);
+    if (l < 0.05) { a.aimT = 0; this._steer(a, 0, 0, dt); return; }
+    let sp = a.pref;
+    // close to the goal: slow down
+    if (a.node >= 0) { const dg = a.en.dist[a.node] * 0.1 - a.arriveDm * 0.1; if (dg < 2) sp *= Math.max(0.45, dg / 2); }
+    this._steer(a, dx / l * sp, dz / l * sp, dt);
+  }
+
+  // node hopping for tier-2 agents
+  _hop(a, dt) {
+    const F = this.fields, nav = this.nav;
+    if (a.node < 0) this._updNode(a);
+    a.acc += a.pref * dt;
+    let guard = 8;
+    while (a.acc > 0 && guard-- > 0) {
+      const v = a.node; if (v < 0) return;
+      const d = a.en.dist[v];
+      if (d === 65535) { if (this.behave) this.behave.fail(a); return; }
+      if (d <= a.arriveDm) { a.acc = 0; if (this.behave) this.behave.arrive(a); return; }
+      const w = F.next(a.en, v);
+      if (w < 0) { a.acc = 0; if (this.behave) this.behave.arrive(a); return; }
+      if (nav.rmp[w] >= 0) { a.acc = 0; this._beginRamp(a, nav.rmp[w]); this._startRide(a); return; }
+      const dx = nav.x[w] - nav.x[v], dz = nav.z[w] - nav.z[v];
+      const c = Math.hypot(dx, dz);
+      a.acc -= c;
+      a.node = w;
+      const lv = this.levelNames[nav.lvl[w]];
+      if (lv !== a.level) { a.level = lv; a.lv = nav.lvl[w]; a.y = LEVELS[lv].y; }
+      a.x = nav.x[w] + a.jx; a.z = nav.z[w] + a.jz;
+      a.vx = dx / c * a.pref; a.vz = dz / c * a.pref; a.spd = a.pref;
+      a.yaw = Math.atan2(-a.vx, -a.vz);
+    }
+  }
+
+  _pathStep(a, dt) {
+    const P = a.path;
+    if (!P || a.pi >= P.length) { a.path = null; a.mode = MODE.STAND; if (this.behave) this.behave.arrive(a); return; }
+    const [tx, tz] = P[a.pi];
+    const dx = tx - a.x, dz = tz - a.z, l = Math.hypot(dx, dz);
+    const last = a.pi === P.length - 1;
+    if (l < (last ? a.arriveR : 0.6)) {
+      a.pi++;
+      if (a.pi >= P.length) { a.path = null; a.mode = MODE.STAND; a.vx *= 0.3; a.vz *= 0.3; if (this.behave) this.behave.arrive(a); return; }
+      return;
+    }
+    if (a.tier === 2) {
+      const s = Math.min(l, a.pref * 0.8 * dt);
+      a.x += dx / l * s; a.z += dz / l * s; a.vx = dx / l * a.pref * 0.8; a.vz = dz / l * a.pref * 0.8; a.spd = a.pref * 0.8;
+      a.yaw = Math.atan2(-dx, -dz);
+      return;
+    }
+    let sp = a.pref * (a.d && a.d.slow ? a.d.slow : 1);
+    if (last && l < 1.5) sp *= Math.max(0.35, l / 1.5);
+    this._steer(a, dx / l * sp, dz / l * sp, dt);
+  }
+
+  _followStep(a, dt) {
+    const L = a.leader;
+    if (!L || !L.alive) { a.leader = null; if (this.behave) this.behave.orphan(a); return; }
+    if (L.fadeDir < 0 && a.fadeDir > 0) { a.fadeDir = -1; }
+    const dx0 = L.x - a.x, dz0 = L.z - a.z, dist = Math.hypot(dx0, dz0);
+    const sameLv = L.level === a.level && L.ramp < 0;
+    if (a.ramp >= 0) { this._ride(a, dt); return; }
+    // far / different floor / leader riding: use the leader's field
+    if ((!sameLv || dist > 5 || L.mode === MODE.RIDE || a.rampNext >= 0) && L.en && L.en.ready && L.en.dist) {
+      if (a.en !== L.en) { if (a.en) this.fields.unref(a.en); a.en = L.en; this.fields.ref(a.en); a.arriveDm = 0; a.aimT = 0; }
+      if (a.tier === 2 && a.rampNext < 0) {
+        if (!sameLv || dist > 5) { this._hop(a, dt); if (a.mode === MODE.RIDE) a.mode = MODE.RIDE; }
+        return;
+      }
+      this._fieldStepFollow(a, dt);
+      return;
+    }
+    if (a.tier === 2) {
+      if (sameLv) { const c = Math.cos(L.yaw), s = Math.sin(L.yaw); a.x = L.x + c * a.offX + s * a.offZ; a.z = L.z - s * a.offX + c * a.offZ; a.level = L.level; a.yaw = L.yaw; a.vx = L.vx; a.vz = L.vz; a.spd = L.spd; }
+      return;
+    }
+    // formation target relative to the leader's heading
+    const c = Math.cos(L.yaw), s = Math.sin(L.yaw);
+    const ox = c * a.offX + s * a.offZ, oz = -s * a.offX + c * a.offZ;
+    const tx = L.x + ox, tz = L.z + oz;
+    let dx = tx - a.x, dz = tz - a.z;
+    const l = Math.hypot(dx, dz);
+    let vx = L.vx + dx * 1.4, vz = L.vz + dz * 1.4;
+    const vm = Math.hypot(vx, vz), cap = Math.max(a.pref * 1.35, L.spd * 1.3);
+    if (vm > cap) { vx *= cap / vm; vz *= cap / vm; }
+    if (l < 0.25 && L.spd < 0.15) { vx = 0; vz = 0; a.faceYaw = L.mode === MODE.STAND && L.faceSet ? L.faceYaw : L.yaw; a.faceSet = true; }
+    this._steer(a, vx, vz, dt, 0.5);
+  }
+  _fieldStepFollow(a, dt) {
+    // like _fieldStep but no arrival callbacks (the leader decides)
+    if (a.rampNext >= 0) { this._rampApproach(a, dt); return; }
+    const F = this.fields, nav = this.nav;
+    this._updNode(a);
+    const v = a.node;
+    if (v < 0) { this._steer(a, 0, 0, dt); return; }
+    const w1 = F.next(a.en, v);
+    if (w1 < 0) { this._steer(a, (a.leader.x - a.x), (a.leader.z - a.z), dt); return; }
+    if (nav.rmp[w1] >= 0) { this._beginRamp(a, nav.rmp[w1]); return; }
+    const w2 = F.next(a.en, w1);
+    const t = w2 >= 0 && nav.rmp[w2] < 0 ? w2 : w1;
+    const dx = nav.x[t] - a.x, dz = nav.z[t] - a.z, l = Math.hypot(dx, dz) || 1;
+    const sp = a.pref * 1.12;
+    this._steer(a, dx / l * sp, dz / l * sp, dt);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ramps (escalators / stairs)
+  _beginRamp(a, ri) {
+    const R = this.places.ramps[ri], r = R.r;
+    a.rampNext = ri;
+    const fromLow = a.level === r.lower;
+    a.rampFromLow = fromLow;
+    const end = fromLow ? R.ends.low : R.ends.high;
+    const tx = -end.dx, tz = -end.dz; // into the ramp
+    const rx = -tz, rz = tx;            // right of travel
+    let u;
+    if (R.esc) {
+      a.walkLane = a.hurry > 0.62 && !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
+      u = a.walkLane ? -0.24 : 0.24;
+    } else {
+      a.walkLane = true;
+      const hw = Math.max(0.3, R.hw - 0.3);
+      u = (0.15 + Math.random() * 0.85) * hw * (Math.random() < 0.85 ? 1 : -1);
+    }
+    a.rampU = u;
+    a.aimX = end.x + end.dx * 0.45 + rx * u; a.aimZ = end.z + end.dz * 0.45 + rz * u;
+  }
+  _rampApproach(a, dt) {
+    const R = this.places.ramps[a.rampNext];
+    const end = a.rampFromLow ? R.ends.low : R.ends.high;
+    const dx = a.aimX - a.x, dz = a.aimZ - a.z, l = Math.hypot(dx, dz);
+    // distance to the end line along the ramp axis
+    const along = (a.x - end.x) * end.dx + (a.z - end.z) * end.dz;
+    const lat = Math.abs((a.x - a.aimX) * -end.dz + (a.z - a.aimZ) * end.dx);
+    a.queueing = l < 4.5;
+    if ((l < 0.35 || (along < 0.6 && lat < 0.3)) || a.tier === 2) {
+      if (R.esc && a.tier !== 2) {
+        const tNext = a.walkLane ? R.nextWalk : R.nextStand;
+        if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
+        if (a.walkLane) R.nextWalk = this.time + 0.62 + Math.random() * 0.25; else R.nextStand = this.time + 0.95 + Math.random() * 0.45;
+      }
+      this._startRide(a);
+      return;
+    }
+    if (l > 14) { a.rampNext = -1; a.aimT = 0; return; } // pushed away; re-plan
+    let sp = a.pref;
+    if (l < 2.5) sp *= Math.max(0.5, l / 2.5);
+    this._steer(a, dx / l * sp, dz / l * sp, dt);
+  }
+  _startRide(a) {
+    const R = this.places.ramps[a.rampNext];
+    a.ramp = a.rampNext; a.rampNext = -1; a.queueing = false;
+    a.rs = a.rampFromLow ? 0 : 1; a.rdir = a.rampFromLow ? 1 : -1;
+    a.ru = a.rampU;
+    a.rspd = R.esc ? (0.5 + (a.walkLane ? 0.55 + a.hurry * 0.3 : 0)) : a.pref * 0.62;
+    a.prevMode = a.mode === MODE.FOLLOW ? MODE.FOLLOW : MODE.FIELD;
+    a.mode = MODE.RIDE;
+    R.riders.push(a);
+    this._placeOnRamp(a);
+  }
+  _placeOnRamp(a) {
+    const R = this.places.ramps[a.ramp], E = R.ends;
+    const cx = E.low.x + (E.high.x - E.low.x) * a.rs, cz = E.low.z + (E.high.z - E.low.z) * a.rs;
+    // travel direction
+    let tx = (E.high.x - E.low.x) * a.rdir, tz = (E.high.z - E.low.z) * a.rdir;
+    const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
+    const rx = -tz, rz = tx;
+    a.x = cx + rx * a.ru; a.z = cz + rz * a.ru;
+    a.y = rampProfile(R.r, Math.min(1, Math.max(0, a.rs)));
+    a.yaw = Math.atan2(-tx, -tz);
+    a.vx = tx * a.rspd; a.vz = tz * a.rspd;
+  }
+  _ride(a, dt) {
+    const R = this.places.ramps[a.ramp];
+    let sp = a.rspd;
+    // spacing: don't run into the rider ahead on the same side
+    for (const b of R.riders) {
+      if (b === a || b.rdir !== a.rdir || Math.abs(b.ru - a.ru) > 0.35) continue;
+      const ahead = (b.rs - a.rs) * a.rdir * R.len;
+      if (ahead > 0 && ahead < 0.85) sp = Math.min(sp, b.rspd * Math.max(0, (ahead - 0.45) / 0.4));
+    }
+    a.spd = sp; a.curRideSpd = sp;
+    a.rs += a.rdir * sp * dt / R.len;
+    if (a.rs > 1.0 || a.rs < 0.0) {
+      const r = R.r;
+      const up = a.rdir > 0;
+      const end = up ? R.ends.high : R.ends.low;
+      this._leaveRide(a);
+      a.level = up ? r.upper : r.lower; a.lv = this.lvIndex[a.level];
+      let tx = -end.dx, tz = -end.dz; // into ramp from this end; we travel opposite
+      tx = end.dx; tz = end.dz;
+      const rx = -tz, rz = tx;
+      a.x = end.x + end.dx * 0.35 + rx * a.ru; a.z = end.z + end.dz * 0.35 + rz * a.ru;
+      a.y = LEVELS[a.level].y;
+      a.ramp = -1; a.mode = a.prevMode || MODE.FIELD; a.aimT = 0; a.node = -1; this._updNode(a);
+      a.vx = end.dx * a.pref; a.vz = end.dz * a.pref;
+      if (this.behave && this.behave.onRideEnd) this.behave.onRideEnd(a, R);
+      return;
+    }
+    this._placeOnRamp(a);
+    a.vx *= sp / Math.max(0.01, a.rspd); a.vz *= sp / Math.max(0.01, a.rspd);
+  }
+  _leaveRide(a) {
+    if (a.ramp < 0) return;
+    const R = this.places.ramps[a.ramp];
+    const k = R.riders.indexOf(a); if (k >= 0) R.riders.splice(k, 1);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ticket gates
+  _gateCheck(a, G) {
+    const ax = G.axis === 'x';
+    const pa = (ax ? a.z : a.x) - G.at, pb = (ax ? a.aimZ : a.aimX) - G.at;
+    if (Math.abs(pa) > 3.6 || pa * pb > 0 || Math.abs(pa) < 0.05) return false;
+    const lat = ax ? a.x : a.z;
+    if (lat < G.lo - 1 || lat > G.hi + 1) return false;
+    const side = pa > 0 ? 1 : -1;
+    const want = (lat + (ax ? a.aimX : a.aimZ)) * 0.5;
+    let best = -1, bc = Infinity;
+    for (let i = 0; i < G.lanes.length; i++) {
+      const c = Math.abs(G.lanes[i] - want) + G.load[i] * 1.7 + (G.occDir[i] === side ? 1.5 : 0);
+      if (c < bc) { bc = c; best = i; }
+    }
+    if (best < 0) return false;
+    a.gate = G; a.lane = best; a.gside = side; a.gstage = 0; G.load[best]++;
+    a.mode = MODE.GATE;
+    return true;
+  }
+  _gateStep(a, dt) {
+    const G = a.gate, ax = G.axis === 'x', lane = G.lanes[a.lane];
+    const side = a.gside;
+    if (a.tier === 2) { this._gateDone(a, true); return; }
+    if (a.gstage === 0) {
+      const tx = ax ? lane : G.at + side * 1.15, tz = ax ? G.at + side * 1.15 : lane;
+      const dx = tx - a.x, dz = tz - a.z, l = Math.hypot(dx, dz);
+      a.queueing = l < 3;
+      const passed = ((ax ? a.z : a.x) - G.at) * side < 1.25;
+      if (l < 0.4 || (passed && l < 1.0)) {
+        if (this.time >= G.busy[a.lane] && (G.occDir[a.lane] === 0)) {
+          a.gstage = 1; G.occDir[a.lane] = side; G.busy[a.lane] = this.time + 0.55 + Math.random() * 0.5;
+        } else { this._steer(a, dx * 0.5, dz * 0.5, dt); return; }
+      } else {
+        const sp = a.pref * (l < 2 ? Math.max(0.45, l / 2) : 1);
+        this._steer(a, dx / l * sp, dz / l * sp, dt, 0.7);
+        return;
+      }
+    }
+    // stage 1: through the lane
+    const tx = ax ? lane : G.at - side * 1.4, tz = ax ? G.at - side * 1.4 : lane;
+    const dx = tx - a.x, dz = tz - a.z, l = Math.hypot(dx, dz);
+    const before = ((ax ? a.z : a.x) - G.at) * side;
+    if (!a.d) a.d = {};
+    if (before < 0 && !a.gPassed) {
+      a.gPassed = true;
+      if (G.occDir[a.lane] === side) G.occDir[a.lane] = 0;
+      if (this.ctx && this.ctx.transit && typeof this.ctx.transit.gatePass === 'function' && a.tier === 0) {
+        try { this.ctx.transit.gatePass(G.id, a.lane, -side); } catch (e) { /* transit owns it */ }
+      }
+      if (this.events) this.events.emit('crowd:gate', { gate: G.id, lane: a.lane, dir: -side, level: G.level, x: a.x, z: a.z, near: a.tier === 0 });
+    }
+    if (l < 0.45) { this._gateDone(a, false); return; }
+    // walk straight down the lane centre (no lateral pushes) at tap-and-go pace
+    const sp = Math.min(a.pref, 1.0);
+    const vx = dx / l * sp, vz = dz / l * sp;
+    a.vx += (vx - a.vx) * Math.min(1, dt * 6); a.vz += (vz - a.vz) * Math.min(1, dt * 6);
+    a.x += a.vx * dt; a.z += a.vz * dt;
+    if (ax) a.x += (lane - a.x) * Math.min(1, dt * 5); else a.z += (lane - a.z) * Math.min(1, dt * 5);
+    a.spd = Math.hypot(a.vx, a.vz);
+    this._turn(a, Math.atan2(-a.vx, -a.vz), dt);
+  }
+  _gateDone(a, skip) {
+    const G = a.gate;
+    if (G) {
+      G.load[a.lane] = Math.max(0, G.load[a.lane] - 1);
+      if (G.occDir[a.lane] === a.gside && !a.gPassed) G.occDir[a.lane] = 0;
+      if (skip) { const ax = G.axis === 'x'; const lane = G.lanes[a.lane]; if (ax) { a.x = lane; a.z = G.at - a.gside * 1.4; } else { a.z = lane; a.x = G.at - a.gside * 1.4; } }
+    }
+    a.gate = null; a.lane = -1; a.gPassed = false; a.queueing = false;
+    a.mode = a.leader ? MODE.FOLLOW : MODE.FIELD; a.aimT = 0; a.node = -1; this._updNode(a);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Local steering: desired velocity (dvx,dvz) + avoidance, then grid collision.
+  _steer(a, dvx, dvz, dt, sepScale = 1) {
+    if (a.tier === 2) {
+      a.x += dvx * dt; a.z += dvz * dt; a.vx = dvx; a.vz = dvz; a.spd = Math.hypot(dvx, dvz);
+      if (a.spd > 0.1) a.yaw = Math.atan2(-dvx, -dvz); else if (a.faceSet) a.yaw = a.faceYaw;
+      return;
+    }
+    const dmag = Math.hypot(dvx, dvz);
+    let hx, hz;
+    if (dmag > 0.05) { hx = dvx / dmag; hz = dvz / dmag; } else { hx = -Math.sin(a.yaw); hz = -Math.cos(a.yaw); }
+    let fx = 0, fz = 0, cap = 9;
+    const R0 = 0.5 + a.space * 0.35;
+    const queue = a.queueing;
+    const self = a;
+    const avx = a.vx, avz = a.vz;
+    const standing = dmag < 0.05;
+    this.near(a.level, a.x, a.z, 2.4, (b, dx, dz, d2) => {
+      if (b === self || b.ramp >= 0) return;
+      const d = Math.sqrt(d2) || 1e-3;
+      // personal space
+      const rr = standing ? 0.52 : R0;
+      if (d < rr) {
+        const k = (rr - d) / rr * (standing ? 1.1 : 1.9) * sepScale * (b.leader === self || self.leader === b || (self.leader && self.leader === b.leader) ? 0.35 : 1);
+        fx -= dx / d * k; fz -= dz / d * k;
+      }
+      if (standing) return;
+      // anticipatory avoidance
+      const wx = b.vx - avx, wz = b.vz - avz, w2 = wx * wx + wz * wz;
+      if (w2 > 0.04) {
+        const t = -(dx * wx + dz * wz) / w2;
+        if (t > 0 && t < 2.2) {
+          let cx = dx + wx * t, cz = dz + wz * t, c = Math.hypot(cx, cz);
+          if (c < 0.78) {
+            if (c < 0.08) { cx = hz * 0.08; cz = -hx * 0.08; c = 0.08; }
+            const s = (1 - t / 2.2) * (0.78 - c) / 0.78 * 1.5;
+            fx -= cx / c * s; fz -= cz / c * s;
+          }
+        }
+      }
+      // brake behind someone slower directly ahead
+      const ahead = dx * hx + dz * hz;
+      if (ahead > 0 && ahead < 1.5) {
+        const lat = Math.abs(dx * hz - dz * hx);
+        if (lat < (queue ? 0.55 : 0.36)) {
+          const bf = b.vx * hx + b.vz * hz;
+          const cb = Math.max(0, bf + (ahead - (queue ? 0.62 : 0.72)) * 1.7);
+          if (cb < cap) cap = cb;
+        }
+      }
+    });
+    // the player
+    const V = this.viewer;
+    if (V.has && V.level === a.level && V.ramp < 0) {
+      const dx = V.x - a.x, dz = V.z - a.z, d2 = dx * dx + dz * dz;
+      if (d2 < 9) {
+        const d = Math.sqrt(d2) || 1e-3;
+        if (d < 0.75) { const k = (0.75 - d) / 0.75 * 3.2; fx -= dx / d * k; fz -= dz / d * k; }
+        const ahead = dx * hx + dz * hz, lat = dx * hz - dz * hx;
+        if (!standing && ahead > 0 && ahead < 2.4 && Math.abs(lat) < 0.75) {
+          // step around the player; prefer passing on the left of them (keep right)
+          const side = lat > 0.12 ? -1 : lat < -0.12 ? 1 : (a.i & 1 ? 1 : -1);
+          const s = (1 - ahead / 2.4) * 1.5;
+          fx += -hz * side * s; fz += hx * side * s;
+          const pspd = Math.hypot(V.vx, V.vz);
+          if (ahead < 1.2 && Math.abs(lat) < 0.5 && pspd < 0.4) {
+            a.blockT += dt;
+            if (a.blockT > 0.25 && a.lookT <= 0) this.lookAt(a, V.x, V.z, 1.6);
+            if (a.blockT > 0.75 && this.time > a.excuseT && this.time > this._excuseGlobal) {
+              a.excuseT = this.time + 12; this._excuseGlobal = this.time + 2.2;
+              if (this.events) this.events.emit('crowd:excuse', { level: a.level, x: a.x, y: a.y + 1.55 * (a.look ? a.look.h : 1), z: a.z, ja: 'すみません', en: 'Excuse me', kind: a.kind, female: a.look ? a.look.female : false });
+            }
+            cap = Math.min(cap, 0.25);
+          } else a.blockT = Math.max(0, a.blockT - dt);
+        }
+        // glance at the player when passing close
+        if (d < 2.2 && a.lookT <= 0 && ((a.serial * 7 + Math.floor(this.time)) % 9) === 0) this.lookAt(a, V.x, V.z, 1.0);
+      }
+    }
+    // integrate (relaxation towards desired + forces)
+    const tau = standing ? 0.3 : 0.38;
+    const k = Math.min(1, dt / tau);
+    let tvx = dvx + fx, tvz = dvz + fz;
+    a.vx += (tvx - a.vx) * k; a.vz += (tvz - a.vz) * k;
+    let s = Math.hypot(a.vx, a.vz);
+    const maxS = Math.max(0.3, a.pref * 1.35);
+    if (s > maxS) { a.vx *= maxS / s; a.vz *= maxS / s; s = maxS; }
+    if (cap < 9) {
+      const fwd = a.vx * hx + a.vz * hz;
+      if (fwd > cap) { const red = fwd - cap; a.vx -= hx * red; a.vz -= hz * red; }
+    }
+    if (standing && s < 0.08) { a.vx = 0; a.vz = 0; }
+    const ox = a.x, oz = a.z;
+    this.col.move(a, a.vx * dt, a.vz * dt, 0.24);
+    const mvx = (a.x - ox) / dt, mvz = (a.z - oz) / dt;
+    a.spd = Math.hypot(mvx, mvz);
+    // keep velocity consistent with what actually happened (walls)
+    a.vx = mvx; a.vz = mvz;
+    // facing
+    if (a.spd > 0.18 && !standing) this._turn(a, Math.atan2(-a.vx, -a.vz), dt);
+    else if (a.faceSet) this._turn(a, a.faceYaw, dt, 3);
+  }
+  _turn(a, target, dt, rate = 6) {
+    const d = wrap(target - a.yaw);
+    const m = rate * dt;
+    a.yaw = wrap(a.yaw + Math.max(-m, Math.min(m, d)));
+  }
+
+  // ---------------------------------------------------------------------------
+  // queries
+  densityNear(level, x, z, r) {
+    let n = 0; this.near(level, x, z, r, () => { n++; });
+    return n / (Math.PI * r * r);
+  }
+  countNear(level, x, z, r) { let n = 0; this.near(level, x, z, r, () => { n++; }); return n; }
+  agentsNear(level, x, z, r) { const out = []; this.near(level, x, z, r, (b) => { if (b.alive) out.push(b); }); return out; }
+}
+
+export function wrap(a) { while (a > Math.PI) a -= TWO_PI; while (a < -Math.PI) a += TWO_PI; return a; }
+function now() { return (typeof performance !== 'undefined' ? performance : Date).now(); }

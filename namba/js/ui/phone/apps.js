@@ -1,0 +1,128 @@
+// =============================================================================
+// Phone apps other than Maps: home screen, Notes (quest checklist), Messages
+// (texts from Aya via 'phone:message'), Transit (lines + departures).
+// =============================================================================
+import { LINES } from './places.js';
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+
+export const DEFAULT_QUESTS = [
+  { id: 'coffee', state: 'active', text: 'Find a great coffee (4.5★+)', textJa: '美味しいコーヒー' },
+  { id: 'tempura', state: 'active', text: 'Tempura for lunch', textJa: 'お昼は天ぷら' },
+  { id: 'subway', state: 'active', text: 'Midosuji Line → Shin-Osaka', textJa: '御堂筋線で新大阪へ' },
+];
+
+export class HomeApp {
+  constructor(phone, root) {
+    this.phone = phone; this.root = root;
+    root.classList.add('hs');
+    const apps = [
+      ['maps', 'Maps', 'ic-maps'], ['transit', 'Transit', 'ic-transit'], ['notes', 'Notes', 'ic-notes'], ['messages', 'Messages', 'ic-msg'],
+      ['camera', 'Camera', 'ic-cam'], ['weather', 'Weather', 'ic-weather'], ['translate', 'Translate', 'ic-tr'], ['wallet', 'Wallet', 'ic-wallet'],
+    ];
+    root.innerHTML = `<div class="hs-wall"></div>
+      <div class="hs-widget"><div class="hs-w-city">Osaka</div><div class="hs-w-t">24°</div><div class="hs-w-s">Sunny · H 27° L 19°</div></div>
+      <div class="hs-grid">${apps.map(([id, n, ic]) => `<button class="hs-app" data-app="${id}"><i class="hs-ic ${ic}"><b class="hs-badge" hidden></b></i><span>${n}</span></button>`).join('')}</div>
+      <div class="hs-dock">${['maps', 'messages', 'transit', 'notes'].map(id => `<button class="hs-app" data-app="${id}"><i class="hs-ic ${apps.find(a => a[0] === id)[2]}"></i></button>`).join('')}</div>`;
+    root.querySelectorAll('.hs-app').forEach(b => b.addEventListener('click', () => {
+      const id = b.dataset.app;
+      if (['maps', 'transit', 'notes', 'messages'].includes(id)) phone.openApp(id);
+      else phone.toastIn(id === 'camera' ? 'Storage almost full' : id === 'translate' ? 'Offline language pack not downloaded' : id === 'wallet' ? 'ICOCA · use it at the gates' : 'Osaka 24° · Sunny');
+    }));
+  }
+  badge(app, n) {
+    this.root.querySelectorAll(`.hs-app[data-app="${app}"] .hs-badge`).forEach(b => { b.hidden = !n; b.textContent = n; });
+  }
+}
+
+export class NotesApp {
+  constructor(phone, root) {
+    this.phone = phone; this.root = root; this.ctx = phone.ctx;
+    root.classList.add('nt');
+    this.quests = new Map();
+    for (const q of DEFAULT_QUESTS) this.quests.set(q.id, { ...q });
+    const gq = this.ctx.game && this.ctx.game.quests;
+    if (gq) for (const k in gq) this._merge(gq[k]);
+    this.ctx.events.on('quest:update', (q) => { this._merge(q); this.render(); phone.notify('notes'); });
+    this.render();
+  }
+  _merge(q) {
+    if (!q || !q.id) return;
+    const cur = this.quests.get(q.id) || {};
+    this.quests.set(q.id, { ...cur, ...q });
+  }
+  render() {
+    const list = [...this.quests.values()].filter(q => q.state !== 'hidden');
+    const done = list.filter(q => q.state === 'done').length;
+    this.root.innerHTML = `<div class="nt-h"><span class="nt-back">‹ Folders</span><span class="nt-dots">⋯</span></div>
+      <div class="nt-doc"><div class="nt-date">Today · Namba, Osaka</div><h2>Namba to-do</h2>
+      <ul>${list.map(q => `<li class="${q.state === 'done' ? 'done' : ''}"><i>${q.state === 'done' ? '✓' : ''}</i><div><b>${esc(q.text)}</b>${q.textJa ? `<small>${esc(q.textJa)}</small>` : ''}${q.detail ? `<em>${esc(q.detail)}</em>` : ''}${(q.notes || []).map(n => `<em>– ${esc(n)}</em>`).join('')}</div></li>`).join('')}</ul>
+      <p class="nt-foot">${done}/${list.length} done. Train to Shin-Osaka for the shinkansen later!<br>Aya says: “Namba is FOUR stations. Check which one.”</p></div>`;
+  }
+}
+
+export class MessagesApp {
+  constructor(phone, root) {
+    this.phone = phone; this.root = root; this.ctx = phone.ctx;
+    root.classList.add('ms');
+    this.msgs = [
+      { from: 'Aya', text: 'Welcome to Osaka!! 🎉 Did you land ok?', time: '09:58', me: false },
+      { from: 'me', text: 'Yes! On the Nankai train now. This station is huge', time: '10:31', me: true },
+      { from: 'Aya', text: 'Haha wait till you see the underground. Get coffee first, then lunch, then Midosuji to Shin-Osaka 🚄', time: '10:33', me: false },
+    ];
+    this.unread = 0;
+    this.ctx.events.on('phone:message', (m) => this.receive(m));
+    this.render();
+  }
+  receive(m) {
+    const time = m.time || this.ctx.clock.hhmm;
+    this.msgs.push({ from: m.from || 'Aya', text: m.text, time, me: false });
+    if (!(this.phone.isOpen && this.phone.app === 'messages')) this.unread++;
+    this.render();
+    this.phone.notify('messages', { title: m.from || 'Aya', text: m.text });
+  }
+  onShow() { this.unread = 0; this.phone.home && this.phone.home.badge('messages', 0); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
+  render() {
+    this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>Osaka · usually replies fast</small></div></div>
+      <div class="ms-list">${this.msgs.map(m => `<div class="ms-b ${m.me ? 'me' : ''}"><p>${esc(m.text)}</p><small>${esc(m.time)}</small></div>`).join('')}</div>
+      <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
+    const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight;
+    this.phone.home && this.phone.home.badge('messages', this.unread);
+  }
+}
+
+export class TransitApp {
+  constructor(phone, root) {
+    this.phone = phone; this.root = root; this.ctx = phone.ctx;
+    root.classList.add('tr');
+    this._t = 0;
+    this.render();
+  }
+  _deps(track) {
+    const tr = this.ctx.transit;
+    if (this.phone.pos.noService) return null;
+    if (tr && typeof tr.nextDepartures === 'function') {
+      try { const d = tr.nextDepartures(track, 3); if (d && d.length) return d; } catch (e) { /* ignore */ }
+    }
+    return [];
+  }
+  render() {
+    const rows = [
+      ['midosuji', 'm_track2', '2', '梅田・新大阪方面', 'for Umeda / Shin-Osaka'],
+      ['midosuji', 'm_track1', '1', '天王寺・なかもず方面', 'for Tennoji / Nakamozu'],
+      ['sennichimae', 's_track1', '1', '日本橋・鶴橋方面', 'for Nippombashi / Tsuruhashi'],
+      ['nankai', 'nk_track_7', '7', 'ラピート 関西空港', 'rapi:t for Kansai Airport'],
+    ];
+    const off = this.phone.pos.noService;
+    this.root.innerHTML = `<div class="tr-h"><b>Transit</b><small>${off ? '圏外 No service — showing saved timetable info' : 'Namba · 4 stations nearby'}</small></div>
+      <div class="tr-card tr-plan"><div class="tr-from">● Namba <small>なんば (M20)</small></div><div class="tr-line" style="--c:${LINES.midosuji.color}"><i class="mp-lb circle" style="--c:${LINES.midosuji.color}">M</i> Midosuji Line · for Umeda / Shin-Osaka · <b>Track 2</b></div><div class="tr-to">● Shin-Osaka <small>新大阪 (M13)</small> <b>15 min · ¥290</b></div></div>
+      ${rows.map(([line, track, no, ja, en]) => {
+        const L = LINES[line]; const deps = this._deps(track);
+        const list = deps == null ? '<span class="tr-dim">— no data —</span>' : deps.length ? deps.slice(0, 3).map(d => `<span>${esc(d.time || (d.minutes != null ? hm(d.minutes) : ''))} <small>${esc(d.dest || d.destination || '')}</small></span>`).join('') : '<span class="tr-dim">every 3–6 min</span>';
+        return `<div class="tr-card"><div class="tr-row"><i class="mp-lb ${L.shape}" style="--c:${L.color}">${L.letter}</i><div class="tr-r-m"><b>${esc(L.en)} <span class="tr-no">${no}</span></b><small>${esc(ja)} · ${esc(en)}</small></div></div><div class="tr-deps">${list}</div></div>`;
+      }).join('')}
+      <p class="tr-note">Osaka Metro なんば ≠ Nankai なんば ≠ Kintetsu 大阪難波 ≠ JR難波</p>`;
+  }
+  update(dt) { this._t += dt; if (this._t > 5) { this._t = 0; this.render(); } }
+}

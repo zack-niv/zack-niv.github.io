@@ -70,6 +70,8 @@ const shopSlots = [];
 const pois = [];
 const spawns = {};
 const exits = [];
+const cores = [];   // solid structural blocks carved out of halls (station rooms, shafts)
+const tactile = []; // tactile paving guide routes { level, pts: [[x,z],...], stops: [[x,z],...] }
 
 let _sid = 0;
 function space(o) {
@@ -195,8 +197,8 @@ gates.push({ id: 'g_m_south', level: 'B1', zone: 'midosuji', line: 'midosuji', a
 
 // Escalators concourse <-> platform. Ascend north (up = -1) at the north end,
 // south (up = +1) at the south end.
-escalatorBank({ id: 'esc_m_n', level0: 'B2', level1: 'B1', axis: 'z', up: -1, at: -119, from: -160, length: 12, lanes: ['stairs', 'up', 'down'], zone: 'midosuji', stairsWidth: 2 });
-escalatorBank({ id: 'esc_m_s', level0: 'B2', level1: 'B1', axis: 'z', up: +1, at: -119, from: -100, length: 12, lanes: ['down', 'up', 'stairs'], zone: 'midosuji', stairsWidth: 2 });
+escalatorBank({ id: 'esc_m_n', level0: 'B2', level1: 'B1', axis: 'z', up: -1, at: -119, from: -156, length: 16, lanes: ['stairs', 'up', 'down'], zone: 'midosuji', stairsWidth: 2 });
+escalatorBank({ id: 'esc_m_s', level0: 'B2', level1: 'B1', axis: 'z', up: +1, at: -119, from: -104, length: 16, lanes: ['down', 'up', 'stairs'], zone: 'midosuji', stairsWidth: 2 });
 
 // --- NAMBAWALK ------------------------------------------------------------------
 // The long east-west arcade under Sennichimae-dori. Central mall 8 m wide,
@@ -217,7 +219,7 @@ space({ id: 'walk_court', level: 'B1', zone: 'nambawalk', rect: [110, -232, 132,
 space({ id: 's_free', level: 'B1', zone: 'sennichimae', rect: [30, -218, 90, -204], ceil: 3.2, style: 'metro_concourse' });
 space({ id: 's_paid', level: 'B1', zone: 'sennichimae', rect: [30, -204, 90, -178], ceil: 3.2, style: 'metro_concourse', paid: 'sennichimae' });
 gates.push({ id: 'g_s', level: 'B1', zone: 'sennichimae', line: 'sennichimae', axis: 'x', at: -204, from: 36, to: 84, lanes: 10, name: 'Sennichimae Line Gate', ja: '千日前線 改札' });
-escalatorBank({ id: 'esc_s', level0: 'B2', level1: 'B1', axis: 'x', up: -1, at: -196, from: 72, length: 12, lanes: ['up', 'down', 'stairs'], zone: 'sennichimae', stairsWidth: 2 });
+escalatorBank({ id: 'esc_s', level0: 'B2', level1: 'B1', axis: 'x', up: -1, at: -196, from: 74, length: 16, lanes: ['up', 'down', 'stairs'], zone: 'sennichimae', stairsWidth: 2 });
 
 // --- Takashimaya depachika (food hall) ---------------------------------------
 space({ id: 'taka_b1', level: 'B1', zone: 'takashimaya', rect: [-80, -200, 20, -132], ceil: 3.0, style: 'depachika' });
@@ -271,7 +273,7 @@ space({ id: 'city_1f_x1', level: '1F', zone: 'city', rect: [-30, 40, 30, 46], ce
 space({ id: 'city_1f_x2', level: '1F', zone: 'city', rect: [-30, 130, 30, 136], ceil: 4.0, style: 'city_mall' });
 // atrium void over the B1 mall + its escalators (B1 <-> 1F)
 voids.push({ level: '1F', rect: [2, 54, 14, 82], rail: 'glass' });
-escalatorBank({ id: 'esc_city_a', level0: 'B1', level1: '1F', axis: 'z', up: +1, at: -4, from: 56, length: 12, lanes: ['up', 'down'], zone: 'city' });
+escalatorBank({ id: 'esc_city_a', level0: 'B1', level1: '1F', axis: 'z', up: +1, at: -4, from: 54, length: 16, lanes: ['up', 'down'], zone: 'city' });
 // stairs B1 -> 1F at the north plaza (towards Nankai)
 escalatorBank({ id: 'stair_city_n', level0: 'B1', level1: '1F', axis: 'x', up: +1, at: -58, from: 12, length: 13, lanes: ['stairs'], zone: 'city', stairsWidth: 4 });
 
@@ -289,15 +291,15 @@ shopRow({ level: '2F', zone: 'city', rowRect: [-30, 100, -5, 190], frontSide: 'e
 shopRow({ level: '2F', zone: 'city', rowRect: [5, 100, 30, 190], frontSide: 'w', widths: [12, 9, 10, 11, 9, 12, 10, 9], prefix: 'city_2se', ceil: 3.6 });
 
 // Escalators Nankai 1F hall -> 2F concourse (two banks)
-escalatorBank({ id: 'esc_nk_1', level0: '1F', level1: '2F', axis: 'z', up: -1, at: -40, from: -104, length: 11, lanes: ['up', 'down', 'up'], zone: 'nankai' });
-escalatorBank({ id: 'esc_nk_2', level0: '1F', level1: '2F', axis: 'z', up: -1, at: 10, from: -104, length: 11, lanes: ['stairs', 'up', 'down'], zone: 'nankai', stairsWidth: 4 });
+escalatorBank({ id: 'esc_nk_1', level0: '1F', level1: '2F', axis: 'z', up: -1, at: -40, from: -103, length: 14, lanes: ['up', 'down', 'up'], zone: 'nankai' });
+escalatorBank({ id: 'esc_nk_2', level0: '1F', level1: '2F', axis: 'z', up: -1, at: 10, from: -103, length: 14, lanes: ['stairs', 'up', 'down'], zone: 'nankai', stairsWidth: 4 });
 // 1F -> 2F inside Namba CITY (south end, towards Parks)
-escalatorBank({ id: 'esc_city_b', level0: '1F', level1: '2F', axis: 'z', up: +1, at: -4, from: 110, length: 11, lanes: ['up', 'down'], zone: 'city' });
+escalatorBank({ id: 'esc_city_b', level0: '1F', level1: '2F', axis: 'z', up: +1, at: -4, from: 110, length: 14, lanes: ['up', 'down'], zone: 'city' });
 
 // =============================================================================
 // 3F — Nankai platforms (the terminal)
 // =============================================================================
-space({ id: 'nankai_3f_concourse', level: '3F', zone: 'nankai', rect: [-52, -84, 20, -62], ceil: 9.0, style: 'terminal_concourse' });
+space({ id: 'nankai_3f_concourse', level: '3F', zone: 'nankai', rect: [-52, -92, 20, -62], ceil: 9.0, style: 'terminal_concourse' });
 gates.push({ id: 'g_nk_central', level: '3F', zone: 'nankai', line: 'nankai', axis: 'x', at: -66, from: -50, to: 18, lanes: 22, name: 'Central Gate', ja: '中央改札口' });
 // four island platforms; tracks 1-8 numbered west to east
 const nkPlat = [[-46, -39], [-29, -22], [-12, -5], [5, 12]];
@@ -307,8 +309,8 @@ nkPlat.forEach(([a, b], i) => {
   tracks.push({ id: `nk_track_${i * 2 + 2}`, level: '3F', line: 'nankai', rect: [b, -62, b + 5, 120], axis: 'z', platform: `nk_plat_${i + 1}`, side: 'e', no: i * 2 + 2, heading: +1, terminal: true });
 });
 // 2F -> 3F escalators into the concourse
-escalatorBank({ id: 'esc_nk_3', level0: '2F', level1: '3F', axis: 'z', up: -1, at: -48, from: -66, length: 11, lanes: ['up', 'down'], zone: 'nankai' });
-escalatorBank({ id: 'esc_nk_4', level0: '2F', level1: '3F', axis: 'z', up: -1, at: 6, from: -66, length: 11, lanes: ['down', 'up', 'stairs'], zone: 'nankai', stairsWidth: 4 });
+escalatorBank({ id: 'esc_nk_3', level0: '2F', level1: '3F', axis: 'z', up: -1, at: -48, from: -67, length: 14, lanes: ['up', 'down'], zone: 'nankai' });
+escalatorBank({ id: 'esc_nk_4', level0: '2F', level1: '3F', axis: 'z', up: -1, at: 6, from: -67, length: 14, lanes: ['down', 'up', 'stairs'], zone: 'nankai', stairsWidth: 4 });
 
 // =============================================================================
 // Namba Parks
@@ -334,10 +336,10 @@ space({ id: 'parks_stage', level: '2F', zone: 'parks', outdoor: true, style: 'ca
   space({ id: `parks_${lv}_canyonview_b`, level: lv, zone: 'parks', rect: [4, 276, 20 + (i === 0 ? 4 : 0), 282], ceil: 4.2, style: 'parks_indoor' });
 });
 // central escalator cascade, each flight shifted south — a stepped well
-escalatorBank({ id: 'esc_pk_23', level0: '2F', level1: '3F', axis: 'z', up: +1, at: -4, from: 222, length: 11, lanes: ['up', 'down'], zone: 'parks' });
-escalatorBank({ id: 'esc_pk_34', level0: '3F', level1: '4F', axis: 'z', up: +1, at: -4, from: 240, length: 11, lanes: ['up', 'down'], zone: 'parks' });
-escalatorBank({ id: 'esc_pk_45', level0: '4F', level1: '5F', axis: 'z', up: +1, at: -4, from: 258, length: 11, lanes: ['up', 'down'], zone: 'parks' });
-escalatorBank({ id: 'esc_pk_56', level0: '5F', level1: '6F', axis: 'z', up: +1, at: -4, from: 276, length: 11, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_23', level0: '2F', level1: '3F', axis: 'z', up: +1, at: -4, from: 222, length: 14, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_34', level0: '3F', level1: '4F', axis: 'z', up: +1, at: -4, from: 240, length: 14, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_45', level0: '4F', level1: '5F', axis: 'z', up: +1, at: -4, from: 258, length: 14, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_56', level0: '5F', level1: '6F', axis: 'z', up: +1, at: -4, from: 276, length: 14, lanes: ['up', 'down'], zone: 'parks' });
 
 // Bridges across the canyon (glass-railed, lots of light). They leave the
 // indoor mall through the 'canyon view' openings and land on the gardens.
@@ -378,8 +380,8 @@ escalatorBank({ id: 'stair_g78', level0: '7F', level1: '8F', axis: 'z', up: +1, 
   shopRow({ level: lv, zone: 'parks', rowRect: [4, z0, 22, 388], frontSide: 'w', widths: [10, 12, 9, 11, 10, 12], prefix: `parks_${lv}de`, style: 'restaurant', ceil: 3.4, gaps: [[oz, oz + 8]] });
   space({ id: `parks_${lv}_out`, level: lv, zone: 'parks', rect: [4, oz, x1, oz + 8], ceil: 3.6, style: 'parks_skywalk' });
 });
-escalatorBank({ id: 'esc_pk_67', level0: '6F', level1: '7F', axis: 'z', up: +1, at: -4, from: 318, length: 11, lanes: ['up', 'down'], zone: 'parks' });
-escalatorBank({ id: 'esc_pk_78', level0: '7F', level1: '8F', axis: 'z', up: +1, at: -4, from: 346, length: 11, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_67', level0: '6F', level1: '7F', axis: 'z', up: +1, at: -4, from: 318, length: 14, lanes: ['up', 'down'], zone: 'parks' });
+escalatorBank({ id: 'esc_pk_78', level0: '7F', level1: '8F', axis: 'z', up: +1, at: -4, from: 346, length: 14, lanes: ['up', 'down'], zone: 'parks' });
 
 // =============================================================================
 // Street exits from NAMBAWALK (stairs B1 -> 1F sidewalk)
@@ -406,6 +408,49 @@ exits.push(
   { id: 'exit_21', no: '21', level: '1F', x: 143, z: -255, ja: '21番出口', en: 'Exit 21', to: 'Nipponbashi' },
   { id: 'exit_24', no: '24', level: '1F', x: 199, z: -190, ja: '24番出口', en: 'Exit 24', to: 'Namba Hips' },
   { id: 'exit_m1', no: '1', level: '1F', x: -94, z: -197, ja: '1番出口', en: 'Exit 1', to: 'Namba Plaza / Takashimaya' },
+);
+
+// =============================================================================
+// Structural cores: solid blocks carved out of halls (station offices, toilets,
+// shafts). Walls are generated around them automatically.
+// =============================================================================
+cores.push(
+  { id: 'core_m_office', level: 'B1', rect: [-140, -170, -131, -90], kind: 'station', name: 'Station office / toilets', ja: '駅務室・トイレ' },
+);
+
+// =============================================================================
+// Tactile paving (点字ブロック) guide routes: yellow line blocks along the
+// polyline, dot (warning) blocks at every corner and at each stop (stairs,
+// gates, exits). Architecture builds them; columns keep clear of them.
+// =============================================================================
+tactile.push(
+  // NAMBAWALK spine, with a detour around the fountain court
+  { level: 'B1', pts: [[-116, -182], [-116, -219.5], [109, -219.5], [111, -214.5], [131, -214.5], [133, -219.5], [219, -219.5]] },
+  // branches to NAMBAWALK exits
+  { level: 'B1', pts: [[-57, -219.5], [-57, -239]], stops: [[-57, -239]] },
+  { level: 'B1', pts: [[43, -219.5], [43, -239]], stops: [[43, -239]] },
+  { level: 'B1', pts: [[143, -219.5], [143, -239]], stops: [[143, -239]] },
+  { level: 'B1', pts: [[199, -219.5], [199, -205]], stops: [[199, -205]] },
+  // Midosuji north: exit 1 stairs, gate, paid side to the platform stairs
+  { level: 'B1', pts: [[-112, -219.5], [-112, -196], [-109, -196]], stops: [[-109, -196]] },
+  { level: 'B1', pts: [[-116, -182]], stops: [[-116, -182]] },
+  { level: 'B1', pts: [[-116, -178], [-116, -175], [-118, -175], [-118, -173]], stops: [[-118, -173]] },
+  // Sennichimae: gate and paid side to the platform stairs
+  { level: 'B1', pts: [[60, -219.5], [60, -206]], stops: [[60, -206]] },
+  { level: 'B1', pts: [[60, -202], [60, -199], [55, -199], [55, -191], [57, -191]], stops: [[57, -191]] },
+  // west passage: Midosuji north concourse -> link -> Namba CITY B1 -> north stairs
+  { level: 'B1', pts: [[-96, -219.5], [-96, -183], [-85, -183], [-85, -53], [0, -53], [0, -56], [11, -56]], stops: [[11, -56]] },
+  // Midosuji south gate and paid side
+  { level: 'B1', pts: [[-85, -53], [-116, -53], [-116, -78]], stops: [[-116, -78]] },
+  { level: 'B1', pts: [[-116, -82], [-116, -84], [-114, -84], [-114, -87]], stops: [[-114, -87]] },
+  // Midosuji platform: between the two stair heads
+  { level: 'B2', pts: [[-114, -105], [-114, -130], [-118, -130], [-118, -155]], stops: [[-114, -105], [-118, -155]] },
+  // Nankai 3F: escalator heads to the central gate
+  { level: '3F', pts: [[12, -82], [12, -86], [-46, -86], [-46, -82]], stops: [[12, -82], [-46, -82]] },
+  { level: '3F', pts: [[-16, -86], [-16, -68]], stops: [[-16, -68]] },
+  // Nankai 1F: west entrance -> stairs to 2F, and south to Namba CITY
+  { level: '1F', pts: [[-94, -116], [-48, -116], [-48, -101], [12, -101], [12, -102]], stops: [[12, -102]] },
+  { level: '1F', pts: [[0, -101], [0, -42]] },
 );
 
 // =============================================================================
@@ -450,7 +495,7 @@ pois.push(
 // =============================================================================
 // Derived lookups
 // =============================================================================
-export const LAYOUT = { LEVELS, LEVEL_ORDER, ZONES, spaces, ramps, voids, gates, tracks, shopSlots, pois, spawns, exits };
+export const LAYOUT = { LEVELS, LEVEL_ORDER, ZONES, spaces, ramps, voids, gates, tracks, shopSlots, pois, spawns, exits, cores, tactile };
 
 export const spaceById = Object.fromEntries(spaces.map(s => [s.id, s]));
 export const rampById = Object.fromEntries(ramps.map(r => [r.id, r]));
@@ -458,9 +503,25 @@ export const rampById = Object.fromEntries(ramps.map(r => [r.id, r]));
 // Height profile along a ramp. s = 0 at the low end, 1 at the high end
 // (normalised along its footprint length). Escalators have flat landing
 // sections; stairs and slopes are linear with a short landing.
+export const ESC_TRANSITION = 0.9;   // horizontal length of the curved transitions (m)
+export const ESC_TAN = Math.tan(30 * Math.PI / 180);
+// Flat landing length at each end of a ramp. Escalators size their landings so
+// the incline is exactly 30° whenever the footprint is long enough (≥ 1.0 m
+// landings), otherwise they steepen.
+export function rampFlat(r) {
+  if (r.kind === 'escalator') {
+    const H = LEVELS[r.upper].y - LEVELS[r.lower].y;
+    return Math.max(1.0, (rampLength(r) - ESC_TRANSITION - H / ESC_TAN) / 2);
+  }
+  return r.kind === 'stairs' ? 0.6 : 0;
+}
+// Height profile along a ramp. s = 0 at the low end, 1 at the high end
+// (normalised along its footprint length). Escalators have flat landing
+// sections and short curved transitions; stairs and slopes are linear with a
+// short landing. Architecture builds steps / treads exactly on this profile.
 export function rampProfile(r, s) {
   const len = rampLength(r);
-  const flat = r.kind === 'escalator' ? 1.6 : r.kind === 'stairs' ? 0.6 : 0;
+  const flat = rampFlat(r);
   const d = s * len;
   let t;
   if (d <= flat) t = 0;
@@ -468,8 +529,8 @@ export function rampProfile(r, s) {
   else {
     t = (d - flat) / (len - 2 * flat);
     if (r.kind === 'escalator') {
-      // short curved transitions into the incline (≈ 1 m radius feel)
-      const e = 0.9 / (len - 2 * flat);
+      // curved transitions into the incline (parabolic blend over ESC_TRANSITION m)
+      const e = ESC_TRANSITION / (len - 2 * flat);
       if (t < e) t = (t * t) / (2 * e) * (1 / (1 - e));
       else if (t > 1 - e) t = 1 - ((1 - t) * (1 - t)) / (2 * e) * (1 / (1 - e));
       else t = (t - e / 2) / (1 - e);

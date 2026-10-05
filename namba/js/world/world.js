@@ -124,6 +124,14 @@ export class World {
         if (g.type[i] === CELL.WALK) { g.type[i] = CELL.VOID; }
       }
     });
+    // structural cores (station rooms, shafts): solid blocks carved out of halls
+    (L.cores || []).forEach(c => {
+      const g = this.grids[c.level]; if (!g) return;
+      for (let z = c.rect[1]; z < c.rect[3]; z++) for (let x = c.rect[0]; x < c.rect[2]; x++) {
+        const i = g.cellOf(x + 0.5, z + 0.5);
+        if (i >= 0 && g.type[i] === CELL.WALK) { g.type[i] = CELL.SOLID; g.space[i] = -1; }
+      }
+    });
     // ramps (override everything on both levels)
     L.ramps.forEach((r, ri) => {
       for (const lv of [r.lower, r.upper]) {
