@@ -99,7 +99,7 @@ export class Boards {
     const rows = [];
     let blinky = false;
     for (const id of b.tracks) {
-      const list = tr.nextDepartures(id, b.perTrack || 2, t);
+      const list = tr.tt.upcoming(id, t, b.perTrack || 2);
       const st = tr.trackState(id);
       if (st && (st.state === 'approach' || st.state === 'arriving')) blinky = true;
       rows.push({ id, list, st, info: tr.trackInfo(id) });

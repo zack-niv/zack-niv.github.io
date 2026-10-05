@@ -52,6 +52,7 @@ export const GARDENS = {
   ], decks: [[93, 373, 109, 383]] },
 };
 
+const OFF4 = [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]];
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const M4 = () => new THREE.Matrix4();
 
@@ -112,12 +113,26 @@ export function buildGardens(ctx, parks) {
       for (const [a0, b0, a1, b1] of stairs) { const dx = Math.max(a0 - 1.2 - x, 0, x - a1 - 1.2), dz = Math.max(b0 - 1.2 - z, 0, z - b1 - 1.2); d = Math.min(d, Math.hypot(dx, dz) - 0.3); }
       return d;
     };
+    // stamp path / deck / stair distances locally (fields clamp at FAR metres)
+    const FAR = 7;
+    D.fill(FAR);
+    const stamp = (bx0, bz0, bx1, bz1, fn) => {
+      const i0 = Math.max(0, Math.floor((bx0 - x0) / S)), i1 = Math.min(NX - 1, Math.ceil((bx1 - x0) / S));
+      const j0 = Math.max(0, Math.floor((bz0 - z0) / S)), j1 = Math.min(NZ - 1, Math.ceil((bz1 - z0) / S));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * NX + i; const d = fn(x0 + i * S, z0 + j * S); if (d < D[k]) D[k] = d; }
+    };
+    for (const p of paths) for (let k = 0; k < p.pts.length - 1; k++) {
+      const a = p.pts[k], b = p.pts[k + 1], r = p.w / 2 + FAR;
+      stamp(Math.min(a[0], b[0]) - r, Math.min(a[1], b[1]) - r, Math.max(a[0], b[0]) + r, Math.max(a[1], b[1]) + r, (x, z) => segDist(x, z, a[0], a[1], b[0], b[1]) - p.w / 2);
+    }
+    for (const [a0, b0, a1, b1] of decks) stamp(a0 - FAR, b0 - FAR, a1 + FAR, b1 + FAR, (x, z) => { const dx = Math.max(a0 - x, 0, x - a1), dz = Math.max(b0 - z, 0, z - b1); return Math.hypot(dx, dz) - (x > a0 && x < a1 && z > b0 && z < b1 ? 1 : 0); });
+    for (const [a0, b0, a1, b1] of stairs) stamp(a0 - FAR, b0 - FAR, a1 + FAR, b1 + FAR, (x, z) => { const dx = Math.max(a0 - 1.2 - x, 0, x - a1 - 1.2), dz = Math.max(b0 - 1.2 - z, 0, z - b1 - 1.2); return Math.hypot(dx, dz) - 0.3; });
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
       const x = x0 + i * S, z = z0 + j * S;
-      // inside the terrace (sample the four cells touching this vertex)
       let inside = true;
-      for (const [ox, oz] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) if (!walkAt(x + ox, z + oz)) { inside = false; break; }
-      D[j * NX + i] = inside ? pathD(x, z) - 0.4 : -1;
+      for (const [ox, oz] of OFF4) if (!walkAt(x + ox, z + oz)) { inside = false; break; }
+      const k = j * NX + i;
+      D[k] = inside ? D[k] - 0.4 : -1;
     }
     const dAt = (x, z) => { const i = Math.round((x - x0) / S), j = Math.round((z - z0) / S); if (i < 0 || j < 0 || i >= NX || j >= NZ) return -1; return D[j * NX + i]; };
     // ---- marching squares: soil fill + kerbs ---------------------------------

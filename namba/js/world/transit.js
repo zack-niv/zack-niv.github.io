@@ -477,7 +477,12 @@ export class Transit {
   // ---- public API ---------------------------------------------------------------------------
   nextDepartures(trackId, n = 3, t) {
     if (t == null) t = this.now();
-    return this.tt.upcoming(trackId, t, n);
+    return this.tt.upcoming(trackId, t, n).map(s => ({
+      id: s.id, track: s.track, trackNo: s.trackNo, line: s.line, platform: s.platform,
+      time: s.hhmm, minutes: s.dep % 1440, dep: s.dep, arr: s.arr,
+      type: s.typeEn, typeKey: s.type, typeJa: s.typeJa, typeEn: s.typeEn, typeColor: s.typeColor,
+      dest: s.destEn, destination: s.destEn, destJa: s.destJa, destEn: s.destEn, cars: s.cars,
+    }));
   }
   trackState(trackId) { return this._state[trackId] || null; }
   doorsOpen(trackId) {

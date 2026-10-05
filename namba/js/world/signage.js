@@ -206,10 +206,12 @@ export class Signage {
         document.fonts.load('600 32px Inter', 'Exit'), document.fonts.load('800 32px Inter', 'M'),
       ]).catch(() => {}), 4000);
     })();
-    this._place(world);
-    this._declare();
-    this._startWorker();
-    await this._fontsP;
+    const T = this.timings = {};
+    let t = performance.now();
+    const lap = (k) => { const n = performance.now(); T[k] = Math.round(n - t); t = n; };
+    this._place(world); lap('place');
+    this._declare(); lap('declare');
+    this._startWorker(); lap('worker');
   }
 
   // ===========================================================================
