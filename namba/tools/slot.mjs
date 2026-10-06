@@ -1,7 +1,7 @@
 // Machine-wide semaphore for headless browser runs: many agents share 4 CPU
 // cores, so at most SLOTS SwiftShader browsers render at once. Other callers wait.
 import fs from 'fs';
-const SLOTS = +(process.env.NAMBA_SLOTS || 3);
+const SLOTS = +(process.env.NAMBA_SLOTS || 4);
 const dir = '/tmp/namba-slots';
 fs.mkdirSync(dir, { recursive: true });
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
