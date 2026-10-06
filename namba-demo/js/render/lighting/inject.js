@@ -86,7 +86,8 @@ float nbAO = 1.0;
     vec4 A = texture2D( nbA, uv );
     vec4 B = texture2D( nbB, uv );
     vec3 sideCol = B.rgb;
-    vec3 downCol = B.a * mix( vec3( 1.0 ), ( sideCol + 1e-4 ) / ( nbLum( sideCol ) + 1e-4 ), 0.45 );
+    // ceilings: mostly neutral and a touch brighter (a lit mall ceiling reads pale, not khaki)
+    vec3 downCol = 1.3 * B.a * mix( vec3( 1.0 ), ( sideCol + 1e-4 ) / ( nbLum( sideCol ) + 1e-4 ), 0.2 );
     nbE = ( up * A.rgb + sd * sideCol + dn * downCol ) * nbParams.y;
     float sky = A.a;
     nbE += sky * ( nbSky * ( up + 0.5 * sd + 0.06 * dn ) + nbSky * nbGround * ( dn * 0.9 + sd * 0.5 ) );

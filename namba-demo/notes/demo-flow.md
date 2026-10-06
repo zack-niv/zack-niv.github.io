@@ -34,7 +34,7 @@
   `phone:message {from:'Aya', text:'you're lost aren't you 😂 install Lodestone, it actually works indoors', link:'lodestone'}`.
 * The game listens to `phone:upgrade {stage: 'offer'|'installing'|'calibrating'|'ready'}`; `ready` = the "after" phase
   begins (Aya reacts, stats switch to the after buckets).
-* `ctx.phone.stats()` (guarded). Fields read: `meanErrorBefore`, `meanErrorAfter` (metres), `wrongFloorSeconds`,
+* `ctx.phone.stats()` (guarded; the phone's `stats.js` now provides it). Fields read: `meanErrorBefore`, `meanErrorAfter` (metres), `wrongFloorSeconds`,
   optional `wrongFloorSecondsAfter`. Anything missing/non-finite is replaced by the game's own sampler (4 Hz,
   `ctx.phone.pos` vs the true body position, split at the `ready` event).
 * The end card reads `ctx.phone.pos` ({x,z,level}) only through that sampler.
@@ -46,6 +46,12 @@
 
 ## Clock
 core/clock.js now starts at 11:20 with scale 1.2 (done by the lead). The game no longer forces the time; all story timers are real seconds anyway.
+
+## Requests
+* **Crowd (important for the arrival beat)**: at 11:20 `ctx.crowd.queueLength('parks_6Fdw03')` was 0 when the player
+  arrived (no one queueing on the stools outside Daikichi). Please keep 3-6 agents on the stools there while the
+  player is within ~40 m (pre-seed on `player:teleport`/proximity). The arrival moment picks `queue[2]` as "Aya"
+  (WAVE pose, name tag); with no queue it falls back to the nearest standing person within 9 m, else the counter view.
 
 ## Known gaps
 * Daikichi's queue is whatever the crowd director produces; if nobody is queueing at arrival the Aya

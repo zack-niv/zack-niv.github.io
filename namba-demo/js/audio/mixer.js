@@ -163,6 +163,7 @@ export class Mixer {
 }
 
 export function setPannerPos(p, x, y, z, t) {
+  if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z))) return; // a NaN position would throw in setValueAtTime
   if (p.positionX) { p.positionX.setValueAtTime(x, t); p.positionY.setValueAtTime(y, t); p.positionZ.setValueAtTime(z, t); }
   else p.setPosition(x, y, z);
 }

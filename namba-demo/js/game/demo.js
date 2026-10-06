@@ -129,7 +129,9 @@ export class Demo {
     // arrival
     if (!game.busy && !game.intro && !game.paused && this.biz && b.level === this.biz.level) {
       const d = Math.hypot(b.x - this.biz.door.ox, b.z - this.biz.door.oz);
-      if (d < DEMO.arriveRadius) this.arrive();
+      // straight-line close AND close by foot (a shop across the corridor is not the door)
+      const rem = this._lost.rem;
+      if (d < DEMO.arriveRadius && (rem == null || rem < DEMO.arriveRadius + 5)) this.arrive();
     }
   }
 
