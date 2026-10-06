@@ -63,8 +63,41 @@ export function cafeInterior(S, c) {
   // ---- depth: no caverns ------------------------------------------------------------------------------------------
   let Dm = S.D;
   if (S.D > 14) Dm = clamp(Math.max(S.cj + 2, narrow ? 14 : 12 + Math.floor(r() * 3)), 8, S.D);
+  // critic v2: big deep cafés (Sunny Side: 11 x 25 m) still read as a hall at 12-14 m. Seal them at 10-11 m with a
+  // kitchen behind the back wall; the directory's centre cell (only a reachability anchor for the shop template)
+  // moves in front of the new back wall so every later solid() keeps its connectivity test.
+  if (S.D > 14 && W >= 9) {
+    const want = 10 + Math.floor(r() * 2);
+    if (want < Dm) {
+      Dm = want;
+      if (S.cj > Dm - 2 && !S.replay) {
+        const old = S.cj * W + S.ci, R0 = S.occ[old];
+        S.occ[old] = 0;
+        S.cj = Math.floor(Dm) - 2;
+        S.occ[S.cj * W + S.ci] = R0;
+      } else if (S.cj > Dm - 2) S.cj = Math.floor(Dm) - 2;
+    }
+  }
   S.backD = Dm;                                   // featured extras (coffee_chain logo...) hang on the real back wall
   const doorBack = backWall(S, P, Dm, { sealedOnly: false });
+  // a kitchen pass-through in the back wall (counter side): warm-lit hatch, steel sill, plates waiting, heat lamps
+  if (S.D - Dm >= 1 && W >= 9) {
+    const ka0 = side > 0 ? W - 3.6 : 1.2, ka1 = ka0 + 2.4;
+    if (Math.abs((ka0 + ka1) / 2 - doorBack) > 1.9) {
+      const kd = Dm - 0.006;
+      P.qd('env_glow', ka0, ka1, 1.08, 1.86, kd, -1, [0.62, 0.5, 0.36]);                           // the lit kitchen behind
+      P.qd('env_matte', ka0 + 0.1, ka1 - 0.1, 1.5, 1.86, kd - 0.002, -1, [0.32, 0.3, 0.28]);          // tiled back of the kitchen
+      for (const t of [0.35, 0.9, 1.5, 2.05]) P.box('env_metal', ka0 + t - 0.03, ka0 + t + 0.03, 1.1, 1.62, kd - 0.06, kd - 0.004, [0.7, 0.71, 0.73], 'nsewt');  // shelf posts
+      P.box('env_metal', ka0 + 0.1, ka1 - 0.1, 1.42, 1.45, kd - 0.3, kd - 0.004, [0.72, 0.73, 0.75], 'nsewt');               // upper shelf
+      P.box('env_wood', ka0 - 0.08, ka1 + 0.08, 1.86, 1.94, kd - 0.08, kd, wood2, 'nsewt');                                // frame
+      for (const e of [ka0 - 0.08, ka1]) P.box('env_wood', e, e + 0.08, 1.0, 1.94, kd - 0.08, kd, wood2, 'nsewt');
+      P.box('env_metal', ka0 - 0.1, ka1 + 0.1, 1.0, 1.06, kd - 0.38, kd, [0.78, 0.79, 0.81], 'nsewt');                     // steel sill (the pass)
+      for (let k = 0; k < 3; k++) { const a = ka0 + 0.45 + k * 0.75; P.cyl('env_gloss', a, 1.06, 1.08, kd - 0.2, 0.13, [0.96, 0.95, 0.92]); foodItem(S, P, ['toast', 'cake', 'parfait'][k], a, 1.08, kd - 0.2, 0.08); }
+      for (let k = 0; k < 2; k++) P.box('env_glow', ka0 + 0.5 + k * 1.2, ka0 + 0.9 + k * 1.2, 1.78, 1.82, kd - 0.3, kd - 0.1, [2.2, 1.4, 0.7], 'nsewt');   // heat lamps
+      const kl = R.label('KITCHEN  キッチン', '#f4efe2', '#2f2a26', 256, 40);
+      P.tq(kl, ka0 + 0.6, ka1 - 0.6, 1.98, 2.1, kd - 0.002, -1);
+    }
+  }
   // ---- cell bookkeeping (own array: never read S.free in a template) ---------------------------------------------
   const used = new Uint8Array(W * Math.ceil(Dm));
   const mark = (i0, i1, j0, j1) => { for (let j = Math.max(0, j0); j <= Math.min(Math.ceil(Dm) - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(W - 1, i1); i++) used[j * W + i] = 1; };
@@ -361,10 +394,10 @@ export function cafeInterior(S, c) {
   }
   function stoolSeat(a, d, fa, fd) { P.geo('env_wood', 'stool', a, 0, d, 0, 1, mix(wood2, [0, 0, 0], 0.15)); void fa; void fd; }
   // scatter the rest
-  const wantTables = narrow ? 0 : Math.round(clamp((W * (Dm - 3)) / 15, 3, 9));
+  const wantTables = narrow ? 0 : Math.round(clamp((W * (Dm - 3)) / 11, 3, 10));   // critic: denser (was /15)
   let placed = 0, tries = 0;
   const lo = narrow ? 1 : 1, hi = W - 2;
-  while (placed < wantTables && tries++ < 60) {
+  while (placed < wantTables && tries++ < 140) {
     const i = lo + Math.floor(r() * Math.max(1, hi - lo + 1)), j = 3 + Math.floor(r() * Math.max(1, Math.floor(Dm - 6)));
     const axis = r() < 0.55 ? 'd' : 'a', four = !narrow && r() < 0.25, round = r() < 0.5;
     if (placeTop(i, j, axis, round, four)) placed++;
