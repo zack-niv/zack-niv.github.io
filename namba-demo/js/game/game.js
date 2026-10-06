@@ -127,7 +127,7 @@ export class Game {
       for (const id in this.quests) this.quests[id].state = 'active';
       return;
     }
-    this.demo.begin({ cinematic: !!this._fromTitle || !params.skip });
+    this.demo.begin({ cinematic: true });
   }
   // glide the view toward a direction (vignettes: the counter, the fryer) — the world stays live
   lookDir(dx, dz, pitch = -0.2, rate = 2.2) { this._look = { yaw: Math.atan2(-dx, -dz), pitch, rate }; }

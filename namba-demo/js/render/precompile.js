@@ -22,7 +22,9 @@ function proxy(list) { const g = new THREE.Group(); g.children = list; return g;
 // scene-level objects that are not a level root (sky, crowd, lights, phone…)
 function sceneExtras(engine) {
   const roots = new Set(LEVEL_ORDER.map(l => engine.levelRoot(l)));
-  return engine.scene.children.filter(o => !roots.has(o));
+  // lights are excluded: the target scene's lights are already used, and a second copy would create
+  // program variants (2 directional lights) that nothing ever renders with
+  return engine.scene.children.filter(o => !roots.has(o) && !o.isLight && !(engine.ctx && engine.ctx.lighting && engine.ctx.lighting.sun && engine.ctx.lighting.sun.target === o));
 }
 
 function chunkGroups(engine, onlyVisible) {
@@ -49,6 +51,10 @@ export async function precompileVisible(ctx, onProgress, capMs = 15000) {
   const { engine } = ctx;
   const r = engine.renderer, cam = engine.camera, scene = engine.scene;
   const t0 = performance.now();
+  // Without KHR_parallel_shader_compile (software GL, some drivers) compileAsync can't overlap anything:
+  // compiling programs for objects that may never be drawn would only add work, so let the first
+  // frames compile exactly what is on screen.
+  if (!r.extensions.has('KHR_parallel_shader_compile')) { console.log('[render] precompile skipped (no KHR_parallel_shader_compile)'); return true; }
   const list = chunkGroups(engine, true);
   ctx._compiled = new Set(list);
   const extras = sceneExtras(engine);

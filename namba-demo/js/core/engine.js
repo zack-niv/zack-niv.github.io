@@ -18,11 +18,11 @@ import { params } from './params.js';
 // post: HDR pipeline on/off; bloom/ssao/ssr/fxaa/msaa: post passes;
 // specLights: real specular fixtures in the light-field shader; envSize: PMREM size
 export const QUALITY = {
-  low:    { pixelRatio: 0.75, shadows: false, post: false, bloom: false, ssao: false, ssr: false, fxaa: false, msaa: 0, crowdMax: 500,  drawDist: 90,  anisotropy: 1,  specLights: 2, envSize: 64,  shadowMap: 0,    drsMin: 0.6, vignette: 0.3, grain: 0, ca: 0, maxPR: 1.5 },
-  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1000, drawDist: 130, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.006, ca: 0, maxPR: 1.5 },
+  low:    { pixelRatio: 0.75, shadows: false, post: false, bloom: false, ssao: false, ssr: false, fxaa: false, msaa: 0, crowdMax: 500,  drawDist: 90, callBudget: 450,  anisotropy: 1,  specLights: 2, envSize: 64,  shadowMap: 0,    drsMin: 0.6, vignette: 0.3, grain: 0, ca: 0, maxPR: 1.5 },
+  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1000, drawDist: 130, callBudget: 750, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.006, ca: 0, maxPR: 1.5 },
   // high = medium + half-res SSAO/SSR + TAA/CAS. Tuned to hold 60 fps on a mid laptop GPU with dynamic resolution (0.7..1.0).
-  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false,  msaa: 0, crowdMax: 1500, drawDist: 160, anisotropy: 8,  specLights: 6, envSize: 128, shadowMap: 1536, drsMin: 0.7, vignette: 0.33, grain: 0.006, ca: 0, maxPR: 1.25 },
-  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, anisotropy: 16, specLights: 8, envSize: 256, shadowMap: 4096, drsMin: 0.8, vignette: 0.35, grain: 0.006, ca: 0, maxPR: 2 },
+  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false,  msaa: 0, crowdMax: 1500, drawDist: 160, callBudget: 900, anisotropy: 8,  specLights: 4, envSize: 128, shadowMap: 1536, drsMin: 0.7, vignette: 0.33, grain: 0.006, ca: 0, maxPR: 1.25 },
+  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, callBudget: 1400, anisotropy: 16, specLights: 4, envSize: 256, shadowMap: 4096, drsMin: 0.8, vignette: 0.35, grain: 0.006, ca: 0, maxPR: 2 },
 };
 export const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 

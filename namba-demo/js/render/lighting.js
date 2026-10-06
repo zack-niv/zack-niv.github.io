@@ -222,7 +222,7 @@ export class Lighting {
       const k = hex + kind;
       let m = mats.get(k);
       if (!m) {
-        const c = new THREE.Color(hex).multiplyScalar(kind === 'down' ? 9 : kind === 'strip' ? 7 : 5.5);
+        const c = new THREE.Color(hex).multiplyScalar(kind === 'down' ? 5.5 : kind === 'strip' ? 4.5 : 3.8);
         m = new THREE.MeshBasicMaterial({ color: c }); m.name = 'nb_fixture'; mats.set(k, m);
       }
       return m;

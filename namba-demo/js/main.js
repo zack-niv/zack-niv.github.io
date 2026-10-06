@@ -58,7 +58,9 @@ try {
 
 const loader = new Loader(document.getElementById('loading'));
 const progress = (key, frac, msg) => loader.stage(key, frac, msg);
-const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+// let the loading screen repaint, but never wait on a busy GPU process for it (rAF can be late by seconds
+// while uploads / PMREM are queued): whichever comes first, a frame or 50 ms
+const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) { d = true; r(); } }; requestAnimationFrame(f); setTimeout(f, 50); });
 // touch-only device (phone/tablet): polite "best on a computer" card, load continues behind it
 const touchOnly = !params.test && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
 let touchAck = Promise.resolve();
@@ -140,27 +142,6 @@ async function boot() {
     events.emit('player:teleport', { level: b.level });
     return true;
   };
-  // ---- shaders + first frame (under the loading screen) -----------------------
-  // Compile the programs the spawn view needs in parallel (no main-thread stall), then draw one
-  // frame behind the loader so texture uploads / shadow map happen before anyone is watching.
-  progress('compile', 0);
-  await frame();
-  try {
-    if (ctx.visibility) ctx.visibility.update(1 / 60);
-    await precompileVisible(ctx, (f) => progress('compile', f), params.test ? 20000 : 12000);
-    progress('compile', 0.97, 'Drawing the first frame…');
-    await frame();
-    engine.render(1 / 60);
-  } catch (e) { console.warn('[render] precompile/first frame failed', e); }
-  await touchAck;
-  ctx.ready = true;
-  events.emit('game:ready', {});
-  loader.done();
-  console.log(`[load] ready in ${(performance.now() / 1000).toFixed(1)}s`);
-  if (params.skip || !ctx.game) ctx.start();
-  if (!params.test) precompileRest(ctx);
-  if (!ctx.game) canvas.addEventListener('click', () => ctx.input.requestLock());
-
   // ---- main loop -------------------------------------------------------------
   let last = performance.now();
   let acc = 0, frames = 0;
@@ -184,7 +165,34 @@ async function boot() {
     ctx.tick(dt);
     requestAnimationFrame(loop);
   };
+
+  // ---- go ---------------------------------------------------------------------
+  // `ctx.ready` = every system is built and the game is interactive. The main loop starts now and
+  // renders behind the loading screen; the loader only lifts once the shaders for the spawn view
+  // are compiled (in parallel where the driver allows it) and a few real frames have been drawn,
+  // so the first thing a player sees is a smooth, fully lit frame (not a half-second stall).
+  ctx.ready = true;
+  console.log(`[load] systems ready in ${(performance.now() / 1000).toFixed(1)}s`);
+  if (params.test) events.emit('game:ready', {});
+  if (params.test && (params.skip || !ctx.game)) ctx.start();
+  if (!ctx.game) canvas.addEventListener('click', () => ctx.input.requestLock());
   requestAnimationFrame(loop);
+
+  progress('compile', 0);
+  try {
+    if (ctx.visibility) ctx.visibility.update(1 / 60);
+    await precompileVisible(ctx, (f) => progress('compile', f * 0.9), params.test ? 20000 : 12000);
+  } catch (e) { console.warn('[render] precompile failed', e); }
+  progress('compile', 0.92, 'Drawing the first frame…');
+  const t1 = performance.now();
+  while (engine.stats.frame < 3 && performance.now() - t1 < (params.test ? 600000 : 20000)) await new Promise(r => setTimeout(r, 40));
+  await touchAck;
+  if (!params.test) events.emit('game:ready', {});
+  loader.done();
+  console.log(`[load] first frames drawn, loader lifted at ${(performance.now() / 1000).toFixed(1)}s`);
+  ctx.firstFrame = true;
+  if (!params.test && (params.skip || !ctx.game)) ctx.start();
+  if (!params.test) precompileRest(ctx);
 }
 
 function setupDebug(ctx) {

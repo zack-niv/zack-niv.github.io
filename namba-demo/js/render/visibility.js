@@ -160,7 +160,16 @@ export class Visibility {
     const vis = this._linkedLevels(b, parks);
     this.visibleLevels = vis;
     // indoors the exp2 fog already swallows everything beyond ~130 m: draw less of it
-    const dd = engine.quality.drawDist * (outdoor || parks ? 1 : 0.8);
+    // draw-call governor: when the last frames needed more than the budget, pull the draw distance in
+    // (farthest chunks first); creep back out when there is headroom. Budget is per quality tier.
+    const nowMs = performance.now();
+    if (nowMs - (this._callT || 0) > 400) {
+      this._callT = nowMs;
+      const budget = engine.quality.callBudget || 900, calls = engine.stats.calls || 0;
+      const k = this.distScale || 1;
+      this.distScale = calls > budget ? Math.max(0.55, k * (calls > budget * 1.3 ? 0.9 : 0.96)) : calls < budget * 0.75 ? Math.min(1, k + 0.02) : k;
+    }
+    const dd = engine.quality.drawDist * (outdoor || parks ? 1 : 0.8) * (this.distScale || 1);
     const st = this.stats; st.total = 0; st.shown = 0; st.level = 0; st.dist = 0; st.frustum = 0; st.occluded = 0; st.opening = 0;
     const cull = this.enabled;
     // camera frustum

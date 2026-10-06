@@ -114,6 +114,7 @@ const POSTER_KINDS = {
   bakery: ['autumn'], sweets: ['autumn', 'halloween'], takoyaki: ['ramenfair'], rcounter: ['ramenfair', 'beer'], rtable: ['beer', 'ramenfair'], sushi: ['travel'],
 };
 function dressWalls(S, c) {
+  if (S.b.key === 'tempura_great') return;   // hand-dressed
   const P = S.inner, R = S.R, r = S.r;
   const kinds = POSTER_KINDS[c.group];
   if (!kinds || c.group === 'closed') return;
@@ -1511,7 +1512,7 @@ INTERIOR['key:tempura_great'] = (S, c) => {
       P.cyl('env_gloss', a - 0.28, 1.035, 1.045, 7.52, 0.21, [0.85, 0.55, 0.12]);
       P.cyl('env_metal', a + 0.3, 0.91, 1.0, 7.5, 0.17, [0.72, 0.42, 0.22]);
       foodItem(S, P, 'tempura', a + 0.3, 0.91, 7.52, 0.13);
-      P.box('env_metal', a - 0.85, a + 0.85, 2.1, 2.55, 6.95, 8.1, [0.7, 0.71, 0.73]);                 // hood
+      P.box('env_matte', a - 0.8, a + 0.8, 2.3, 2.62, 7.0, 8.0, [0.16, 0.15, 0.15]);                 // hood (dark, out of the glare)
       S.spot('staff', a, 6.65, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
     }
     S.spot('staff', W / 2, 6.8, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
@@ -1525,6 +1526,17 @@ INTERIOR['key:tempura_great'] = (S, c) => {
   } else S.spot('counter', W / 2, 3, 0, 1);
   // ---- two tables by the window on each side of the door
   for (const [a, d] of [[1.7, 1.7], [1.7, 3.3], [W - 1.7, 1.7], [W - 1.7, 3.3]]) cafeTable(S, P, a, d, hinoki, [0.25, 0.12, 0.08]);
+  // ---- warm finish: dark wood floor, panelled side walls, hanging paper lanterns by the window
+  P.qh('env_wood', 0.03, W - 0.03, 0.03, wallD - 0.02, 0.016, true, [0.5, 0.3, 0.17]);
+  for (const [a, sd] of [[0.045, 1], [W - 0.045, -1]]) {
+    P.qa('env_wood', 0, wallD, 0.08, 1.3, a, sd, [0.36, 0.2, 0.1]);
+    P.qa('env_matte', 0, wallD, 1.3, S.ceil - 0.3, a, sd, [0.62, 0.44, 0.27]);
+  }
+  const lant = S.R.lantern('天ぷら', '#f4efe2');
+  for (const a of [W / 2 - 3.2, W / 2 + 3.2]) {
+    P.geo(lant.atlas.mat(lant), protoUV('lantern', lant), a, 2.05, 1.3, 0, [0.42, 0.58, 0.42]);
+    P.box('env_metal', a - 0.004, a + 0.004, 2.63, S.ceil, 1.3, 1.308, [0.1, 0.1, 0.1]);
+  }
   // ---- calligraphy panel, plant, warm light
   const cal = S.R.label('天', '#f4efe2', '#1a1a1a', 96, 96);
   P.ta(cal, 6.6, 7.6, 1.5, 2.5, 0.03, 1);

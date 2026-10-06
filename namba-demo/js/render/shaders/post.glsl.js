@@ -194,8 +194,8 @@ void main() {
   // polished stone shows a recognisable, low-energy image of the fixture (4-8% at normal incidence,
   // more at grazing angles): weight by Fresnel and gloss, and clamp in display units so a ceiling light
   // reads as a soft panel rectangle, not a blown oval
-  float w = conf * F * refl * refl * ( 0.55 + 0.45 * refl );
-  gl_FragColor = vec4( min( rc, vec3( 1.8 / max( uExposure, 1e-3 ) ) ) * w, w );
+  float w = conf * min( F * 1.4, 1.0 ) * pow( refl, 1.5 );
+  gl_FragColor = vec4( min( rc, vec3( 2.4 / max( uExposure, 1e-3 ) ) ) * w, w );
 }
 `;
 
@@ -282,7 +282,7 @@ vec3 agx( vec3 color ) {
   color = agxContrast( color );
   // "punchy" look
   float l = lum( color );
-  color = l + 1.12 * ( color - l );
+  color = l + 1.2 * ( color - l );
   color = AgXOutsetMatrix * color;
   color = pow( max( vec3( 0.0 ), color ), vec3( 2.2 ) );
   color = LIN_REC2020_TO_LIN_SRGB * color;

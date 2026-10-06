@@ -24,16 +24,16 @@ import { VERT, DOWN, UP, SSAO, AOBLUR, SSR, SSRBLUR, TEMPORAL, TAA, SHARPEN, COM
 
 // subtle per-district looks: gain = white balance, lift = shadow tint
 const GRADES = {
-  metro:      { gain: [0.965, 1.0, 1.015], lift: [-0.2, 0.25, 0.3], gamma: [1.0, 1.0, 1.0], sat: 0.93, contrast: 1.04, bloom: 0.05 },
-  passage:    { gain: [0.975, 1.0, 1.01], lift: [-0.1, 0.15, 0.2], gamma: [1.0, 1.0, 1.0], sat: 0.95, contrast: 1.03, bloom: 0.045 },
-  arcade:     { gain: [1.02, 1.0, 0.975], lift: [0.1, 0.0, -0.05], gamma: [1.0, 1.0, 1.0], sat: 1.05, contrast: 1.06, bloom: 0.065 },
-  department: { gain: [1.03, 1.0, 0.96], lift: [0.15, 0.05, -0.1], gamma: [1.0, 1.0, 1.0], sat: 1.04, contrast: 1.04, bloom: 0.06 },
-  mall:       { gain: [1.045, 1.0, 0.94], lift: [0.25, 0.08, -0.12], gamma: [1.0, 1.0, 1.0], sat: 1.06, contrast: 1.05, bloom: 0.07 },
-  terminal:   { gain: [0.99, 1.0, 1.02], lift: [0.0, 0.05, 0.1], gamma: [1.0, 1.0, 1.0], sat: 0.98, contrast: 1.04, bloom: 0.05 },
+  metro:      { gain: [0.965, 1.0, 1.015], lift: [-0.2, 0.25, 0.3], gamma: [1.0, 1.0, 1.0], sat: 1.0, contrast: 1.1, bloom: 0.05 },
+  passage:    { gain: [0.975, 1.0, 1.01], lift: [-0.1, 0.15, 0.2], gamma: [1.0, 1.0, 1.0], sat: 1.0, contrast: 1.09, bloom: 0.045 },
+  arcade:     { gain: [1.02, 1.0, 0.975], lift: [0.1, 0.0, -0.05], gamma: [1.0, 1.0, 1.0], sat: 1.09, contrast: 1.1, bloom: 0.065 },
+  department: { gain: [1.03, 1.0, 0.96], lift: [0.15, 0.05, -0.1], gamma: [1.0, 1.0, 1.0], sat: 1.08, contrast: 1.09, bloom: 0.06 },
+  mall:       { gain: [1.045, 1.0, 0.94], lift: [0.25, 0.08, -0.12], gamma: [1.0, 1.0, 1.0], sat: 1.1, contrast: 1.1, bloom: 0.07 },
+  terminal:   { gain: [0.99, 1.0, 1.02], lift: [0.0, 0.05, 0.1], gamma: [1.0, 1.0, 1.0], sat: 1.03, contrast: 1.09, bloom: 0.05 },
   dining:     { gain: [1.06, 1.0, 0.9], lift: [0.3, 0.1, -0.1], gamma: [1.0, 1.0, 1.0], sat: 1.08, contrast: 1.08, bloom: 0.08 },
-  street:     { gain: [1.01, 1.0, 0.99], lift: [0.0, 0.0, 0.05], gamma: [1.0, 1.0, 1.0], sat: 1.04, contrast: 1.03, bloom: 0.04 },
-  parks:      { gain: [1.02, 1.0, 0.97], lift: [0.0, 0.05, 0.0], gamma: [1.0, 1.0, 1.0], sat: 1.08, contrast: 1.04, bloom: 0.045 },
-  garden:     { gain: [1.02, 1.0, 0.97], lift: [0.0, 0.05, 0.0], gamma: [1.0, 1.0, 1.0], sat: 1.1, contrast: 1.04, bloom: 0.045 },
+  street:     { gain: [1.01, 1.0, 0.99], lift: [0.0, 0.0, 0.05], gamma: [1.0, 1.0, 1.0], sat: 1.08, contrast: 1.08, bloom: 0.04 },
+  parks:      { gain: [1.02, 1.0, 0.97], lift: [0.0, 0.05, 0.0], gamma: [1.0, 1.0, 1.0], sat: 1.12, contrast: 1.09, bloom: 0.045 },
+  garden:     { gain: [1.02, 1.0, 0.97], lift: [0.0, 0.05, 0.0], gamma: [1.0, 1.0, 1.0], sat: 1.14, contrast: 1.09, bloom: 0.045 },
 };
 const TONEMAP = { agx: 0, neutral: 1, aces: 2 };
 
@@ -182,7 +182,7 @@ export class Post {
       const L = Math.max(1e-3, lum);
       // brighter places stay a little brighter after adaptation (key compensation)
       const comp = Math.max(-0.6, Math.min(1.1, 0.42 * Math.log2(L / 0.5)));
-      this.evTarget = Math.log2(0.16 / L) + comp + (engine.quality.evBias || 0);
+      this.evTarget = Math.log2(0.16 / L) + comp - 0.15 + (engine.quality.evBias || 0);
       this.evTarget = Math.max(-6, Math.min(4, this.evTarget));
       if (!this._evInit) { this.ev = this.evTarget; this._evInit = true; }
       const brighter = this.evTarget < this.ev; // scene got brighter → exposure goes down

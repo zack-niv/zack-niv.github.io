@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { LEVEL_ORDER, LEVELS } from '../../world/layout.js';
 
 export const NB_LEVELS = LEVEL_ORDER.length;
-export const NB_DYN = 8;
+export const NB_DYN = 4; // real specular fixtures per fragment (8 unrolled GGX evaluations made every lit program slow to compile)
 
 const dummy = (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1); t.needsUpdate = true; return t; })();
 const dummyC = (() => { const t = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); t.needsUpdate = true; return t; })();
