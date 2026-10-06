@@ -31,5 +31,10 @@
 - Route/guidance recomputed at 2 Hz while Lodestone is on screen and the player moved > 0.9 m (a few hundred µs; the one-off cost field ~150–300 ms is computed behind the install progress bar).
 - Zero dependence on Oriient name/logo/colours: graphite + amber, our own compass-needle mark.
 
-## Known issues
-(see bottom of this file; updated at the end of the session)
+## Known issues / weaknesses
+- The last two tweaks (stack framing band `bandBottom` 262 so the dot clears the Route/Me controls; floor correct from the first frame of `ready` -- the reveal card could say the old believed floor) were NOT re-screenshotted (browser slots were starved for ~2 h).
+- Screenshots: scratchpad `demo-phone/shots/` (30_maps_before, 31_offer, 32_installing, 33_calibrating, 34_ready_reveal, 35_* views, 36_follow, 37_steps, 38_arrival).
+- Nankai-3F overview is the weakest framing: the route is a long thin diagonal so the stack is small and the dot sits near the controls.
+- Full-page headless screenshots with the peek card (backdrop-filter over WebGL) crash SwiftShader: element screenshots only.
+- Parks 6F top-down arrival view is zoomed in (route length 0) -- intended, but the label sits close to the pin.
+- Mobile/touch: orbit and pinch implemented but not tested on a device.
