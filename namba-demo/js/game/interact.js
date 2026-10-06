@@ -19,6 +19,8 @@ export class Interactions {
     this.byLevel = new Map();
     this.target = null;
     this.enabled = true;
+    this.counterItem = null;     // (counter) -> interactable | null, set by the game (js/game/order.js)
+    this.counterCovers = null;   // (item) -> bool: an order spot supersedes this legacy item
   }
   add(def) {
     if (!def || !def.id) throw new Error('interactable needs an id');
@@ -79,7 +81,22 @@ export class Interactions {
       if (score < bestScore) { bestScore = score; best = it; }
     };
     const lists = [this.byLevel.get(b.level), this.byLevel.get('*')];
-    for (const arr of lists) if (arr) for (const it of arr) consider(it);
+    const cs = this.ctx.counters;
+    const counters = this.counterItem && Array.isArray(cs) && cs.length ? cs : null;
+    const covered = counters && this.counterCovers;
+    for (const arr of lists) if (arr) for (const it of arr) {
+      if (it.superseded && covered && covered(it)) continue;   // the old modal coffee counter yields to the order spot
+      consider(it);
+    }
+    // v2: service counters published by the Shops agent (ctx.counters) -> "Order a coffee" / "Say hi" at the order spot
+    if (counters) {
+      for (const c of counters) {
+        if (!c || c.level !== b.level || !c.order || (c.order.x - b.x) > 2.5 || (b.x - c.order.x) > 2.5 || (c.order.z - b.z) > 2.5 || (b.z - c.order.z) > 2.5) continue;
+        let it = null;
+        try { it = this.counterItem(c); } catch (e) { it = null; }
+        if (it) consider(it);
+      }
+    }
     return best;
   }
 

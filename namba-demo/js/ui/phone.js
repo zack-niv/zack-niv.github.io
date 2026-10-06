@@ -1,29 +1,37 @@
 // =============================================================================
-// The player's phone — a DOM overlay in #phone-root, held in the lower part of
-// the view. Q / Tab (input action 'phone', touch button) raises/lowers it.
-// While open the mouse is released for the screen (WASD still walks — people
-// really do walk while staring at maps).
+// The player's phone — a DOM overlay in #phone-root, held in the right hand.
 //
-// Apps: Maps (indoor map, search, directions — ui/phone/mapapp.js), Notes
-// (quest checklist), Messages (Aya's texts), Transit, plus a home screen.
-// Status bar: game clock, battery that drains, signal that drops underground
-// (圏外 on the B2 platforms).
+// Poses (v2, "realistic raise / lower"):
+//   'glance'  default while playing: the phone is held low at the bottom-right
+//             edge; only its top shows, where the Dynamic-Island-style card
+//             (ui/phone/glance.js) carries the next step (Lodestone) or the
+//             vague Maps hint, and Aya's texts.
+//   'up'      full view. Q / Tab / M / pad Y / touch button toggles it (the
+//             cursor is freed to tap the screen); holding the RIGHT mouse
+//             button raises it while held (mouse-look keeps working).
+//             Raised, it lowers itself when you run, or after ~4.5 s of
+//             walking. The motion is a spring: lift, tilt toward you, settle.
+//   'down'    pocketed: before the game starts, paused, intro, end card, or
+//             forced by pocket(true).
+// Apps: Maps (generic indoor map — ui/phone/mapapp.js), Lodestone (the
+// upgrade), Messages (Aya), Notes, Transit, home screen.
 //
 // API (ctx.phone):
-//   isOpen, app, open(app?), close(), toggle(), openApp(id)
+//   isOpen (= pose 'up'), app, open(app?), close(), toggle(), openApp(id)
+//   pose, setPose('up'|'glance'|'down'), pocket(bool)
 //   pos            the phone's location belief {x,z,level,acc,heading,signal,noService}
 //   handlesMessages = true (HUD skips its fallback banner)
 //   search(q)      programmatic search (opens Maps)
 //   --- demo upgrade (Lodestone) ---
 //   offerLodestone()      Aya texts a link card (idempotent). Fallback: the phone does it itself
 //                         after ~150 s of play if the game never has
-//   installLodestone()    install (~2 s) -> calibration (~3.3 s) -> ready. Opens the phone.
+//   installLodestone()    install (~1.8 s) -> calibration (~3 s) -> ready. Raises the phone.
 //   positioningMode       'gps' | 'lodestone' (flips to 'lodestone' when stage 'ready' starts)
 //   upgradeStage          'none' | 'offer' | 'installing' | 'calibrating' | 'ready'
 //   stats()               live before/after numbers (see ui/phone/stats.js)
-// Events: emits 'phone:open' / 'phone:close' {app}, 'phone:search' {query,count},
-//   'phone:select' {id,kind,slot,key}, 'phone:route' {id,level}, 'phone:arrive' {id},
-//   'phone:upgrade' {stage: 'offer'|'installing'|'calibrating'|'ready'}, 'lodestone:arrive' {id}
+// Events: emits 'phone:pose' {pose, prev}, 'phone:open' / 'phone:close' {app},
+//   'phone:search' {query,count}, 'phone:select' {id,kind,slot,key}, 'phone:route' {id,level},
+//   'phone:arrive' {id}, 'phone:upgrade' {stage}, 'lodestone:arrive' {id}
 //   listens 'phone:message' {from,text,time,link?}, 'quest:update', 'demo:arrive'
 // =============================================================================
 import { Positioning } from './phone/positioning.js';
@@ -31,8 +39,25 @@ import { MapApp } from './phone/mapapp.js';
 import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js';
 import { LodestoneApp } from './phone/lodestone.js';
 import { PhoneStats } from './phone/stats.js';
+import { Glance } from './phone/glance.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// pose geometry (device units: the phone is 340 x 700)
+const GLANCE_H = 106;          // how much of the phone's top shows in the glance pose
+const GLANCE_S = 0.9;          // held a little further away when lowered
+const WALK_LOWER_S = 4.5;      // seconds of walking with the phone up before it lowers itself
+
+// critically-ish damped spring step (semi-implicit Euler, sub-stepped)
+function spring(s, target, dt, w, z) {
+  let t = dt;
+  while (t > 0) {
+    const h = Math.min(t, 1 / 120); t -= h;
+    s.v += (-(w * w) * (s.x - target) - 2 * z * w * s.v) * h;
+    s.x += s.v * h;
+  }
+}
 
 export class Phone {
   constructor(ctx) {
@@ -42,11 +67,20 @@ export class Phone {
     this.handlesMessages = true;
     this.battery = 64;
     this.typing = false;
-    this._sway = { x: 0, y: 0, r: 0 };
     this.upgradeStage = 'none';
     this.sway = null;          // override while Lodestone calibrates (figure-of-8 wave)
     this._scale = 1;
     this._play = 0;            // seconds of play (fallback offer timer)
+    this.pose = 'down';
+    this._pocket = false;      // forced down (pocket(true))
+    this._held = false;        // raised by the right mouse button (pointer stays locked)
+    this._walkUp = 0;          // seconds walked with the phone up
+    this._upAt = 0;            // time the phone was raised (no auto-lower right away)
+    this._lastPhoneInput = -1e9;
+    // springs: raise (0 glance .. 1 up), tilt (lags: lift, then tilt, then settle), pocket (1 = down)
+    this._sp = { u: { x: 0, v: 0 }, tilt: { x: 0, v: 0 }, d: { x: 1, v: 0 } };
+    this._bob = { x: 0, y: 0 };
+    this._now = 0;
   }
 
   // ---- demo upgrade API -------------------------------------------------------
@@ -92,22 +126,48 @@ export class Phone {
     this.messages = new MessagesApp(this, this.views.messages);
     this.transit = new TransitApp(this, this.views.transit);
     this.lodestone = new LodestoneApp(this, this.views.lodestone);
+    this.glance = new Glance(this, this.el.isl);
     this.apps = { home: this.home, maps: this.maps, notes: this.notes, messages: this.messages, transit: this.transit, lodestone: this.lodestone };
     this._showApp('maps');
+    this._applyPose(0, true);
     // signage finishes its content in the background (never awaited here)
     if (ctx.signage && ctx.signage.start) ctx.signage.start();
-    // a pointer lock grabbed by a click on the world closes the phone
-    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement && this.isOpen && !this._locking) this.close(true); });
+    // a pointer lock grabbed by a click on the world lowers the phone (unless it is held up by the right button)
+    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement && this.isOpen && !this._held && !this._locking) this.close(true); });
+    this._bindHold();
   }
+
+  // right mouse button: raise while held (pointer lock stays: you can keep looking around)
+  _bindHold() {
+    const inp = this.ctx.input;
+    addEventListener('mousedown', (e) => {
+      if (e.button !== 2 || !inp || !inp.locked || !this._canUse()) return;
+      if (this.isOpen) return;                       // already up via Q: nothing to hold
+      this._held = true; this._lastPhoneInput = this._now;
+      this.open(null, true);
+    });
+    addEventListener('mouseup', (e) => { if (e.button === 2 && this._held) this._releaseHold(); });
+    addEventListener('blur', () => { if (this._held) this._releaseHold(); });
+    document.addEventListener('contextmenu', (e) => { if (inp && (inp.locked || this._held) && this.ctx.started) e.preventDefault(); });
+  }
+  _releaseHold() {
+    if (!this._held) return;
+    this._held = false;
+    // the install / calibration keeps the phone up until it's done
+    if (this._busyUpgrade()) { this._keepUpAfterHold = true; return; }
+    this.close(true);
+  }
+  _busyUpgrade() { return this.upgradeStage === 'installing' || this.upgradeStage === 'calibrating'; }
+  _canUse() { const g = this.ctx.game; return !this.typing && !(g && (g.busy || g.paused || g.titleUp || g.intro || g._endCard)) && !this._pocket; }
 
   _buildDom() {
     const r = this.root;
     r.innerHTML = `
-      <div class="ph-wrap">
+      <div class="ph-wrap" data-pose="down">
         <div class="ph-device">
           <i class="ph-btn ph-btn-a"></i><i class="ph-btn ph-btn-b"></i><i class="ph-btn ph-btn-c"></i><i class="ph-btn ph-btn-d"></i>
           <div class="ph-screen">
-            <div class="ph-status"><span class="ph-time">10:42</span><span class="ph-island"></span>
+            <div class="ph-status"><span class="ph-time">10:42</span>
               <span class="ph-right"><span class="ph-sig"><i></i><i></i><i></i><i></i></span><span class="ph-net">5G</span><span class="ph-bat"><i></i><b>64</b></span></span></div>
             <div class="ph-views">
               <div class="ph-view" data-v="home"></div><div class="ph-view" data-v="maps"></div><div class="ph-view" data-v="notes"></div>
@@ -116,12 +176,12 @@ export class Phone {
             <div class="ph-notif" hidden></div>
             <div class="ph-toast" hidden></div>
             <div class="ph-homebar"><i></i></div>
+            <div class="ph-isl"></div>
           </div>
           <div class="ph-glare"></div>
         </div>
       </div>
-      <div class="ph-peek" hidden></div>
-      <div class="ph-hint">${this.ctx.input && this.ctx.input.touch ? '' : '<kbd>Q</kbd> Phone'}</div>`;
+      <div class="ph-peek" hidden></div>`;
     this.wrap = r.querySelector('.ph-wrap');
     this.device = r.querySelector('.ph-device');
     this.views = {};
@@ -129,52 +189,92 @@ export class Phone {
     this.el = {
       time: r.querySelector('.ph-time'), sig: r.querySelectorAll('.ph-sig i'), net: r.querySelector('.ph-net'), bat: r.querySelector('.ph-bat'),
       batB: r.querySelector('.ph-bat b'), batI: r.querySelector('.ph-bat i'), notif: r.querySelector('.ph-notif'), toast: r.querySelector('.ph-toast'),
-      peek: r.querySelector('.ph-peek'), hint: r.querySelector('.ph-hint'),
+      peek: r.querySelector('.ph-peek'), isl: r.querySelector('.ph-isl'), sigBox: r.querySelector('.ph-sig'),
     };
-    r.querySelector('.ph-homebar').addEventListener('click', () => this._showApp(this.app === 'home' ? 'maps' : 'home'));
+    r.querySelector('.ph-homebar').addEventListener('click', () => this._showApp(this.app === 'home' ? (this.upgradeStage === 'ready' ? 'lodestone' : 'maps') : 'home'));
     this.el.notif.addEventListener('click', () => { this.el.notif.hidden = true; this.openApp(this._notifApp || 'messages'); });
+    // the glance card is a button when the cursor is free (paused-less touch / unlocked mouse)
+    this.el.isl.addEventListener('click', () => { if (this.pose === 'glance' && this._canUse()) this.open(this.glance.note ? 'messages' : null); });
     // pointer inside the phone never reaches the game
-    for (const ev of ['pointerdown', 'mousedown', 'click', 'wheel', 'touchstart']) this.wrap.addEventListener(ev, e => e.stopPropagation(), { passive: ev !== 'wheel' && ev !== 'touchstart' ? true : true });
+    for (const ev of ['pointerdown', 'mousedown', 'click', 'wheel', 'touchstart']) this.wrap.addEventListener(ev, e => e.stopPropagation(), { passive: true });
+    // recent pointer use on the screen keeps it up while you walk (you are reading / dragging the map)
+    for (const ev of ['pointerdown', 'pointermove', 'wheel']) this.wrap.addEventListener(ev, () => { if (this.isOpen) this._lastPointerT = this._now; }, { passive: true });
     this._layout();
     addEventListener('resize', () => this._layout());
   }
 
   _layout() {
-    // scale the 340×700 device to the viewport (held low: the top ~85 % shows)
+    // scale the 340×700 device to the viewport (held low: the top ~85 % shows when up)
     const s = Math.max(0.55, Math.min(1.15, (innerHeight * 0.9) / 700, (innerWidth * 0.92) / 340));
     this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
+    this._poseDirty = true;
   }
 
   // ------------------------------------------------------------------ API ---
-  open(app) {
+  // open = raise to full view. hold: raised by the right mouse button (the pointer stays locked)
+  open(app, hold) {
     if (app) this._showApp(app);
-    if (this.isOpen) return;
+    if (this.isOpen) { if (!hold && this._held) { this._held = false; this._unlockForUse(); } return; }
     this.isOpen = true;
+    this._upAt = this._now; this._walkUp = 0;
     this.wrap.classList.add('open');
     this.root.classList.add('ph-is-open');
-    this.el.peek.hidden = true;
-    this.el.hint.classList.add('used');
-    try { this.ctx.input.exitLock(); } catch (e) { /* ignore */ }
+    if (!hold) this._unlockForUse();
     this.maps._dirty = true;
     if (this.app === 'messages') this.messages.onShow();
+    this.glance.clearNote(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_open');
     this.ctx.events.emit('phone:open', { app: this.app });
+    this._setPose('up');
   }
+  _unlockForUse() { try { this.ctx.input.exitLock(); } catch (e) { /* ignore */ } }
   close(fromLock) {
     if (!this.isOpen) return;
-    this.isOpen = false;
+    const wasHeld = this._held;
+    this.isOpen = false; this._held = false; this._keepUpAfterHold = false;
     this.wrap.classList.remove('open');
     this.root.classList.remove('ph-is-open');
     const a = document.activeElement; if (a && this.root.contains(a)) a.blur();
     this.typing = false;
-    if (!fromLock && !(this.ctx.game && this.ctx.game.paused)) { this._locking = true; try { this.ctx.input.requestLock(); } catch (e) { /* ignore */ } setTimeout(() => { this._locking = false; }, 300); }
+    const g = this.ctx.game;
+    // re-grab the mouse for looking (only with a live user gesture: an auto-lower without one would be refused)
+    const act = !navigator.userActivation || navigator.userActivation.isActive;
+    if (!fromLock && !wasHeld && act && !(g && (g.paused || g._endCard)) && !(this.ctx.input && this.ctx.input.locked)) {
+      this._locking = true; try { this.ctx.input.requestLock(); } catch (e) { /* ignore */ } setTimeout(() => { this._locking = false; }, 300);
+    }
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_close');
     this.ctx.events.emit('phone:close', { app: this.app });
+    this._setPose(this._wantDown() ? 'down' : 'glance');
   }
   toggle() { this.isOpen ? this.close() : this.open(); }
   openApp(id) { this.open(id); }
   search(q) { this.open('maps'); this.maps.input.value = q; this.maps.doSearch(q); }
+  setPose(p) {
+    if (p === 'up') this.open();
+    else if (p === 'glance') { this._pocket = false; if (this.isOpen) this.close(); else this._setPose(this._wantDown() ? 'down' : 'glance'); }
+    else if (p === 'down') this.pocket(true);
+  }
+  pocket(on) {
+    this._pocket = !!on;
+    if (on && this.isOpen) this.close(true);
+    this._setPose(this.isOpen ? 'up' : this._wantDown() ? 'down' : 'glance');
+  }
+  _wantDown() {
+    const { ctx } = this, g = ctx.game;
+    return this._pocket || !ctx.started || !!(g && (g.titleUp || g.paused || g.intro || g._endCard));
+  }
+  _setPose(p) {
+    if (p === this.pose) return;
+    const prev = this.pose;
+    this.pose = p;
+    this.wrap.dataset.pose = p;
+    this.root.classList.toggle('ph-glance', p === 'glance');
+    this.el.peek.hidden = p !== 'glance';          // (game.css lifts the captions above the phone while this marker shows)
+    if (p === 'glance') this.glance.refresh(true);
+    this._poseDirty = true;
+    this.ctx.events.emit('phone:pose', { pose: p, prev });
+  }
 
   _showApp(id) {
     if (!this.views[id]) return;
@@ -185,7 +285,7 @@ export class Phone {
     if (a && a.onShow) a.onShow();
   }
 
-  // in-phone notification banner (or a peek card when the phone is down)
+  // in-phone notification banner (or, with the phone lowered, in the glance card)
   notify(app, msg) {
     if (app === 'messages' && msg) {
       this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('phone_buzz');
@@ -195,11 +295,7 @@ export class Phone {
         this.el.notif.innerHTML = html; this.el.notif.hidden = false;
         clearTimeout(this._nT); this._nT = setTimeout(() => { this.el.notif.hidden = true; }, 5000);
       } else if (!this.isOpen) {
-        this.el.peek.innerHTML = html + `<em>${this.ctx.input && this.ctx.input.touch ? 'tap 📱' : 'Q'} to read</em>`;
-        this.el.peek.hidden = false; this.el.peek.classList.remove('in'); void this.el.peek.offsetWidth; this.el.peek.classList.add('in');
-        this._notifApp = 'messages';
-        clearTimeout(this._pT); this._pT = setTimeout(() => { this.el.peek.hidden = true; }, 7000);
-        this._openTo = 'messages';
+        this.glance.showNote(msg);
       }
       this.home.badge('messages', this.messages.unread);
     }
@@ -214,17 +310,24 @@ export class Phone {
   update(dt) {
     const { ctx } = this;
     const inp = ctx.input;
+    this._now += dt;
     const pressed = inp && (typeof inp.action === 'function' ? inp.action('phone') : (inp.pressed('KeyQ') || inp.pressed('Tab')));
-    if (pressed && !this.typing && !(ctx.game && ctx.game.busy)) {
-      if (!this.isOpen && this._openTo && !this.el.peek.hidden) { this.open(this._openTo); this._openTo = null; }
+    if (pressed && this._canUse()) {
+      this._lastPhoneInput = this._now;
+      if (this.isOpen && this._held) { this._held = false; this._unlockForUse(); }          // Q while holding: keep it up, free the cursor
+      else if (!this.isOpen && this.glance.note) { this.open('messages'); this._openTo = null; }
       else this.toggle();
     }
+    // V: expand / collapse Lodestone's 3D stack while the phone is up
+    if (this.isOpen && !this.typing && inp && inp.pressed('KeyV') && this.app === 'lodestone') this.lodestone.toggleStack();
     this.pos.update(dt);
     this._stats.update(dt);
     // the upgrade: keyboard (Enter / E while the offer is on screen) and the 150 s fallback
     if (ctx.started && !ctx.paused && !(ctx.game && ctx.game.paused)) this._play += dt;
     if (this.upgradeStage === 'none' && this._play > 150) this.offerLodestone();
     if (this.isOpen && this.upgradeStage === 'offer' && !this.typing && inp && (inp.pressed('Enter') || inp.pressed('KeyE') || inp.pressed('KeyI'))) this.installLodestone();
+    if (this._keepUpAfterHold && !this._busyUpgrade() && this._now - this._upAt > 1) { this._keepUpAfterHold = false; if (!this._held) this.close(true); }
+    this._autoPose(dt);
     // battery: drains faster while the screen is on
     this.battery = Math.max(3, this.battery - dt * (this.isOpen ? 1 / 75 : 1 / 420));
     // status bar (cheap DOM writes only when values change)
@@ -237,29 +340,84 @@ export class Phone {
       this.el.sig.forEach((b, i) => b.classList.toggle('on', i < bars));
       this.el.net.textContent = this.pos.net;
       this.el.net.classList.toggle('none', this.pos.noService);
-      this.root.querySelector('.ph-sig').classList.toggle('none', this.pos.noService);
+      this.el.sigBox.classList.toggle('none', this.pos.noService);
       const bt = Math.round(this.battery);
       if (this.el.batB.textContent !== String(bt)) { this.el.batB.textContent = bt; this.el.batI.style.width = `${bt}%`; }
       this.el.bat.classList.toggle('low', bt <= 20);
       if (this.isOpen) this.maps.tick();
     }
-    // hand sway (walking bob + turning inertia)
-    const p = ctx.player;
-    if (this.sway) {
-      this.wrap.style.setProperty('--sx', `${this.sway.x.toFixed(2)}px`); this.wrap.style.setProperty('--sy', `${this.sway.y.toFixed(2)}px`); this.wrap.style.setProperty('--sr', `${this.sway.r.toFixed(2)}deg`);
-      this._swayOn = true;
-    } else if (p) {
-      if (this._swayOn) { this._swayOn = false; this.wrap.style.setProperty('--sr', '0deg'); }
-      const sp = Math.min(1, (p.speed || 0) / 1.6);
-      const ph = p.bobPhase || 0;
-      const tx = Math.cos(ph) * 4 * sp, ty = Math.abs(Math.sin(ph)) * 5 * sp;
-      const k = 1 - Math.exp(-dt * 8);
-      this._sway.x += (tx - this._sway.x) * k; this._sway.y += (ty - this._sway.y) * k;
-      this.wrap.style.setProperty('--sx', `${this._sway.x.toFixed(2)}px`);
-      this.wrap.style.setProperty('--sy', `${this._sway.y.toFixed(2)}px`);
-    }
+    this._applyPose(dt);
     this.maps.update(dt, this.isOpen && this.app === 'maps');
-    this.lodestone.update(dt, this.isOpen && this.app === 'lodestone');
+    this.lodestone.update(dt, this.isOpen && this.app === 'lodestone', this.pose === 'glance');
     if (this.isOpen && this.app === 'transit') this.transit.update(dt);
+    this.glance.update(dt, this.pose === 'glance');
+  }
+
+  // pocket / glance / auto-lower
+  _autoPose(dt) {
+    const { ctx } = this, p = ctx.player, inp = ctx.input;
+    const down = this._wantDown();
+    if (down && this.pose !== 'down') { if (this.isOpen) this.close(true); this._setPose('down'); return; }
+    if (!down && this.pose === 'down' && !this.isOpen) this._setPose('glance');
+    if (!this.isOpen) { this._walkUp = 0; return; }
+    // raised: walking on lowers it to the glance pose (not during the install / calibration / reveal,
+    // not while the cursor is busy in the phone)
+    const sp = p ? (p.speed || 0) : 0;
+    const moving = !!(inp && (Math.abs(inp.move.x) > 0.1 || Math.abs(inp.move.y) > 0.1)) && sp > 0.45;
+    const running = moving && !!(inp && inp.jog) && sp > 1.3;
+    const protectedUp = this._busyUpgrade() || (this.lodestone && this.lodestone.revealing) || this.typing || this._now - this._upAt < 1.2
+      || this._now - (this._lastPointerT || -1e9) < 2.5;
+    if (protectedUp) { this._walkUp = 0; return; }
+    if (running) { this.close(); return; }
+    if (this._held) { this._walkUp = 0; return; }                    // holding it up on purpose
+    this._walkUp = moving ? this._walkUp + dt : Math.max(0, this._walkUp - dt * 2);
+    if (this._walkUp > WALK_LOWER_S) this.close();
+  }
+
+  // the hand: spring-driven transform (lift, tilt, settle) + walking bob
+  _applyPose(dt, snap) {
+    const S = this._sp, pose = this.pose;
+    const uT = pose === 'up' ? 1 : 0, dT = pose === 'down' ? 1 : 0;
+    if (snap) { S.u.x = uT; S.tilt.x = uT; S.d.x = dT; S.u.v = S.tilt.v = S.d.v = 0; }
+    else {
+      spring(S.u, uT, dt, 13, 0.82);
+      spring(S.tilt, uT, dt, uT ? 9.5 : 15, uT ? 0.5 : 0.9);      // tilts toward you a beat after the lift, with a small settle
+      spring(S.d, dT, dt, 11, 1);
+    }
+    const settled = Math.abs(S.u.x - uT) < 1e-3 && Math.abs(S.u.v) < 1e-3 && Math.abs(S.tilt.x - uT) < 1e-3 && Math.abs(S.tilt.v) < 1e-3 && Math.abs(S.d.x - dT) < 1e-3 && Math.abs(S.d.v) < 1e-3;
+    // walking bob / turning sway
+    const p = this.ctx.player;
+    let bx = 0, by = 0, br = 0;
+    if (this.sway) { bx = this.sway.x; by = this.sway.y; br = this.sway.r; }
+    else if (p) {
+      const sp = Math.min(1, (p.speed || 0) / 1.6), ph = p.bobPhase || 0;
+      const amp = S.u.x > 0.5 ? 1 : 1.6;                              // a lowered phone swings more
+      const tx = Math.cos(ph) * 4 * sp * amp, ty = Math.abs(Math.sin(ph)) * 5 * sp * amp;
+      const k = 1 - Math.exp(-(dt || 0) * 8);
+      this._bob.x += (tx - this._bob.x) * k; this._bob.y += (ty - this._bob.y) * k;
+      bx = this._bob.x; by = this._bob.y;
+    }
+    const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway;
+    if (settled && !moving && !this._poseDirty && !snap) return;
+    this._poseDirty = false;
+    const vw = innerWidth, s = this._scale, sg = s * GLANCE_S;
+    const u = S.u.x, tl = S.tilt.x, d = S.d.x;
+    // up: centred a little right of the crosshair, bottom 35 px below the edge
+    const upCx = vw * 0.58, upY = 35;
+    // glance: bottom-right corner, only the top GLANCE_H shows
+    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8, Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = 700 * sg - GLANCE_H * sg;
+    const sc = lerp(sg, s, u);
+    const cx = lerp(gCx, upCx, u);
+    let y = lerp(gY, upY, u);
+    y += d * (GLANCE_H * sg + 60);                                    // pocketed: slides out of view
+    const rz = lerp(3.2, -1.2, u) + br;
+    const rx = lerp(16, 3.5, tl) + (1 - u) * 0;                       // tilted away when lowered
+    const lift = Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * -14; // a little arc on the way up
+    this.wrap.style.transform = `translate3d(${(cx - 170 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
+    this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;
+    this.wrap.style.filter = u < 0.6 ? `brightness(${(0.88 + u * 0.2).toFixed(3)})` : '';
+    // the glance strip's on-screen height (for HUD layout), 0 when not glancing
+    const gh = pose === 'glance' ? Math.round(GLANCE_H * sg) : 0;
+    if (gh !== this._gh) { this._gh = gh; document.documentElement.style.setProperty('--phone-glance-h', gh + 'px'); }
   }
 }

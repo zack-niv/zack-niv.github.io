@@ -4,6 +4,7 @@
 // =============================================================================
 import { FONT_JA, FONT_EN, FONT_SERIF } from './kit.js';
 import { rng, hash } from '../../core/rng.js';
+import { drawPoster, POSTER_KINDS } from './posters.js';
 
 // ---- text helpers -------------------------------------------------------------
 export function font(size, weight = 700, fam = FONT_JA) { return `${weight} ${Math.round(size)}px ${fam}`; }
@@ -409,79 +410,7 @@ export function drawTanzaku(g, w, h, items) {
 }
 
 // ---- ads / posters / light boxes -----------------------------------------------------
-export const AD_KINDS = ['cosme', 'drink', 'movie', 'expo', 'travel', 'halloween', 'autumn', 'phone', 'beer', 'concert', 'ramenfair', 'museum'];
-export function drawAd(g, w, h, kind, seed = 1) {
-  const r = rng(seed + hash(kind));
-  const portrait = h > w;
-  const T = (t, x, y, mw, s, wt = 900, fam = FONT_JA, c = '#fff') => { g.fillStyle = c; fitText(g, t, x, y, mw, s, wt, fam); };
-  switch (kind) {
-    case 'cosme': {
-      const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, '#f9e0e6'); gr.addColorStop(1, '#e6a6b8'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-      g.fillStyle = 'rgba(255,255,255,0.5)'; g.beginPath(); g.arc(w * 0.5, h * 0.42, Math.min(w, h) * 0.32, 0, 6.3); g.fill();
-      g.fillStyle = '#b4485e'; rr(g, w * 0.43, h * 0.25, w * 0.14, h * 0.32, 6); g.fill(); g.fillStyle = '#d4af37'; g.fillRect(w * 0.43, h * 0.22, w * 0.14, h * 0.05);
-      T('LUMIÈRE', w / 2, h * 0.72, w * 0.8, h * 0.07, 300, FONT_EN, '#6d2e46'); T('うるおい、続く。', w / 2, h * 0.82, w * 0.8, h * 0.05, 500, FONT_JA, '#6d2e46'); T('NEW 10.1', w / 2, h * 0.9, w * 0.5, h * 0.035, 700, FONT_EN, '#6d2e46'); break;
-    }
-    case 'drink': {
-      g.fillStyle = '#0a5cbf'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(255,255,255,${0.1 + r() * 0.3})`; g.beginPath(); g.arc(r() * w, r() * h, 2 + r() * 8, 0, 6.3); g.fill(); }
-      g.fillStyle = '#e8f6ff'; rr(g, w * 0.38, h * 0.18, w * 0.24, h * 0.5, 14); g.fill(); g.fillStyle = '#0a5cbf'; g.fillRect(w * 0.38, h * 0.36, w * 0.24, h * 0.1);
-      T('ごくっと、秋。', w / 2, h * 0.78, w * 0.9, h * 0.07); T('SPARKLING AQUA', w / 2, h * 0.88, w * 0.8, h * 0.04, 800, FONT_EN); break;
-    }
-    case 'movie': {
-      g.fillStyle = '#0b0b12'; g.fillRect(0, 0, w, h);
-      const gr = g.createRadialGradient(w * 0.5, h * 0.35, 5, w * 0.5, h * 0.35, h * 0.5); gr.addColorStop(0, '#ff7b29'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#000'; g.beginPath(); g.moveTo(w * 0.3, h * 0.6); g.lineTo(w * 0.5, h * 0.25); g.lineTo(w * 0.7, h * 0.6); g.fill();
-      T('夜明けの境界線', w / 2, h * 0.72, w * 0.9, h * 0.08, 900, FONT_SERIF); T('10.24 FRI ROADSHOW', w / 2, h * 0.82, w * 0.8, h * 0.04, 800, FONT_EN, '#ffb347'); T('全国ロードショー', w / 2, h * 0.9, w * 0.6, h * 0.035, 700); break;
-    }
-    case 'expo': {
-      g.fillStyle = '#fff'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 9; i++) { g.fillStyle = '#e60012'; g.beginPath(); const a = i / 9 * 6.28; g.arc(w * 0.5 + Math.cos(a) * w * 0.22, h * 0.36 + Math.sin(a) * w * 0.22, w * (0.06 + r() * 0.05), 0, 6.3); g.fill(); }
-      g.fillStyle = '#0068b7'; g.beginPath(); g.arc(w * 0.5 + w * 0.08, h * 0.32, w * 0.04, 0, 6.3); g.fill();
-      T('OSAKA', w / 2, h * 0.7, w * 0.8, h * 0.07, 900, FONT_EN, '#0068b7'); T('いのち輝く未来へ', w / 2, h * 0.8, w * 0.85, h * 0.05, 700, FONT_JA, '#222'); T('大阪・関西 みらいフェア', w / 2, h * 0.88, w * 0.85, h * 0.035, 700, FONT_JA, '#e60012'); break;
-    }
-    case 'travel': {
-      const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#87c5ea'); gr.addColorStop(0.6, '#f6d2a0'); gr.addColorStop(1, '#2c5f2d'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#c0392b'; g.fillRect(w * 0.35, h * 0.4, w * 0.04, h * 0.25); g.fillRect(w * 0.61, h * 0.4, w * 0.04, h * 0.25); g.fillRect(w * 0.3, h * 0.38, w * 0.4, h * 0.035); g.fillRect(w * 0.33, h * 0.45, w * 0.34, h * 0.02);
-      T('高野山へ、特急で。', w / 2, h * 0.76, w * 0.9, h * 0.065); T('NANKAI  Koyasan World Heritage', w / 2, h * 0.86, w * 0.9, h * 0.03, 700, FONT_EN); break;
-    }
-    case 'halloween': {
-      g.fillStyle = '#1b0f2e'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(w * 0.72, h * 0.2, w * 0.12, 0, 6.3); g.fill();
-      for (let i = 0; i < 3; i++) { const x = w * (0.25 + i * 0.25), y = h * 0.55, R = w * 0.11; g.fillStyle = '#ff7518'; g.beginPath(); g.ellipse(x, y, R * 1.15, R, 0, 0, 6.3); g.fill(); g.fillStyle = '#1b0f2e'; g.beginPath(); g.moveTo(x - R * 0.5, y - R * 0.2); g.lineTo(x - R * 0.2, y - R * 0.45); g.lineTo(x - R * 0.1, y - R * 0.1); g.fill(); g.beginPath(); g.moveTo(x + R * 0.5, y - R * 0.2); g.lineTo(x + R * 0.2, y - R * 0.45); g.lineTo(x + R * 0.1, y - R * 0.1); g.fill(); g.fillRect(x - R * 0.5, y + R * 0.3, R, R * 0.15); g.fillStyle = '#2e5e1e'; g.fillRect(x - 3, y - R * 1.15, 6, R * 0.25); }
-      T('HAPPY HALLOWEEN', w / 2, h * 0.8, w * 0.9, h * 0.06, 900, FONT_EN, '#ff9a3c'); T('なんばハロウィン 10.1–10.31', w / 2, h * 0.89, w * 0.9, h * 0.04, 700); break;
-    }
-    case 'autumn': {
-      g.fillStyle = '#f5ead6'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 26; i++) { g.save(); g.translate(r() * w, r() * h * 0.7); g.rotate(r() * 6); g.fillStyle = ['#c0392b', '#e67e22', '#f1c40f', '#a04000'][i % 4]; g.beginPath(); for (let k = 0; k < 5; k++) { const a = k / 5 * 6.28; g.lineTo(Math.cos(a) * 14, Math.sin(a) * 14); g.lineTo(Math.cos(a + 0.6) * 6, Math.sin(a + 0.6) * 6); } g.fill(); g.restore(); }
-      T('秋の味覚フェア', w / 2, h * 0.76, w * 0.9, h * 0.08, 900, FONT_SERIF, '#7b2d0a'); T('AUTUMN FOOD FAIR', w / 2, h * 0.86, w * 0.8, h * 0.04, 700, FONT_EN, '#7b2d0a'); break;
-    }
-    case 'phone': {
-      g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#111'; rr(g, w * 0.36, h * 0.12, w * 0.28, h * 0.5, 16); g.fill(); const gr = g.createLinearGradient(0, h * 0.14, 0, h * 0.6); gr.addColorStop(0, '#5f2c82'); gr.addColorStop(1, '#49a09d'); g.fillStyle = gr; rr(g, w * 0.375, h * 0.14, w * 0.25, h * 0.46, 12); g.fill();
-      T('新機種、登場。', w / 2, h * 0.72, w * 0.85, h * 0.06, 900, FONT_JA, '#111'); T('のりかえ最大 22,000円 還元', w / 2, h * 0.82, w * 0.9, h * 0.04, 700, FONT_JA, '#e60012'); break;
-    }
-    case 'beer': {
-      g.fillStyle = '#c8102e'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#f2b632'; rr(g, w * 0.36, h * 0.2, w * 0.28, h * 0.42, 8); g.fill(); g.fillStyle = '#fff'; rr(g, w * 0.34, h * 0.15, w * 0.32, h * 0.1, 18); g.fill();
-      T('秋、乾杯。', w / 2, h * 0.75, w * 0.85, h * 0.08, 900, FONT_SERIF); T('KANPAI LAGER 生', w / 2, h * 0.86, w * 0.8, h * 0.04, 800, FONT_EN); break;
-    }
-    case 'concert': {
-      g.fillStyle = '#111'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 6; i++) { g.strokeStyle = ['#ff006e', '#3a86ff', '#ffbe0b'][i % 3]; g.lineWidth = 4; g.beginPath(); g.arc(w / 2, h * 0.4, w * (0.08 + i * 0.05), 0, 6.3); g.stroke(); }
-      T('NAMBA HATCH LIVE', w / 2, h * 0.75, w * 0.9, h * 0.06, 900, FONT_EN); T('11.08 SAT  OPEN 17:00', w / 2, h * 0.85, w * 0.8, h * 0.035, 700, FONT_EN, '#ffbe0b'); break;
-    }
-    case 'ramenfair': {
-      g.fillStyle = '#f4c430'; g.fillRect(0, 0, w, h); drawFoodInset(g, w * 0.2, h * 0.12, w * 0.6, w * 0.6, 'ramen');
-      T('ラーメン博', w / 2, h * 0.76, w * 0.9, h * 0.09, 900, FONT_JA, '#b01010'); T('なんばパークス 10/10〜10/19', w / 2, h * 0.87, w * 0.9, h * 0.04, 700, FONT_JA, '#222'); break;
-    }
-    case 'museum': {
-      g.fillStyle = '#e8e4da'; g.fillRect(0, 0, w, h);
-      g.fillStyle = '#1d3557'; g.beginPath(); g.moveTo(0, h * 0.62); for (let x = 0; x <= w; x += w / 12) g.lineTo(x, h * (0.45 + 0.1 * Math.sin(x / w * 12))); g.lineTo(w, h * 0.62); g.fill();
-      g.fillStyle = '#fff'; for (let i = 0; i < 8; i++) { g.beginPath(); g.arc(w * (0.1 + i * 0.11), h * (0.48 + 0.1 * Math.sin(i * 1.5)), w * 0.02, 0, 6.3); g.fill(); }
-      T('北斎と浪華の浮世絵', w / 2, h * 0.73, w * 0.9, h * 0.06, 900, FONT_SERIF, '#1d3557'); T('大阪市立美術館', w / 2, h * 0.84, w * 0.6, h * 0.035, 700, FONT_JA, '#1d3557'); break;
-    }
-    default: g.fillStyle = '#444'; g.fillRect(0, 0, w, h);
-  }
-  if (!portrait) { /* landscape is fine as is */ }
-}
+export const AD_KINDS = POSTER_KINDS;
+// v2: the twelve posters live in posters.js (resolution independent, portrait 2:3 + landscape 16:9 compositions)
+export function drawAd(g, w, h, kind) { drawPoster(g, w, h, kind); }
 function drawFoodInset(g, x, y, w, h, kind) { g.save(); g.translate(x, y); drawFood(g, w, h, kind); g.restore(); }

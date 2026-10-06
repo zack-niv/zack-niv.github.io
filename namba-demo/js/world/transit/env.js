@@ -67,8 +67,11 @@ export function defineEnvMaterials(ctx) {
 }
 
 // -----------------------------------------------------------------------------
+// ?oldpit reproduces the v1 pits (3 m ballast strip, no bed) for before/after screenshots only
+const OLD_PIT = typeof location !== 'undefined' && /[?&]oldpit\b/.test(location.search);
 export function buildTrackEnv(ctx, cfgs) {
   const CB = new ChunkBatches(320);
+  const step0 = 12;
   const lights = ctx.lighting;
   for (const cfg of cfgs) {
     const { t, line, y, centre, inward } = cfg;
@@ -79,6 +82,40 @@ export function buildTrackEnv(ctx, cfgs) {
     const g2 = line.gauge / 2 + 0.035;
     const yRail = y - 0.925;
     const bAt = (s) => { const [x, z] = T.xz(s, centre); return CB.get(t.level, x, z); };
+    // solid pit bed extents (cross axis): the full track rect, +0.65 m under the platform edge, +0.1 m into the far wall
+    const pitLo = Math.min(c0, c1), pitHi = Math.max(c0, c1);
+    const bedLo = inward > 0 ? pitLo - 0.1 : pitLo - 0.65, bedHi = inward > 0 ? pitHi + 0.65 : pitHi + 0.1;
+    const bedC = OLD_PIT ? centre : (bedLo + bedHi) / 2, bedW = OLD_PIT ? 3.0 : bedHi - bedLo;
+    // ---- solid pit floor + dark underside + end wall (v2 item 1) ------------------------------------
+    if (!OLD_PIT) {
+      const yb = y - 1.12;                 // underside of the bed (just below the ballast / slab top)
+      const a0 = Math.max(r0, v0), a1 = Math.min(r1, v1);
+      const metro = line.operator === 'metro';
+      for (let s = a0; s < a1; s += step0) {
+        const s1 = Math.min(a1, s + step0), b = bAt((s + s1) / 2);
+        const A = T.P(s, yb, bedLo), B = T.P(s1, yb, bedLo), C = T.P(s1, yb, bedHi), D = T.P(s, yb, bedHi);
+        // dark underside, seen from the level below (two-sided so winding never matters)
+        b.quad('transit_tunnel_dark', A, B, C, D); b.quad('transit_tunnel_dark', A, D, C, B);
+        if (metro) {
+          // station-section pit floor of the subway (the tubes beyond already have their own floor)
+          const yf = y - 1.08;
+          const a = T.P(s, yf, bedLo), bb = T.P(s1, yf, bedLo), c = T.P(s1, yf, bedHi), d = T.P(s, yf, bedHi);
+          b.quad('transit_tunnel_dark', a, bb, c, d); b.quad('transit_tunnel_dark', a, d, c, bb);
+        }
+      }
+      // end wall at the buffer / back end of the pit, from the bed up to the platform level and a little above
+      if (!metro) {
+        // the platform-edge recess that architecture draws at the back of the pit (0.55 m under the concourse floor)
+        {
+          const b = bAt(r0), yf = y - 1.1;
+          const A = T.P(r0 - 0.7, yf, bedLo), B = T.P(r0, yf, bedLo), C = T.P(r0, yf, bedHi), D = T.P(r0 - 0.7, yf, bedHi);
+          b.quad('transit_tunnel_dark', A, B, C, D); b.quad('transit_tunnel_dark', A, D, C, B);
+        }
+        const e = r0 + 0.04, b = bAt(e), yt = y + 0.0;
+        const A = T.P(e, yb, bedLo), B = T.P(e, yb, bedHi), C = T.P(e, yt, bedHi), D = T.P(e, yt, bedLo);
+        b.quad('transit_concrete', A, B, C, D); b.quad('transit_concrete', A, D, C, B);
+      }
+    }
     // ---- rails, slab / sleepers ----------------------------------------------------
     const step = 12;
     for (let s = v0; s < v1; s += step) {
@@ -98,8 +135,10 @@ export function buildTrackEnv(ctx, cfgs) {
         T.box(b, 'transit_3rail_cover', sm, yRail + 0.15, c3 - inward * 0.02, len, 0.025, 0.26, { faces: 'tbnsew' });
         for (let q = s + 2.5; q < s1; q += 5) T.box(b, 'steel_dark', q, yRail - 0.05, c3, 0.12, 0.25, 0.12);
       } else {
-        // ballasted track, concrete sleepers
-        T.box(b, 'ballast', sm, y - 1.06, centre, len, 0.12, 3.0, { faces: 'tnsew' });
+        // ballasted track, concrete sleepers. The ballast bed spans the WHOLE pit (v2 item 1: the old 3 m strip left
+        // 2 m of open pit through which the level below showed), and runs 0.65 m under the platform lip so the
+        // refuge recess is sealed too.
+        T.box(b, 'ballast', sm, y - 1.06, bedC, len, 0.12, bedW, { faces: 'tnsew' });
         for (let q = s + 0.3; q < s1; q += 0.6) T.box(b, 'sleeper', q, yRail - 0.24, centre, 0.22, 0.16, 2.3, { faces: 'tnsew' });
       }
     }

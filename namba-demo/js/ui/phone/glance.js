@@ -1,0 +1,90 @@
+// =============================================================================
+// The glance card — what you see of the phone while it is held low.
+//
+// The phone's Dynamic-Island pill expands into a black "live activity" card at
+// the top of the screen (the only part visible in the glance pose). It shows,
+// in priority order:
+//   1. a new text (Aya) — slides in, the card pulses, "Q to read"
+//   2. the Lodestone install / calibration progress
+//   3. Lodestone ready: the ONE next step ("Escalator up to 2F", in 40 m)
+//   4. the generic Maps app: the vague crow-flies hint (or its one-floor route),
+//      with the GPS-weak excuse
+// Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
+// only renders (DOM rewrites only when the text changes; the arrow rotates).
+// =============================================================================
+import { icon, logo } from './lodestone.js';
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const NOTE_S = 7.5;
+
+export class Glance {
+  constructor(phone, root) {
+    this.phone = phone; this.ctx = phone.ctx; this.root = root;
+    this.note = null; this._noteT = 0;
+    this._key = ''; this._t = 0;
+    this._ang = 0;
+    this.touch = !!(this.ctx.input && this.ctx.input.touch);
+    root.innerHTML = `<div class="gl"></div>`;
+    this.box = root.firstChild;
+  }
+
+  showNote(msg) {
+    this.note = { title: msg.title || 'Aya', text: msg.text || '' };
+    this._noteT = NOTE_S;
+    this.refresh(true);
+    // pulse (restart the animation)
+    this.root.classList.remove('ping'); void this.root.offsetWidth; this.root.classList.add('ping');
+  }
+  clearNote(read) { if (!this.note) return; this.note = null; this._noteT = 0; this.root.classList.remove('ping'); this.refresh(true); }
+
+  refresh(force) { if (force) this._key = ''; this._t = 0; }
+
+  update(dt, visible) {
+    if (this._noteT > 0) { this._noteT -= dt; if (this._noteT <= 0) this.clearNote(); }
+    if (!visible) return;
+    this._t -= dt;
+    if (this._t > 0) { this._spin(dt); return; }
+    this._t = 0.25;
+    const info = this._info();
+    info.unread = this.phone.messages && this.phone.messages.unread > 0 && info.kind !== 'note';
+    const key = JSON.stringify([info.kind, info.cls, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread]);
+    if (key !== this._key) { this._key = key; this._render(info); }
+    this._target = info.ang;
+    this._spin(dt);
+  }
+
+  _info() {
+    const ph = this.phone;
+    if (this.note) return { kind: 'note', cls: 'gl-note', title: this.note.title, sub: this.note.text };
+    const st = ph.upgradeStage;
+    if (st === 'installing' || st === 'calibrating') {
+      const L = ph.lodestone, pct = st === 'installing' ? Math.min(1, L.t / L.T_INSTALL) : Math.min(1, L.t / L.T_CALIB);
+      return { kind: 'inst', cls: 'gl-ld', title: st === 'installing' ? 'Installing Lodestone' : 'Learning the building…', sub: st === 'installing' ? 'Lodestone' : 'Magnetic fingerprint', pct };
+    }
+    if (st === 'ready' && ph.lodestone.state === 'ready') return { cls: 'gl-ld', ...ph.lodestone.glanceInfo() };
+    return { cls: 'gl-mp', ...ph.maps.glanceInfo() };
+  }
+
+  _render(i) {
+    const k = (i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch ? '' : `<kbd class="gl-k">Q</kbd>`);
+    let ic = '';
+    if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
+    else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;
+    else if (i.cls === 'gl-ld') ic = `<i class="gl-ic">${i.live ? icon('straight', 'gl-arrow') : icon(i.icon || 'straight')}</i>`;
+    else ic = `<i class="gl-ic">${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
+    const bar = i.pct != null ? `<u class="gl-bar"><i style="width:${(i.pct * 100).toFixed(0)}%"></i></u>` : '';
+    const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${i.warn ? `<em class="gl-warn">${esc(i.warn)}</em>` : ''}${esc(i.sub || '')}</span>`;
+    const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${esc(i.title)}</b>`;
+    this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'}`;
+    this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} read</span>` : k}`;
+    this._arrow = this.box.querySelector('.gl-arrow');
+  }
+
+  // the arrow turns smoothly toward the target angle (degrees, 0 = straight ahead)
+  _spin(dt) {
+    const a = this._arrow; if (!a || this._target == null || !isFinite(this._target)) return;
+    let d = this._target - this._ang; d = ((d + 540) % 360) - 180;
+    this._ang += d * (1 - Math.exp(-dt / 0.12));
+    a.style.transform = `rotate(${this._ang.toFixed(1)}deg)`;
+  }
+}

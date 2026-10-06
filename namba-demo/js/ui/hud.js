@@ -5,7 +5,7 @@
 //   · ICOCA balance chip after a gate tap, cup-in-hand glyph, fades
 //   · fallback phone-notification banner if the phone doesn't render texts
 // API: hud.prompt(t|null) · hud.toast({kind,title,en,ja}) · hud.caption({en,ja,speaker,duration,kind})
-//      hud.ic({balance,fare,ok,reason}) · hud.cup(on) · hud.fade(alpha, ms) → Promise
+//      hud.ic({balance,fare,ok,reason}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
 import { params } from '../core/params.js';
@@ -170,7 +170,14 @@ export class Hud {
     clearTimeout(this._icT);
     this._icT = setTimeout(() => e.ic.classList.remove('on'), ok ? 2600 : 4200);
   }
-  cup(on) { this.el.cup.classList.toggle('on', !!on); }
+  // the cup icon that stays after ordering; label = tooltip ("☕ latte — Pine Tree Coffee"), n = how many so far
+  cup(on, label, n) {
+    const c = this.el.cup;
+    c.classList.toggle('on', !!on);
+    if (label) { c.title = label; c.setAttribute('aria-label', label); }
+    c.dataset.n = n > 1 ? String(n) : '';
+    if (on && label) { c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+  }
 
   // ---- controls hint (bottom centre, fades on its own) ---------------------------------
   // kinds: 'keys' (the four controls) | 'phone' (Q) | or a ready-made html string

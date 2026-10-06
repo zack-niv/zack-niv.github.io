@@ -11,7 +11,8 @@
 //    distant trains under the floor, distant PA.
 // =============================================================================
 import { ZONES } from '../world/layout.js';
-import { AMBIENT_PA } from './phrases.js';
+import { AMBIENT_PA, DINING_CALLS } from './phrases.js';
+import { platformLeak } from './zones.js';
 
 // layer name → recipe, bus, base gain
 const LAYERS = {
@@ -27,30 +28,39 @@ const LAYERS = {
   water:       { recipe: 'bed:water', bus: 'ambience', g: 1, lp: 6000 },
   aux:         { recipe: 'tr:aux', bus: 'ambience', g: 1, lp: 1800 },
   bgm:         { recipe: 'mus:dept', bus: 'music', g: 1, lp: 7000, send: 0.5 },
+  kitchen:     { recipe: 'loop:kitchen', bus: 'ambience', g: 1, lp: 7000 },   // dining floors: pans, plates, extraction fans
+  sizzle:      { recipe: 'loop:sizzle', bus: 'ambience', g: 1, lp: 8000 },
+  fry:         { recipe: 'loop:tempura', bus: 'ambience', g: 1, lp: 8000 },
 };
 // mood → layer gains (crowd layers are handled separately and scaled by density)
 const MOODS = {
-  metro:     { hvac_tile: 0.30, walla: 0.55, cloud: 1.0, steps: 'tile', pa: 'metro' },
-  platform:  { hvac_tile: 0.16, tunnel: 0.42, walla: 0.45, cloud: 0.9, steps: 'stone', pa: 'metro', trainsUnder: false },
-  arcade:    { hvac_arcade: 0.30, walla: 0.6, cloud: 1.0, steps: 'tile', pa: 'arcade' },
+  // gate halls: IC-card beeps (gate:pass events), footsteps, crowd murmur
+  metro:     { hvac_tile: 0.28, walla: 0.55, cloud: 1.0, steps: 'tile', pa: 'metro' },
+  // platforms: rumble, tunnel wind, PA (trains + PA are gated to the platform in trains.js / zones.js)
+  platform:  { hvac_tile: 0.14, tunnel: 0.5, aux: 0.07, walla: 0.38, cloud: 0.9, steps: 'stone', pa: 'metro', rumble: true },
+  // NAMBAWALK: shop BGM leaking from open storefronts (sources.js), a lot of chatter
+  arcade:    { hvac_arcade: 0.30, walla: 0.65, cloud: 1.0, steps: 'tile', pa: 'arcade' },
   department:{ hvac_dept: 0.22, bgm: 0.16, walla: 0.35, cloud: 0.7, steps: 'stone', pa: 'department' },
   street:    { traffic: 0.62, cityfar: 0.18, walla: 0.25, cloud: 0.6, steps: 'paving', outdoor: true },
   terminal:  { hvac_big: 0.28, walla: 0.5, cloud: 1.0, steps: 'stone', pa: 'terminal' },
-  nkplatform:{ hvac_big: 0.12, aux: 0.10, cityfar: 0.16, walla: 0.45, cloud: 0.9, steps: 'paving', pa: 'terminal' },
+  nkplatform:{ hvac_big: 0.12, aux: 0.10, tunnel: 0.14, cityfar: 0.16, walla: 0.4, cloud: 0.9, steps: 'paving', pa: 'terminal', rumble: true },
   passage:   { hvac_tile: 0.28, walla: 0.45, cloud: 1.0, steps: 'tile', pa: 'metro' },
-  mall:      { hvac_mall: 0.26, bgm: 0.11, walla: 0.5, cloud: 0.9, steps: 'tile', pa: 'mall' },
+  // Namba CITY: softer mall music under a calmer crowd
+  mall:      { hvac_mall: 0.26, bgm: 0.11, walla: 0.45, cloud: 0.9, steps: 'tile', pa: 'mall' },
   parks:     { hvac_mall: 0.22, bgm: 0.09, walla: 0.38, cloud: 0.8, steps: 'stone', pa: 'mall' },
-  canyon:    { cityfar: 0.42, leaves: 0.3, traffic: 0.05, walla: 0.3, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.7 },
+  // Namba Parks canyon: open air, wind in the trees, birds, the city far off, the fountain
+  canyon:    { cityfar: 0.38, leaves: 0.34, tunnel: 0.05, traffic: 0.07, water: 0.12, walla: 0.26, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.7 },
   garden:    { cityfar: 0.34, leaves: 0.5, water: 0.16, walla: 0.14, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
   shop:      { hvac_mall: 0.12, walla: 0.2, cloud: 0.35, steps: 'tile' },
+  // restaurant floors (Parks 6F-8F, restaurant rooms): sizzle, clatter, "irasshaimase"
+  dining:    { hvac_mall: 0.08, kitchen: 0.2, sizzle: 0.15, fry: 0.1, walla: 0.34, cloud: 0.55, steps: 'wood', dine: true },
 };
 // baseline people within ~12 m when the crowd system can't tell us
-const BASE_PEOPLE = { metro: 26, platform: 18, arcade: 30, department: 14, street: 16, terminal: 36, nkplatform: 16, passage: 22, mall: 22, parks: 12, canyon: 14, garden: 5, shop: 4 };
-
-const CHAT = ['そうなんだー', 'ええ、ほんとに', 'まって、まって', 'あっちじゃない', 'おなかすいた', 'ねえ、みて', 'だいじょうぶ', 'うん、うん、そうだね', 'えー、うそー', 'どこだっけ'];
+const BASE_PEOPLE = { dining: 16, metro: 26, platform: 18, arcade: 30, department: 14, street: 16, terminal: 36, nkplatform: 16, passage: 22, mall: 22, parks: 12, canyon: 14, garden: 5, shop: 4 };
 
 export function moodOf(zone, space, ramp) {
-  if (space && space.kind === 'room') return 'shop';
+  if (space && space.kind === 'room') return space.style === 'restaurant' ? 'dining' : 'shop';
+  if (space && space.style === 'parks_dining') return 'dining';
   const zm = ZONES[zone] ? ZONES[zone].mood : 'passage';
   if (space) {
     if (space.kind === 'platform') return zone === 'nankai' ? 'nkplatform' : 'platform';
@@ -78,9 +88,9 @@ export class Ambience {
       this.lanes.push(em);
     }
     this.cloud = { next: 0, rate: 0, surface: 'tile' };
-    this.mood = null; this.weights = {};
+    this.mood = null; this.weights = {}; this.raw = {}; this._first = true; this.leak = { gain: 0, id: null };
     this.people = 10; this._peopleT = 0;
-    this.timers = { chat: 6, bird: 2, crow: 12, horn: 50, bus: 30, under: 40, pa: 25, suitcase: 15 };
+    this.timers = { dine: 4, rumble: 14, bird: 2, crow: 12, horn: 50, bus: 30, under: 40, pa: 25, suitcase: 15 };
     this.suitcases = [];
     this.signals = [];   // crossing signal emitters
     this.rngState = 12345;
@@ -90,27 +100,43 @@ export class Ambience {
   // ---------------------------------------------------------------------------
   update(dt, L) {
     const { level, x, z, zone, space, ramp } = L;
-    // mood weights (blend across ramps by progress)
-    const w = {};
-    if (L.rampBlend) { for (const [m, k] of L.rampBlend) w[m] = (w[m] || 0) + k; }
-    else w[moodOf(zone, space, ramp)] = 1;
-    this.weights = w;
-    const main = Object.entries(w).sort((a, b) => b[1] - a[1])[0][0];
+    // raw mood weights (blend across ramps by progress), then smoothed in time so walking from one soundscape into
+    // the next is a cross-fade (~1 s time constant) rather than a switch
+    const raw = {};
+    if (L.rampBlend) { for (const [m, k] of L.rampBlend) raw[m] = (raw[m] || 0) + k; }
+    else raw[moodOf(zone, space, ramp)] = 1;
+    this.raw = raw;
+    const main = Object.entries(raw).sort((a, b) => b[1] - a[1])[0][0];
     if (main !== this.mood) { this.mood = main; this._prefetchMood(main); }
+    for (const m in raw) if (raw[m] > 0.2) this._prefetchMood(m, true);
+    const w = this.weights;
+    const k = this._first ? 1 : 1 - Math.exp(-Math.min(dt, 0.25) / 1.0);
+    this._first = false;
+    for (const m of new Set([...Object.keys(w), ...Object.keys(raw)])) {
+      const v = (w[m] || 0) + ((raw[m] || 0) - (w[m] || 0)) * k;
+      if (v < 0.003 && !raw[m]) delete w[m]; else w[m] = v;
+    }
+    // platform bleed: the tunnel rumble reaches the concourse directly above (and an open terminal) faintly
+    const onPlat = space && space.kind === 'platform';
+    const lk = platformLeak(L, onPlat ? space.id : null);
+    this.leak = this.leak || { gain: 0, id: null };
+    this.leak.gain += ((onPlat ? 0 : lk.gain) - this.leak.gain) * k; this.leak.id = lk.id;
     // crowd density (people within ~12 m)
     this._peopleT -= dt;
     if (this._peopleT <= 0) { this._peopleT = 0.5; this.people = this._density(L, w); }
     const dens = Math.min(1.4, this.people / 30);
     // bed layer targets
     const tgt = {};
-    for (const [m, k] of Object.entries(w)) {
+    for (const [m, kk] of Object.entries(w)) {
       const M = MOODS[m] || MOODS.passage;
-      for (const ln in LAYERS) if (M[ln]) tgt[ln] = (tgt[ln] || 0) + M[ln] * k;
+      for (const ln in LAYERS) if (M[ln]) tgt[ln] = (tgt[ln] || 0) + M[ln] * kk;
     }
+    if (this.leak.gain > 0.01) { tgt.tunnel = (tgt.tunnel || 0) + 0.34 * this.leak.gain; tgt.aux = (tgt.aux || 0) + 0.05 * this.leak.gain; }
+    this.target = tgt;
     for (const ln in this.layers) this._layer(this.layers[ln], (tgt[ln] || 0), dt);
     // crowd layers
     let wallaG = 0, cloudG = 0, outdoor = 0, birds = 0;
-    for (const [m, k] of Object.entries(w)) { const M = MOODS[m] || MOODS.passage; wallaG += (M.walla || 0) * k; cloudG += (M.cloud || 0) * k; outdoor += (M.outdoor ? 1 : 0) * k; birds += (M.birds || 0) * k; }
+    for (const [m, kk] of Object.entries(w)) { const M = MOODS[m] || MOODS.passage; wallaG += (M.walla || 0) * kk; cloudG += (M.cloud || 0) * kk; outdoor += (M.outdoor ? 1 : 0) * kk; birds += (M.birds || 0) * kk; }
     // Japanese crowds are quiet: murmur grows sub-linearly with density
     const wl = wallaG * Math.min(1.15, 0.12 + 0.75 * Math.sqrt(dens));
     this._walla(wl, outdoor);
@@ -119,6 +145,13 @@ export class Ambience {
     this._suitcases(dt, L, dens);
     this._events(dt, L, main, birds, outdoor);
     this._signals(dt, L);
+  }
+
+  debug() {
+    const r = (v) => +v.toFixed(3);
+    const layers = {}; for (const ln in this.layers) { const Ly = this.layers[ln]; if (Ly.cur > 0.001 || (this.target && this.target[ln] > 0.001)) layers[ln] = r(Ly.cur * Ly.g); }
+    const weights = {}; for (const m in this.weights) if (this.weights[m] > 0.005) weights[m] = r(this.weights[m]);
+    return { mood: this.mood, weights, layers, platformLeak: r(this.leak ? this.leak.gain : 0), people: Math.round(this.people), walla: r(this._wallaG || 0) };
   }
 
   _density(L, w) {
@@ -140,7 +173,8 @@ export class Ambience {
     return p * (0.5 + 0.8 * rush);
   }
 
-  _prefetchMood(m) {
+  _prefetchMood(m, soft = false) {
+    if (soft) { if (this._pf && this._pf[m]) return; (this._pf = this._pf || {})[m] = 1; }
     const M = MOODS[m] || {};
     const want = [];
     for (const ln in LAYERS) if (M[ln]) want.push(LAYERS[ln].recipe);
@@ -165,12 +199,13 @@ export class Ambience {
       Ly.idle += dt;
       if (Ly.idle > 12) { Ly.em.dispose(0.3); Ly.em = null; return; } // free CPU when long silent
     }
-    if (Ly.em && Math.abs(target - Ly.cur) > 0.002) { Ly.cur = target; Ly.em.fade(target * Ly.g, 1.1); }
+    if (Ly.em && Math.abs(target - Ly.cur) > 0.002) { Ly.cur = target; Ly.em.fade(target * Ly.g, 0.3); }
   }
 
   _walla(g, outdoor) {
     const buf = this.bank.peek('bed:walla');
     if (!buf) { if (g > 0) this.bank.get('bed:walla', 2); return; }
+    this._wallaG = g;
     this.walla.forEach((wv, i) => {
       if (!wv.em) {
         wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 5600 });
@@ -254,13 +289,16 @@ export class Ambience {
     const T = this.timers;
     const up = L.y + 1.6;
     const at = (dmin, dmax, h) => { const a = this.rand() * Math.PI * 2, d = dmin + this.rand() * (dmax - dmin); return { x: L.x + Math.cos(a) * d, y: up + h, z: L.z + Math.sin(a) * d }; };
-    // snatches of conversation from people passing a few metres away
-    T.chat -= dt * Math.min(1.6, this.people / 18) * (mood === 'garden' ? 0.25 : 1);
-    if (T.chat <= 0) {
-      T.chat = 5 + this.rand() * 10;
-      if (this.people > 5 && mood !== 'shop') {
-        const g = this.rand() < 0.5 ? 'f' : 'm', txt = CHAT[Math.floor(this.rand() * CHAT.length)];
-        this.mixer.play(`bark:ja:${g}:${31 + Math.floor(this.rand() * 3)}:${txt}`, { bus: 'ambience', pos: at(2.2, 7, -0.1), gain: 0.26, ref: 2, hrtf: true, send: 0.4, rate: 0.95 + this.rand() * 0.1, wait: true, prio: 7 });
+    // restaurant floors: a short, clear "irasshaimase" now and then (real voice, low volume by distance) and plates
+    if ((this.weights.dining || 0) > 0.5) {
+      T.dine -= dt;
+      if (T.dine <= 0) {
+        T.dine = 7 + this.rand() * 12;
+        if (this.rand() < 0.6 && this.sys.announcer) {
+          const txt = DINING_CALLS[Math.floor(this.rand() * DINING_CALLS.length)];
+          const p = at(4, 11, -0.1);
+          this.sys.announcer.say({ kind: 'shop', parts: [{ lang: 'ja', text: txt }], pos: p, ref: 3, gain: 0.5, cooldown: 12, maxAge: 3, caption: false });
+        } else this.mixer.play('ui:cup', { bus: 'ambience', pos: at(3, 9, -0.4), gain: 0.5, send: 0.3, ref: 2, hrtf: true, rate: 0.9 + this.rand() * 0.2, wait: true, prio: 6 });
       }
     }
     // birds (parks outdoor). Mostly bulbuls & sparrows; white-eyes & tits in the trees
@@ -294,16 +332,22 @@ export class Ambience {
         if (mood !== 'shop') this.mixer.play(`fx:traindist:${Math.floor(this.rand() * 2)}`, { bus: 'ambience', pos: { x: L.x + (this.rand() - 0.5) * 30, y: up - 9, z: L.z + (this.rand() - 0.5) * 30 }, gain: 0.55, send: 0.25, ref: 8, lp: 260, prio: 6 });
       }
     }
+    // platforms: trains somewhere down the tunnel, a low rumble that rolls through
+    if (MOODS[mood] && MOODS[mood].rumble && (this.weights[mood] || 0) > 0.6) {
+      T.rumble -= dt;
+      if (T.rumble <= 0) { T.rumble = 22 + this.rand() * 30; this.mixer.play(`fx:traindist:${Math.floor(this.rand() * 2)}`, { bus: 'ambience', pos: at(40, 90, -1), gain: 0.5, send: 0.3, ref: 8, lp: 420, prio: 6, wait: true }); }
+    }
     // distant PA in big stations, malls, the arcade
     const pa = MOODS[mood] && MOODS[mood].pa;
     if (pa && this.sys.announcer) {
       T.pa -= dt;
       if (T.pa <= 0) {
-        T.pa = 35 + this.rand() * 55;
-        const lines = AMBIENT_PA[pa];
-        if (lines && !this.sys.announcer.busyWith('ambient') && !this.sys.announcer.cur) {
+        T.pa = 70 + this.rand() * 80;
+        const lines = AMBIENT_PA[pa], ann = this.sys.announcer;
+        if (lines && !ann.cur && !ann.queue.length) {
           const l = lines[Math.floor(this.rand() * lines.length)];
-          this.sys.announcer.say({ kind: 'ambient', distant: true, speech: false, parts: [{ lang: 'ja', text: l.ja }, { lang: 'en', text: l.en }], chime: 'pa', gain: 0.32, lp: 2200, send: 1.4, seed: 5 + Math.floor(this.rand() * 4), caption: true });
+          // faint and rare; never over a train announcement (those are first in the queue, and interrupt)
+          ann.say({ kind: 'ambient', distant: true, parts: [{ lang: 'ja', text: l.ja }, { lang: 'en', text: l.en }], chime: 'pa', gain: 0.28, cooldown: 120, caption: false });
         }
       }
     }

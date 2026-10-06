@@ -454,3 +454,64 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .d-aya-name { font: 600 13px/1 var(--g-sans); padding: 7px 12px 8px; border-radius: 999px; background: rgba(10, 11, 14, .62); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, .14); color: var(--g-ink); box-shadow: 0 6px 22px rgba(0, 0, 0, .35); }
 .d-aya-name small { font: 400 11px var(--g-ja); color: var(--g-dim); margin-left: 5px; }
 .d-aya-ring { order: 2; width: 9px; height: 9px; border-radius: 50%; background: var(--g-accent); box-shadow: 0 0 0 0 rgba(242, 193, 78, .6); animation: g-pulse 2s ease-out infinite; }
+
+/* ---------- v2: controls & navigation walkthrough (js/game/walkthrough.js) ------------------ */
+.g-key.lg { min-width: 32px; height: 32px; font-size: 14px; border-radius: 7px; padding: 0 8px; box-shadow: 0 3px 0 rgba(0, 0, 0, .5), inset 0 -1px 0 rgba(0, 0, 0, .12); }
+.g-key.lg.wide { padding: 0 12px; }
+.g-key.lg.sm { min-width: 20px; height: 20px; font-size: 10.5px; border-radius: 5px; padding: 0 7px; box-shadow: 0 2px 0 rgba(0, 0, 0, .5); vertical-align: 1px; }
+.g-walk { position: absolute; left: max(18px, 3.2vw); top: 20vh; width: min(318px, calc(100vw - 36px)); opacity: 0; transform: translateX(-14px); pointer-events: none;
+  transition: opacity .6s ease, transform .8s var(--g-ease); font-family: var(--g-sans); color: var(--g-ink); z-index: 4; }
+.g-walk.on { opacity: 1; transform: none; }
+body:has(.g-pause:not([hidden])) .g-walk { opacity: 0; }
+.gw-card { position: relative; padding: 13px 16px 14px 18px; border-radius: 4px; background: var(--g-glass-strong); border: 1px solid var(--g-line); border-left: 2px solid var(--g-accent);
+  backdrop-filter: blur(14px) saturate(1.1); -webkit-backdrop-filter: blur(14px) saturate(1.1); box-shadow: 0 18px 50px rgba(0, 0, 0, .45); overflow: hidden; pointer-events: auto; text-shadow: none; }
+.gw-card.in .gw-head, .gw-card.in .gw-body, .gw-card.in .gw-foot { animation: gw-in .5s var(--g-ease) both; }
+.gw-card.in .gw-body { animation-delay: .06s; } .gw-card.in .gw-foot { animation-delay: .12s; }
+@keyframes gw-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.gw-head { display: flex; align-items: baseline; gap: 10px; }
+.gw-step { font: 600 9.5px/1 var(--g-sans); letter-spacing: .26em; text-transform: uppercase; color: var(--g-accent); font-variant-numeric: tabular-nums; }
+.gw-title { font: 600 15.5px/1.2 var(--g-sans); letter-spacing: .01em; flex: 1; }
+.gw-title small { font: 400 11px var(--g-ja); color: var(--g-faint); margin-left: 6px; letter-spacing: .08em; }
+.gw-skip { appearance: none; border: 0; background: none; color: var(--g-faint); font: 500 12px/1 var(--g-sans); cursor: pointer; padding: 2px 3px; margin: -2px -4px 0 0; border-radius: 3px; transition: color .2s, background .2s; }
+.gw-skip:hover { color: var(--g-ink); background: rgba(255, 255, 255, .08); }
+.gw-body { margin-top: 11px; }
+.gw-body p { margin: 10px 0 0; font: 400 13px/1.5 var(--g-sans); color: rgba(244, 241, 234, .82); }
+.gw-body p b { color: var(--g-ink); font-weight: 600; }
+.gw-body p .g-key { margin: 0 2px; }
+.gw-body .gw-big { font: 600 17px/1.25 var(--g-sans); color: var(--g-ink); margin-top: 9px; }
+.gw-body .gw-big + p { margin-top: 5px; }
+.gw-vis { display: flex; align-items: center; gap: 9px; min-height: 44px; }
+.gw-wasd { display: inline-flex; flex-direction: column; align-items: center; gap: 3px; }
+.gw-wasd b { display: inline-flex; gap: 3px; font-weight: 400; }
+.gw-wasd i { display: inline-flex; font-style: normal; }
+.gw-plus, .gw-or { font: 500 11px/1 var(--g-sans); color: var(--g-faint); letter-spacing: .06em; }
+.gw-mouse { width: 24px; height: 31px; color: var(--g-ink); flex: none; }
+.gw-sign { gap: 8px; }
+.gw-sign span { display: inline-flex; align-items: center; padding: 7px 12px; border-radius: 3px; background: #1a6b3c; color: #fff; font: 700 14px/1 var(--g-ja); letter-spacing: .04em; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .85); }
+.gw-sign span:nth-child(2) { background: #f2c14e; color: #1b1608; box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, .55); }
+.gw-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--g-line); font: 500 11px/1 var(--g-sans); color: var(--g-faint); }
+.gw-foot b { color: var(--g-ink); font-weight: 600; }
+.gw-sep { margin: 0 3px; opacity: .6; }
+.gw-dots { display: inline-flex; gap: 5px; }
+.gw-dots i { width: 6px; height: 6px; border-radius: 50%; background: rgba(244, 241, 234, .2); transition: background .3s, transform .3s; }
+.gw-dots i.done { background: rgba(242, 193, 78, .5); } .gw-dots i.on { background: var(--g-accent); transform: scale(1.25); }
+.gw-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: var(--g-accent); opacity: .55; transform-origin: left; transform: scaleX(0); }
+.gw-card.in .gw-bar { animation: gw-bar var(--gw-dwell, 4s) linear forwards; }
+@keyframes gw-bar { to { transform: scaleX(1); } }
+@media (max-width: 640px) { .g-walk { top: 12vh; } }
+
+/* cup icon that stays after ordering: a gentle pop on each new order, a count badge from the second one */
+.h-cup { pointer-events: auto; }
+.h-cup.pop { animation: g-pop .7s var(--g-ease); }
+.h-cup[data-n]:not([data-n=""])::after { content: attr(data-n); position: absolute; right: -6px; top: -4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--g-accent); color: #18150c; font: 700 9px/14px var(--g-sans); text-align: center; }
+@keyframes g-pop { 0% { transform: translateY(6px) scale(.7); } 55% { transform: scale(1.18); } 100% { transform: none; } }
+
+/* the pause menu's "Ordered" list */
+.p-body h3.p-sub { margin: 30px 0 14px; }
+.p-orders { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.p-order { display: grid; grid-template-columns: 24px auto 1fr auto; align-items: baseline; gap: 8px; font: 400 14px/1.3 var(--g-sans); color: var(--g-dim); }
+.p-order b { color: var(--g-ink); font-weight: 600; } .p-order i { font-style: normal; } .p-order small { font: 400 11px var(--g-sans); color: var(--g-faint); font-variant-numeric: tabular-nums; }
+
+/* the phone's glance strip (bottom-right while walking): keep captions and the IC chip clear of it */
+body:has(#phone-root.ph-glance) .h-captions { bottom: max(8.5vh, calc(var(--phone-glance-h, 0px) + 18px)); }
+body:has(#phone-root.ph-glance) .h-ic { bottom: calc(var(--phone-glance-h, 0px) + 28px); }

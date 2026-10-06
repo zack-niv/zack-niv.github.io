@@ -91,8 +91,13 @@ export class Demo {
     INTRO.forEach(([at, text]) => game.after(at, () => game.message(text)));
     const lastAt = INTRO[INTRO.length - 1][0];
     game.after(lastAt + 1.6, () => game.setQuest('tempura', 'active', null, true));
-    game.after(Math.max(tt + 3, 7.5), () => hud?.hint('keys', 9));
-    game.after(lastAt + 6.5, () => hud?.hint('phone', 8));
+    // v2 item 9: the controls & navigation walkthrough (4 skippable cards, once per session) starts as the hold ends,
+    // just before Aya's first text; when it has been seen (Replay) or is off, the plain hints stay as they were
+    const walk = game.walkthrough && game.walkthrough.plan(Math.max(tt + 0.7, 5.2));
+    if (!walk) {
+      game.after(Math.max(tt + 3, 7.5), () => hud?.hint('keys', 9));
+      game.after(lastAt + 6.5, () => hud?.hint('phone', 8));
+    }
     this.nudges = NUDGES.map(([at, text]) => ({ at, text, sent: false }));
   }
 

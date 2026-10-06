@@ -11,6 +11,9 @@
 import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js';
 import { ESCALATOR_LINES, IRASSHAI } from './phrases.js';
 
+// shop music level by the soundscape you are in: NAMBAWALK is a wall of BGM, the malls are softer, outdoors it leaks faintly
+const MUSIC_K = { arcade: 1.0, passage: 0.9, metro: 0.5, department: 0.55, mall: 0.6, parks: 0.5, canyon: 0.5, garden: 0.35, street: 0.5, terminal: 0.4, platform: 0, nkplatform: 0, dining: 0.5, shop: 1 };
+
 // category → [music recipe | null, activity kind | null, music gain]
 const CAT = {
   fashion: ['mus:jpop', null, 1], shoes: ['mus:citypop', null, 0.9], accessories: ['mus:citypop', null, 0.9], cosmetics: ['mus:jpop', null, 1],
@@ -157,6 +160,7 @@ export class Sources {
     }
     if (inside && s.cls === 'music') g = 0.75; // speakers overhead: don't blast
     const tc = instant ? 0.01 : 0.35;
+    if (s.cls === 'music') { const m = this.sys.ambience && this.sys.ambience.mood; if (m && MUSIC_K[m] != null && !inside) g *= MUSIC_K[m]; }
     v.em.fade(v.base * g, instant ? 0.01 : 0.6);
     v.em.setLP(lp, tc);
   }
@@ -197,17 +201,16 @@ export class Sources {
       if (ring) {
         const pos = { x: b.door.x, y: LEVELS[b.level].y + 2.3, z: b.door.z };
         this.mixer.play('chime:conbini', { bus: 'sfx', pos, gain: 0.5, send: 0.3, ref: 2.5, lp: L.level === b.level ? 16000 : 500 });
-        if (this.rand() < 0.7) {
+        if (this.rand() < 0.5) {
           const g = IRASSHAI[this.rand() < 0.85 ? 0 : 1];
-          const inner = { x: b.x, y: LEVELS[b.level].y + 1.5, z: b.z };
-          if (this.sys.announcer) this.sys.announcer.say({ kind: 'shop', parts: [{ lang: 'ja', text: g.ja }], pos: inner, gain: 0.5, ref: 2, send: 0.25, caption: false, positional: true, gender: this.rand() < 0.5 ? 'm' : 'f', seed: 11 + Math.floor(this.rand() * 3), speech: false });
+          const inner = { x: v.s.x, y: LEVELS[b.level].y + 1.5, z: v.s.z };
+          if (this.sys.announcer) this.sys.announcer.say({ kind: 'shop', parts: [{ lang: 'ja', text: g.ja }], pos: inner, gain: 0.55, ref: 2.5, caption: false, cooldown: 10, sameLevel: true });
         }
       }
     }
   }
 
-  // escalator safety announcements: loop (ja/en alternating) from the landing
-  // speaker while you're near the bank
+  // escalator safety announcements (JA then EN, spoken) from the landing speaker while you're near the bank
   _escAnnounce(dt, L) {
     const ann = this.sys.announcer; if (!ann) return;
     let best = null, bd = 1e9;
@@ -218,20 +221,16 @@ export class Sources {
     }
     const onEsc = L.ramp && L.ramp.kind === 'escalator';
     if (onEsc) { for (const v of this.live.values()) if (v.s.bank === (L.ramp.bank || L.ramp.id)) { best = v; bd = 2; break; } }
-    if (!best || bd > 14) return;
+    if (!best || bd > 12) return;
     const k = best.s.bank;
-    const st = this.escState.get(k) || { next: 0.8, lang: 'ja', captioned: false, v: Math.floor(this.rand() * ESCALATOR_LINES.length) };
+    const st = this.escState.get(k) || { next: 1.5, v: Math.floor(this.rand() * ESCALATOR_LINES.length) };
     st.next -= dt;
+    // one safety line (JA then EN) per visit to the landing, then every ~50 s while you stay: spoken, never looped babble
     if (st.next <= 0 && !ann.busyWith('escalator') && (!ann.cur || ann.cur.prio > 3)) {
       const E = ESCALATOR_LINES[st.v % ESCALATOR_LINES.length];
-      const p = st.lang === 'ja' ? { lang: 'ja', text: E.ja } : { lang: 'en', text: E.en };
-      ann.say({ kind: 'escalator', parts: [p], pos: { x: best.s.x, y: best.s.y + 0.7, z: best.s.z }, gain: 0.5, ref: 2.2, send: 0.35, lp: 5000, positional: true, caption: st.capV !== st.v, chime: st.lang === 'ja' ? 'esc' : null, seed: 7 });
-      st.captioned = true; st.capV = st.v;
-      if (st.lang === 'en') st.v++; // next time round: a different line
-      st.lang = st.lang === 'ja' ? 'en' : 'ja';
-      st.next = st.lang === 'en' ? 1.5 : 9 + this.rand() * 4;
-      // queue the next part right after this one finishes: next counts from now
-      st.next += (p.lang === 'ja' ? 7.5 : 6.5);
+      ann.say({ kind: 'escalator', parts: [{ lang: 'ja', text: E.ja }, { lang: 'en', text: E.en }], pos: { x: best.s.x, y: best.s.y + 0.7, z: best.s.z }, ref: 3, gain: 0.7, sameLevel: true, chime: 'esc', caption: true, maxAge: 6, distant: true });
+      st.v++;
+      st.next = 50 + this.rand() * 20;
     }
     this.escState.set(k, st);
   }

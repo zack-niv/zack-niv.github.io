@@ -90,7 +90,7 @@ export const FEATURED_BUILD = {
   coffee_chain(S) {
     const P = S.inner, R = S.R, W = S.W;
     const logo = R.litLabel('MOCCA REST  since 1999', '#1f4d3a', '#ffffff', 384, 64);
-    P.tq(logo, W / 2 - 1.2, W / 2 + 1.2, 2.2, 2.6, S.D - 0.04 - (S.D > 16 ? S.D - 15 : 0), -1);
+    P.tq(logo, W / 2 - 1.2, W / 2 + 1.2, 2.2, 2.6, (S.backD || (S.D > 16 ? 15 : S.D)) - 0.05, -1);
     const ban = R.banner(['AUTUMN', 'マロンラテ 新登場 ¥580'], '#7a4a1e', '#ffffff');
     if (S.outside(0.4, 1.0, -0.9, -0.5, 2.5)) { S.front.box('env_metal', 0.68, 0.72, 0, 1.6, -0.72, -0.68, [0.3, 0.3, 0.3]); S.front.tq(ban, 0.3, 1.1, 1.3, 1.6, -0.73, -1); }
   },

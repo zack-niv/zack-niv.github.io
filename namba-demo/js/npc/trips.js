@@ -121,8 +121,8 @@ export class Director {
     a.patience = 0.5 + r();
     a.phoneUser = r() < P.phone ? 0.4 + r() * 0.6 : r() * 0.3;
     a.phoneWalk = a.phoneUser > 0.82 && kind !== 'elderly' && kind !== 'child';
-    // lane preference: spread across the corridor, slight keep-right bias
-    a.laneOff = clamp(gaussR(r) * 1.1 + 0.35, -2.2, 2.4);
+    // lane preference: spread across the corridor, slight keep-LEFT bias (+ = right of travel)
+    a.laneOff = clamp(gaussR(r) * 1.1 - 0.35, -2.4, 2.2);
     a.jx = (r() - 0.5) * 0.6; a.jz = (r() - 0.5) * 0.6;
     a.look = makeLook(kind, r, o.look || {});
     a.flags = a.look.flags;

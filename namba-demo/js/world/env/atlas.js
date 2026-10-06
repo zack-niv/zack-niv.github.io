@@ -15,11 +15,11 @@
 // =============================================================================
 import * as THREE from 'three';
 
-const PAD = 4;
+const PAD = 4;      // default gutter between regions (px); posters use 8
 
 export class Atlas {
-  constructor(name, { size = 2048, lit = false, glow = 1.6, boost = 0.22 } = {}) {
-    this.name = name; this.size = size; this.lit = lit; this.glow = glow; this.boost = boost;
+  constructor(name, { size = 2048, lit = false, glow = 1.6, boost = 0.22, pad = PAD, aniso = 8 } = {}) {
+    this.name = name; this.size = size; this.pad = pad; this.aniso = aniso; this.lit = lit; this.glow = glow; this.boost = boost;
     this.pages = []; this.cache = new Map();
     this._newPage();
   }
@@ -30,7 +30,7 @@ export class Atlas {
     g.fillStyle = '#808080'; g.fillRect(0, 0, this.size, this.size);
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 8;
+    tex.anisotropy = this.aniso;
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     let mat;
@@ -40,7 +40,7 @@ export class Atlas {
       mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.62, metalness: 0, emissiveMap: tex, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: this.boost });
     }
     mat.name = `${this.name}_${this.pages.length}`;
-    const page = { canvas: c, g, tex, mat, shelves: [], nextY: PAD, used: 0 };
+    const page = { canvas: c, g, tex, mat, shelves: [], nextY: this.pad, used: 0 };
     this.pages.push(page);
     return page;
   }
@@ -58,6 +58,7 @@ export class Atlas {
     return r;
   }
   _pack(w, h, draw, key) {
+    const PAD = this.pad;
     let page = null, shelf = null;
     for (const pg of this.pages) {
       for (const sh of pg.shelves) if (sh.h >= h && sh.h <= h * 1.3 + 4 && sh.x + w + PAD <= this.size && (!shelf || sh.h < shelf.h)) { shelf = sh; page = pg; }
@@ -76,12 +77,14 @@ export class Atlas {
     g.translate(x, y);
     try { draw(g, w, h); } catch (e) { console.warn('[atlas] draw failed', key, e); }
     g.restore();
-    // bleed edge pixels into the padding (mip filtering)
+    // bleed edge pixels into the padding (mip filtering): up to half the gutter on each side so neighbours never
+    // leak in until mip level ~log2(pad/2)+1
     try {
-      g.drawImage(page.canvas, x, y, w, 1, x, y - 2, w, 2);
-      g.drawImage(page.canvas, x, y + h - 1, w, 1, x, y + h, w, 2);
-      g.drawImage(page.canvas, x, y - 2, 1, h + 4, x - 2, y - 2, 2, h + 4);
-      g.drawImage(page.canvas, x + w - 1, y - 2, 1, h + 4, x + w, y - 2, 2, h + 4);
+      const B = Math.max(2, PAD >> 1);
+      g.drawImage(page.canvas, x, y, w, 1, x, y - B, w, B);
+      g.drawImage(page.canvas, x, y + h - 1, w, 1, x, y + h, w, B);
+      g.drawImage(page.canvas, x, y - B, 1, h + 2 * B, x - B, y - B, B, h + 2 * B);
+      g.drawImage(page.canvas, x + w - 1, y - B, 1, h + 2 * B, x + w, y - B, B, h + 2 * B);
     } catch (e) { /* ignore */ }
     page.tex.needsUpdate = true;
     const S = this.size;

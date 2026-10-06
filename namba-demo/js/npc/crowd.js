@@ -24,6 +24,8 @@
 import { CrowdSim, POSE, MODE } from './sim.js';
 import { Behave } from './behave.js';
 import { CrowdRenderer } from './render.js';
+import { CrowdRendererV1 } from './render_v1.js';
+import { loadHumanLibrary } from './humans.js';
 
 const POSE_NAME = Object.fromEntries(Object.entries(POSE).map(([k, v]) => [v, k.toLowerCase()]));
 
@@ -52,8 +54,14 @@ export class Crowd {
       }
       return true;
     };
-    this.renderer = new CrowdRenderer(ctx, this.sim);
-    this.renderer.init();
+    // people: rigged glTF humans (v2); the procedural v1 figures are the fallback if the models can't load
+    let lib = null;
+    if (!(ctx.params.has && ctx.params.has('v1crowd'))) {
+      try { lib = await loadHumanLibrary(ctx); } catch (e) { console.warn('[crowd] human models unavailable, using procedural people', e); lib = null; }
+    }
+    this.humans = lib;
+    try { this.renderer = lib ? new CrowdRenderer(ctx, this.sim, lib) : new CrowdRendererV1(ctx, this.sim); this.renderer.init(); }
+    catch (e) { console.warn('[crowd] renderer v2 failed, falling back to v1', e); this.renderer = new CrowdRendererV1(ctx, this.sim); this.renderer.init(); }
     const E = ctx.events;
     E.on('train:arrive', (ev) => { try { this.behave.director.onTrainArrive(ev || {}, true); } catch (e) { console.warn('[crowd] train:arrive', e); } });
     E.on('player:teleport', () => { if (this.behave) { this.behave.director.burst = 1; this.behave.director._dkT = 0; } });

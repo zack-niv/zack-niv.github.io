@@ -5,9 +5,12 @@
 //         notice board, fire-extinguisher recess
 //   wear  4x4 cells of 128 px: darkening decals (scuffs, gum, heel marks, grime)
 // Cell i: col = i % 4, row = (i / 4) | 0, row 0 at the top of the canvas.
+// v2: cells are DESIGNED at 128 units but rasterised at K = 2 (256 px per cell, 1024 px canvas): the hose cabinets,
+// exit signs, notice boards... are read from 1-2 m, where 128 px over 0.74 m was a smear.
 // cellUV(i) returns [u0, v0, u1, v1] for a canvas texture with flipY = true.
 // =============================================================================
 const C = 128;
+const K = 2;           // raster scale (px per design unit)
 
 export function cellUV(i, inset = 0.004) {
   const c = i % 4, r = (i / 4) | 0;
@@ -44,10 +47,10 @@ function runner(g, x, y, s) {
 }
 
 export function kitCanvas() {
-  const cv = mk(C * 4, C * 4);
+  const cv = mk(C * 4 * K, C * 4 * K);
   const g = cv.getContext('2d');
   if (!g) return cv;
-  const cell = (i, fn) => { const x = (i % 4) * C, y = ((i / 4) | 0) * C; g.save(); g.translate(x, y); g.beginPath(); g.rect(0, 0, C, C); g.clip(); fn(); g.restore(); };
+  const cell = (i, fn) => { const x = (i % 4) * C, y = ((i / 4) | 0) * C; g.save(); g.scale(K, K); g.translate(x, y); g.beginPath(); g.rect(0, 0, C, C); g.clip(); fn(); g.restore(); };
   g.textAlign = 'center'; g.textBaseline = 'middle';
   // 0 fire hose cabinet (消火栓): red enamel door, white frame, label
   cell(KIT.HOSE, () => {

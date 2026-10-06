@@ -35,8 +35,11 @@ function boosted(m, boost) {
 }
 
 function woodTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
+  // v2: designed at 256, rasterised at 512 (x2) so floors and counters hold up at 1-2 m
+  const K = 2;
+  const c = document.createElement('canvas'); c.width = c.height = 256 * K;
   const g = c.getContext('2d');
+  g.scale(K, K);
   g.fillStyle = '#c8a27a'; g.fillRect(0, 0, 256, 256);
   let s = 7;
   const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
@@ -49,17 +52,19 @@ function woodTexture() {
     g.stroke();
   }
   const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
 function tileTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const K = 2;
+  const c = document.createElement('canvas'); c.width = c.height = 128 * K;
   const g = c.getContext('2d');
+  g.scale(K, K);
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 128);
   g.fillStyle = 'rgba(0,0,0,0.18)';
   g.fillRect(0, 0, 128, 2); g.fillRect(0, 0, 2, 128); g.fillRect(0, 63, 128, 2); g.fillRect(63, 0, 2, 128);
   const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
 function shutterTexture() {

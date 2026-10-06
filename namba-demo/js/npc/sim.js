@@ -3,9 +3,12 @@
 //
 // Agents follow destination-keyed flow fields, smoothed by look-ahead and a
 // per-agent lane offset, with social-force/anticipatory avoidance on a uniform
-// spatial hash. Escalators: stand on the RIGHT, walk on the LEFT, admission
-// intervals per lane produce queues at the mouths during surges. Ticket gates:
-// lanes chosen by proximity + load, one passenger per lane at a time.
+// spatial hash. Escalators: keep LEFT (standers on the left, walkers pass on
+// the right; ESC_STAND_SIDE), admission intervals per lane; people waiting for
+// a lane line up single file behind its mouth instead of clumping. Ticket
+// gates: lanes chosen by proximity + load, one passenger per lane at a time.
+// The player is a moving obstacle everybody anticipates: people sidestep early
+// (keeping left), slow down close by and never overlap the player.
 //
 // LOD: tier 0 (near the player): every frame, full steering. tier 1 (visible
 // range): every 2nd frame. tier 2 (elsewhere): every 4th frame, node hopping
@@ -17,8 +20,12 @@ import { rampProfile, LEVELS } from '../world/layout.js';
 import { rng } from '../core/rng.js';
 
 export const MODE = { NONE: 0, FIELD: 1, PATH: 2, STAND: 3, RIDE: 4, GATE: 5, FOLLOW: 6 };
-export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12 };
+export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12, NOD: 13, SERVE: 14 };
 const TWO_PI = Math.PI * 2;
+// v2: Japanese stations ask people to keep LEFT (stand on the left of escalators, pass on the right).
+// (Osaka itself traditionally stands on the right; flip to +1 for that.)
+export const ESC_STAND_SIDE = -1;
+const PLAYER_R = 0.62;     // nobody comes closer to the player's centre than this
 
 export class Agent {
   constructor(i) {
@@ -74,7 +81,7 @@ export class CrowdSim {
     a.legs = null; a.leg = 0; a.st = 0; a.t = 0; a.t2 = 0; a.d = null; a.fade = 0; a.fadeDir = 1; a.vx = a.vz = 0; a.spd = 0;
     a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
     a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0;
-    a.lastUpd = this.time; a.tier = 2; a.handHold = false;
+    a.lastUpd = this.time; a.tier = 2; a.handHold = false; a.rampQ = null; a._slot = null;
     this.count++;
     return a;
   }
@@ -83,6 +90,7 @@ export class CrowdSim {
     if (this.behave) this.behave.cleanup(a);
     if (a.gate && a.lane >= 0) { a.gate.load[a.lane] = Math.max(0, a.gate.load[a.lane] - 1); if (a.gstage === 1) a.gate.occDir[a.lane] = 0; }
     if (a.ramp >= 0) this._leaveRide(a);
+    if (a.rampQ) this._rampDequeue(a);
     if (a.en) { this.fields.unref(a.en); a.en = null; }
     if (a.followers) { for (const f of a.followers) if (f.alive && f.leader === a) { f.leader = null; this.kill(f); } a.followers = null; }
     if (a.leader && a.leader.followers) { const fl = a.leader.followers; const k = fl.indexOf(a); if (k >= 0) fl.splice(k, 1); }
@@ -96,7 +104,7 @@ export class CrowdSim {
   }
   setField(a, en, arriveM = 1.0) {
     if (a.en !== en) { if (a.en) this.fields.unref(a.en); a.en = en; if (en) this.fields.ref(en); }
-    a.arriveDm = arriveM * 10; a.mode = MODE.FIELD; a.aimT = 0; a.rampNext = -1;
+    a.arriveDm = arriveM * 10; a.mode = MODE.FIELD; a.aimT = 0; a.rampNext = -1; if (a.rampQ) this._rampDequeue(a);
   }
   setPath(a, pts, arriveR = 0.35) { a.path = pts; a.pi = 0; a.mode = MODE.PATH; a.arriveR = arriveR; }
   goTo(a, x, z, rect, arriveR = 0.35) {
@@ -406,39 +414,56 @@ export class CrowdSim {
     let u;
     if (R.esc) {
       a.walkLane = a.hurry > 0.62 && !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
-      u = a.walkLane ? -0.24 : 0.24;
+      u = (a.walkLane ? -0.24 : 0.24) * ESC_STAND_SIDE; // +u = right of travel
     } else {
       a.walkLane = true;
       const hw = Math.max(0.3, R.hw - 0.3);
-      u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? 1 : -1);
+      u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? ESC_STAND_SIDE : -ESC_STAND_SIDE); // stairs: keep left too
     }
     a.rampU = u;
     a.aimX = end.x + end.dx * 0.45 + rx * u; a.aimZ = end.z + end.dz * 0.45 + rz * u;
+    a.rampAimX = a.aimX; a.rampAimZ = a.aimZ;
+    // single-file queue per lane and end
+    const qk = (fromLow ? 'qL' : 'qH') + (R.esc ? (a.walkLane ? 'w' : 's') : '');
+    this._rampDequeue(a);
+    a.rampQ = (R[qk] = R[qk] || []); a.rampQ.push(a);
+  }
+  _rampDequeue(a) {
+    const q = a.rampQ;
+    if (q) { const k = q.indexOf(a); if (k >= 0) q.splice(k, 1); }
+    a.rampQ = null;
   }
   _rampApproach(a, dt) {
     const R = this.places.ramps[a.rampNext];
     const end = a.rampFromLow ? R.ends.low : R.ends.high;
+    // waiting: stand in line behind the people ahead of us (rank in this lane's queue), not in a blob
+    const q = a.rampQ;
+    let rank = 0;
+    if (q) { for (let i = 0; i < q.length && q[i] !== a; i++) { const b = q[i]; if (b.alive && b.rampNext === a.rampNext && Math.hypot(b.x - a.rampAimX, b.z - a.rampAimZ) < 7) rank++; } }
+    a.aimX = a.rampAimX + end.dx * 0.66 * rank; a.aimZ = a.rampAimZ + end.dz * 0.66 * rank;
     const dx = a.aimX - a.x, dz = a.aimZ - a.z, l = Math.hypot(dx, dz);
     // distance to the end line along the ramp axis
     const along = (a.x - end.x) * end.dx + (a.z - end.z) * end.dz;
     const lat = Math.abs((a.x - a.aimX) * -end.dz + (a.z - a.aimZ) * end.dx);
     a.queueing = l < 4.5;
-    if ((l < 0.35 || (along < 0.6 && lat < 0.3)) || a.tier === 2) {
+    if ((rank === 0 && (l < 0.35 || (along < 0.6 && lat < 0.3))) || a.tier === 2) {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
-        if (a.walkLane) R.nextWalk = this.time + 0.62 + this.rnd() * 0.25; else R.nextStand = this.time + 0.95 + this.rnd() * 0.45;
+        if (a.walkLane) R.nextWalk = this.time + 0.55 + this.rnd() * 0.18; else R.nextStand = this.time + 0.78 + this.rnd() * 0.3;
       }
       this._startRide(a);
       return;
     }
-    if (l > 14) { a.rampNext = -1; a.aimT = 0; return; } // pushed away; re-plan
+    if (l > 14 + rank * 0.7) { this._rampDequeue(a); a.rampNext = -1; a.aimT = 0; return; } // pushed away; re-plan
     let sp = a.pref;
-    if (l < 2.5) sp *= Math.max(0.5, l / 2.5);
+    if (l < 2.5) sp *= Math.max(rank > 0 ? 0.0 : 0.5, l / 2.5);
+    if (rank > 0 && l < 0.3) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
     this._steer(a, dx / l * sp, dz / l * sp, dt);
   }
   _startRide(a) {
     const R = this.places.ramps[a.rampNext];
+    this._rampDequeue(a);
     a.ramp = a.rampNext; a.rampNext = -1; a.queueing = false;
     a.rs = a.rampFromLow ? 0 : 1; a.rdir = a.rampFromLow ? 1 : -1;
     a.ru = a.rampU;
@@ -606,7 +631,7 @@ export class CrowdSim {
         if (t > 0 && t < 2.2) {
           let cx = dx + wx * t, cz = dz + wz * t, c = Math.hypot(cx, cz);
           if (c < 0.78) {
-            if (c < 0.08) { cx = hz * 0.08; cz = -hx * 0.08; c = 0.08; }
+            if (c < 0.08) { cx = -hz * 0.08; cz = hx * 0.08; c = 0.08; } // dead ahead: both keep left
             const s = (1 - t / 2.2) * (0.78 - c) / 0.78 * 1.5;
             fx -= cx / c * s; fz -= cz / c * s;
           }
@@ -623,29 +648,51 @@ export class CrowdSim {
         }
       }
     });
-    // the player
+    // the player: a moving obstacle everyone anticipates. Sidestep early (keep left), slow down close by,
+    // never push through. (Hard separation after the move below.)
     const V = this.viewer;
+    let nearPlayer = false;
     if (V.has && V.level === a.level && V.ramp < 0) {
       const dx = V.x - a.x, dz = V.z - a.z, d2 = dx * dx + dz * dz;
-      if (d2 < 9) {
+      if (d2 < 49) {
+        nearPlayer = true;
         const d = Math.sqrt(d2) || 1e-3;
-        if (d < 0.75) { const k = (0.75 - d) / 0.75 * 3.2; fx -= dx / d * k; fz -= dz / d * k; }
-        const ahead = dx * hx + dz * hz, lat = dx * hz - dz * hx;
-        if (!standing && ahead > 0 && ahead < 2.4 && Math.abs(lat) < 0.75) {
-          // step around the player; prefer passing on the left of them (keep right)
-          const side = lat > 0.12 ? -1 : lat < -0.12 ? 1 : (a.i & 1 ? 1 : -1);
-          const s = (1 - ahead / 2.4) * 1.5;
-          fx += -hz * side * s; fz += hx * side * s;
-          const pspd = Math.hypot(V.vx, V.vz);
-          if (ahead < 1.2 && Math.abs(lat) < 0.5 && pspd < 0.4) {
-            a.blockT += dt;
-            if (a.blockT > 0.25 && a.lookT <= 0) this.lookAt(a, V.x, V.z, 1.6);
-            if (a.blockT > 0.75 && this.time > a.excuseT && this.time > this._excuseGlobal) {
-              a.excuseT = this.time + 12; this._excuseGlobal = this.time + 2.2;
-              if (this.events) this.events.emit('crowd:excuse', { level: a.level, x: a.x, y: a.y + 1.55 * (a.look ? a.look.h : 1), z: a.z, ja: 'すみません', en: 'Excuse me', kind: a.kind, female: a.look ? a.look.female : false });
+        // personal space (stronger than between strangers)
+        if (d < 1.05) { const k = (1.05 - d) / 1.05 * (standing ? 2.2 : 3.4); fx -= dx / d * k; fz -= dz / d * k; }
+        const pspd = Math.hypot(V.vx, V.vz);
+        if (!standing) {
+          // anticipatory: time to closest approach with the player's real velocity, bigger radius, longer horizon
+          const wx = V.vx - avx, wz = V.vz - avz, w2 = wx * wx + wz * wz;
+          if (w2 > 0.02) {
+            const t = -(dx * wx + dz * wz) / w2;
+            if (t > 0 && t < 3.5) {
+              let cx = dx + wx * t, cz = dz + wz * t, c = Math.hypot(cx, cz);
+              if (c < 1.15) {
+                // head-on: pick the side so that we pass keeping left (or whichever side the player is not on)
+                if (c < 0.12) { const lat0 = dx * hz - dz * hx; const sd = lat0 > 0.05 ? 1 : lat0 < -0.05 ? -1 : -1; // +1 = steer right cx = hz * sd * 0.12; cz = -hx * sd * 0.12; c = 0.12; }
+                const sgain = (1 - t / 3.5) * (1.15 - c) / 1.15 * 2.6;
+                fx -= cx / c * sgain; fz -= cz / c * sgain;
+              }
             }
-            cap = Math.min(cap, 0.25);
-          } else a.blockT = Math.max(0, a.blockT - dt);
+          }
+          const ahead = dx * hx + dz * hz, lat = dx * hz - dz * hx;
+          if (ahead > 0 && ahead < 5 && Math.abs(lat) < 1.1) {
+            // the player is in our lane: drift to the free side early (default: our left)
+            // (lat > 0: the player is on our left; +side steers right)
+            const side = lat > 0.15 ? 1 : lat < -0.15 ? -1 : -1;
+            const sgain = (1 - ahead / 5) * 1.6;
+            fx += -hz * side * sgain; fz += hx * side * sgain;
+            // and slow down when close in front
+            if (ahead < 2.4) cap = Math.min(cap, Math.max(0.15, (ahead - 0.7) * 0.75 + (pspd > 0.4 ? 0.25 : 0)));
+            if (ahead < 1.3 && Math.abs(lat) < 0.55 && pspd < 0.4) {
+              a.blockT += dt;
+              if (a.blockT > 0.25 && a.lookT <= 0) this.lookAt(a, V.x, V.z, 1.6);
+              if (a.blockT > 0.9 && this.time > a.excuseT && this.time > this._excuseGlobal) {
+                a.excuseT = this.time + 12; this._excuseGlobal = this.time + 2.2;
+                if (this.events) this.events.emit('crowd:excuse', { level: a.level, x: a.x, y: a.y + 1.55 * (a.look ? a.look.h : 1), z: a.z, ja: 'すみません', en: 'Excuse me', kind: a.kind, female: a.look ? a.look.female : false });
+              }
+            } else a.blockT = Math.max(0, a.blockT - dt);
+          }
         }
         // glance at the player when passing close
         if (d < 2.2 && a.lookT <= 0 && ((a.serial * 7 + Math.floor(this.time)) % 9) === 0) this.lookAt(a, V.x, V.z, 1.0);
@@ -665,7 +712,17 @@ export class CrowdSim {
     }
     if (standing && s < 0.08) { a.vx = 0; a.vz = 0; }
     const ox = a.x, oz = a.z;
-    this.col.move(a, a.vx * dt, a.vz * dt, 0.24);
+    let mx = a.vx * dt, mz = a.vz * dt;
+    if (nearPlayer) {
+      // never step into the player (or let them overlap us): keep PLAYER_R from their centre
+      const px = a.x + mx - V.x, pz = a.z + mz - V.z, pd = Math.hypot(px, pz);
+      if (pd < PLAYER_R) {
+        const k = (PLAYER_R - pd) / Math.max(1e-3, pd);
+        mx += px * k; mz += pz * k;
+        if (pd < 1e-3) { mx += -hz * 0.05; mz += hx * 0.05; }
+      }
+    }
+    this.col.move(a, mx, mz, 0.24);
     const mvx = (a.x - ox) / dt, mvz = (a.z - oz) / dt;
     a.spd = Math.hypot(mvx, mvz);
     // keep velocity consistent with what actually happened (walls)

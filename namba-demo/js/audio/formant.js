@@ -1,11 +1,9 @@
 // =============================================================================
-// Formant "PA voice" synthesizer (worker-safe). Turns Japanese kana (and, more
-// roughly, English text) into a mora-timed formant voice with announcer
-// prosody, then bakes a public-address chain (horn-speaker band-limit, mild
-// distortion). Not intelligible — but rhythm, intonation, devoicing and timbre
-// are those of a Japanese station announcement, so heard through a platform's
-// reverb it reads unmistakably as "the PA".
-// Also used (summed, unfiltered) to build crowd walla.
+// Formant voice synthesizer (worker-safe) — NOT used for any spoken line any
+// more (the PA, shop calls and "sumimasen" use real speechSynthesis voices; see
+// announcer.js). Its only remaining job is `walla` at the bottom: many quiet
+// voices summed and low-passed into the unintelligible murmur of a crowd, which
+// is a texture, not speech.
 // =============================================================================
 import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js';
 

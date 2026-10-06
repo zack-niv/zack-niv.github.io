@@ -16,7 +16,8 @@
 // with our own bilingual announcements (phrases.js).
 // =============================================================================
 import { LAYOUT, LEVELS } from '../world/layout.js';
-import { approach, arrival, doorsClosing, departure } from './phrases.js';
+import { approach, arrival, doorsClosing, departure, firstSentences } from './phrases.js';
+import { platformGain, platformOf } from './zones.js';
 
 const MEL = { midosuji: 'mel:midosuji', sennichimae: 'mel:sennichimae' };
 const V0 = 16, TB = 14; // fallback: m/s entry speed, braking time (s)
@@ -89,27 +90,19 @@ export class Trains {
     this.prefetch();
     return s.ems;
   }
+  // how audible this train's platform is from where the listener stands (zones.js): 1 on the platform, ~0.2 on the
+  // concourse directly above it, 0 elsewhere. Everything a train makes (and its PA) is scaled by this.
   _hears(s) {
     const L = this.sys.L; if (!L) return 0;
-    if (L.level === s.g.level) return 1;
-    const dy = Math.abs(LEVELS[L.level].y - LEVELS[s.g.level].y);
-    return dy <= 7 ? 0.3 : 0;
+    if (s.plat === undefined) s.plat = LAYOUT.spaces.find(sp => sp.id === s.tr.platform) || null;
+    return platformGain(s.plat, L);
   }
-  _nearPlatform(tr) {
-    const L = this.sys.L; if (!L || !tr) return false;
-    const z = LAYOUT.spaces.find(s => s.id === tr.platform);
-    return L.zone === (z && z.zone) && Math.abs(LEVELS[L.level].y - LEVELS[tr.level].y) <= 7;
+  _pgTr(tr) {
+    const L = this.sys.L; if (!L || !tr) return 0;
+    const sp = LAYOUT.spaces.find(x => x.id === tr.platform);
+    return platformGain(sp, L);
   }
-  // where the listener stands relative to a train's platform: 1 on it (or anywhere in an open Nankai shed), less elsewhere on the level
-  _occ(s, L) {
-    const tr = s.tr;
-    if (s.plat === undefined) s.plat = LAYOUT.spaces.find(sp => sp.id === tr.platform) || null;
-    const pz = s.plat && s.plat.zone;
-    if (L.space && L.space.id === tr.platform) return 1;
-    if (L.level !== s.g.level) return 1; // handled by _hears
-    if (pz && L.zone === pz) return s.g.terminal ? 1 : 0.65;
-    return 0.4;
-  }
+  _nearPlatform(tr) { return this._pgTr(tr) > 0.06; }
   // platform screen doors: closed -> the train in the tunnel is muffled; they open with the train doors
   _psd(s, now) {
     if (s.psdAt === undefined || now - s.psdAt > 0.2) {
@@ -123,12 +116,13 @@ export class Trains {
     return s.psdV;
   }
   _say(item) { if (this.sys.announcer) this.sys.announcer.say(item); }
+  _plat(tr) { return LAYOUT.spaces.find(x => x.id === tr.platform) || null; }
   _fx(s, name, gain, delay = 0, bus = 'sfx', at = null) {
     const buf = this.bank.peek(name);
     if (!buf) { this.bank.get(name, 2); return; }
     const em = this._ensureEms(s).fx;
     const when = this.ac.currentTime + delay;
-    if (bus === 'voice' || at) this.mixer.play(buf, { bus, pos: at || em.pos || { x: 0, y: s.g.y, z: 0 }, gain: gain * (bus === 'voice' ? 1.2 : this._hears(s)), send: 0.6, ref: 4, when, lp: this._hears(s) < 1 ? 500 : undefined });
+    if (bus === 'voice' || at) this.mixer.play(buf, { bus, pos: at || em.pos || { x: 0, y: s.g.y, z: 0 }, gain: gain * (bus === 'voice' ? 1.2 : 1) * this._hears(s), send: 0.6, ref: 4, when, lp: this._hears(s) < 0.9 ? 500 : undefined });
     else em.oneShot(buf, { gain: gain * this._hears(s), when });
   }
   _key(e) { return e.trainId || (this.track(e) || {}).id; }
@@ -149,12 +143,13 @@ export class Trains {
     if (!this._nearPlatform(tr)) return;
     if (tr.line !== 'nankai') {
       const mel = MEL[tr.line];
-      if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.5, send: 0.9, wait: true, prio: 1 });
+      const pg = this._pgTr(tr);
+      if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.5 * pg, send: 0.9, wait: true, prio: 1 });
       const a = approach(tr);
-      setTimeoutAudio(this.ac, 5.5, () => this._say({ kind: 'train', parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }], gain: 0.85, send: 0.9, seed: tr.line === 'midosuji' ? 3 : 4 }));
+      setTimeoutAudio(this.ac, 5.5, () => this._say({ kind: 'train', platform: this._plat(tr), parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }] }));
     } else {
-      const a = { ja: `まもなく、${tr.no}番線に、電車がまいります。`, en: `A train is now arriving at track ${tr.no}.` };
-      this._say({ kind: 'train', chime: 'pa', parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }], gain: 0.8, send: 0.8, seed: 6 });
+      const a = approach(tr);
+      this._say({ kind: 'train', chime: 'pa', platform: this._plat(tr), parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }] });
     }
   }
   onArrive(e) {
@@ -173,7 +168,7 @@ export class Trains {
     if (tr.line !== 'nankai') this._fx(s, 'chime:door', 0.3, 0, 'voice', d);
     if (!this.live && this._nearPlatform(tr)) {
       const a = arrival(tr);
-      setTimeoutAudio(this.ac, 1.5, () => this._say({ kind: 'station', parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }], gain: 0.8, send: 0.9, seed: 3 }));
+      setTimeoutAudio(this.ac, 1.5, () => this._say({ kind: 'station', platform: this._plat(tr), parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }] }));
       const dwell = +e.dwell || 0;
       if (dwell > 14 && tr.line === 'nankai') setTimeoutAudio(this.ac, dwell - 12, () => this._melody(s));
     }
@@ -186,8 +181,8 @@ export class Trains {
   _melody(s) {
     if (s.melodyDone || !this._nearPlatform(s.tr)) return;
     s.melodyDone = true;
-    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.55, send: 0.7, wait: true, prio: 1 });
-    if (!this.live) { const d = departure(s.tr); this._say({ kind: 'train', parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }], gain: 0.75, send: 0.9, seed: 4 }); }
+    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.55 * this._hears(s), send: 0.7, wait: true, prio: 1 });
+    if (!this.live) { const d = departure(s.tr); this._say({ kind: 'train', platform: this._plat(s.tr), delay: 5, parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }] }); }
   }
   onClosing(e) {
     const tr = this.track(e); if (!tr) return;
@@ -199,7 +194,7 @@ export class Trains {
     if (!this.live && this._nearPlatform(tr)) {
       this._fx(s, 'chime:door', 0.4, 0, 'voice');
       const d = doorsClosing();
-      this._say({ kind: 'station', parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }], gain: 0.75, send: 0.9, seed: 3 });
+      this._say({ kind: 'station', platform: this._plat(tr), parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }] });
     }
   }
   onDepart(e) {
@@ -215,32 +210,38 @@ export class Trains {
   }
   onAnnounce(e) {
     if (!e || !this.sys.announcer) return;
+    const ja = firstSentences(e.textJa || e.ja, 'ja', 2), en = firstSentences(e.textEn || e.text, 'en', 2);
     const parts = [];
-    const ja = e.textJa || e.ja, en = e.textEn || e.text;
     if (ja) parts.push({ lang: 'ja', text: ja });
     if (en) parts.push({ lang: 'en', text: en });
     if (!parts.length) return;
-    const L = this.sys.L;
-    let gain = 0.85;
-    const p = e.position || (e.x != null ? { x: e.x, y: e.y, z: e.z } : null);
-    if (L && p) {
-      const d = Math.hypot((p.x ?? L.x) - L.x, (p.z ?? L.z) - L.z);
-      if (d > 170) return;
-      gain *= Math.max(0.25, 1 - d / 190);
+    const L = this.sys.L; if (!L) return;
+    // where is this PA audible? train lines belong to their platform: loud on it, faint on the concourse above, silent elsewhere
+    const plat = platformOf(e);
+    let pg = 1, gate = {};
+    if (plat) { pg = platformGain(plat, L); gate = { platform: plat }; }
+    else {
+      const p = e.position || (e.x != null ? { x: e.x, y: e.y, z: e.z } : null);
+      if (p) { gate = { pos: p, ref: 12, sameLevel: true }; pg = Math.min(1, 12 / Math.max(1, Math.hypot((p.x ?? L.x) - L.x, (p.z ?? L.z) - L.z))); }
     }
-    let lp;
-    if (L && e.level && LEVELS[e.level] && e.level !== L.level) { const dy = Math.abs(LEVELS[e.level].y - LEVELS[L.level].y); if (dy > 7) return; gain *= 0.4; lp = 900; }
+    if (pg < 0.06) return;
     const tr = this.track(e);
-    // sound hints → melodies / chimes
+    // sound hints → melodies / chimes (scaled by how audible the platform is)
     let chime = 'pa';
     const snd = e.sound || '';
-    if (snd === 'metro_approach') { chime = null; const mel = MEL[e.line]; if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.55 * gain, send: 0.9, wait: true, prio: 1, lp }); }
+    if (snd === 'metro_approach') { chime = null; const mel = MEL[e.line]; if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.55 * pg, send: 0.9, wait: true, prio: 1 }); }
     else if (snd === 'metro_arrive') chime = null;
-    else if (snd === 'metro_door_chime') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); this._fx(s, 'chime:door', 0.45 * gain, 0, 'voice'); } }
-    else if (snd === 'nankai_melody') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); s.melodyDone = false; this._melody(s); } }
+    else if (snd === 'metro_door_chime') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); this._fx(s, 'chime:door', 0.45, 0, 'voice'); } }
+    else if (snd === 'nankai_melody') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); s.melodyDone = false; this._melodyOnly(s); } }
     const kind = e.kind === 'approach' || e.kind === 'depart' ? 'train' : e.kind === 'ambient' ? 'ambient' : 'station';
     // the HUD already subtitles 'announce' events → no caption from us
-    this._say({ kind, chime, parts, gain, send: 0.9, lp, caption: false, seed: e.line === 'nankai' ? 6 : 3, delay: snd === 'metro_approach' ? 4.5 : snd === 'nankai_melody' ? 6 : 0 });
+    this._say(Object.assign({ kind, chime, parts, gain: 1, caption: false, group: `${e.trainId || e.track}:${e.kind}`, delay: snd === 'metro_approach' ? 4.5 : snd === 'nankai_melody' ? 6 : 0 }, gate));
+  }
+  // the Nankai departure melody without the (fallback) spoken line: transit's own 'announce' speaks it
+  _melodyOnly(s) {
+    if (s.melodyDone || !this._nearPlatform(s.tr)) return;
+    s.melodyDone = true;
+    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.55 * this._hears(s), send: 0.7, wait: true, prio: 1 });
   }
 
   // ---- per frame --------------------------------------------------------------------
@@ -339,17 +340,17 @@ export class Trains {
     // doors (closed doors mute a train that is still in the tunnel) x the tunnel itself
     const d3 = Math.max(1, Math.hypot(dist, pos.y - (L.y + 1.6)));
     const dl = 1 / (1 + Math.pow(d3 / 16, 1.4));
-    const occ = this._occ(s, L), psd0 = this._psd(s, now), tun = inTunnel ? 0.6 : 1;
+    const psd0 = this._psd(s, now), tun = inTunnel ? 0.6 : 1;
     const psd = 1 - (1 - psd0) * (inTunnel ? 1 : 0.4); // the glass only really hides a train that is still in the tunnel
-    const lvl = dl * occ * psd * tun * hear;
-    const lpK = occ * (0.45 + 0.55 * psd) * (hear < 1 ? 0.3 : 1);
+    const lvl = dl * psd * tun * hear;   // hear = platform zone gate (zones.js): loud on the platform, faint above it, 0 elsewhere
+    const muffled = hear < 0.9, lpK = (0.3 + 0.7 * hear) * (0.45 + 0.55 * psd);
     if (sp > 0.01 && !s.ems.roll.src) { const b = this.bank.peek('tr:roll'); if (b) s.ems.roll.setLoop(b); }
     s.ems.roll.fade(2.6 * Math.pow(sp, 1.1) * lvl, 0.25);
     s.ems.roll.setRate(0.65 + 0.45 * sp, 0.25);
-    s.ems.roll.setLP(Math.max(120, (hear < 1 ? 250 : 220 + 3200 * sp * open) * (0.35 + 0.65 * lpK)), 0.2);
-    s.ems.motor.setLP(Math.max(250, (hear < 1 ? 400 : 700 + 5300 * open) * (0.3 + 0.7 * lpK)), 0.3);
+    s.ems.roll.setLP(Math.max(120, (muffled ? 250 : 220 + 3200 * sp * open) * (0.35 + 0.65 * lpK)), 0.2);
+    s.ems.motor.setLP(Math.max(250, (muffled ? 400 : 700 + 5300 * open) * (0.3 + 0.7 * lpK)), 0.3);
     s.ems.motor.fade(lvl, 0.3);
-    s.ems.fx.setLP(hear < 1 || occ < 1 ? 500 + 3000 * lpK : 18000, 0.3);
+    s.ems.fx.setLP(muffled ? 500 + 3000 * lpK : 18000, 0.3);
     s.ems.fx.fade(lvl, 0.3);
     // tunnel wind push ahead of an arriving subway train
     if (!g.terminal) {
@@ -361,7 +362,7 @@ export class Trains {
       if (arriving) { const out = g.dirIn > 0 ? mouth - s.head : s.head - mouth; wg = out > 0 ? Math.max(0, 1 - out / 220) : Math.max(0, 1 + out / 60); }
       if (s.phase === 'departing') { const out = g.dirOut > 0 ? tail - g.hi : g.lo - tail; wg = out > -40 && out < 120 ? 0.5 : 0; }
       if (wg > 0 && !s.ems.wind.src) { const b = this.bank.peek('bed:tunnel'); if (b) s.ems.wind.setLoop(b); }
-      s.ems.wind.fade(wg * 0.75 * hear * (0.4 + 0.6 * occ) * (0.5 + 0.5 * psd), 1.2);
+      s.ems.wind.fade(wg * 0.75 * hear * (0.5 + 0.5 * psd), 1.2);
       s.ems.wind.setLP(160 + wg * 700, 1);
     }
     // rail joints (ta-tan) as bogies pass the listener's projection
