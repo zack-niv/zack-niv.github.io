@@ -97,7 +97,8 @@ export class Crowd {
   }
   lateUpdate(dt) {
     if (!this.renderer) return;
-    this.renderer.update(this.ctx.paused ? 0 : dt);
+    try { this.renderer.update(this.ctx.paused ? 0 : dt); }
+    catch (e) { if (!this._rErr) { this._rErr = true; console.error('[crowd] render', e); } }
   }
 
   // ---------------------------------------------------------------------------

@@ -439,8 +439,8 @@ export class Transit {
           `The train for ${s.destEn} will arrive at track ${no} shortly. Please stand back from the platform doors.`, 'metro_approach');
       } else {
         ann('approach',
-          `まもなく、${no}番線に、電車がまいります。危ないですから、黄色い線の内側までお下がりください。この電車は、折り返し、${hh}時${mm}分発、${tyJa}、${s.destJa}行きとなります。`,
-          `A train is now arriving at track ${no}. Please stand behind the yellow line. This train will depart at ${tm} as the ${s.typeEn} for ${s.destEn}.`, 'nankai_approach');
+          `まもなく、${no}番線に、${s.destJa}行き、${tyJa}が、まいります。危ないですから、黄色い線の内側までお下がりください。この電車は、折り返し、${hh}時${mm}分発となります。`,
+          `The ${s.typeEn} bound for ${s.destEn} is arriving at track ${no}. Please stand behind the yellow line. This train will depart at ${tm}.`, 'nankai_approach');
       }
     } else if (kind === 'arrive') {
       ev.emit('train:arrive', Object.assign({ doors: this._doorList(cfg, s), terminal: line.id === 'nankai' }, base));

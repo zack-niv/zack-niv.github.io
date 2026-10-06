@@ -45,9 +45,9 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&
 const lerp = (a, b, t) => a + (b - a) * t;
 
 // pose geometry (device units: the phone is 340 x 700)
-const GLANCE_H = 114;          // how much of the phone's top shows in the glance pose (device px)
+const GLANCE_H = 122;          // how much of the phone's top shows in the glance pose (device px)
 const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
-const WALK_LOWER_S = 4.5;      // seconds of walking with the phone up before it lowers itself
+const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 
 // critically-ish damped spring step (semi-implicit Euler, sub-stepped)
 function spring(s, target, dt, w, z) {

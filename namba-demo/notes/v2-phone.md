@@ -31,5 +31,40 @@ Suggested walkthrough card copy: **"Q — phone up / down · or hold right-click
   `bottom: calc(var(--phone-glance-h, 0px) + 28px)`.
 - HUD copy that says "Q opens your phone" / "Q for your phone" is still correct.
 
-## Status
-- [ ] in progress
+## What changed (v2)
+**Item 11 — realistic raise / lower** (`js/ui/phone.js`)
+- Three poses with a spring-driven hand: `glance` (default while playing: phone held low at the bottom-right, only its top
+  shows), `up` (full view), `down` (pocketed: title / intro / pause / end card / `pocket(true)`).
+- Raising = spring lift on a small arc → the device tilts toward you a beat later (under-damped: small settle). Lowering is
+  the reverse, critically damped. Walking bob is layered on top (bigger when lowered). No CSS transitions on the wrap.
+- Up pose now sits just RIGHT of the crosshair (you still see where you walk), not over it.
+- Auto-lower: running (Shift + moving) lowers it at once; ~3.5 s of walking with it up lowers it (not during install /
+  calibration / the 2.3 s reveal, not while typing, not within 2.5 s of using the mouse on the screen, not while the
+  right button holds it up). Re-grabs the pointer lock only with a live user gesture (no console error).
+- Right mouse hold (pointer stays locked, mouse-look works; context menu suppressed while playing).
+- Glance card (`js/ui/phone/glance.js`): the Dynamic Island expands into a black "live activity" card: the next step
+  (Lodestone), the vague crow-flies hint with a jittery arrow and "GPS weak" (Maps), install/calibration progress, or Aya's
+  text (slides in, pulses green 4×, "Q read" chip, then a green unread dot stays). The "Q" key cap on the card disappears
+  after the phone has been raised 3 times.
+- The old bottom-right peek card and "Q Phone" hint are gone (Aya's texts live in the glance card).
+
+**Items 10 / 12 — simpler, more helpful apps**
+- Lodestone (`js/ui/phone/lodestone.js`) now leads with ONE instruction card: big amber arrow tile (live-rotating for long
+  walks), "In 40 m", and a plain sentence ("Take the escalator up to 2F", "Turn left into Namba CITY", "Tempura Daikichi
+  is on your right"). A small "Then …" chip only when the next step follows within 30 m. Bottom card: "You are here ±1 m ·
+  [2F] Namba CITY" → "Destination · [6F] Tempura Daikichi · 4 min". No stats row, no metres/ramps counters.
+- The 3D exploded stack is a framed preview between the two cards; tap it, the "3D view" button, or **V** to expand: the
+  stack takes the screen (floor ladder, Route/Me, re-centre, Done) with the full step list in plain words below.
+- Upgrade moment kept, reads faster: install 1.8 s, calibration 3.0 s with ONE status line (Sampling the magnetic field →
+  Matching field anchors → Finding your floor → Locked ✓) and the floors locking in (the µT / anchors / floors read-out box
+  is gone). Then the snap: one big "You're on 3F · ±1 m" card for 2.3 s, then the guidance slides in.
+- Maps (`js/ui/phone/mapapp.js`): cleaner chrome (no category chips, no scale bar, no compass button), bigger route banner,
+  and the home sheet leads with "From Aya's message · Tempura Daikichi · Namba Parks · 6F · 280 m [Directions]". The
+  frustration is intact: drifting dot, wrong/lagging floor, crow-flies distance, directions stop at the first escalator.
+- Lodestone logo SVGs get unique gradient ids (a gradient inside a display:none section stopped painting elsewhere).
+
+## Testing
+- Scripts (scratchpad): `ph/after.mjs` (screens + logic checks), `ph/run.mjs` (before, run against a pristine copy).
+- Logic check in the page: open→up; walk 1 s→up; walk 5 s (old 4.5 s threshold)→still up → threshold lowered to 3.5 s;
+  run→glance; RMB hold→up, walking 6 s while held→up; release→glance; pocket→down; unpocket→glance.
+- The only console error in headless runs is `net::ERR_CERT_AUTHORITY_INVALID` for Google Fonts (sandbox proxy), not the phone.

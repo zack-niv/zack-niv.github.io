@@ -81,6 +81,9 @@ export class Hud {
   }
   // is this PA / distant line something the player is near enough to hear?
   paAudible(a) {
+    // the sound system knows what is actually spoken where the player stands (platforms loud, concourse faint, else silent)
+    const au = this.ctx.audio;
+    if (au && typeof au.paVolume === 'function') { try { const v = au.paVolume(a); if (typeof v === 'number' && isFinite(v)) return v > 0.06; } catch (e) { /* fall through */ } }
     const pl = this.ctx.player, b = pl && pl.body;
     if (!b) return true;
     const inStation = STATION_ZONES.has(pl.zone);
