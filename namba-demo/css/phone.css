@@ -16,7 +16,7 @@
   position: absolute; inset: 0; border-radius: 56px;
   background: linear-gradient(135deg, #5a5d63 0%, #2a2b2f 18%, #1a1b1e 50%, #34363b 82%, #6a6d73 100%);
   box-shadow: 0 40px 90px rgba(0,0,0,.55), 0 10px 26px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 4px #0b0b0c;
-  transform: rotateX(4deg); transform-origin: 50% 60%; transform-style: preserve-3d;
+  transform: rotateX(4deg); transform-origin: 50% 12%; transform-style: preserve-3d;
 }
 .ph-btn { position: absolute; width: 4px; background: linear-gradient(90deg, #2a2b2e, #6b6e74); border-radius: 2px; }
 .ph-btn-a { left: -3px; top: 118px; height: 28px; } .ph-btn-b { left: -3px; top: 168px; height: 54px; } .ph-btn-c { left: -3px; top: 232px; height: 54px; }
@@ -504,3 +504,8 @@
 .gl-unread { flex: 0 0 9px; height: 9px; margin-right: -6px; border-radius: 50%; background: #30d158; box-shadow: 0 0 8px rgba(48,209,88,.8); align-self: center; }
 .ld-main .ld-card:not(.big) { top: auto; bottom: 238px; }
 .ld-main[data-view="stack"] .ld-card:not(.big) { top: 124px; bottom: auto; }
+/* glance card: tighter so the words get the room */
+.ph-isl .gl { gap: 11px; padding: 0 14px 0 14px; }
+.gl-ic { flex-basis: 50px; height: 50px; border-radius: 16px; }
+.gl-t b { font-size: 17.5px; }
+.gl-t span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.25; font-size: 12.5px; }

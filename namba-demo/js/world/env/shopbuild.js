@@ -1355,8 +1355,9 @@ INTERIOR.bakery = (S, c) => {
   const Dm = Math.min(depthLimit(S), 12);
   if (S.D > Dm + 1.5) backOfHouse(S, P, Dm);
   const wood = [0.7, 0.52, 0.34];
-  for (let d = 1.4; d < Dm - 2.8; d += 2.4) {
-    for (let a = 1.2; a < W - 1.2; a += 2.6) {
+  for (let d = 1.4, row = 0; d < Dm - 2.8; d += 2.4, row++) {
+    for (let a = 1.2 + (row % 2) * 1.3; a < W - 1.2; a += 2.6) {
+      if (S.r() < 0.22) continue;              // v2: staggered rows, a few gaps (never a parade ground)
       if (!S.solid(a - 0.55, a + 0.55, d, d + 1.0)) continue;
       P.box('env_wood', a - 0.55, a + 0.55, 0, 0.8, d, d + 1.0, wood);
       for (let k = 0; k < 4; k++) {

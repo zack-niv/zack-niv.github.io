@@ -277,6 +277,15 @@ export class CrowdSim {
       const w1 = F.next(a.en, v);
       if (w1 < 0) { if (this.behave) this.behave.arrive(a); return; }
       if (nav.rmp[w1] >= 0) { this._beginRamp(a, nav.rmp[w1]); this._rampApproach(a, dt); return; }
+      // an escalator / stairs a few metres ahead: join its line now (ordered), instead of pushing up to the mouth
+      if (a.tier === 0) {
+        let u = w1, acc = Math.hypot(nav.x[w1] - nav.x[v], nav.z[w1] - nav.z[v]);
+        for (let k = 0; k < 8 && acc < 6; k++) {
+          const w = F.next(a.en, u); if (w < 0) break;
+          if (nav.rmp[w] >= 0) { this._beginRamp(a, nav.rmp[w]); this._rampApproach(a, dt); return; }
+          acc += Math.hypot(nav.x[w] - nav.x[u], nav.z[w] - nav.z[u]); u = w;
+        }
+      }
       const w2 = F.next(a.en, w1);
       let t = w1;
       if (w2 >= 0 && nav.rmp[w2] < 0) {
@@ -404,6 +413,7 @@ export class CrowdSim {
   // ---------------------------------------------------------------------------
   // Ramps (escalators / stairs)
   _beginRamp(a, ri) {
+    ri = this._rampChoice(a, ri);
     const R = this.places.ramps[ri], r = R.r;
     a.rampNext = ri;
     const fromLow = a.level === r.lower;
@@ -426,7 +436,38 @@ export class CrowdSim {
     // single-file queue per lane and end
     const qk = (fromLow ? 'qL' : 'qH') + (R.esc ? (a.walkLane ? 'w' : 's') : '');
     this._rampDequeue(a);
-    a.rampQ = (R[qk] = R[qk] || []); a.rampQ.push(a);
+    // join the line in order of distance to the mouth
+    const q = (R[qk] = R[qk] || []); a.rampQ = q;
+    const da = Math.hypot(a.x - a.aimX, a.z - a.aimZ);
+    let at = q.length;
+    for (let i = 0; i < q.length; i++) { const b = q[i]; if (!b.alive || b.rampQ !== q) continue; if (Math.hypot(b.x - a.aimX, b.z - a.aimZ) > da + 0.4) { at = i; break; } }
+    q.splice(at, 0, a);
+  }
+  // people waiting at an escalator mouth (both lanes, this end)
+  _rampLoad(R, fromLow) {
+    let n = 0;
+    for (const k of fromLow ? ['qLs', 'qLw', 'qL'] : ['qHs', 'qHw', 'qH']) { const q = R[k]; if (q) for (const b of q) if (b.alive && b.rampNext >= 0 && this.places.ramps[b.rampNext] === R) n++; }
+    return n;
+  }
+  // a long line at this escalator: take the stairs / the next escalator going the same way if one is close
+  _rampChoice(a, ri) {
+    const P = this.places, R = P.ramps[ri], fromLow = a.level === R.r.lower;
+    const load = this._rampLoad(R, fromLow);
+    if (load < 5) return ri;
+    const end = fromLow ? R.ends.low : R.ends.high;
+    let best = ri, bc = load;
+    for (let j = 0; j < P.ramps.length; j++) {
+      if (j === ri) continue;
+      const Q = P.ramps[j];
+      if (Q.r.lower !== R.r.lower || Q.r.upper !== R.r.upper) continue;
+      if (Q.esc && Q.r.move !== (fromLow ? 1 : -1)) continue;
+      const e = fromLow ? Q.ends.low : Q.ends.high;
+      const d = Math.hypot(e.x - a.x, e.z - a.z);
+      if (d > 13) continue;
+      const c = this._rampLoad(Q, fromLow) + d * 0.35 + (Q.esc ? 0 : 1.5 + (a.kind === 'elderly' || (a.flags & (1 << 3)) ? 8 : 0));
+      if (c < bc - 1.5) { bc = c; best = j; }
+    }
+    return best;
   }
   _rampDequeue(a) {
     const q = a.rampQ;
@@ -450,7 +491,9 @@ export class CrowdSim {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
-        if (a.walkLane) R.nextWalk = this.time + 0.55 + this.rnd() * 0.18; else R.nextStand = this.time + 0.78 + this.rnd() * 0.3;
+        // a line forming: people close up and step on faster (still one per step or two)
+        const busy = q && q.length > 4 ? 0.8 : 1;
+        if (a.walkLane) R.nextWalk = this.time + (0.52 + this.rnd() * 0.15) * busy; else R.nextStand = this.time + (0.7 + this.rnd() * 0.25) * busy;
       }
       this._startRide(a);
       return;
@@ -492,7 +535,7 @@ export class CrowdSim {
     for (const b of R.riders) {
       if (b === a || b.rdir !== a.rdir || Math.abs(b.ru - a.ru) > 0.35) continue;
       const ahead = (b.rs - a.rs) * a.rdir * R.len;
-      if (ahead > 0 && ahead < 0.85) sp = Math.min(sp, b.rspd * Math.max(0, (ahead - 0.45) / 0.4));
+      if (ahead > 0 && ahead < 0.7) sp = Math.min(sp, b.rspd * Math.max(0, (ahead - 0.42) / 0.28));
     }
     a.spd = sp; a.curRideSpd = sp;
     a.rs += a.rdir * sp * dt / R.len;
@@ -669,7 +712,7 @@ export class CrowdSim {
               let cx = dx + wx * t, cz = dz + wz * t, c = Math.hypot(cx, cz);
               if (c < 1.15) {
                 // head-on: pick the side so that we pass keeping left (or whichever side the player is not on)
-                if (c < 0.12) { const lat0 = dx * hz - dz * hx; const sd = lat0 > 0.05 ? 1 : lat0 < -0.05 ? -1 : -1; // +1 = steer right cx = hz * sd * 0.12; cz = -hx * sd * 0.12; c = 0.12; }
+                if (c < 0.12) { const lat0 = dx * hz - dz * hx; const sd = lat0 > 0.05 ? 1 : lat0 < -0.05 ? -1 : -1; /* +1 = steer right */ cx = hz * sd * 0.12; cz = -hx * sd * 0.12; c = 0.12; }
                 const sgain = (1 - t / 3.5) * (1.15 - c) / 1.15 * 2.6;
                 fx -= cx / c * sgain; fz -= cz / c * sgain;
               }
@@ -698,6 +741,11 @@ export class CrowdSim {
         if (d < 2.2 && a.lookT <= 0 && ((a.serial * 7 + Math.floor(this.time)) % 9) === 0) this.lookAt(a, V.x, V.z, 1.0);
       }
     }
+    // stuck (a pillar the nav grid doesn't know, two flows head-on): slide round it, keeping left first
+    if (!standing && a.stuckT > 0.7) {
+      const side = ((Math.floor(a.stuckT / 1.6) + (a.i & 1)) & 1) ? -1 : 1;
+      fx += -hz * side * 1.6; fz += hx * side * 1.6;
+    }
     // integrate (relaxation towards desired + forces)
     const tau = standing ? 0.3 : 0.38;
     const k = Math.min(1, dt / tau);
@@ -725,6 +773,8 @@ export class CrowdSim {
     this.col.move(a, mx, mz, 0.24);
     const mvx = (a.x - ox) / dt, mvz = (a.z - oz) / dt;
     a.spd = Math.hypot(mvx, mvz);
+    if (!standing && !queue && dmag > 0.3 && a.spd < 0.12) a.stuckT = (a.stuckT || 0) + dt; else if (a.stuckT) a.stuckT = Math.max(0, a.stuckT - dt * 0.5);
+    if (a.stuckT > 4) a.stuckT = 0.71;
     // keep velocity consistent with what actually happened (walls)
     a.vx = mvx; a.vz = mvz;
     // facing

@@ -149,9 +149,11 @@ export class Ambience {
 
   debug() {
     const r = (v) => +v.toFixed(3);
-    const layers = {}; for (const ln in this.layers) { const Ly = this.layers[ln]; if (Ly.cur > 0.001 || (this.target && this.target[ln] > 0.001)) layers[ln] = r(Ly.cur * Ly.g); }
+    // layers: the gain each bed is being faded to (what you should hear); loading: beds wanted but not synthesized yet
+    const layers = {}, loading = [];
+    for (const ln in this.layers) { const Ly = this.layers[ln], t = (this.target && this.target[ln]) || 0; if (t > 0.001) { layers[ln] = r(t * Ly.g); if (!Ly.em) loading.push(ln); } }
     const weights = {}; for (const m in this.weights) if (this.weights[m] > 0.005) weights[m] = r(this.weights[m]);
-    return { mood: this.mood, weights, layers, platformLeak: r(this.leak ? this.leak.gain : 0), people: Math.round(this.people), walla: r(this._wallaG || 0) };
+    return { mood: this.mood, weights, layers, loading, platformLeak: r(this.leak ? this.leak.gain : 0), people: Math.round(this.people), walla: r(this._wallaG || 0) };
   }
 
   _density(L, w) {

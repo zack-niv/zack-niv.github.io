@@ -141,17 +141,23 @@ export class HumanLibrary {
     const bones = rig.bones.map(b => by[b.name]);
     root.updateMatrixWorld(true);
     const mixer = new THREE.AnimationMixer(root);
-    return { root, bones, by, mixer };
+    const rest = bones.map(b => [b.position.clone(), b.quaternion.clone(), b.scale.clone()]);
+    return { root, bones, by, mixer, rest };
   }
 
   // pose the sampler at clip time t (clips: name or AnimationClip)
   _pose(rig, clip, t) {
     const S = rig.sampler, mx = S.mixer;
-    mx.stopAllAction();
-    const a = mx.clipAction(clip);
-    a.reset(); a.play(); a.time = t; a.weight = 1;
+    let a = S.cur && S.curClip === clip ? S.cur : null;
+    if (!a) { mx.stopAllAction(); this._restore(rig); a = mx.clipAction(clip); a.reset(); a.play(); a.weight = 1; S.cur = a; S.curClip = clip; }
+    a.time = t;
     mx.update(0);
     S.root.updateMatrixWorld(true);
+  }
+
+  _restore(rig) {
+    const S = rig.sampler;
+    for (let i = 0; i < S.bones.length; i++) { const r = S.rest[i], b = S.bones[i]; b.position.copy(r[0]); b.quaternion.copy(r[1]); b.scale.copy(r[2]); }
   }
 
   _height(rig) {
@@ -272,6 +278,7 @@ export class HumanLibrary {
     for (let k = 0; k <= keys; k++) {
       const u = k / keys;
       times[k] = u * dur;
+      this._restore(rig);
       this._pose(rig, base, (u * base.duration) % base.duration);
       fn(u);
       for (let i = 0; i < bones.length; i++) bones[i].quaternion.toArray(q[i], k * 4);
@@ -321,7 +328,7 @@ export class HumanLibrary {
     tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.generateMipmaps = false; tex.needsUpdate = true;
     tex.name = 'crowd_bones_' + rig.g;
     rig.boneTex = tex; rig.frames = H;
-    S.mixer.stopAllAction();
+    S.mixer.stopAllAction(); S.cur = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -377,7 +384,7 @@ export class HumanLibrary {
       g.applyMatrix4(mInv);
       out.push({ g, bone: bi, bit: p.bit, mat: p.mat, big: p.bit === BIT.SUITCASE || p.bit === BIT.BACKPACK || p.bit === BIT.CART || p.bit === BIT.BRIEFCASE || p.bit === BIT.TOTE || p.bit === BIT.SHOPBAG });
     }
-    S.mixer.stopAllAction();
+    S.mixer.stopAllAction(); S.cur = null;
     return out;
   }
   // how far the body surface sits in front of the bone column at height y (bind mesh, rough)
@@ -392,12 +399,15 @@ export class HumanLibrary {
     let n = n0; for (const a of list) n += a.g.attributes.position.count;
     const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3), si = new Uint8Array(n * 4), sw = new Float32Array(n * 4), mat = new Float32Array(n), part = new Float32Array(n);
     const P = src.attributes.position, N = src.attributes.normal, I = src.attributes.skinIndex, Wt = src.attributes.skinWeight, M = src.attributes._mat || src.attributes.mat;
-    for (let i = 0; i < n0; i++) {
-      pos[i * 3] = P.getX(i); pos[i * 3 + 1] = P.getY(i); pos[i * 3 + 2] = P.getZ(i);
-      nor[i * 3] = N.getX(i); nor[i * 3 + 1] = N.getY(i); nor[i * 3 + 2] = N.getZ(i);
-      for (let k = 0; k < 4; k++) { si[i * 4 + k] = I.getComponent(i, k); sw[i * 4 + k] = Wt.getComponent(i, k); }
-      mat[i] = M ? M.getX(i) : 0;
-    }
+    // fast copies (the packer writes plain arrays: float positions, int8-normalised normals, uint8 joints, uint8-normalised weights)
+    const plain = (A) => !A.isInterleavedBufferAttribute;
+    if (plain(P) && P.array instanceof Float32Array) pos.set(P.array.subarray(0, n0 * 3)); else for (let i = 0; i < n0; i++) { pos[i * 3] = P.getX(i); pos[i * 3 + 1] = P.getY(i); pos[i * 3 + 2] = P.getZ(i); }
+    if (plain(N) && N.array instanceof Int8Array && N.itemSize === 3) { const a = N.array; for (let i = 0; i < n0 * 3; i++) nor[i] = Math.max(-1, a[i] / 127); }
+    else for (let i = 0; i < n0; i++) { nor[i * 3] = N.getX(i); nor[i * 3 + 1] = N.getY(i); nor[i * 3 + 2] = N.getZ(i); }
+    if (plain(I) && I.itemSize === 4 && (I.array instanceof Uint8Array)) si.set(I.array.subarray(0, n0 * 4)); else for (let i = 0; i < n0; i++) for (let k = 0; k < 4; k++) si[i * 4 + k] = I.getComponent(i, k);
+    if (plain(Wt) && Wt.itemSize === 4 && Wt.array instanceof Uint8Array && Wt.normalized) { const a = Wt.array; for (let i = 0; i < n0 * 4; i++) sw[i] = a[i] / 255; }
+    else for (let i = 0; i < n0; i++) for (let k = 0; k < 4; k++) sw[i * 4 + k] = Wt.getComponent(i, k);
+    if (M) { const a = M.array; if (plain(M) && M.itemSize === 1) for (let i = 0; i < n0; i++) mat[i] = a[i]; else for (let i = 0; i < n0; i++) mat[i] = M.getX(i); }
     const idx = [];
     const src0 = src.index.array; for (let i = 0; i < src0.length; i++) idx.push(src0[i]);
     let o = n0;

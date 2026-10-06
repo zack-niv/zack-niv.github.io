@@ -47,7 +47,7 @@ export class Glance {
     this._t = 0.25;
     const info = this._info();
     info.unread = this.phone.messages && this.phone.messages.unread > 0 && info.kind !== 'note';
-    const key = JSON.stringify([info.kind, info.cls, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread]);
+    const key = JSON.stringify([info.kind, info.cls, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, (this.phone._raises || 0) >= 3]);
     if (key !== this._key) { this._key = key; this._render(info); }
     this._target = info.ang;
     this._spin(dt);
@@ -66,7 +66,8 @@ export class Glance {
   }
 
   _render(i) {
-    const k = (i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch ? '' : `<kbd class="gl-k">Q</kbd>`);
+    // the key hint teaches itself away: shown until the phone has been raised a few times
+    const k = (i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || (this.phone._raises || 0) >= 3 ? '' : `<kbd class="gl-k">Q</kbd>`);
     let ic = '';
     if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
     else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;

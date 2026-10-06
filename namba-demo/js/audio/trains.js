@@ -139,7 +139,6 @@ export class Trains {
     s.vvvfOn = s.squealOn = s.airOn = false; s.melodyDone = false;
     s.head = s.g.stop - s.g.dirIn * (V0 * TB / 2 + V0 * 10);
     this._ensureEms(s);
-    if (this.sys.announcer) for (const t of [approach(tr), arrival(tr), doorsClosing(), departure(tr)]) this.sys.announcer.prefetch([{ lang: 'ja', text: t.ja }, { lang: 'en', text: t.en }], 3);
     if (!this._nearPlatform(tr)) return;
     if (tr.line !== 'nankai') {
       const mel = MEL[tr.line];

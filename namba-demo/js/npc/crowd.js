@@ -6,7 +6,10 @@
 //   trips.js    Director: population vs. time of day, trip planning, surges
 //   places.js   portals, platforms + door markings, shops, gardens, staff posts
 //   fields.js   flow-field store (Web Worker), grid collision, local paths
-//   render.js   instanced GPU-animated humans (3 LODs) + blob shadows
+//   humans.js   v2 people: rigged CC0 glTF humans (assets/humans), clips, bone texture, materials
+//   render.js   v2 hybrid LOD: near SkinnedMesh + AnimationMixer, far GPU-skinned instancing, blobs
+//   render_v1.js / humanGeo.js / humanMat.js   v1 procedural people (fallback, ?v1crowd)
+//   counters.js staff behind every ctx.counters counter (barista / chef / clerk)
 //
 // Public API (see notes/crowd.md):
 //   ctx.crowd.count                       live agents
@@ -26,6 +29,7 @@ import { Behave } from './behave.js';
 import { CrowdRenderer } from './render.js';
 import { CrowdRendererV1 } from './render_v1.js';
 import { loadHumanLibrary } from './humans.js';
+import { CounterStaff } from './counters.js';
 
 const POSE_NAME = Object.fromEntries(Object.entries(POSE).map(([k, v]) => [v, k.toLowerCase()]));
 
@@ -62,6 +66,7 @@ export class Crowd {
     this.humans = lib;
     try { this.renderer = lib ? new CrowdRenderer(ctx, this.sim, lib) : new CrowdRendererV1(ctx, this.sim); this.renderer.init(); }
     catch (e) { console.warn('[crowd] renderer v2 failed, falling back to v1', e); this.renderer = new CrowdRendererV1(ctx, this.sim); this.renderer.init(); }
+    try { this.counterStaff = new CounterStaff(this); } catch (e) { console.warn('[crowd] counter staff', e); this.counterStaff = null; }
     const E = ctx.events;
     E.on('train:arrive', (ev) => { try { this.behave.director.onTrainArrive(ev || {}, true); } catch (e) { console.warn('[crowd] train:arrive', e); } });
     E.on('player:teleport', () => { if (this.behave) { this.behave.director.burst = 1; this.behave.director._dkT = 0; } });
@@ -86,6 +91,7 @@ export class Crowd {
     this._viewer();
     this.sim.drawDist = (this.ctx.engine.quality && this.ctx.engine.quality.drawDist) || 200;
     const sdt = this.ctx.params.freeze ? (this.sim.time < 3 ? dt : 0.0001) : dt;
+    if (this.counterStaff) { try { this.counterStaff.update(sdt); } catch (e) { console.warn('[crowd] counter staff', e); this.counterStaff = null; } }
     this.sim.update(sdt);
     this._msAvg = this.sim.stats.msAvg;
   }

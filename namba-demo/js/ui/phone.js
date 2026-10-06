@@ -45,8 +45,8 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&
 const lerp = (a, b, t) => a + (b - a) * t;
 
 // pose geometry (device units: the phone is 340 x 700)
-const GLANCE_H = 106;          // how much of the phone's top shows in the glance pose
-const GLANCE_S = 0.9;          // held a little further away when lowered
+const GLANCE_H = 114;          // how much of the phone's top shows in the glance pose (device px)
+const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
 const WALK_LOWER_S = 4.5;      // seconds of walking with the phone up before it lowers itself
 
 // critically-ish damped spring step (semi-implicit Euler, sub-stepped)
@@ -217,7 +217,7 @@ export class Phone {
     if (app) this._showApp(app);
     if (this.isOpen) { if (!hold && this._held) { this._held = false; this._unlockForUse(); } return; }
     this.isOpen = true;
-    this._upAt = this._now; this._walkUp = 0;
+    this._upAt = this._now; this._walkUp = 0; this._raises = (this._raises || 0) + 1;
     this.wrap.classList.add('open');
     this.root.classList.add('ph-is-open');
     if (!hold) this._unlockForUse();
@@ -402,8 +402,8 @@ export class Phone {
     this._poseDirty = false;
     const vw = innerWidth, s = this._scale, sg = s * GLANCE_S;
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
-    // up: centred a little right of the crosshair, bottom 35 px below the edge
-    const upCx = vw * 0.58, upY = 35;
+    // up: just right of the crosshair (you can still see where you walk), bottom 35 px below the edge
+    const uw = 340 * s, upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
     // glance: bottom-right corner, only the top GLANCE_H shows
     const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8, Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = 700 * sg - GLANCE_H * sg;
     const sc = lerp(sg, s, u);
@@ -411,7 +411,7 @@ export class Phone {
     let y = lerp(gY, upY, u);
     y += d * (GLANCE_H * sg + 60);                                    // pocketed: slides out of view
     const rz = lerp(3.2, -1.2, u) + br;
-    const rx = lerp(16, 3.5, tl) + (1 - u) * 0;                       // tilted away when lowered
+    const rx = lerp(9, 2.5, tl);                                      // tilted away a little when lowered
     const lift = Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * -14; // a little arc on the way up
     this.wrap.style.transform = `translate3d(${(cx - 170 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
     this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;

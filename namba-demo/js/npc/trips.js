@@ -28,6 +28,9 @@ const PERSON = {
   security: { v: 0.9, sd: 0.05, conf: 1, hurry: 0.1, space: 0.5, phone: 0 },
 };
 const LINE_BASE = { nankai: 70, midosuji: 55, sennichimae: 28 };
+// v2: fewer, better placed people. The demo population is ~27% of v1's (≈360 at lunch on 'high'),
+// and half of it is kept within ~100 m of the player.
+const DEMO_POP = 0.27;
 
 export class Director {
   constructor(sim, behave, ctx) {
@@ -39,12 +42,14 @@ export class Director {
     this.lastRealTrain = -1e9;
     this.fallback = {};          // track id -> next arrival time
     this.nocrowd = !!(ctx && ctx.params && ctx.params.nocrowd);
-    this.scale = 1;
+    this.scale = DEMO_POP;
+    this.extra = 0;             // people who don't count against the population (counter staff)
+    this._occ = new Map();      // cells taken by placements made this frame (spread spawns)
     this.counts = { staff: 0, seated: 0, queued: 0, waiting: 0, walking: 0, trains: 0, surge: 0 };
     // shop subsets so fields stay few: busy shops per zone + every restaurant/café
     this._shopPools();
     this._coreFields();
-    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.32;
+    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.5;
     this._publicNodes();
   }
   get minutes() { return this.sim.clock ? this.sim.clock.minutes : 12 * 60; }
@@ -93,11 +98,13 @@ export class Director {
     }
     // continuous arrivals at portals
     const tgt = this.target();
-    const deficit = tgt - S.count;
+    this._occ.clear();
+    const live = S.count - this.extra;
+    const deficit = tgt - live;
     const rate = Math.max(0, deficit) * 0.045 + tgt * 0.0035;
     this.spawnAcc += rate * dt;
     let guard = 6;
-    while (this.spawnAcc >= 1 && guard-- > 0) { this.spawnAcc -= 1; if (S.count < tgt * 1.08) this.spawnFromPortal(); }
+    while (this.spawnAcc >= 1 && guard-- > 0) { this.spawnAcc -= 1; if (S.count - this.extra < tgt * 1.08) this.spawnFromPortal(); }
     if (this.spawnAcc > 5) this.spawnAcc = 5;
     // trains when the transit system isn't driving them
     this._fallbackTrains();
@@ -105,6 +112,24 @@ export class Director {
   }
 
   // ---------------------------------------------------------------------------
+  // spread placement: is (x,z) free of other people (and of this frame's earlier placements)?
+  free(level, x, z, r = 1.1) {
+    const k = level + ':' + Math.floor(x / 1.2) + ':' + Math.floor(z / 1.2);
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const L = this._occ.get(level + ':' + (Math.floor(x / 1.2) + dx) + ':' + (Math.floor(z / 1.2) + dz));
+      if (L) for (const p of L) if (Math.hypot(p[0] - x, p[1] - z) < r) return false;
+    }
+    let busy = false;
+    if (this.sim.frame > 1) this.sim.near(level, x, z, r, (b) => { if (b.alive && b.fade > 0.05 && b.ramp < 0) busy = true; });
+    if (busy) return false;
+    return true;
+  }
+  claim(level, x, z) {
+    const k = level + ':' + Math.floor(x / 1.2) + ':' + Math.floor(z / 1.2);
+    let L = this._occ.get(k); if (!L) this._occ.set(k, L = []);
+    L.push([x, z]);
+  }
+
   // agents
   makeAgent(kind, o = {}) {
     if (kind === 'family') kind = 'shopper'; // families are built by makeGroup
@@ -279,7 +304,9 @@ export class Director {
         const B = this._pickBiz(this.cafes);
         if (!B) return this.plan('shop', a, origin);
         const dw = B.info.dwell || [300, 900];
-        legs.push({ t: 'go', en: P.bizField(B, 3), arrive: 1.5 }, { t: 'queue', B, max: 6 }, { t: 'dine', B, dur: (dw[0] + r() * (dw[1] - dw[0])) / scale });
+        legs.push({ t: 'go', en: P.bizField(B, 3), arrive: 1.5 }, { t: 'queue', B, max: 6 });
+        if (B.ctr && B.ctr.npc) legs.push({ t: 'order', B });
+        legs.push({ t: 'dine', B, dur: (dw[0] + r() * (dw[1] - dw[0])) / scale });
         return this._onward(legs, a, null);
       }
       case 'shop': {
@@ -289,7 +316,9 @@ export class Director {
           const B = this._pickBiz(this.shops, true, lv);
           if (!B) break;
           lv = B.level;
-          legs.push({ t: 'go', en: P.bizField(B, i === 0 ? 3 : 6), arrive: 1.5 }, { t: 'browse', B, n: 1 + Math.floor(r() * 3) });
+          legs.push({ t: 'go', en: P.bizField(B, i === 0 ? 3 : 6), arrive: 1.5 });
+          if (r() < 0.35) legs.push({ t: 'window', B, dur: 5 + r() * 14 });   // look at the window first (some don't go in)
+          if (r() < 0.8) legs.push({ t: 'browse', B, n: 1 + Math.floor(r() * 3) });
         }
         if (!legs.length) return this.plan('through', a, origin);
         return this._onward(legs, a, null);
@@ -377,18 +406,18 @@ export class Director {
     T.doors = doors;
     const tgt = this.target();
     const base = LINE_BASE[T.line] || 40;
-    const fill = clamp(1 + (tgt - S.count) / Math.max(1, tgt) * 2.5, 0.35, 1.8);
-    const n = Math.round(base * (0.45 + 0.75 * this.rush) * fill * (ev.load != null ? ev.load : 1));
+    const fill = clamp(1 + (tgt - (S.count - this.extra)) / Math.max(1, tgt) * 2.5, 0.35, 1.8);
+    const n = Math.round(base * (0.45 + 0.75 * this.rush) * fill * (ev.load != null ? ev.load : 1) * Math.max(0.35, this.scale * 1.5));
     this.counts.surge += n;
     for (let i = 0; i < n; i++) {
       const d = doors[Math.floor(this.r() * doors.length)];
-      const delay = 0.3 + this.r() * 7 + (i / n) * 3;
+      const delay = 0.3 + this.r() * 11 + (i / n) * 6;   // a train empties over ~15 s, not in one burst
       this.pending.push({ t: S.time + delay, fn: () => this._alight(T, d) });
     }
   }
   _alight(T, d) {
     const S = this.sim, P = this.P;
-    if (S.count > this.target() * 1.25) return;
+    if (S.count - this.extra > this.target() * 1.25) return;
     const tw = this._tripWeights(true);
     const trip = pickW(tw, this.r);
     const a = this._create(trip, { line: T.line });
@@ -464,6 +493,8 @@ export class Director {
       if (v < 0) return false;
       const d = a.en.dist[v];
       if (d === 65535 || d < 250) continue;
+      if (!this.free(V.level, nav.x[v] + a.jx, nav.z[v] + a.jz, 1.4)) continue;
+      this.claim(V.level, nav.x[v] + a.jx, nav.z[v] + a.jz);
       S.setPos(a, V.level, nav.x[v] + a.jx, nav.z[v] + a.jz);
       const w = S.fields.next(a.en, v);
       if (w >= 0) a.yaw = Math.atan2(-(nav.x[w] - nav.x[v]), -(nav.z[w] - nav.z[v]));
@@ -518,6 +549,7 @@ export class Director {
     for (const post of posts) {
       if (staff >= maxStaff) break;
       if (post.biz && !P.bizOpen(post.biz, m)) continue;
+      if (post.dup) continue;                    // a counter-staff spot (CounterStaff places those people)
       const a = this.makeAgent(post.kind, { look: { female: r() < 0.5, cap: post.cap || (post.biz && post.biz.restaurant && r() < 0.4), apron: post.apron } });
       S.setPos(a, post.level, post.x, post.z);
       this.B.begin(a, [{ t: 'post', level: post.level, x: post.x, z: post.z, yaw: post.yaw, kind: post.kind }]);
@@ -569,14 +601,27 @@ export class Director {
       }
     }
     this.counts.seated = seated; this.counts.queued = queued;
-    // shops: a few browsing inside
+    // shops: a few browsing inside, a few looking at the windows
     let browsing = 0;
     for (const B of this.shops) {
       if (!P.bizOpen(B, m)) continue;
       const n = Math.floor(r() * 3.2 * (0.3 + B.pop));
-      for (let i = 0; i < n && browsing < tgt * 0.05; i++) {
+      for (let i = 0; i < n && browsing < tgt * 0.07; i++) {
         const a = this.makeAgent(this._kindFor('shop'), { trip: 'shop', look: { bags: 0.4 } });
-        const legs = [{ t: 'browse', B, n: 1 + Math.floor(r() * 2), inside: true }];
+        const legs = r() < 0.3 ? [{ t: 'window', B, dur: 4 + r() * 12, inside: true }, { t: 'browse', B, n: 1 + Math.floor(r() * 2) }] : [{ t: 'browse', B, n: 1 + Math.floor(r() * 2), inside: true }];
+        this._onward(legs, a, null, 7);
+        this.B.begin(a, legs);
+        browsing++;
+      }
+    }
+    // cafés with a counter: one or two people ordering
+    for (const B of this.cafes) {
+      if (!B.ctr || !B.ctr.npc || !P.bizOpen(B, m)) continue;
+      const n = r() < 0.55 ? 1 : r() < 0.6 ? 2 : 0;
+      for (let i = 0; i < n; i++) {
+        const a = this.makeAgent(this._kindFor('coffee'), { trip: 'coffee' });
+        const dw = B.info.dwell || [300, 900];
+        const legs = [{ t: 'order', B, inside: true }, { t: 'dine', B, dur: (dw[0] + r() * (dw[1] - dw[0])) / ((S.clock && S.clock.scale) || 6) }];
         this._onward(legs, a, null, 7);
         this.B.begin(a, legs);
         browsing++;
@@ -586,7 +631,7 @@ export class Director {
     let waiting = 0;
     for (const pl of P.platforms) for (const T of pl.tracks) {
       const base = T.line === 'nankai' ? 7 : T.line === 'midosuji' ? 16 : 8;
-      const n = Math.round(base * (0.5 + this.rush) * (0.6 + r() * 0.8));
+      const n = Math.round(base * (0.5 + this.rush) * (0.6 + r() * 0.8) * Math.max(0.3, this.scale * 1.6));
       for (let i = 0; i < n; i++) {
         const a = this.makeGroup(this._kindFor('transit', { line: T.line }), r() < 0.15 ? 2 : 1, { trip: 'transit', look: { suitcase: T.line === 'nankai' && r() < 0.25 } });
         if (a.followers) { for (const f of a.followers) S.kill(f); a.followers = null; }

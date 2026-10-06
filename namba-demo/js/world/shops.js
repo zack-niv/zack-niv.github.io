@@ -56,7 +56,7 @@ export function envFor(ctx) {
     sign: new Atlas('env_sign', { lit: true, glow: 2.0 }),
     print: new Atlas('env_print', { lit: false, boost: 0.28 }),
     // posters: own pages (exact 2:3 / 16:9 canvases), wide gutters + edge bleed so mips never leak neighbours
-    poster: new Atlas('env_poster', { lit: false, boost: 0.30, pad: 8, aniso: 16 }),
+    poster: new Atlas('env_poster', { lit: false, boost: 0.40, pad: 8, aniso: 16 }),
     chunks: new ChunkBatches(CHUNK, 'env'),
     lights: [],
   };
@@ -84,7 +84,7 @@ function glyphText() {
   txt += 'らーめんうどん寿司とんかつカレー天丼お好み焼串かつ居酒屋焼肉洋食喫茶珈琲パン菓たこ薬みやげ本文具花ガチャ金券厨房自動ドア激安特価人気新数量限定円税込おつり返却食券つめた〜いあったか〜いお〜いお茶';
   txt += '醤油味玉チャーシュー麺つけ餃子ライス生ビールきつね肉釜玉いなり上海老野菜小そばみそ汁定食海老天きす舞茸ハイボールビーフカツチキントッピング大盛りにぎり並ちらし鉄火巻赤だしランチ握りロースヒレミックスフライ丼キャベツおかわり自由豚モダンねぎ焼きそば串どて土手盛合せだし巻き玉子枝豆唐揚げ日本酒特上カルビタン塩ホルモンセットビビンバオムライスハンバーグエビナポリタンシチューブレンドラテ抹茶チーズケーキ季節タルトサンドイッチモーニングクリームソーダ厚切りトーストジュースプリンハンドドリップエスプレッソ豆クロワッサンメロンあん詰め合わせお土産箱個明石';
   txt += '秋冬コレクション入荷セール最大医薬品化粧品毎日安いうるおい続く新登場マロン乾杯夜明けの境界線全国ロードショーいのち輝く未来へ大阪関西みらい高野山特急で北斎と浪華浮世絵市立美術館機種のりかえ還元ラーメン博なんばパークスハロウィンごくっと新幹線回数券高速バス切手営業時間開店';
-  txt += POSTER_TEXT;
+  txt += POSTER_TEXT + 'ご注文はこちらドリンクスイーツおすすめ本日の豆若草珈琲';
   txt += 'ウォーク新作入荷激安特価人気限定開催中ペットボトル缶びん燃えるゴミカプセルトイ時間運行情報平常どおり南海電車御堂筋線千日前線ご利用ありがとうございます開催中ハロウィンフェア';
   return txt;
 }
