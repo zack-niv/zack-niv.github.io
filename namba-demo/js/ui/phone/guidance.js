@@ -170,18 +170,18 @@ export class Guidance {
           if (k === 0 && Math.hypot(x - last[0], z - last[2]) < 0.3) { last[1] = y; continue; }
           pts.push([x, y, z, cum + rl * t]);
         }
-        marks.push({ x: s0.x, z: s0.z, y: yOf(leg.level), text: `${up ? '▲' : '▼'} ${lvl(to)}`, up, level: leg.level });
         const rideDir = [(s1.x - s0.x) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1), (s1.z - s0.z) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1)];
         prevDir = rideDir;
         const prev = man[man.length - 1];
         // chain of escalators with a short connecting walk collapses into one step
         const word = r.kind === 'escalator' ? 'Escalator' : 'Stairs';
         if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
-          prev.count++; prev.to = to; prev.endCum = cum + rl;
+          prev.count++; prev.to = to; prev.endCum = cum + rl; prev.mark.text = `${up ? '▲' : '▼'} ${lvl(to)}`;
           prev.title = `${prev.word}${prev.count > 1 ? (prev.word === 'Stairs' ? '' : 's') : ''} ${up ? 'up' : 'down'}`;
           prev.sub = `${lvl(prev.from)} → ${lvl(to)} · ${prev.count} flights`;
         } else {
-          man.push({ kind: 'ramp', at: cum, x: s0.x, z: s0.z, level: leg.level, icon: up ? 'up' : 'down', up, from: leg.level, to, count: 1, word, endCum: cum + rl,
+          const mark = { x: s0.x, z: s0.z, y: yOf(leg.level), text: `${up ? '▲' : '▼'} ${lvl(to)}`, up, level: leg.level }; marks.push(mark);
+          man.push({ kind: 'ramp', mark, at: cum, x: s0.x, z: s0.z, level: leg.level, icon: up ? 'up' : 'down', up, from: leg.level, to, count: 1, word, endCum: cum + rl,
             title: `${word} ${up ? 'up' : 'down'}`, sub: `${lvl(leg.level)} → ${lvl(to)}` });
         }
         cum += rl; time += rl / 0.85; ramps++;

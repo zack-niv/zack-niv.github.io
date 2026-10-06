@@ -109,9 +109,10 @@ export class Stack3D {
     R.setClearColor(0x050810, 1);
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 1, 4, 5000);
+    this.timing = { renderer: performance.now() - t0 };
     this._bg();
-    this._plates();
-    this._markers();
+    this._plates(); this.timing.plates = performance.now() - t0;
+    this._markers(); this.timing.markers = performance.now() - t0;
     this.ready = true;
     this.buildMs = performance.now() - t0;
     this.resize(true);
@@ -454,7 +455,10 @@ export class Stack3D {
       pts = [[pl.x - R, pl.y - 18, pl.z - R], [pl.x + R, pl.y + 18, pl.z + R], [pl.x - R, pl.y + 18, pl.z + R], [pl.x + R, pl.y - 18, pl.z - R]];
     } else {
       pts = (this.fitPts && this.fitPts.length ? this.fitPts : []).concat([[pl.x, pl.y, pl.z]]);
-      if (this.dest) pts.push([this.dest.x, LEVELS[this.dest.level].y * K, this.dest.z]);
+      if (this.dest) {
+        const dy = LEVELS[this.dest.level].y * K, pm = bandH / (2 * Math.max(60, this.cur.dist) * tanV);
+        const up = 95 / pm; pts.push([this.dest.x, dy, this.dest.z], [this.dest.x + B.u.x * up, dy + B.u.y * up, this.dest.z + B.u.z * up]);
+      }
       if (pts.length < 2) { const e = this.extent; pts = [[e.minX, e.minY, e.minZ], [e.maxX, e.maxY, e.maxZ]]; }
     }
     let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9, d0 = 1e9, d1 = -1e9;
@@ -526,4 +530,6 @@ export class Stack3D {
   }
 
   render() { if (this.ready) this.renderer.render(this.scene, this.camera); }
+  // pre-compile shaders / upload buffers behind the install bar
+  warm() { if (!this.ready) return; const t = performance.now(); this.update(0.016); this.render(); this.timing.firstRender = performance.now() - t; }
 }

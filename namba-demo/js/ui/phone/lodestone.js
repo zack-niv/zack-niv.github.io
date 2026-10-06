@@ -100,14 +100,14 @@ export class LodestoneApp {
     try {
       if (step === 1) this.stack = this._makeStack();
       if (step === 2 && this.guid) this.guid.prepare();
-      if (step === 3 && this.stack && this.stack.ready) { this.stack.setDestination(this.dest); }
+      if (step === 3 && this.stack && this.stack.ready) { this.stack.setDestination(this.dest); this.stack.warm(); }
     } catch (e) { console.error('[lodestone warm]', e); this.ctx.errors && this.ctx.errors.push('lodestone: ' + e.message); }
   }
   _makeStack() {
     const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ });
     s.init();
     s.onUser = () => { this._userMoved = true; };
-    s.bandTop = 112; s.bandBottom = 205;
+    s.bandTop = 122; s.bandBottom = 228;
     return s;
   }
   _set(st) { this.state = st; this.root.dataset.state = st; }
