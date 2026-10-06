@@ -93,7 +93,8 @@ export class Gates {
     this.gates.push(g);
     // lane policy
     const nL = machines.length - 1;
-    const policy = (i) => (i === 0 || i === nL - 1) ? 'both' : (i % 4 === 1 ? 'in' : i % 4 === 3 ? 'out' : 'both');
+    // lane policy (demo: the Nankai central gate is two-way everywhere — every player crosses it in the first minute)
+    const policy = (i) => (gt.id === 'g_nk_central' || i === 0 || i === nL - 1) ? 'both' : (i % 4 === 1 ? 'in' : i % 4 === 3 ? 'out' : 'both');
     machines.forEach((u, mi) => {
       const h = MACH_H;
       // body: cabinet with raised reader heads at both ends, dark glossy top
