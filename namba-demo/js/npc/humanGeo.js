@@ -249,7 +249,7 @@ export function buildHuman(lod = 0) {
     g.ellipsoid([0, 1.578, -0.03], [0.083, 0.045, 0.075], 8, 4, B.HEAD, R.WHITE, has(BIT.MASK), (dx, dy, dz) => (dz < -0.15 ? [dx * 0.083, 1.578 + dy * 0.045, -0.03 + dz * 0.075] : null));
     g.box([0, 1.629, -0.094], [0.06, 0.0045, 0.004], B.HEAD, R.DARK, has(BIT.GLASSES));
     // hair styles
-    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 13, 9, B.HEAD, R.HAIR, hair(st), hairDeform(st));
+    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 18, 12, B.HEAD, R.HAIR, hair(st), hairDeform(st));
     g.ellipsoid([0, 1.69, 0.085], [0.04, 0.04, 0.035], 6, 4, B.HEAD, R.HAIR, hair(3));
     // cap
     g.lathe([[1.66, 0, 0.0, 0.094, 0.104], [1.72, 0, 0.0, 0.088, 0.098], [1.735, 0, 0, 0.05, 0.06]], 10, B.HEAD, R.ACC2, has(BIT.CAP), { capTop: true });

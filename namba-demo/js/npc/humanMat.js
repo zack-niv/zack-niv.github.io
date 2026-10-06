@@ -235,8 +235,8 @@ const PATTERNS = /* glsl */`
       } else { crRough = 0.85; }
       diffuseColor.rgb *= m;
     } else if (vReg > 0.5 && vReg < 1.5) { // hair: strands and a soft gloss ring
-      float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.004);
-      float st = sin(ang * 90.0 + L.y * 16.0) * 0.5 + 0.5;
+      float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.011);
+      float st = sin(ang * 36.0 + L.y * 9.0 + sin(ang * 7.0 + L.y * 20.0) * 1.6) * 0.5 + 0.5;
       float gloss = exp(-pow((L.y - 1.652) / 0.02, 2.0)) * smoothstep(-0.2, 0.4, abs(ang) - 0.2);
       diffuseColor.rgb *= 0.78 + 0.34 * mix(0.5, st, a);
       diffuseColor.rgb += vHairCol * gloss * 0.25 + vec3(0.012, 0.011, 0.01) * gloss;
