@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>NAMBA — Lost in the Underground City</title>
+<meta name="description" content="A first-person wander through Namba, Osaka: find coffee, find tempura, find the right subway.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/game.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three/three.module.js",
+  "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="ui">
+  <div id="loading"><div class="ld-inner"><div class="ld-title">なんば</div><div class="ld-sub">NAMBA</div><div class="ld-bar"><i></i></div><div class="ld-msg">Loading…</div></div></div>
+  <div id="title" hidden></div>
+  <div id="hud"></div>
+  <div id="phone-root"></div>
+  <div id="overlay"></div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
