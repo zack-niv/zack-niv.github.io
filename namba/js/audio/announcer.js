@@ -51,7 +51,7 @@ export class Announcer {
     if (this.queue.some(q => q._key === key) || (this.cur && this.cur._key === key)) return null;
     item._key = key;
     // pre-render the fallback voice
-    for (const p of item.parts) if (!this._canSpeak(item, p)) this.bank.get(this._voiceName(item, p), item.prio <= 1 ? 1 : 4);
+    for (const p of item.parts) if (!this._canSpeak(item, p)) this.bank.get(this._voiceName(item, p), item.prio <= 1 ? 1 : 2);
     if (item.chime) this.bank.get('chime:' + item.chime, 2);
     if (this.cur && item.prio < this.cur.prio && item.prio <= 1) this._interrupt();
     this.queue.push(item);

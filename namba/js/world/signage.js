@@ -12,12 +12,14 @@
 // that send you up a level, exits that loop back to the street.
 //
 // Pipeline
-//   init()   (build phase, before nav):  await fonts, choose placements,
-//            declare lights/obstacles, start a Web Worker that builds its own
-//            World+Nav and computes directions in parallel with loading.
-//   ready()  (awaited by the phone's init, or polled in update): compose sign
-//            contents, draw every face into a few canvas texture atlases,
-//            batch all geometry per (level, 48 m chunk, material).
+//   init()   (build phase, before nav): choose placements, declare lights and
+//            obstacles, set up one viewer per readable face (~0.4 s).
+//   start()  (non-blocking; kicked by the phone's init or our first update):
+//            one shared flow field per DESTINATION (not per sign) on ctx.nav,
+//            each sign face descends it; compose contents; draw every face
+//            once into a few canvas atlases; batch geometry per (level, 48 m
+//            chunk, material). Sliced with macrotask yields (~25 ms) so loading
+//            and the first frames never stall. ready() resolves when done.
 //
 // API: ctx.signage.ready() → Promise; ctx.signage.signs (placements+content);
 //      ctx.signage.facilities (toilets/lockers built here, for the phone).
@@ -33,8 +35,17 @@ import { computeDirections, STRIDE } from '../ui/phone/routes.js';
 import { drawFloor, THEMES } from '../ui/phone/maprender.js';
 
 const CHUNK = 48;
-const JA = (px, w = 700) => `${w} ${Math.round(px)}px "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif`;
-const EN = (px, w = 600) => `${w} ${Math.round(px)}px Inter, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif`;
+// font sizes are quantised (2 px steps above 14 px) so the glyph cache is reused
+const qpx = (px) => px > 14 ? Math.round(px / 2) * 2 : Math.max(6, Math.round(px));
+const JA = (px, w = 700) => `${w} ${qpx(px)}px "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif`;
+const EN = (px, w = 600) => `${w} ${qpx(px)}px Inter, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif`;
+const _mcache = new Map();
+function measW(g, text) {
+  const k = g.font + '|' + text;
+  let w = _mcache.get(k);
+  if (w === undefined) { w = g.measureText(text).width; _mcache.set(k, w); }
+  return w;
+}
 
 // Operator sign families (different companies, different styles).
 const STYLES = {
@@ -178,8 +189,11 @@ function picto(g, kind, cx, cy, s, fg, bg) {
   g.restore();
 }
 function fitFont(g, text, mk, px, maxW, minPx = 8) {
-  let p = px; g.font = mk(p);
-  while (p > minPx && g.measureText(text).width > maxW) { p -= 1; g.font = mk(p); }
+  g.font = mk(px);
+  const w = measW(g, text);
+  if (w <= maxW) return px;
+  const p = Math.max(minPx, Math.floor(px * maxW / w * 0.98));
+  g.font = mk(p);
   return p;
 }
 
@@ -211,7 +225,8 @@ export class Signage {
     const lap = (k) => { const n = performance.now(); T[k] = Math.round(n - t); t = n; };
     this._place(world); lap('place');
     this._declare(); lap('declare');
-    this._startWorker(); lap('worker');
+    this._faces = this._faceViewers();
+    this._dests = DESTINATIONS.map(d => ({ id: d.id, goals: d.goals })); lap('faces');
   }
 
   // ===========================================================================
@@ -576,46 +591,42 @@ export class Signage {
     }
     return faces;
   }
-  _startWorker() {
-    this._faces = this._faceViewers();
-    this._dests = DESTINATIONS.map(d => ({ id: d.id, goals: d.goals }));
-    this._workerP = new Promise((resolve) => {
-      let w;
-      try {
-        const base = new URL('./', import.meta.url).href;
-        const pb = new URL('../ui/phone/', import.meta.url).href;
-        const src = `import { World } from '${base}world.js';\nimport { Nav } from '${base}nav.js';\nimport { computeDirections } from '${pb}routes.js';\n` +
-          `self.onmessage = (e) => { try { const W = new World(); const N = new Nav(W); const out = computeDirections(N, e.data.faces, e.data.dests); self.postMessage({ ok: true, out }, [out.buffer]); } catch (err) { self.postMessage({ ok: false, err: String(err && err.stack || err) }); } };`;
-        const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
-        w = new Worker(url, { type: 'module' });
-        w.onmessage = (e) => { w.terminate(); URL.revokeObjectURL(url); if (e.data.ok) resolve(e.data.out); else { console.warn('[signage] worker failed', e.data.err); resolve(null); } };
-        w.onerror = (e) => { console.warn('[signage] worker error', e.message); try { w.terminate(); } catch (x) {} resolve(null); };
-        w.postMessage({ faces: this._faces, dests: this._dests });
-      } catch (e) { console.warn('[signage] no worker', e); resolve(null); }
-    });
-  }
-
-  ready() {
+  // Non-blocking: started by the phone's init (or our first update once the
+  // nav graph exists). Work is sliced with macrotask yields so loading and the
+  // first frames keep flowing; ready() resolves when the signs are in place.
+  start() {
     if (!this._readyP) this._readyP = this._finish().catch(e => { console.error('[signage] build failed', e); this.ctx.errors && this.ctx.errors.push('signage: ' + e.message); });
     return this._readyP;
   }
+  ready() { return this.start(); }
   async _finish() {
-    let res = await withTimeout(this._workerP, 25000);
-    if (!res) {
-      // fallback: main-thread computation on the shared nav graph
-      while (!this.ctx.nav) await new Promise(r => setTimeout(r, 50));
-      res = computeDirections(this.ctx.nav, this._faces, this._dests);
-    }
+    const T = this.timings;
+    const yieldNow = () => new Promise(r => setTimeout(r, 0));
+    while (!this.ctx.nav) await new Promise(r => setTimeout(r, 60));
     await this._fontsP;
+    let t = performance.now();
+    const nav = this.ctx.nav, NF = this._faces.length, ND = this._dests.length;
+    const res = new Float32Array(NF * ND * STRIDE).fill(NaN);
+    for (let d = 0; d < ND; d++) {
+      const part = computeDirections(nav, this._faces, [this._dests[d]]);
+      for (let i = 0; i < NF; i++) res.set(part.subarray(i * STRIDE, i * STRIDE + STRIDE), (i * ND + d) * STRIDE);
+      await yieldNow();
+    }
+    T.directions = Math.round(performance.now() - t); t = performance.now();
     this._res = res;
     this._compose();
-    this._draw();
+    T.compose = Math.round(performance.now() - t);
+    await yieldNow();
+    t = performance.now();
+    await this._draw(yieldNow);
+    T.draw = Math.round(performance.now() - t); t = performance.now();
     this._buildMeshes();
+    T.meshes = Math.round(performance.now() - t);
     this._built = true;
     this.ctx.events && this.ctx.events.emit('signage:ready', { count: this.signs.length });
   }
   update() {
-    if (!this._readyP && this.ctx.nav && this.ctx.ready) this.ready();
+    if (!this._readyP && this.ctx.nav) this.start();
   }
 
   // ===========================================================================
@@ -673,7 +684,7 @@ export class Signage {
           if (d.offmap && !s.major) score -= 0.6;
           // level change soon on this route?
           let lvl = null;
-          if (r.ramp >= 0 && r.rampAt < (s.kind === 'esc' ? 3 : 30)) lvl = { dir: r.dir, label: LEVELS[LEVEL_ORDER[r.toLevel]].label };
+          if (r.ramp >= 0 && r.rampAt < (s.kind === 'esc' ? 3 : 30)) lvl = { dir: r.dir, label: LEVEL_ORDER[r.toLevel] };
           cands.push({ d, r, ang, score, lvl });
         }
         cands.sort((a, b) => b.score - a.score);
@@ -705,7 +716,8 @@ export class Signage {
     }
     for (const e of [...exitGroups.values()].sort((a, b) => b.score - a.score).slice(0, s.major ? 2 : 1)) {
       e.nos.sort((a, b) => +a - +b);
-      e.label = e.nos.length >= 3 ? `${e.nos[0]}–${e.nos[e.nos.length - 1]}` : e.nos.join('・');
+      const lo = +e.nos[0], hi = +e.nos[e.nos.length - 1];
+      e.label = e.nos.length >= 3 && hi - lo <= 12 ? `${e.nos[0]}–${e.nos[e.nos.length - 1]}` : e.nos.slice(0, 3).join('・');
       blocks.push(e);
     }
     // measure
@@ -723,20 +735,20 @@ export class Signage {
   _measureBlock(g, b, H, st) {
     const pad = H * 0.22, arrow = H * 0.78, lvl = b.lvl ? H * 0.72 : 0;
     if (b.type === 'exit') {
-      g.font = EN(H * 0.62, 800); const nw = g.measureText(b.label).width;
-      g.font = JA(H * 0.32, 900); const jw = g.measureText('出口').width;
+      g.font = EN(H * 0.62, 800); const nw = measW(g, b.label);
+      g.font = JA(H * 0.32, 900); const jw = measW(g, '出口');
       return pad * 2 + arrow + lvl + H * 0.12 + jw + H * 0.14 + nw + pad * 0.5;
     }
     if (b.type === 'fac') {
       const fi = FACILITY_INFO[b.d.fac];
-      g.font = JA(H * 0.3, 700); const jw = g.measureText(fi.ja).width;
-      g.font = EN(H * 0.2, 600); const ew = g.measureText(fi.en).width;
+      g.font = JA(H * 0.3, 700); const jw = measW(g, fi.ja);
+      g.font = EN(H * 0.2, 600); const ew = measW(g, fi.en);
       return pad * 2 + arrow + lvl + H * 0.8 + Math.max(jw, ew) + pad * 0.3;
     }
     const d = b.d;
     const ja = this._ja(d), en = this._en(d, st);
-    g.font = JA(H * 0.36, 700); const jw = g.measureText(ja).width;
-    g.font = EN(H * 0.2, 600); const ew = g.measureText(en).width;
+    g.font = JA(H * 0.36, 700); const jw = measW(g, ja);
+    g.font = EN(H * 0.2, 600); const ew = measW(g, en);
     const badges = this._badges(d).length;
     return pad * 2 + arrow + lvl + badges * H * 0.62 + H * 0.08 + Math.max(jw, ew);
   }
@@ -758,13 +770,15 @@ export class Signage {
   // ===========================================================================
   // DRAWING
   // ===========================================================================
-  _draw() {
+  async _draw(yieldNow) {
     const atlas = this.atlas = new Atlas(2048);
+    let tSlice = performance.now();
     const gAtlas = this.guideAtlas = new Atlas(2048);
     const meas = document.createElement('canvas').getContext('2d');
     const P = this.PPM;
     const cache = new Map();
     for (const s of this.signs) {
+      if (yieldNow && performance.now() - tSlice > 25) { await yieldNow(); tSlice = performance.now(); }
       const st = STYLES[s.op] || STYLES.metro;
       if (s.kind === 'hang' || s.kind === 'gate' || s.kind === 'exitHang' || s.kind === 'esc' || s.kind === 'column' || s.kind === 'totem') {
         // decide physical width from both faces' content
@@ -780,7 +794,7 @@ export class Signage {
         if (!s.w) {
           let need = 0;
           for (const f of s.faces) need = Math.max(need, f.blocks.reduce((a, b) => a + b.w, 0) + (st.accentPos === 'left' ? H * 1.25 : 0));
-          if (s.kind === 'gate') { meas.font = JA(s.h * P * 0.36, 900); need = Math.max(need, meas.measureText(s.gate.ja + ' ' + s.gate.name).width + s.h * P * 1.6); }
+          if (s.kind === 'gate') { meas.font = JA(s.h * P * 0.36, 900); need = Math.max(need, measW(meas, s.gate.ja + ' ' + s.gate.name) + s.h * P * 1.6); }
           s.w = Math.max(s.kind === 'esc' ? 2.2 : 1.6, Math.min(s.maxW || 6, need / P + 0.1));
         }
       }
@@ -796,7 +810,9 @@ export class Signage {
           rect.guide = isGuide;
           const g = rect.page.g;
           g.save(); g.beginPath(); g.rect(rect.x, rect.y, rect.w, rect.h); g.clip(); g.translate(rect.x, rect.y);
+          const t0 = performance.now();
           try { this._drawFace(g, s, f, rect.w, rect.h, st); } catch (e) { console.warn('[signage] face', s.kind, e); }
+          const pk = this.profile || (this.profile = {}); pk[s.kind] = (pk[s.kind] || 0) + performance.now() - t0;
           g.restore();
           if (sig) cache.set(sig, rect);
         }
@@ -918,12 +934,11 @@ export class Signage {
     const hasArrow = b.ang != null;
     let x = pad;
     if (b.type === 'lvlBig') {
-      picto(g, 'escalator', pad + H * 0.4, H / 2, H * 0.8, st.bg, st.fg);
-      if (b.dir < 0) { g.save(); g.translate(pad + H * 0.4, H / 2); g.scale(-1, 1); g.restore(); }
-      drawArrow(g, pad + H * 1.0, H * 0.5, H * 0.5, b.dir > 0 ? 0 : 180, st.arrow);
+      picto(g, 'escalator', pad + H * 0.38, H / 2, H * 0.76, st.bg, st.fg);
+      drawArrow(g, pad + H * 0.98, H * 0.5, H * 0.5, b.dir > 0 ? 0 : 180, st.arrow);
       g.fillStyle = st.fg; g.textAlign = 'left'; g.textBaseline = 'middle';
-      g.font = EN(H * 0.48, 800); g.fillText(b.label, pad + H * 1.3, H * 0.42);
-      g.font = JA(H * 0.16, 700); g.fillStyle = st.fg2; g.fillText(b.dir > 0 ? 'のぼり Up' : 'くだり Down', pad + H * 1.3, H * 0.82);
+      g.font = EN(H * 0.48, 800); g.fillText(b.label, pad + H * 1.26, H * 0.4);
+      g.font = JA(H * 0.16, 700); g.fillStyle = st.fg2; g.fillText(b.dir > 0 ? 'のぼり Up' : 'くだり Down', pad + H * 1.26, H * 0.82);
       return;
     }
     if (b.type === 'area') {
@@ -940,15 +955,15 @@ export class Signage {
       let xx = pad + H * 0.75;
       g.font = JA(H * 0.36, 900); g.fillText('出口', xx, H * 0.34);
       g.font = EN(H * 0.22, 700); g.fillText('Exit', xx + 2, H * 0.74);
-      g.font = JA(H * 0.36, 900); xx += g.measureText('出口').width + H * 0.15;
+      g.font = JA(H * 0.36, 900); xx += measW(g, '出口') + H * 0.15;
       g.font = EN(H * 0.78, 900); g.fillText(info.no, xx, H * 0.55);
-      xx += g.measureText(info.no).width + H * 0.25;
+      xx += measW(g, info.no) + H * 0.25;
       g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(xx - H * 0.12, H * 0.14, 2, H * 0.72);
       const rows = info.to.slice(0, 2);
       rows.forEach(([ja, en], i) => {
         const yy = H * (rows.length === 1 ? 0.5 : 0.3 + i * 0.42);
         g.fillStyle = st.exitFg; fitFont(g, ja, p => JA(p, 700), H * 0.22, w - xx - pad); g.fillText(ja, xx, yy - H * 0.06);
-        const jw = g.measureText(ja).width;
+        const jw = measW(g, ja);
         fitFont(g, en, p => EN(p, 600), H * 0.15, w - xx - jw - pad - 6); g.fillText(en, xx + jw + 6, yy - H * 0.05);
       });
       return;
@@ -962,7 +977,7 @@ export class Signage {
       g.fillStyle = st.exitFg; g.textBaseline = 'middle'; g.textAlign = 'left';
       g.font = JA(H * 0.32, 900); g.fillText('出口', x, H * 0.36);
       g.font = EN(H * 0.2, 700); g.fillText('Exit', x + H * 0.02, H * 0.72);
-      g.font = JA(H * 0.32, 900); const jw = g.measureText('出口').width;
+      g.font = JA(H * 0.32, 900); const jw = measW(g, '出口');
       g.font = EN(H * 0.62, 800); g.fillText(b.label, x + jw + H * 0.14, H * 0.54);
       return;
     }
@@ -996,7 +1011,7 @@ export class Signage {
     g.fillStyle = st.fg2; g.font = EN(H * 0.2, 600); g.fillText(this._en(d, st), x, H * 0.76);
   }
   _lvlTag(g, x, H, lvl, fg, bg) {
-    const w = H * 0.62, h = H * 0.5, y = (H - h) / 2;
+    const w = H * 0.68, h = H * 0.5, y = (H - h) / 2;
     g.strokeStyle = fg; g.lineWidth = Math.max(1.5, H * 0.035);
     rr(g, x, y, w, h, h * 0.18); g.stroke();
     g.fillStyle = fg;
@@ -1006,8 +1021,8 @@ export class Signage {
     if (lvl.dir > 0) { g.moveTo(tx, ty - h * 0.2); g.lineTo(tx + h * 0.16, ty + h * 0.12); g.lineTo(tx - h * 0.16, ty + h * 0.12); }
     else { g.moveTo(tx, ty + h * 0.2); g.lineTo(tx + h * 0.16, ty - h * 0.12); g.lineTo(tx - h * 0.16, ty - h * 0.12); }
     g.closePath(); g.fill();
-    g.font = EN(h * 0.5, 800); g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(lvl.label.replace('F', 'F'), x + w * 0.62, ty + 1);
+    g.font = EN(h * 0.52, 800); g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(lvl.label, x + w * 0.64, ty + 1);
   }
 
   // escalator mouth: [▲ 2F | via destinations]
@@ -1039,8 +1054,8 @@ export class Signage {
       blocks.push({ type: 'area', ja: z ? z.ja : other, en: z ? z.name : '', ang: null, score: 1 });
     }
     for (const b of blocks) {
-      if (b.type === 'lvlBig') b.w = H * 1.9;
-      else if (b.type === 'area') { g.font = JA(H * 0.36, 700); b.w = H * 0.5 + Math.max(g.measureText(b.ja).width, (g.font = EN(H * 0.2, 600), g.measureText(b.en).width)); }
+      if (b.type === 'lvlBig') { g.font = EN(H * 0.48, 800); const lw = measW(g, b.label); g.font = JA(H * 0.16, 700); b.w = H * 1.42 + Math.max(lw, measW(g, b.dir > 0 ? 'のぼり Up' : 'くだり Down')) + H * 0.25; }
+      else if (b.type === 'area') { g.font = JA(H * 0.36, 700); b.w = H * 0.5 + Math.max(measW(g, b.ja), (g.font = EN(H * 0.2, 600), measW(g, b.en))); }
       else b.w = this._measureBlock(g, b, H, st) - H * 0.78;
     }
     const maxPx = (s.maxW || 4) * this.PPM;
@@ -1077,7 +1092,7 @@ export class Signage {
     g.fillStyle = st.fg; g.font = JA(th * 0.46, 900);
     const ja = gt.ja.replace(/^千日前線\s*/, '');
     g.fillText(ja, x, th * 0.66);
-    const jw = g.measureText(ja).width;
+    const jw = measW(g, ja);
     g.font = EN(th * 0.3, 700); g.fillStyle = st.fg2; g.fillText(gt.name, x + jw + th * 0.25, th * 0.68);
     // paid/free side hint (right side of the title band)
     const paid = this._paidSide(s, f);
@@ -1141,8 +1156,8 @@ export class Signage {
     g.font = EN(H * 0.13, 700); g.fillStyle = fg2; g.fillText(B.here[1], W / 2, H * 0.51);
     // station number badge
     const code = B.here[2];
-    const bx = W / 2 - g.measureText(B.here[1]).width / 2 - H * 0.3;
-    g.font = JA(H * 0.36, 900); const nameW = g.measureText(B.here[0]).width;
+    const bx = W / 2 - measW(g, B.here[1]) / 2 - H * 0.3;
+    g.font = JA(H * 0.36, 900); const nameW = measW(g, B.here[0]);
     const cx = W / 2 - nameW / 2 - H * 0.32;
     if (Lc.shape === 'circle') { g.fillStyle = Lc.color; g.beginPath(); g.arc(cx, H * 0.29, H * 0.17, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, H * 0.29, H * 0.12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#1b1b1b'; g.font = EN(H * 0.1, 800); g.fillText(code, cx, H * 0.3); }
     else { g.fillStyle = Lc.color; rr(g, cx - H * 0.17, H * 0.12, H * 0.34, H * 0.34, H * 0.05); g.fill(); g.fillStyle = '#fff'; g.font = EN(H * 0.1, 800); g.fillText(code, cx, H * 0.29); }
@@ -1158,7 +1173,7 @@ export class Signage {
       if (!st) return;
       g.fillStyle = fg; g.textAlign = align;
       g.font = JA(H * 0.15, 700); g.fillText(st[0], x, by - H * 0.03);
-      const jw = g.measureText(st[0]).width;
+      const jw = measW(g, st[0]);
       g.font = EN(H * 0.08, 600); g.fillStyle = fg2; g.fillText(`${st[1]}  ${st[2]}`, x, by + H * 0.1);
       drawArrow(g, align === 'left' ? x - H * 0.1 : x + H * 0.1, by, H * 0.14, arrowDeg, Lc.color);
     };
@@ -1223,15 +1238,16 @@ export class Signage {
     g.fillStyle = head[2]; g.fillRect(0, hh - 3, W, 3);
     g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.textAlign = 'left';
     g.font = JA(hh * 0.42, 900); g.fillText(head[0], hh * 0.35, hh * 0.45);
-    const jw = g.measureText(head[0]).width;
+    const jw = measW(g, head[0]);
     g.font = EN(hh * 0.26, 600); g.fillStyle = '#c7ccd3'; g.fillText(head[1] + '  ·  フロアガイド Floor Guide', hh * 0.35 + jw + hh * 0.3, hh * 0.5);
     g.textAlign = 'right'; g.font = EN(hh * 0.5, 800); g.fillStyle = '#fff'; g.fillText(LEVELS[s.level].label, W - hh * 0.3, hh * 0.52);
     // map area
     const mx = H * 0.03, my = hh + H * 0.03, mw = W * 0.64, mh = H - my - H * 0.03;
     g.save(); g.beginPath(); g.rect(mx, my, mw, mh); g.clip();
-    g.fillStyle = THEMES.guide.bg; g.fillRect(mx, my, mw, mh);
-    const scale = mh / 62; // px per metre
-    const cxp = mx + mw / 2, cyp = my + mh * 0.62;
+    g.fillStyle = '#d9d5cc'; g.fillRect(mx, my, mw, mh);
+    const scale = mh / 78; // px per metre
+    // heads-up: you stand with your back to the walkable area → dot high on the map
+    const cxp = mx + mw / 2, cyp = my + mh * (s.northUp ? 0.5 : 0.3);
     // orientation: heads-up = viewer's forward (into the wall) is up
     const fx = -s.nx, fz = -s.nz;
     const rot = s.northUp ? 0 : Math.atan2(fx, -fz); // angle to rotate world so forward → up
@@ -1319,7 +1335,7 @@ export class Signage {
       g.textAlign = 'left'; g.fillStyle = '#1e2126';
       const t = `${it.b.ja}`;
       fitFont(g, t, p => JA(p, 700), lh * 0.46, dw * 0.55); g.fillText(t, dx0 + lh * 0.85, y);
-      const tw = g.measureText(t).width;
+      const tw = measW(g, t);
       g.fillStyle = '#6b6f76'; fitFont(g, it.b.en, p => EN(p, 500), lh * 0.36, dw - lh * 0.9 - tw - 8); g.fillText(it.b.en, dx0 + lh * 0.85 + tw + 6, y + 1);
     });
   }

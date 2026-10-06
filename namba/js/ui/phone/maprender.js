@@ -35,7 +35,7 @@ export const THEMES = {
   },
   // in-world floor guide board (printed backlit panel)
   guide: {
-    bg: '#2c2f34', hall: '#f4f2ec', outdoor: '#d9d6cf', garden: '#b9d8a8', canyon: '#e2d3bb', deck: '#d8c39f',
+    bg: '#d9d5cc', hall: '#f4f2ec', outdoor: '#d9d6cf', garden: '#b9d8a8', canyon: '#e2d3bb', deck: '#d8c39f',
     zone: { midosuji: '#f3e3e3', sennichimae: '#f3e4ec', nankai: '#f6e7d3', nambawalk: '#f7efd2', city: '#e2ecf7', parks: '#e7efdf',
       takashimaya: '#e6ebdc', link: '#efefed', plaza: '#e3e1db', street: '#e3e1db', parksGarden: '#b9d8a8' },
     shop: { food: '#f6cfae', cafe: '#efd5bb', retail: '#d6cfee', service: '#c6dcf2', closed: '#cfcfcf' },

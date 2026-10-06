@@ -522,6 +522,7 @@ export class Player {
       }
     }
     this._deflSeg = best ? best.w.s : null;
+    if (best) { this._deflTx = best.tx; this._deflTz = best.tz; }
     if (!best) return null;
     // keep most of the speed, sliding along the face toward the open end;
     // blend in as the face gets close (people start veering ~0.4 m out)
@@ -540,7 +541,7 @@ export class Player {
     for (const w of walls) {
       const gap = Math.max(0, w.d - this.radius);
       if (gap > 0.6) continue;
-      if (w.s === this._deflSeg && gap > 0.06) continue;   // being stepped around
+      const around = w.s === this._deflSeg;              // being stepped around
       const closing = -(this.vel.x * w.nx + this.vel.y * w.nz);
       if (closing <= 0) continue;
       const head = closing / Math.sqrt(this.vel.lengthSq() || 1);
@@ -549,6 +550,8 @@ export class Player {
       if (closing > cap) {
         const cut = closing - cap;
         this.vel.x += w.nx * cut; this.vel.y += w.nz * cut;
+        // stepping around a short face: the speed we take off goes sideways instead
+        if (around) { this.vel.x += this._deflTx * cut * 0.8; this.vel.y += this._deflTz * cut * 0.8; }
         const an = -(this.acc.x * w.nx + this.acc.y * w.nz);
         if (an > 0) { this.acc.x += w.nx * an; this.acc.y += w.nz * an; }
       }

@@ -96,18 +96,25 @@ export class Gates {
     const policy = (i) => (i === 0 || i === nL - 1) ? 'both' : (i % 4 === 1 ? 'in' : i % 4 === 3 ? 'out' : 'both');
     machines.forEach((u, mi) => {
       const h = MACH_H;
-      // body: lower cabinet + slimmer upper with dark glossy top
-      boxUV('transit_gate_body', u, y + h * 0.45, 0, MACH_W, h * 0.9, MACH_LEN);
+      // body: cabinet with raised reader heads at both ends, dark glossy top
+      boxUV('transit_gate_body', u, y + 0.46, 0, MACH_W, 0.92, MACH_LEN - 0.02);
       boxUV('transit_gate_side', u, y + 0.06, 0, MACH_W + 0.02, 0.12, MACH_LEN + 0.02, { faces: 'nsew' });
-      boxUV('transit_gate_top', u, y + h * 0.93, 0, MACH_W + 0.04, 0.08, MACH_LEN + 0.06);
-      boxUV(accent, u, y + h * 0.78, 0, MACH_W + 0.004, 0.05, MACH_LEN + 0.004, { faces: 'nsew' });
-      // ends: sloped readers + LED indicators
+      boxUV('transit_gate_top', u, y + 0.935, 0, MACH_W + 0.03, 0.03, MACH_LEN - 0.62);
+      for (const e of [-1, 1]) {
+        const vc = e * (MACH_LEN / 2 - 0.17);
+        boxUV('transit_gate_body', u, y + 0.52, vc, MACH_W + 0.02, 1.04, 0.34);
+        boxUV('transit_gate_top', u, y + 1.055, vc, MACH_W + 0.05, 0.03, 0.36);
+      }
+      boxUV(accent, u, y + 0.8, 0, MACH_W + 0.026, 0.045, MACH_LEN + 0.004, { faces: 'nsew' });
+      // centre display (balance / fare)
+      { const ic = ICON.lcd; quadW(this.iconMat, [[u - 0.08, y + 0.952, -0.13], [u + 0.08, y + 0.952, -0.13], [u + 0.08, y + 0.952, 0.13], [u - 0.08, y + 0.952, 0.13]], { uv: [[ic[0], ic[1]], [ic[0], ic[3]], [ic[2], ic[3]], [ic[2], ic[1]]] }); }
+      // ends: IC readers on the heads + LED indicators
       for (const e of [-1, 1]) {
         const v0 = e * MACH_LEN / 2;
-        // IC reader pad (glowing blue) on the top near the end
-        const vr = e * (MACH_LEN / 2 - 0.2);
-        const yy = y + h * 0.975;
-        quadW(this.icPad, [[u - 0.09, yy, vr - 0.1], [u + 0.09, yy, vr - 0.1], [u + 0.09, yy, vr + 0.1], [u - 0.09, yy, vr + 0.1]].map(p => p), {});
+        const vr = e * (MACH_LEN / 2 - 0.17);
+        const yy = y + 1.072;
+        const ic = ICON.ic;
+        quadW(this.iconMat, [[u - 0.11, yy, vr - 0.13], [u + 0.11, yy, vr - 0.13], [u + 0.11, yy, vr + 0.13], [u - 0.11, yy, vr + 0.13]], { uv: [[ic[0], ic[1]], [ic[2], ic[1]], [ic[2], ic[3]], [ic[0], ic[3]]] });
         // ticket slot (dark) in the middle of the top
         boxUV('rubber_black', u, y + h * 0.975, e * 0.25, 0.04, 0.01, 0.12, { faces: 't' });
         // LED direction indicator on the end face (serves the lanes either side)
@@ -116,7 +123,7 @@ export class Gates {
         const allowsFromThisEnd = lanePol.some(p => p === 'both' || (p === 'in' ? Math.sign(enterDir) === ps : Math.sign(enterDir) === -ps));
         const icn = allowsFromThisEnd ? ICON.arrow : ICON.noentry;
         const fv = v0 + e * 0.005;
-        const yA = y + 0.62, yB = y + 0.8;
+        const yA = y + 0.8, yB = y + 0.98;
         // quad facing outward (direction e along v)
         const uvs = [[icn[0], icn[1]], [icn[2], icn[1]], [icn[2], icn[3]], [icn[0], icn[3]]];
         // orientation: seen from outside the end, right-hand is -u for e>0 (axis x) — keep arrow pointing "into" the gate
@@ -231,8 +238,9 @@ export class Gates {
         // which side of the gate line is it on?
         const across = (gt.axis === 'x' ? pz : px) - gt.at;
         if (Math.sign(across) !== Math.sign(ps * side) || Math.abs(across) < 2.5) continue;
+        if (gt.axis === 'z' ? false : vert) { const a0 = e.az + s - gt.at, a1 = e.az + s + need - gt.at; if (Math.min(Math.abs(a0), Math.abs(a1)) < 2.2 || Math.sign(a0) !== Math.sign(a1)) continue; }
         const d = Math.hypot(px - gx, pz - gz);
-        if (d > 26) continue;
+        if (d > 40) continue;
         // clearance: 2.5 m in front must be walkable, unblocked, not a room/shop, and of the right paid-ness
         let ok = true;
         for (let k = 0; k < need && ok; k += 0.5) {
@@ -251,6 +259,7 @@ export class Gates {
         if (!best || score < best.score) best = { score, e, s, vert, nx, nz };
       }
     }
+    if (!best) best = this._freeIsland(gt, ps, side, need);
     if (!best) return;
     const { e, s, vert, nx, nz } = best;
     const kinds = [];
@@ -293,6 +302,32 @@ export class Gates {
       gb.box('steel_dark', cx, y0 - 0.04, cz, vert ? 0.08 : Math.abs(a1 - a0) + 0.1, 0.08, vert ? Math.abs(a1 - a0) + 0.1 : 0.08);
       ctx.lighting.addLight({ level: lv, x: cx + nx * 0.2, y: (y0 + y1) / 2, z: cz + nz * 0.2, color: 0xf2f6ff, intensity: 1.0, range: 6, kind: 'sign', dir: [nx, 0, nz] });
     }
+  }
+
+  // no wall: a free-standing bank parallel to the gate line, facing it, ~6 m away
+  _freeIsland(gt, ps, side, need) {
+    const w = this.ctx.world, lv = gt.level, grid = w.grids[lv];
+    const dist = side < 0 ? 6.5 : 4.5;
+    const across = gt.at + (-ps) * (side < 0 ? 1 : -1) * dist; // free side for side<0
+    const facing = side < 0 ? ps : -ps; // normal pointing back towards the gate line
+    const starts = [];
+    for (let a = gt.from - 1; a + need < gt.to + 1; a += 1) starts.push(a);
+    starts.sort((p, q) => Math.abs(p + need / 2 - gt.from) - Math.abs(q + need / 2 - gt.from));
+    for (const a of starts) {
+      let ok = true;
+      for (let k = -0.5; k <= need + 0.5 && ok; k += 0.5) for (const dd of [-1.2, 0, 1.0, 2.0]) {
+        const al = a + k, cr = across + facing * dd;
+        const [qx, qz] = gt.axis === 'x' ? [al, cr] : [cr, al];
+        const i = grid.cellOf(qx, qz);
+        if (i < 0 || grid.type[i] !== CELL.WALK || grid.blocked[i]) { ok = false; break; }
+      }
+      if (!ok) continue;
+      const vert = gt.axis !== 'x';
+      const e = gt.axis === 'x' ? { ax: a, az: across, bx: a + need, bz: across } : { ax: across, az: a, bx: across, bz: a + need };
+      const [nx, nz] = gt.axis === 'x' ? [0, facing] : [facing, 0];
+      return { e, s: 0, vert, nx, nz, island: true };
+    }
+    return null;
   }
 
   _machine(gb, x, y, z, nx, nz, kind, op) {

@@ -158,7 +158,7 @@ export class Transit {
   // ---------------------------------------------------------------------------------------
   _floorMarkings() {
     const ctx = this.ctx;
-    const CB = new ChunkBatches();
+    const CB = new ChunkBatches(320);
     const cells = this._decals.cells;
     const decal = (cfg, s, c, w, h, cell, vertical = false, yy = 0.006) => {
       const uv = cells[cell]; if (!uv) return;

@@ -11,12 +11,12 @@
   transition: transform .5s cubic-bezier(.2, .85, .25, 1), filter .5s;
   perspective: 1600px; pointer-events: none; filter: brightness(.7);
 }
-.ph-wrap.open { transform: translate(calc(-50% + var(--sx)), calc(13% + var(--sy))) scale(var(--s)) rotate(-1.2deg); pointer-events: auto; filter: none; }
+.ph-wrap.open { transform: translate(calc(-50% + var(--sx)), calc(5% + var(--sy))) scale(var(--s)) rotate(-1.2deg); pointer-events: auto; filter: none; }
 .ph-device {
   position: absolute; inset: 0; border-radius: 56px;
   background: linear-gradient(135deg, #5a5d63 0%, #2a2b2f 18%, #1a1b1e 50%, #34363b 82%, #6a6d73 100%);
   box-shadow: 0 40px 90px rgba(0,0,0,.55), 0 10px 26px rgba(0,0,0,.45), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 4px #0b0b0c;
-  transform: rotateX(7deg); transform-style: preserve-3d;
+  transform: rotateX(4deg); transform-style: preserve-3d;
 }
 .ph-btn { position: absolute; width: 4px; background: linear-gradient(90deg, #2a2b2e, #6b6e74); border-radius: 2px; }
 .ph-btn-a { left: -3px; top: 118px; height: 28px; } .ph-btn-b { left: -3px; top: 168px; height: 54px; } .ph-btn-c { left: -3px; top: 232px; height: 54px; }

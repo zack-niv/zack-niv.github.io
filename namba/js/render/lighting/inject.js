@@ -196,9 +196,15 @@ export function installMaterialHook() {
   const userHooks = new WeakMap();
   const P = THREE.Material.prototype;
   function nbHook(shader, renderer) {
-    try { patch(this, shader); } catch (e) { console.error('[render] material patch failed', e); }
-    const u = userHooks.get(this);
-    if (u) u.call(this, shader, renderer);
+    // re-entrancy guard: a builder hook that chains to the "previous"
+    // onBeforeCompile (which is us) must not recurse
+    if (this.__nbInHook) return;
+    this.__nbInHook = true;
+    try {
+      try { patch(this, shader); } catch (e) { console.error('[render] material patch failed', e); }
+      const u = userHooks.get(this);
+      if (u) u.call(this, shader, renderer);
+    } finally { this.__nbInHook = false; }
   }
   Object.defineProperty(P, 'onBeforeCompile', {
     configurable: true,

@@ -534,7 +534,8 @@ export class MapApp {
     if (m || /^exit|出口/.test(q)) for (const ex of LAYOUT.exits) { const info = EXIT_INFO[ex.id]; if (info && (!m || info.no === m[1])) out.push(this._exitPlace(info.no)); }
     const biz = searchBusinesses(q).filter(b => b.cat !== 'closed' || q.length > 4);
     const mins = this.ctx.clock.minutes;
-    biz.sort((a, b) => (isOpen(b, mins) - isOpen(a, mins)) * 2 + (b.rating - a.rating) - (this._crow(a) - this._crow(b)) / 400);
+    const sc = (b) => (isOpen(b, mins) ? 2 : 0) + b.rating - this._crow(b) / 500;
+    biz.sort((a, b) => sc(b) - sc(a));
     for (const b of biz.slice(0, 30)) out.push(this._bizPlace(b));
     return out;
   }

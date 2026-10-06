@@ -280,7 +280,16 @@ export function buildCar(key) {
         mb.shape(M.GLASS, gl, (x, y) => [x, y, zl - side * 0.01], [0, 0, side], Object.assign({ uv: [0.5, 0.5] }, dd), side < 0);
         // rubber meeting edge
         const me = lf.slide < 0 ? lf.x1 - 0.02 : lf.x0 + 0.02;
-        mb.box(M.BODY, me, s.dh / 2, zl - side * 0.01, 0.04, s.dh, 0.03, B('rubber', dd));
+        mb.box(M.BODY, me, s.dh / 2, zl - side * 0.01, 0.022, s.dh, 0.03, B('gangway', dd));
+      }
+      // exterior door frame trim + door-open indicator lamp (lit while open)
+      const zt = side * (hw + 0.008);
+      for (const xx of [xd - s.dw / 2 - 0.03, xd + s.dw / 2 + 0.03]) mb.box(M.BODY, xx, s.dh / 2, zt, 0.05, s.dh + 0.06, 0.018, B('chrome'));
+      mb.box(M.BODY, xd, s.dh + 0.04, zt, s.dw + 0.11, 0.05, 0.018, B('chrome'));
+      {
+        const ly = s.dh + 0.13, lx0 = xd - 0.06, lx1 = xd + 0.06, zl2 = side * (hw + 0.012);
+        if (side > 0) mb.quad(M.EMIT, [lx0, ly, zl2], [lx1, ly, zl2], [lx1, ly + 0.05, zl2], [lx0, ly + 0.05, zl2], { uv: eswUV('redtail'), col: [3, 0.3, 0.2], kind: 4, door: [0, side] });
+        else mb.quad(M.EMIT, [lx1, ly, zl2], [lx0, ly, zl2], [lx0, ly + 0.05, zl2], [lx1, ly + 0.05, zl2], { uv: eswUV('redtail'), col: [3, 0.3, 0.2], kind: 4, door: [0, side] });
       }
       // door threshold plate + interior door frame
       mb.box(M.BODY, xd, 0.005, side * (hw - inr / 2), s.dw, 0.012, inr + 0.02, B('chrome', { faces: 't' }));

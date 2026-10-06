@@ -25,7 +25,7 @@ export function hvac(sr, variant = 'tile', seconds = 12) {
   const v = {
     tile:   { rumble: 0.22, air: 0.3, hiss: 0.05, hum: 0.018, fan: 0, airF: 900 },
     arcade: { rumble: 0.2, air: 0.3, hiss: 0.035, hum: 0.014, fan: 0.02, airF: 750 },
-    big:    { rumble: 0.32, air: 0.35, hiss: 0.03, hum: 0.008, fan: 0, airF: 600 },
+    big:    { rumble: 0.22, air: 0.35, hiss: 0.03, hum: 0.008, fan: 0, airF: 600 },
     mall:   { rumble: 0.2, air: 0.3, hiss: 0.04, hum: 0.008, fan: 0.012, airF: 800 },
     dept:   { rumble: 0.16, air: 0.25, hiss: 0.03, hum: 0.006, fan: 0, airF: 750 },
   }[variant] || {};

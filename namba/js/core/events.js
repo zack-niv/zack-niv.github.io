@@ -15,6 +15,7 @@
 //   -- game flow (js/game/*, see notes/game.md) --
 //   'phone:message'      { id, from, text, time }               a text from Aya (phone renders)
 //   'caption'            { en, ja, speaker, duration }          subtitle line (HUD renders)
+//                        audio also emits it for PA lines: + { text, kind, distant }
 //   'toast'              { kind, title, en, ja }                small HUD notification
 //   'discover'           { id, en, ja }                         first visit to a place
 //   'game:start' / 'game:pause' / 'game:resume' / 'game:end' { summary }

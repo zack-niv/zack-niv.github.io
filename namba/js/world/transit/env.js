@@ -8,16 +8,17 @@ import * as THREE from 'three';
 import { GeoBatch } from '../../render/geobatch.js';
 import { MB } from './mesh.js';
 
-const CHUNK = 48;
 
 export class ChunkBatches {
-  constructor() { this.map = new Map(); }
+  constructor(size = 160) { this.map = new Map(); this.size = size; }
   get(level, x, z) {
+    const CHUNK = this.size;
     const k = `${level}|${Math.floor(x / CHUNK)}|${Math.floor(z / CHUNK)}`;
     let b = this.map.get(k); if (!b) this.map.set(k, b = new GeoBatch());
     return b;
   }
   build(ctx, name) {
+    const CHUNK = this.size;
     for (const [k, b] of this.map) {
       const [lv, cx, cz] = k.split('|');
       const grp = new THREE.Group(); grp.name = `${name}:${k}`;
@@ -67,7 +68,7 @@ export function defineEnvMaterials(ctx) {
 
 // -----------------------------------------------------------------------------
 export function buildTrackEnv(ctx, cfgs) {
-  const CB = new ChunkBatches();
+  const CB = new ChunkBatches(320);
   const lights = ctx.lighting;
   for (const cfg of cfgs) {
     const { t, line, y, centre, inward } = cfg;
@@ -258,7 +259,7 @@ export function buildPSD(ctx, cfg, doorsAlong, dw) {
   const H = 1.32, TH = 0.2;
   const open = dw + 0.4, leafW = open / 2;
   const red = line.id === 'midosuji' ? 'transit_psd_red' : 'transit_psd_pink';
-  const CB = new ChunkBatches();
+  const CB = new ChunkBatches(320);
   const bAt = (s) => { const [x, z] = T.xz(s, cLine); return CB.get(t.level, x, z); };
   const sorted = doorsAlong.slice().sort((a, b) => a - b);
   const openings = sorted.map(d => [d - open / 2, d + open / 2]);

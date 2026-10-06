@@ -81,6 +81,10 @@ speed (actual m/s incl. belt), walkSpeed (own m/s), headBob (0..1), gait
   so feet and visuals agree.
 * **Sound**: footsteps from `player:step` (surface/intensity/gait), `player:land`, `player:bump`;
   escalator hum while `ctx.player.riding`.
+* **Wayfinding**: phone hand sway reads `p.speed` (includes the escalator belt, so the hand
+  sways while you stand on an escalator) — `p.walkSpeed` is your own walking speed; `p.bobPhase`
+  (= stepPhase·π, heel strike at multiples of π) is the right phase. Keys stay held when the phone
+  drops pointer lock, so you keep walking while glancing at it (at 0.85 m/s, view pitched −8°).
 * **Game**: settings UI could expose `invertY`, `fov`, `reduceMotion` via `ctx.input.set(key, v)`.
 
 ## How it's tested

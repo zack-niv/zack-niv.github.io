@@ -194,7 +194,7 @@ export function formantVoice(sr, text, { lang = 'ja', seed = 1, f0 = 215, rate =
     const e = Math.min(n, b + B);
     for (let i = b; i < e; i++) {
       vib += 1 / sr;
-      const f0 = base * f0m * (1 + jitter + 0.008 * Math.sin(TAU * 5.1 * vib));
+      const f0 = base * f0m * (1 + jitter + 0.008 * Math.sin(TAU * 5.1 * vib) + 0.035 * Math.sin(TAU * 1.35 * vib + 1) * Math.sin(TAU * 0.37 * vib));
       ph += f0 / sr;
       if (ph >= 1) ph -= 1;
       // Rosenberg-like glottal flow derivative

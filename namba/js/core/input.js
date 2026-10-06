@@ -97,7 +97,9 @@ export class Input {
       this.look.x += dx; this.look.y += dy;
     });
     addEventListener('mousedown', e => { this._pressed.add('Mouse' + e.button); });
-    document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; if (!this.locked) this.keys.clear(); });
+    // (keys are NOT cleared on lock loss: opening the phone drops pointer lock and
+    // you should keep walking while you glance at it; blur still clears them)
+    document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; });
     addEventListener('gamepadconnected', e => { if (this._pad.index < 0) this._pad.index = e.gamepad.index; });
     addEventListener('gamepaddisconnected', e => { if (this._pad.index === e.gamepad.index) this._pad.index = -1; });
     this._touchSetup();

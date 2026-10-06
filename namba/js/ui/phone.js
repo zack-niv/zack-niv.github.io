@@ -55,10 +55,8 @@ export class Phone {
     this.transit = new TransitApp(this, this.views.transit);
     this.apps = { home: this.home, maps: this.maps, notes: this.notes, messages: this.messages, transit: this.transit };
     this._showApp('maps');
-    // signage finishes building in parallel; make sure it is in place before play
-    if (ctx.signage && ctx.signage.ready) {
-      try { await Promise.race([ctx.signage.ready(), new Promise(r => setTimeout(r, 30000))]); } catch (e) { /* logged by signage */ }
-    }
+    // signage finishes its content in the background (never awaited here)
+    if (ctx.signage && ctx.signage.start) ctx.signage.start();
     // a pointer lock grabbed by a click on the world closes the phone
     document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement && this.isOpen && !this._locking) this.close(true); });
   }

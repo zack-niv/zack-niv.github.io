@@ -30,7 +30,8 @@ if (aKind > 0.5 && aKind < 1.5) { vMapUv.x += uLang * 0.5; vMapUv.y -= iA.z * uR
       .replace('#include <color_vertex>', `#include <color_vertex>
 #if defined( USE_COLOR ) || defined( USE_COLOR_ALPHA )
 if (aKind > 1.5 && aKind < 2.5) vColor.rgb *= (iA.w > 0.5 ? 1.0 : 0.05);
-if (aKind > 2.5) vColor.rgb *= ((iA.w > -0.5 && iA.w < 0.5) ? 1.0 : 0.05);
+if (aKind > 2.5 && aKind < 3.5) vColor.rgb *= ((iA.w > -0.5 && iA.w < 0.5) ? 1.0 : 0.05);
+if (aKind > 3.5) vColor.rgb *= ((aDoor.y > 0.0 ? iA.x : iA.y) > 0.02 ? 1.0 : 0.06);
 #endif`);
   };
   mat.customProgramCacheKey = () => 'nb-train-' + mat.type + (mat.transparent ? 't' : '');

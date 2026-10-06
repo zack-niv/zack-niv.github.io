@@ -2,7 +2,7 @@
 // Hand-built dressing: the quest businesses (directory FEATURED), the
 // Takashimaya depachika (B1 food hall) and the 1F cosmetics hall.
 // =============================================================================
-import { Frame, Painter, rgb, mix, WHITE, protoUV } from './kit.js';
+import { Frame, Painter, NullPainter, ChunkBatches, rgb, mix, WHITE, protoUV } from './kit.js';
 import * as D from './draw.js';
 import { MENU } from './catalog.js';
 import { foodItem, aFrame, chair, standingLedges, queuePoints, showcase, mannequin } from './shopbuild.js';
@@ -170,16 +170,25 @@ function chairFolding(P, a, d, rot) { chair(P, a, d, rot, [0.25, 0.25, 0.27], [0
 // ----------------------------------------------------------------------------
 // hall helpers (depachika, Takashimaya 1F): world-frame painter + grid checks
 // ----------------------------------------------------------------------------
-class Hall {
+export class Hall {
   constructor(env, spaceId) {
-    this.env = env; this.sp = spaceById[spaceId]; this.level = this.sp.level;
-    this.y = LEVELS[this.level].y;
+    this.env = env; this.id = spaceId; this.sp = spaceById[spaceId]; this.level = this.sp && this.sp.level;
+    this.y = this.sp ? LEVELS[this.level].y : 0;
     this.f = new Frame(0, this.y, 0, 0);
     this.spots = [];
+    this.log = []; this.replay = false; this.ri = 0;
+    this.nullP = new NullPainter(this.f);
   }
-  painter(x, z) { return new Painter(this.env.chunks.get(this.level, x, z), this.f); }
+  // logic pass draws nothing; begin() replays with real painters into chunk batches
+  begin() { this.replay = true; this.ri = 0; this.batches = new ChunkBatches(32, 'hall:' + this.id); }
+  end() { this.replay = false; const g = this.batches.build(this.env.ctx); this.batches = null; return g; }
+  painter(x, z) { return this.replay ? new Painter(this.batches.get(this.level, x, z), this.f) : this.nullP; }
   // all cells walkable, in this space, unblocked (with margin)
   clear(x0, z0, x1, z1, m = 0) {
+    if (this.replay) return this.log[this.ri++];
+    const v = this._clear(x0, z0, x1, z1, m); this.log.push(v); return v;
+  }
+  _clear(x0, z0, x1, z1, m) {
     const g = this.env.world.grids[this.level];
     for (let z = Math.floor(z0 - m); z < Math.ceil(z1 + m); z++) for (let x = Math.floor(x0 - m); x < Math.ceil(x1 + m); x++) {
       const i = g.cellOf(x + 0.5, z + 0.5);
@@ -189,9 +198,9 @@ class Hall {
     }
     return true;
   }
-  box(x0, z0, x1, z1) { this.env.world.addBox(this.level, (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (z1 - z0) / 2, 0); }
-  spot(kind, x, z, fx, fz, extra) { const s = { x, z, level: this.level, yaw: Math.atan2(-fx, -fz), kind, ...extra }; this.spots.push(s); return s; }
-  light(x, y, z, color, intensity, range, kind) { this.env.lights.push({ level: this.level, x, y: this.y + y, z, color, intensity, range, kind }); }
+  box(x0, z0, x1, z1) { if (!this.replay) this.env.world.addBox(this.level, (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2 - 0.01, (z1 - z0) / 2 - 0.01, 0); }
+  spot(kind, x, z, fx, fz, extra) { if (this.replay) return null; const s = { x, z, level: this.level, yaw: Math.atan2(-fx, -fz), kind, ...extra }; this.spots.push(s); return s; }
+  light(x, y, z, color, intensity, range, kind) { if (!this.replay) this.env.lights.push({ level: this.level, x, y: this.y + y, z, color, intensity, range, kind }); }
 }
 
 // ----------------------------------------------------------------------------
@@ -220,8 +229,7 @@ const VENDORS = [
   { k: 'takoyaki', ja: '551 豚まん風 蓬莱軒', en: 'Pork buns', col: '#c8102e', foods: ['bread'] },
 ];
 
-export function buildDepachika(env, R) {
-  const H = new Hall(env, 'taka_b1');
+export function buildDepachika(env, R, H = new Hall(env, 'taka_b1')) {
   if (!H.sp) return H;
   const [X0, Z0, X1, Z1] = H.sp.rect;
   const r = rng(hash('depachika'));
@@ -383,8 +391,7 @@ const BRANDS = [['MAISON LUNE', '#111111', '#e8d8b8'], ['SHIRO-HADA', '#ffffff',
   ['NOIR ET BLANC', '#000000', '#ffffff'], ['HANAKO TOKYO', '#c8102e', '#ffffff'], ['CLAIRE DE SOIE', '#f6efe6', '#7a5a3a'], ['YUKI BEAUTÉ', '#e8f0f8', '#1d3557'],
   ['SORA COSMETICS', '#87c5ea', '#ffffff'], ['MIZU-IRO', '#2a9d8f', '#ffffff'], ['ATELIER ROSE', '#f8d7da', '#6d2e46'], ['KUROBARA', '#2a0a12', '#e8a0b8']];
 
-export function buildTaka1F(env, R) {
-  const H = new Hall(env, 'taka_1f');
+export function buildTaka1F(env, R, H = new Hall(env, 'taka_1f')) {
   if (!H.sp) return H;
   const [X0, Z0, X1, Z1] = H.sp.rect;
   // promenade: north door x∈[-70,-50] → z -160 → east to x≈0 → south door

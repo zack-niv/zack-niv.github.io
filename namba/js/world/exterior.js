@@ -19,6 +19,7 @@ import * as THREE from 'three';
 import { sunPosition, daylight } from './outdoor/sun.js';
 import { createSky } from './outdoor/sky.js';
 import { OutdoorMask } from './outdoor/outmask.js';
+import { defineOutdoorMaterials } from './outdoor/mats.js';
 
 export const SHADOW_LAYER = 3;
 export const SKY_GAIN = 4.5; // sky radiance scale to match the light-field units (sun ≈ 18)
@@ -39,6 +40,7 @@ export class Exterior {
 
   async init() {
     const { engine, world } = this.ctx;
+    defineOutdoorMaterials(this.ctx);
     this.mask = new OutdoorMask(world);
     // root for everything outdoors that must be visible from far away
     this.root = new THREE.Group(); this.root.name = 'outdoor';

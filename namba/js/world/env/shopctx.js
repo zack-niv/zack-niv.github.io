@@ -12,7 +12,7 @@
 // points are always reachable.
 // =============================================================================
 import { GeoBatch } from '../../render/geobatch.js';
-import { Frame, Painter } from './kit.js';
+import { Frame, Painter, NullPainter } from './kit.js';
 import { rng, hash } from '../../core/rng.js';
 import { CELL } from '../world.js';
 import { LEVELS, spaceById } from '../layout.js';
@@ -50,8 +50,10 @@ export class ShopCtx {
     // painters
     const cw = this.world(W / 2, D / 2);
     this.cx = cw.x; this.cz = cw.z;
-    this.front = new Painter(env.chunks.get(slot.level, cw.x, cw.z), this.f);
-    this.inner = new Painter(new GeoBatch(), this.f);
+    // logic pass: nothing is drawn; begin() switches to a real replay
+    this.front = new NullPainter(this.f);
+    this.inner = new NullPainter(this.f);
+    this.log = []; this.replay = false; this.ri = 0;
     // occupancy
     this.occ = new Uint8Array(W * D);
     for (let i = this.doorA0; i < this.doorA1; i++) this.occ[i] = RESERVED;
@@ -63,6 +65,22 @@ export class ShopCtx {
     this.spots = []; this.queue = []; this.counterPt = null; this.boxes = [];
     this.lights = [];
   }
+  // Replay the build with real painters: every obstacle/clearance query
+  // returns what the logic pass decided, so the result is identical.
+  begin(frontGB) {
+    this.replay = true; this.ri = 0;
+    this.r = rng(hash('shop:' + this.slot.id));
+    this.front = new Painter(frontGB, this.f);
+    this.inner = new Painter(new GeoBatch(), this.f);
+    this._spots = this.spots; this._queue = this.queue; this._counter = this.counterPt; this._lights = this.lights;
+    this.spots = []; this.queue = []; this.counterPt = null; this.lights = [];
+    this.doorCells = this._doorCells0 !== undefined ? this._doorCells0 : this.doorCells;
+  }
+  end() {
+    this.spots = this._spots; this.queue = this._queue; this.counterPt = this._counter; this.lights = this._lights;
+    this.replay = false;
+  }
+  _log(v) { this.log.push(v); return v; }
   // restrict the door to cells [i0, i1) of the front row (counter-type fronts)
   setDoor(i0, i1) {
     i0 = Math.max(this.doorA0, Math.floor(i0)); i1 = Math.min(this.doorA1, Math.ceil(i1));
@@ -105,6 +123,10 @@ export class ShopCtx {
   // Register an interior obstacle. opts.force: skip connectivity test.
   // opts.fill: area is sealed off (back-of-house) — cells become solid.
   solid(a0, a1, d0, d1, opts = {}) {
+    if (this.replay) return this.log[this.ri++];
+    return this._log(this._solid(a0, a1, d0, d1, opts));
+  }
+  _solid(a0, a1, d0, d1, opts) {
     const cells = this._cellsIn(a0, a1, d0, d1);
     for (const c of cells) if (this.occ[c] === RESERVED && !opts.force) return false;
     const prev = cells.map(c => this.occ[c]);
@@ -161,6 +183,10 @@ export class ShopCtx {
     return false;
   }
   outside(a0, a1, d0, d1, clear = 3) {
+    if (this.replay) return this.log[this.ri++];
+    return this._log(this._outside(a0, a1, d0, d1, clear));
+  }
+  _outside(a0, a1, d0, d1, clear) {
     const g = this.env.world.grids[this.level];
     const A0 = Math.min(a0, a1), A1 = Math.max(a0, a1);
     if (this.blocksDoor(a0, a1, d0, d1) || this.nearTactile(a0, a1, d0, d1)) return false;
@@ -179,6 +205,10 @@ export class ShopCtx {
   }
   // corridor area check without registering
   outsideClear(a0, a1, d0, d1, clear = 3) {
+    if (this.replay) return this.log[this.ri++];
+    return this._log(this._outsideClear(a0, a1, d0, d1, clear));
+  }
+  _outsideClear(a0, a1, d0, d1, clear) {
     const g = this.env.world.grids[this.level];
     if (this.blocksDoor(a0, a1, d0, d1) || this.nearTactile(a0, a1, d0, d1)) return false;
     for (let a = Math.min(a0, a1) + 0.25; a < Math.max(a0, a1); a += 0.5) {
@@ -195,6 +225,7 @@ export class ShopCtx {
   }
   // a spot for the crowd: kind browse|counter|queue|seat|staff; facing local dir
   spot(kind, a, d, fa = 0, fd = 1) {
+    if (this.replay) return null;
     const w = this.world(a, d);
     const s = { x: w.x, z: w.z, level: this.level, yaw: this.f.yaw(fa, fd), kind };
     this.spots.push(s);

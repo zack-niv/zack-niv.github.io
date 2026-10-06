@@ -109,6 +109,7 @@ export class Audio {
     this.ac = ac;
     this.bank = new Bank(ac, { useWorker: worker });
     this.mixer = new Mixer(ac, this.bank);
+    this.mixer.hrtf = !(this.ctx.engine && this.ctx.engine.qualityName === 'low');
     for (const [k, v] of Object.entries(this._vols)) this.mixer.setVolume(k, v);
     this.announcer = new Announcer(this);
     this.announcer.useSpeech = this.useSpeech;

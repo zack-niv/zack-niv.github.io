@@ -24,6 +24,7 @@ const LAYERS = {
   traffic:     { recipe: 'bed:traffic', bus: 'ambience', g: 1 },
   cityfar:     { recipe: 'bed:cityfar', bus: 'ambience', g: 1 },
   leaves:      { recipe: 'bed:leaves', bus: 'ambience', g: 1 },
+  water:       { recipe: 'bed:water', bus: 'ambience', g: 1, lp: 6000 },
   aux:         { recipe: 'tr:aux', bus: 'ambience', g: 1, lp: 1800 },
   bgm:         { recipe: 'mus:dept', bus: 'music', g: 1, lp: 7000, send: 0.5 },
 };
@@ -34,13 +35,13 @@ const MOODS = {
   arcade:    { hvac_arcade: 0.30, walla: 0.6, cloud: 1.0, steps: 'tile', pa: 'arcade' },
   department:{ hvac_dept: 0.22, bgm: 0.16, walla: 0.35, cloud: 0.7, steps: 'stone', pa: 'department' },
   street:    { traffic: 0.62, cityfar: 0.18, walla: 0.25, cloud: 0.6, steps: 'paving', outdoor: true },
-  terminal:  { hvac_big: 0.32, walla: 0.65, cloud: 1.0, steps: 'stone', pa: 'terminal' },
+  terminal:  { hvac_big: 0.28, walla: 0.5, cloud: 1.0, steps: 'stone', pa: 'terminal' },
   nkplatform:{ hvac_big: 0.12, aux: 0.10, cityfar: 0.16, walla: 0.45, cloud: 0.9, steps: 'paving', pa: 'terminal' },
   passage:   { hvac_tile: 0.28, walla: 0.45, cloud: 1.0, steps: 'tile', pa: 'metro' },
   mall:      { hvac_mall: 0.26, bgm: 0.11, walla: 0.5, cloud: 0.9, steps: 'tile', pa: 'mall' },
   parks:     { hvac_mall: 0.22, bgm: 0.09, walla: 0.38, cloud: 0.8, steps: 'stone', pa: 'mall' },
   canyon:    { cityfar: 0.34, leaves: 0.16, traffic: 0.04, walla: 0.3, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.5 },
-  garden:    { cityfar: 0.2, leaves: 0.28, walla: 0.12, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
+  garden:    { cityfar: 0.2, leaves: 0.28, water: 0.1, walla: 0.12, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
   shop:      { hvac_mall: 0.12, walla: 0.2, cloud: 0.35, steps: 'tile' },
 };
 // baseline people within ~12 m when the crowd system can't tell us
@@ -70,7 +71,7 @@ export class Ambience {
     this.lanes = [];
     const pans = [-0.85, -0.5, -0.18, 0.18, 0.5, 0.85];
     for (let i = 0; i < pans.length; i++) {
-      const em = this.mixer.emitter({ bus: 'ambience', pan: pans[i], send: 0.45, lp: 3200 + (i % 3) * 1500 });
+      const em = this.mixer.emitter({ bus: 'ambience', pan: pans[i], send: 0.45, lp: 4500 + (i % 3) * 1800 });
       em.fade(1, 0.01);
       this.lanes.push(em);
     }
@@ -172,7 +173,7 @@ export class Ambience {
         wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 2600 });
         wv.em.setLoop(buf, { offset: i * buf.duration * 0.47, rate: i ? 1.035 : 0.975 });
       }
-      wv.em.fade(g * 0.8, 1.5);
+      wv.em.fade(g * 0.6, 1.5);
       // outdoors the murmur is drier & brighter, indoors wetter
       wv.em.setSend(outdoor > 0.5 ? 0.15 : 0.55, 1);
     });
@@ -197,10 +198,10 @@ export class Ambience {
       const lane = this.lanes[Math.floor(this.rand() * this.lanes.length)];
       // distance: most steps are 3-12 m away
       const d = 2.5 + Math.pow(this.rand(), 0.7) * 10;
-      lane.oneShot(buf, { gain: g * 0.55 / d * (0.7 + this.rand() * 0.6), rate: 0.9 + this.rand() * 0.2, when: t });
+      lane.oneShot(buf, { gain: g * 1.4 / d * (0.7 + this.rand() * 0.6), rate: 0.9 + this.rand() * 0.2, when: t });
     }
     // dense texture beyond granular range
-    const texG = g * Math.max(0, Math.min(1, (this.people - 14) / 30)) * 0.22;
+    const texG = g * Math.max(0, Math.min(1, (this.people - 14) / 30)) * 0.34;
     const tex = this.stepsTex;
     const tname = `bed:steps:${surface === 'grass' || surface === 'wood' || surface === 'metal' || surface === 'carpet' ? 'stone' : surface}`;
     if (texG > 0.005) {

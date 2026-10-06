@@ -36,7 +36,9 @@ export class Materials {
       (eng && eng.renderer && eng.renderer.capabilities.getMaxAnisotropy()) || 16);
     this.res = qn === 'low' ? { hi: 512, mid: 256, lo: 128 } : qn === 'ultra' ? { hi: 1024, mid: 1024, lo: 256 } : { hi: 1024, mid: 512, lo: 256 };
     this.stats = { canvases: 0, bytes: 0, genMs: 0 };
+    const t0 = performance.now();
     this._defineAll();
+    this.stats.ctorMs = Math.round(performance.now() - t0);
   }
 
   // --------------------------------------------------------------------------

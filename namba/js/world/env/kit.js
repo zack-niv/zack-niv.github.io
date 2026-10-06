@@ -29,7 +29,8 @@ function boosted(m, boost) {
     sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * ${boost.toFixed(3)};`);
   };
-  m.customProgramCacheKey = () => 'envboost' + boost.toFixed(3);
+  const base = THREE.Material.prototype.customProgramCacheKey;
+  m.customProgramCacheKey = function () { return (base ? base.call(this) : '') + '|envboost' + boost.toFixed(3); };
   return m;
 }
 
@@ -164,6 +165,7 @@ export function proto(name) {
 // remap a proto's uv (0..1) into an atlas region (for lanterns, food disks...)
 const REMAP = new Map();
 export function protoUV(name, r) {
+  if (r.stub) return proto(name);
   const key = name + '|' + r.page + '|' + r.x + '|' + r.y + '|' + r.atlas.name;
   let g = REMAP.get(key);
   if (g) return g;
@@ -246,6 +248,17 @@ export class Painter {
   }
   cyl(mat, a, y0, y1, d, r, col = WHITE, kind = 'cyl') { this.geo(mat, kind, a, y0, d, 0, [r, y1 - y0, r], col); }
 }
+
+// A painter that draws nothing: used for the logic-only pass (obstacles,
+// spots) at load time. Geometry is produced later by a replay.
+const NOGB = { quad() {}, box() {}, geometry() {}, rectH() {}, wall() {}, cylinder() {}, tri() {}, empty: true };
+export class NullPainter extends Painter {
+  constructor(frame) { super(NOGB, frame); }
+  box() {} rbox() {} qd() {} qa() {} qh() {} tq() {} ta() {} th() {} tbox() {} geo() {} geoT() {} cyl() {}
+}
+// Stub atlas region returned during the logic pass (never drawn)
+const STUB_ATLAS = { name: 'stub', mat: () => null, uv: () => null, sub: (r) => r, pages: [] };
+export const STUB_REGION = { stub: true, atlas: STUB_ATLAS, page: 0, x: 0, y: 0, w: 400, h: 72, u0: 0, u1: 1, v0: 0, v1: 1 };
 
 // Chunked batches: one GeoBatch per (level, chunk) so static dressing is
 // culled with the rest of the level.

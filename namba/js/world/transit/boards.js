@@ -8,6 +8,7 @@
 // frame, and only for boards near the player (others keep their last frame).
 // =============================================================================
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { canvas, canvasTex, JP, EN, fitText } from './textures.js';
 import { LINES, TYPES, DESTS, hhmm } from './timetable.js';
 import { LEVELS } from '../layout.js';
@@ -32,30 +33,24 @@ export class Boards {
     grp.rotation.y = o.facing; // local +z faces "facing"
     const housingMat = this.ctx.materials.get('steel_dark');
     const dep = 0.16;
-    const hous = new THREE.Mesh(new THREE.BoxGeometry(o.w + 0.16, o.h + 0.16, dep), housingMat);
-    grp.add(hous);
+    const hg = [new THREE.BoxGeometry(o.w + 0.16, o.h + 0.16, dep)];
+    const sg = [];
     const faces = o.doubleSided ? [1, -1] : [1];
     for (const f of faces) {
-      const scr = new THREE.Mesh(new THREE.PlaneGeometry(o.w, o.h), mat);
-      scr.position.z = f * (dep / 2 + 0.004);
-      if (f < 0) scr.rotation.y = Math.PI;
-      grp.add(scr);
+      const p = new THREE.PlaneGeometry(o.w, o.h);
+      if (f < 0) p.rotateY(Math.PI);
+      p.translate(0, 0, f * (dep / 2 + 0.004));
+      sg.push(p);
     }
     if (o.hang) {
       for (const sx of [-o.w * 0.35, o.w * 0.35]) {
         const len = Math.max(0.05, o.ceilY - (o.y + o.h / 2 + 0.08));
-        const rod = new THREE.Mesh(new THREE.BoxGeometry(0.04, len, 0.04), this.ctx.materials.get('steel'));
-        rod.position.set(sx, o.h / 2 + 0.08 + len / 2, 0);
-        grp.add(rod);
-      }
-    } else if (o.pole) {
-      const len = o.y - o.h / 2 - LEVELS[o.level].y;
-      for (const sx of [-o.w * 0.4, o.w * 0.4]) {
-        const p = new THREE.Mesh(new THREE.BoxGeometry(0.12, len, 0.12), housingMat);
-        p.position.set(sx, -o.h / 2 - len / 2, 0);
-        grp.add(p);
+        const rod = new THREE.BoxGeometry(0.04, len, 0.04); rod.translate(sx, o.h / 2 + 0.08 + len / 2, 0); hg.push(rod);
       }
     }
+    const strip = (g) => { g.deleteAttribute('uv'); return g; };
+    grp.add(new THREE.Mesh(mergeGeometries(hg.map(g => g.toNonIndexed())), housingMat));
+    grp.add(new THREE.Mesh(mergeGeometries(sg), mat));
     grp.traverse(m => { m.matrixAutoUpdate = true; });
     const holder = new THREE.Group();
     holder.userData.chunk = { level: o.level, x: o.x, z: o.z, r: 12 };
@@ -79,8 +74,9 @@ export class Boards {
     const t = this.transit.now();
     // round robin: redraw at most one board per call
     const n = this.boards.length;
+    const start = this._rr;
     for (let k = 0; k < n; k++) {
-      const b = this.boards[(this._rr + k) % n];
+      const b = this.boards[(start + k) % n];
       const near = !p || (p.level === b.level && Math.hypot(p.x - b.x, p.z - b.z) < 70) || Math.abs(LEVELS[p.level].y - LEVELS[b.level].y) <= 6 && Math.hypot(p.x - b.x, p.z - b.z) < 40;
       if (!near && b.key !== null && !force) continue;
       const data = this._data(b, t);
@@ -89,7 +85,7 @@ export class Boards {
       b.key = key;
       this._draw(b, data, page, blink, t);
       b.tex.needsUpdate = true;
-      this._rr = (this._rr + k + 1) % n;
+      this._rr = (start + k + 1) % n;
       if (!force) return;
     }
   }

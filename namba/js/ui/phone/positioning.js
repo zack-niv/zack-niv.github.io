@@ -55,6 +55,7 @@ export class Positioning {
 
   update(dt) {
     const p = this.ctx.player; if (!p) return;
+    dt = Math.max(0, Math.min(0.25, dt || 0));
     const b = p.body;
     const R = this.R;
     if (!this._init) {
@@ -92,7 +93,10 @@ export class Positioning {
     // --- heading: drifting bias + jitter + lag -------------------------------
     const tb = 18;
     this.hBias += -this.hBias / tb * dt + Math.sqrt(2 / tb) * (E.bias * Math.PI / 180) * Math.sqrt(dt) * gauss(R) * 0.8;
-    const target = p.yaw + this.hBias + gauss(R) * (E.bias * Math.PI / 180) * 0.12;
+    if (!isFinite(this.ex) || !isFinite(this.ez)) { this.ex = this.ez = 0; }
+    if (!isFinite(this.hBias)) this.hBias = 0;
+    if (!isFinite(this.heading)) this.heading = p.yaw || 0;
+    const target = (p.yaw || 0) + this.hBias + gauss(R) * (E.bias * Math.PI / 180) * 0.12;
     let d = target - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
     this.heading += d * (1 - Math.exp(-dt / 0.45));
     // --- floor detection: lag + occasional wrong guess ------------------------

@@ -45,6 +45,7 @@ export class Mixer {
     this.listener = ac.listener;
     this._lp = { x: 0, y: 0, z: 0 };
     this.liveOneShots = 0;
+    this.hrtf = true;             // HRTF for nearby point sources (off on low quality)
     this.emitters = new Set();   // positional emitters (for distance-dependent reverb sends)
   }
   // Reverberant energy falls off much more slowly than the direct sound, but a
@@ -141,7 +142,7 @@ export class Mixer {
     let out = tail;
     if (opts.pos) {
       const p = ac.createPanner();
-      p.panningModel = opts.hrtf ? 'HRTF' : 'equalpower';
+      p.panningModel = opts.hrtf && this.hrtf ? 'HRTF' : 'equalpower';
       p.distanceModel = 'inverse'; p.refDistance = opts.ref ?? 2; p.rolloffFactor = opts.rolloff ?? 1; p.maxDistance = 400;
       setPannerPos(p, opts.pos.x, opts.pos.y, opts.pos.z, ac.currentTime);
       tail.connect(p); out = p;
@@ -176,7 +177,7 @@ export class Emitter {
     const b = mixer.bus[bus];
     if (pos) {
       const p = this.panner = ac.createPanner();
-      p.panningModel = hrtf ? 'HRTF' : 'equalpower';
+      p.panningModel = hrtf && mixer.hrtf ? 'HRTF' : 'equalpower';
       p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = rolloff; p.maxDistance = 500;
       this.filter.connect(p); p.connect(b.dry);
       this.setPos(pos.x, pos.y, pos.z);
