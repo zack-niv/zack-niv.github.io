@@ -95,7 +95,7 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .h-cap.k-machine .h-cap-ja { color: #ffd2d2; }
 
 .h-ic {
-  position: absolute; right: 28px; bottom: 28px; display: flex; align-items: center; gap: 14px; padding: 12px 18px 12px 12px;
+  position: absolute; right: 28px; bottom: calc(var(--phone-glance-h, 0px) + 28px); display: flex; align-items: center; gap: 14px; padding: 12px 18px 12px 12px;
   border-radius: 12px; background: var(--g-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, .07); opacity: 0; transform: translateY(10px); transition: opacity .35s, transform .5s var(--g-ease);
 }
@@ -515,4 +515,3 @@ body:has(.g-pause:not([hidden])) .g-walk { opacity: 0; }
 
 /* the phone's glance strip (bottom-right while walking): keep captions and the IC chip clear of it */
 body:has(#phone-root.ph-glance) .h-captions { bottom: max(8.5vh, calc(var(--phone-glance-h, 0px) + 18px)); }
-body:has(#phone-root.ph-glance) .h-ic { bottom: calc(var(--phone-glance-h, 0px) + 28px); }
