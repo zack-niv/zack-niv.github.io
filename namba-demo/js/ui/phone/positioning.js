@@ -49,6 +49,7 @@ export class Positioning {
       this._lsSnap = 1.4;                 // the dot visibly snaps to the truth
       this._pendingLevel = null; this._wrongTimer = 0; this._levelTimer = 0;
       this.lx = this.lz = 0;
+      const b = this.ctx.player && this.ctx.player.body; if (b) this.level = this.trueLevel(b);   // floor is right from the first frame
     }
   }
 

@@ -235,7 +235,7 @@ export class Demo {
 
     // 1) walk the last few metres, eyes on the shopfront: the noren, the lanterns
     const nx = b.door.nx, nz = b.door.nz;
-    const goal = { x: b.door.x + nx * 3.9, z: b.door.z + nz * 3.9 };
+    const goal = { x: b.door.x + nx * 5.4, z: b.door.z + nz * 5.4 };
     const toDoor = { x: b.door.x - body.x, z: b.door.z - body.z };
     game.lookDir(toDoor.x, toDoor.z, 0.07, 2.6);
     const t0 = performance.now();
@@ -300,7 +300,7 @@ export class Demo {
     if (this._wave <= 0) { this._wave = 0; return; }
     const p = this.ctx.player.body;
     a.pose = WAVE;
-    a.yaw = Math.atan2(p.x - a.x, p.z - a.z);
+    a.yaw = Math.atan2(a.x - p.x, a.z - p.z);   // agents face (-sin yaw, -cos yaw), like the player
   }
   sizzle() { this.ctx.audio?.play?.('tempura'); this.game.hud?.caption({ en: 'Sesame oil, hot and golden. Somewhere in there, a prawn is about to happen.', kind: 'thought', duration: 3.6 }); }
 

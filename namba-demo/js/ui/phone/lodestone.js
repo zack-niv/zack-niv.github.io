@@ -107,7 +107,7 @@ export class LodestoneApp {
     const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ });
     s.init();
     s.onUser = () => { this._userMoved = true; };
-    s.bandTop = 122; s.bandBottom = 228;
+    s.bandTop = 126; s.bandBottom = 262;
     return s;
   }
   _set(st) { this.state = st; this.root.dataset.state = st; }
