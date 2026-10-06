@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js';
 import { CELL } from '../../world/world.js';
 
-const K0 = 5;                      // default vertical explode factor (world y × K)
+const K0 = 8;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)
 const ZC = {                       // zone tints for plate tops
   nankai: [1.0, 0.62, 0.24], city: [0.30, 0.66, 1.0], parks: [0.28, 0.86, 0.60], parksGarden: [0.22, 0.80, 0.45], nambawalk: [0.95, 0.80, 0.34],
@@ -43,7 +43,7 @@ void main(){
   a += wave * 0.30 + glow * 0.16;
   float dm = 1e9;
   for (int i = 0; i < 16; i++) { if (float(i) < uNPts) dm = min(dm, distance(vW.xz, uPts[i])); }
-  float fade = max(1.0 - smoothstep(60.0, 170.0, dm), uFadeMin);
+  float fade = max(1.0 - smoothstep(90.0, 250.0, dm), uFadeMin);
   gl_FragColor = vec4(c, clamp(a * fade, 0.0, 1.0));
 }`;
 
@@ -56,7 +56,7 @@ varying vec3 vC; varying vec3 vW; uniform float uOpacity, uNPts, uFadeMin; unifo
 void main(){
   float dm = 1e9;
   for (int i = 0; i < 16; i++) { if (float(i) < uNPts) dm = min(dm, distance(vW.xz, uPts[i])); }
-  float fade = max(1.0 - smoothstep(60.0, 170.0, dm), uFadeMin);
+  float fade = max(1.0 - smoothstep(90.0, 250.0, dm), uFadeMin);
   gl_FragColor = vec4(vC, uOpacity * fade);
 }`;
 
@@ -104,7 +104,7 @@ export class Stack3D {
     this.ctx = ctx; this.canvas = canvas; this.low = low;
     this.ready = false;
     this.mode = 'overview';
-    this.az = 215 * Math.PI / 180; this.el = 32 * Math.PI / 180; this.zoomMul = 1; this.userDrag = false;
+    this.az = 215 * Math.PI / 180; this.el = 27 * Math.PI / 180; this.zoomMul = 1; this.userDrag = false;
     this.cur = { tx: 0, ty: 0, tz: 0, dist: 900 };
     this.goal = { tx: 0, ty: 0, tz: 0, dist: 900 };
     this.fadeN = { value: 0 }; this.fadePts = { value: Array.from({ length: 16 }, () => new THREE.Vector2()) };
@@ -199,12 +199,12 @@ export class Stack3D {
         while (cz + ez < h && ok) { for (let k = 0; k < ex; k++) { const j = (cz + ez) * w + cx + k; if (cls[j] !== c || used[j]) { ok = false; break; } } if (ok) ez++; }
         for (let a = 0; a < ez; a++) for (let b = 0; b < ex; b++) used[(cz + a) * w + cx + b] = 1;
         let rgb, alpha;
-        if (c === 1) { rgb = [0.55, 0.62, 0.78]; alpha = 0.10; }
+        if (c === 1) { rgb = [0.55, 0.62, 0.78]; alpha = 0.14; }
         else {
           const v = c - 2, zi = (v / 4) | 0, room = (v >> 1) & 1, out = v & 1;
           rgb = (zi < zoneKeys.length ? ZC[zoneKeys[zi]] : DEF).slice();
           if (out) rgb = [0.25, 0.82, 0.50];
-          if (room) { rgb = [rgb[0] * 0.55 + 0.12, rgb[1] * 0.50 + 0.10, rgb[2] * 0.62 + 0.10]; alpha = 0.20; } else alpha = 0.115;
+          if (room) { rgb = [rgb[0] * 0.55 + 0.12, rgb[1] * 0.50 + 0.10, rgb[2] * 0.62 + 0.10]; alpha = 0.30; } else alpha = 0.17;
         }
         quad(g.x0 + cx, g.z0 + cz, g.x0 + cx + ex, g.z0 + cz + ez, y0, [rgb[0], rgb[1], rgb[2], alpha]);
       }
@@ -445,7 +445,7 @@ export class Stack3D {
   }
   _cssScale() { const r = this.canvas.getBoundingClientRect(); return r.width / (this.canvas.clientWidth || r.width) || 1; }
   startIntro() { this.intro = 1; this._snapCam = true; }
-  recenter() { this.az = 215 * Math.PI / 180; this.el = (this.mode === 'follow' ? 46 : 32) * Math.PI / 180; this.zoomMul = 1; this.userDrag = false; this._snapCam = true; }
+  recenter() { this.az = 215 * Math.PI / 180; this.el = (this.mode === 'follow' ? 46 : 27) * Math.PI / 180; this.zoomMul = 1; this.userDrag = false; this._snapCam = true; }
   setMode(m) { this.mode = m; this.zoomMul = 1; this.userDrag = false; this.el = (m === 'follow' ? 46 : 32) * Math.PI / 180; }
 
   resize(force) {
@@ -493,10 +493,10 @@ export class Stack3D {
     let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9, d0 = 1e9, d1 = -1e9;
     const v = new THREE.Vector3();
     for (const p of pts) { v.set(p[0] - pl.x, p[1] - pl.y, p[2] - pl.z); const a = v.dot(B.r), b = v.dot(B.u), d = v.dot(B.f); a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); d0 = Math.min(d0, d); d1 = Math.max(d1, d); }
-    const pad = this.mode === 'follow' ? 1.0 : 1.12;
+    const pad = this.mode === 'follow' ? 1.0 : 1.0;
     const ca = (a0 + a1) / 2, cb = (b0 + b1) / 2, cd = (d0 + d1) / 2;
     const hw = Math.max(20, (a1 - a0) / 2) * pad, hh = Math.max(20, (b1 - b0) / 2) * pad, hd = (d1 - d0) / 2;
-    const dist = Math.max(hh / tanV, hw / tanH) + hd * 0.75;
+    const dist = Math.max(hh / tanV, hw / tanH) + hd * 0.3;
     this.goal.tx = pl.x + B.r.x * ca + B.u.x * cb + B.f.x * cd;
     this.goal.ty = pl.y + B.r.y * ca + B.u.y * cb + B.f.y * cd;
     this.goal.tz = pl.z + B.r.z * ca + B.u.z * cb + B.f.z * cd;
@@ -529,11 +529,11 @@ export class Stack3D {
     for (const lv in this.levels) {
       const L = this.levels[lv];
       const isCur = lv === cur, onRoute = this.routeLevels && this.routeLevels.has(lv);
-      L.tgain = isCur ? 1.9 : onRoute ? 1.15 : 0.55; L.talpha = isCur ? 3.4 : onRoute ? 1.7 : 0.75; L.tline = isCur ? 1.0 : onRoute ? 0.55 : 0.2; L.tsweep = isCur ? 1 : 0;
+      L.tgain = isCur ? 1.9 : onRoute ? 1.3 : 0.7; L.talpha = isCur ? 3.0 : onRoute ? 2.0 : 1.0; L.tline = isCur ? 1.0 : onRoute ? 0.55 : 0.2; L.tsweep = isCur ? 1 : 0;
       const e = 1 - Math.exp(-dt / 0.25);
       L.gain += (L.tgain - L.gain) * e; L.alpha += (L.talpha - L.alpha) * e; L.line += (L.tline - L.line) * e; L.sweep += (L.tsweep - L.sweep) * e;
       const u = L.mat.uniforms; u.uGain.value = L.gain; u.uAlpha.value = L.alpha; u.uTime.value = this.time; u.uSweep.value = L.sweep; u.uPlayer.value.set(this.player.x, 0, this.player.z);
-      L.lmat.uniforms.uOpacity.value = L.line; L.mat.uniforms.uFadeMin.value = L.lmat.uniforms.uFadeMin.value = (this.fadeN.value ? (isCur ? 0.5 : onRoute ? 0.10 : 0.04) : 1);
+      L.lmat.uniforms.uOpacity.value = L.line; L.mat.uniforms.uFadeMin.value = L.lmat.uniforms.uFadeMin.value = (this.fadeN.value ? (isCur ? 0.65 : onRoute ? 0.32 : 0.10) : 1);
       L.labelMat.opacity = isCur ? 1 : onRoute ? 0.85 : 0.5;
     }
     // constant-screen-size sprites & world-scale helpers
