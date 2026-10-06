@@ -117,8 +117,6 @@ export class Game {
       ctx.teleport && ctx.teleport('start');
       if (ctx.player) ctx.player.pitch = 0;
     }
-    // the demo opens at 11:20 (unless a ?time= was asked for): re-tick so shutters/crowds follow
-    if (!params.time && ctx.clock.minutes < DEMO.startMinutes) { ctx.clock.minutes = DEMO.startMinutes; ctx.clock.update(0); }
     ctx.clock.paused = false;
     this.hud?.setVisible(true);
     this._recomputePaid();

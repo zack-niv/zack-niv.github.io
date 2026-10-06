@@ -120,7 +120,7 @@ export const FEATURED_BUILD = {
     const F = S.front, R = S.R, W = S.W;
     // wooden koshi lattice over the glass + white andon at the door
     const [dA0, dA1] = S.doorCells || [S.doorA0, S.doorA1];
-    for (const [a0, a1] of [[S.doorA0, dA0], [dA1, S.doorA1]]) for (let a = a0 + 0.02; a < a1 - 0.02; a += 0.075) F.box('env_wood', a, a + 0.03, 0.1, S.doorTop - 0.06, 0.4, 0.44, [0.85, 0.74, 0.56]);
+    for (const [a0, a1] of [[S.doorA0, dA0], [dA1, S.doorA1]]) for (let a = a0 + 0.04; a < a1 - 0.04; a += 0.13) F.box('env_wood', a, a + 0.028, 0.1, S.doorTop - 0.06, 0.4, 0.44, [0.85, 0.74, 0.56]);
     const menu = R.photoMenu('昼の天ぷら定食', [['天ぷら定食 竹', '¥1,980'], ['天ぷら定食 松', '¥2,800'], ['海老天丼', '¥1,650'], ['おまかせコース', '¥4,800']], ['tempura', 'tempura', 'tendon', 'tempura'], '#2b2b2b');
     // waiting chairs along the corridor: a proper lunchtime queue
     S.queue.length = 0; S.spots = S.spots.filter(s => s.kind !== 'queue');

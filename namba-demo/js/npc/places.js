@@ -177,9 +177,18 @@ export class Places {
     }
     // shuffle deterministically
     for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(B.r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
-    B.spots = out;
-    B.cap = Math.max(2, Math.min(B.cap, out.length));
-    return out;
+    // restaurants and cafés: diners sit on the REAL chairs / stools the environment built (facing the right way)
+    let spots = out;
+    const sh = this.ctx && this.ctx.shops;
+    if ((B.restaurant || B.cafe) && sh && sh.seats) {
+      try {
+        const real = (sh.seats(B.id) || []).filter(q => this.col.walkable(B.level, q.x, q.z)).map(q => ({ x: q.x, z: q.z, depth: 9, used: 0, yaw: q.yaw, real: true }));
+        if (real.length >= 3) spots = real;
+      } catch (e) { /* fall back to sampled cells */ }
+    }
+    B.spots = spots;
+    B.cap = Math.max(2, Math.min(B.cap, spots.length));
+    return spots;
   }
   takeSpot(B) {
     const S = this.spots(B);

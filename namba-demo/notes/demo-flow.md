@@ -4,7 +4,7 @@
 1. **Title** (`ui/title.js`): なんば / "Lost in Namba" / one line ("Somewhere in this labyrinth, a tempura lunch is
    waiting.") / "Click to begin". Footer: "Best with keyboard & mouse · headphones on" + the four controls
    (WASD, Shift, Q, E). Touch devices get "Best on a computer with a keyboard and mouse".
-2. **Intro** (`game/demo.js` `begin()`): spawn `start`, 11:20 (`DEMO.startMinutes`). The player is held ~4.6 s while the
+2. **Intro** (`game/demo.js` `begin()`): spawn `start`, 11:20 (clock.js). The player is held ~4.6 s while the
    camera glances at the rapi:t, then at the way out; chapter card, the terminal PA announcement (transit emits it),
    the crowd alighting. Aya's two texts at 8.0 s and 10.8 s via `phone:message`; the single quest goes active
    (`quest:update` {id:'tempura'}); a quiet controls hint (`hud.hint`) fades in/out.
@@ -44,14 +44,8 @@
 * Colour palette on the end card (ours, not any company's): amber `#f0b45a` = guesswork, cool blue `#6fb6ff` =
   Lodestone. Change `--e-before/--e-after` at the top of `.g-end` in css/game.css if the phone picks another blue.
 
-## Clock (REQUEST to the lead / core owner)
-`js/core/clock.js` still runs `scale = 6` (1 real s = 6 game s) and starts at 10:42. I do not own it, and the
-transit timetable (`new Timetable(..., {scale: ctx.clock.scale})`) bakes the scale in at init, so I cannot safely
-change it from `game.js`. **Please set in `js/core/clock.js`: `this.scale = 1` (or 1.2) and `start = 11*60+20`.**
-Everything in the game flow is already in real seconds, the game only forces the clock to 11:20 at start (a
-`clock.update(0)` re-tick so shop shutters follow). With `scale = 6` the in-game clock advances ~48 min during an
-8-minute demo (fine for Daikichi's hours, but the phone must keep multiplying ETAs by `clock.scale`, as mapapp
-already does).
+## Clock
+core/clock.js now starts at 11:20 with scale 1.2 (done by the lead). The game no longer forces the time; all story timers are real seconds anyway.
 
 ## Known gaps
 * Daikichi's queue is whatever the crowd director produces; if nobody is queueing at arrival the Aya

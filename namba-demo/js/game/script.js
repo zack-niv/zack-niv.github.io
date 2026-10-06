@@ -11,7 +11,6 @@ export const QUESTS = {
 // The demo's destination and pacing knobs.
 export const DEMO = {
   slot: 'parks_6Fdw03',
-  startMinutes: 11 * 60 + 20,       // 11:20, just off the rapi:t
   offerAt: 135,                     // real seconds of play: the Lodestone offer at the latest
   offerMin: 45,                     // ...and never before this (the generic map has to be felt)
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t

@@ -88,7 +88,7 @@ export class Behave {
         if (a.followers) for (const f of a.followers) {
           const fs = P.takeSpot(B); if (!fs) continue;
           f.fstate = 'dine'; f.spot = fs; f.mode = MODE.PATH;
-          if (L.inside) { S.setPos(f, B.level, fs.x, fs.z); f.mode = MODE.STAND; f.pose = B.counter ? POSE.EAT : POSE.SIT; f.faceYaw = Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._reveal(f); }
+          if (L.inside) { S.setPos(f, B.level, fs.x, fs.z); f.mode = MODE.STAND; f.pose = B.counter ? POSE.EAT : POSE.SIT; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._reveal(f); }
           else S.goTo(f, fs.x, fs.z, B.rect, 0.3);
         }
         return;
@@ -425,7 +425,8 @@ export class Behave {
     const S = this.sim;
     const counter = B.counter;
     // face into the room (towards the back / counter) with some variety
-    const yaw = Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5) * (counter ? 0.6 : 2.4);
+    const real = a.spot && a.spot.real;
+    const yaw = real ? a.spot.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5) * (counter ? 0.6 : 2.4);
     S.stand(a, yaw); a.yaw = yaw;
     a.pose = counter ? POSE.EAT : (B.cafe && this.r() < 0.3 ? POSE.PHONE : POSE.SIT);
     if (a.pose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);

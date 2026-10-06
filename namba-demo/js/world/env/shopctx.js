@@ -226,10 +226,11 @@ export class ShopCtx {
     return true;
   }
   // a spot for the crowd: kind browse|counter|queue|seat|staff; facing local dir
-  spot(kind, a, d, fa = 0, fd = 1) {
+  spot(kind, a, d, fa = 0, fd = 1, extra = null) {
     if (this.replay) return null;
     const w = this.world(a, d);
     const s = { x: w.x, z: w.z, level: this.level, yaw: this.f.yaw(fa, fd), kind };
+    if (extra) Object.assign(s, extra);
     this.spots.push(s);
     if (kind === 'queue') this.queue.push(s);
     if (kind === 'counter' && !this.counterPt) this.counterPt = s;

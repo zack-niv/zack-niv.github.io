@@ -97,7 +97,7 @@ export function buildShop(S, R) {
   S.wall = wallCol(S, c);
   finish(S, c);
   front(S, c);
-  const fn = INTERIOR[c.group] || INTERIOR.retail;
+  const fn = (S.b.key && INTERIOR['key:' + S.b.key]) || INTERIOR[c.group] || INTERIOR.retail;
   fn(S, c);
   dressWalls(S, c);
   // shop light for the lighting system (aggregated)
@@ -557,7 +557,11 @@ export function shelfRun(S, P, o) {
       if (rail) face(R.rail(lv + k), u0, u1, y - 0.045, y - 0.003, depth + 0.012);
     }
   }
-  if (top) box('env_matte', 0, len, h, h + 0.03, 0, depth, frame);
+  if (top) {
+    const bf = na > 0 ? 'w' : na < 0 ? 'e' : nd > 0 ? 'n' : 's';
+    const p = L(0, 0), q = L(len, depth);
+    P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), h, h + 0.03, Math.min(p.d, q.d), Math.max(p.d, q.d), frame, 'nsewtb'.replace(bf, ''));
+  }
 }
 
 // 3-D merchandise: little instanced-looking packs / bottles standing in front of the shelf print,
@@ -1454,6 +1458,79 @@ INTERIOR.rcounter = (S, c) => {
   const nr = S.R.noren('厨房', null, '#1d2b4a', '#f5f1e8');
   P.tq(nr, (ka0 + ka1) / 2 - 0.5, (ka0 + ka1) / 2 + 0.5, 1.3, 2.1, Dm - 0.05, -1);
   if (S.light) S.light(W / 2, 2.4, Dm / 2, [1, 0.8, 0.6], 0.5, 6, 'down');
+};
+
+// ---- Tempura Daikichi: the quest target. A warm hinoki counter with the frying chefs behind it, glowing
+// pendants, a back bar of sake and ceramics, two small tables by the window. Everything is visible from the corridor.
+INTERIOR['key:tempura_great'] = (S, c) => {
+  const P = S.inner, W = S.W, r = S.r;
+  const hinoki = [0.93, 0.8, 0.57], hinoki2 = [0.8, 0.62, 0.4], dark = [0.24, 0.14, 0.08], steel = [0.8, 0.8, 0.82];
+  const wallD = Math.min(S.D - 0.5, 11);
+  if (S.D - wallD > 1.2) S.solid(0, W, wallD, S.D, { force: true });
+  const cd0 = 5.3, cd1 = 6.1, gap0 = W / 2 - 0.9, gap1 = W / 2 + 0.9;
+  const runs = [[1.0, gap0], [gap1, W - 1.0]];
+  // ---- back wall: dark wood, ledge shelves with sake and ceramics, kitchen noren, menu tanzaku
+  P.box('env_wood', 0, W, 0, S.ceil - 0.02, wallD, wallD + 0.1, mix(dark, [0, 0, 0], 0.2), 'nsewt');
+  P.box('env_wood', 0.3, W - 0.3, 0, 0.98, wallD - 0.55, wallD, dark);
+  P.box('env_wood', 0.2, W - 0.2, 0.98, 1.03, wallD - 0.6, wallD, hinoki2);
+  const bt = S.R.prod('bottles', 1);
+  for (let k = 0; k < 3; k++) {
+    const y = 1.35 + k * 0.42;
+    P.box('env_wood', 0.5, W - 0.5, y, y + 0.03, wallD - 0.28, wallD, hinoki2);
+    for (let a = 0.6; a + 1.9 <= W - 0.55; a += 1.9) P.tq(bt, a, a + 1.9, y + 0.03, y + 0.35, wallD - 0.02, -1);
+    for (let a = 0.9; a < W - 0.8; a += 1.1 + r() * 0.5) P.cyl('env_gloss', a, y + 0.03, y + 0.2 + r() * 0.1, wallD - 0.14, 0.07, [0.9, 0.88, 0.82]);
+  }
+  P.qh('env_glow', 0.55, W - 0.55, wallD - 0.28, wallD - 0.1, 1.33, false, [1.6, 1.15, 0.7]);
+  const nr = S.R.noren('厨房', null, '#1d2b4a', '#f5f1e8');
+  P.tq(nr, W / 2 - 0.55, W / 2 + 0.55, 1.4, 2.2, wallD - 0.04, -1);
+  const tz = S.R.tanzaku('tempura');
+  P.tq(tz, 0.8, 2.4, 1.75, 2.85, wallD - 0.03, -1);
+  P.tq(tz, W - 2.4, W - 0.8, 1.75, 2.85, wallD - 0.03, -1);
+  // ---- counter (two runs around the chefs' pass-through), stools, plates
+  let counterOK = false;
+  for (const [a0, a1] of runs) {
+    if (a1 - a0 < 1.5 || !S.solid(a0, a1, cd0, cd1, { pocket: 99 })) continue;
+    counterOK = true;
+    P.box('env_wood', a0, a1, 0, 0.98, cd0 + 0.1, cd1, dark);
+    P.box('env_wood', a0 - 0.05, a1 + 0.05, 0.98, 1.04, cd0 - 0.12, cd1 + 0.02, hinoki);
+    P.box('env_wood', a0, a1, 1.04, 1.18, cd1 - 0.12, cd1, mix(hinoki2, [0, 0, 0], 0.1));   // raised ledge on the chef side
+    P.qh('env_glow', a0 + 0.1, a1 - 0.1, cd0 + 0.1, cd0 + 0.14, 0.9, false, [1.8, 1.2, 0.7]);  // under-counter glow
+    for (let a = a0 + 0.55; a < a1 - 0.3; a += 0.82) {
+      P.geo('env_metal', 'stool', a, 0, cd0 - 0.45, 0, [1, 0.8, 1], [0.2, 0.11, 0.07]);
+      S.spot('seat', a, cd0 - 0.45, 0, 1);
+      if (r() < 0.6) { foodItem(S, P, 'tempura', a, 1.04, cd0 + 0.18, 0.12); P.cyl('env_gloss', a + 0.26, 1.04, 1.1, cd0 + 0.1, 0.04, [0.95, 0.94, 0.9]); }
+    }
+  }
+  if (counterOK) {
+    // frying stations behind the counter: stainless bench, oil pot, copper pot, trays of fresh tempura
+    for (const a of [3.0, W - 3.0]) {
+      if (!S.solid(a - 0.7, a + 0.7, 7.1, 7.95, { pocket: 99 })) continue;
+      P.box('env_metal', a - 0.7, a + 0.7, 0, 0.88, 7.1, 7.95, steel);
+      P.box('env_metal', a - 0.72, a + 0.72, 0.88, 0.91, 7.08, 7.97, [0.9, 0.9, 0.92]);
+      P.cyl('env_matte', a - 0.28, 0.91, 1.04, 7.52, 0.24, [0.08, 0.07, 0.07]);
+      P.cyl('env_gloss', a - 0.28, 1.035, 1.045, 7.52, 0.21, [0.85, 0.55, 0.12]);
+      P.cyl('env_metal', a + 0.3, 0.91, 1.0, 7.5, 0.17, [0.72, 0.42, 0.22]);
+      foodItem(S, P, 'tempura', a + 0.3, 0.91, 7.52, 0.13);
+      P.box('env_metal', a - 0.85, a + 0.85, 2.1, 2.55, 6.95, 8.1, [0.7, 0.71, 0.73]);                 // hood
+      S.spot('staff', a, 6.65, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
+    }
+    S.spot('staff', W / 2, 6.8, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
+    S.spot('counter', W / 2, cd0 - 0.9, 0, 1);
+    // pendant lamps over the counter
+    for (let a = 1.8; a < W - 1.2; a += 1.65) {
+      P.box('env_metal', a - 0.004, a + 0.004, 2.15, S.ceil, 5.7, 5.708, [0.1, 0.1, 0.1]);
+      P.geo('env_gloss', 'bowl', a, 2.1, 5.7, 0, [0.17, -0.13, 0.17], [0.92, 0.85, 0.7]);
+      P.qh('env_glow', a - 0.08, a + 0.08, 5.62, 5.78, 2.075, false, [3.2, 2.3, 1.3]);
+    }
+  } else S.spot('counter', W / 2, 3, 0, 1);
+  // ---- two tables by the window on each side of the door
+  for (const [a, d] of [[1.7, 1.7], [1.7, 3.3], [W - 1.7, 1.7], [W - 1.7, 3.3]]) cafeTable(S, P, a, d, hinoki, [0.25, 0.12, 0.08]);
+  // ---- calligraphy panel, plant, warm light
+  const cal = S.R.label('天', '#f4efe2', '#1a1a1a', 96, 96);
+  P.ta(cal, 6.6, 7.6, 1.5, 2.5, 0.03, 1);
+  if (S.solid(W - 0.8, W - 0.2, 0.3, 0.9, { pocket: 3 })) P.geo('env_matte', 'tallplant', W - 0.5, 0.2, 0.6, 1, 0.9, [0.2, 0.42, 0.18]);
+  S.light(W / 2, 2.2, 2.6, [1, 0.8, 0.55], 1.4, 7, 'panel');
+  S.light(W / 2, 1.9, 5.7, [1, 0.74, 0.46], 1.2, 6, 'lamp');
 };
 
 // sushi: straight counter with lit neta case
