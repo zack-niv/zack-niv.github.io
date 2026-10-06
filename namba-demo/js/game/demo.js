@@ -235,7 +235,7 @@ export class Demo {
 
     // 1) walk the last few metres, eyes on the shopfront: the noren, the lanterns
     const nx = b.door.nx, nz = b.door.nz;
-    const goal = { x: b.door.x + nx * 5.4, z: b.door.z + nz * 5.4 };
+    const goal = { x: b.door.x + nx * 4.6, z: b.door.z + nz * 4.6 };
     const toDoor = { x: b.door.x - body.x, z: b.door.z - body.z };
     game.lookDir(toDoor.x, toDoor.z, 0.07, 2.6);
     const t0 = performance.now();
@@ -268,9 +268,8 @@ export class Demo {
     game.message(ARRIVAL.text, 'Aya', 1.2);
     await sleep(3100);
 
-    // 3) the counter: the oil, the chef's nod
-    const c = safe(() => ctx.shops && ctx.shops.counter && ctx.shops.counter(b.slot));
-    if (c) game.lookDir(c.x - body.x, c.z - body.z, -0.09, 1.4); else game.lookDir(-nx, -nz, -0.04, 1.4);
+    // 3) back to the shopfront: the noren, the lanterns, the oil you can hear
+    game.lookDir(b.door.x - body.x, b.door.z - body.z, 0.1, 1.3);
     ctx.audio?.play?.('tempura');
     hud?.caption({ ja: 'いらっしゃいませ！お二人ですね、カウンターどうぞ。', en: 'Welcome in! Two of you? The counter, please.', speaker: 'Chef', duration: 3.4 });
     await sleep(2500);
