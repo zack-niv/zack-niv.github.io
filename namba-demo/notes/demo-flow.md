@@ -47,11 +47,14 @@
 ## Clock
 core/clock.js now starts at 11:20 with scale 1.2 (done by the lead). The game no longer forces the time; all story timers are real seconds anyway.
 
-## Requests
-* **Crowd (important for the arrival beat)**: at 11:20 `ctx.crowd.queueLength('parks_6Fdw03')` was 0 when the player
-  arrived (no one queueing on the stools outside Daikichi). Please keep 3-6 agents on the stools there while the
-  player is within ~40 m (pre-seed on `player:teleport`/proximity). The arrival moment picks `queue[2]` as "Aya"
-  (WAVE pose, name tag); with no queue it falls back to the nearest standing person within 9 m, else the counter view.
+## Queue & stats wiring (done)
+* **Queue**: `demo.js _seedQueue()` seeds 5 people on Daikichi's stools (the director's own `_initialFill` recipe, via
+  `ctx.crowd.behave.director`) when the player is on 6F within 70 m, and holds admission (`B.nextAdmit`) until the arrival
+  moment ends. Aya = `queue[2]`. Uses crowd internals (`_create`, `_onward`, `P.qSlot`): guarded by try/catch.
+* **End-card numbers** come from `ctx.phone.stats()` (phone's `samplesBefore/After`, `secondsBefore/After`,
+  `metresBefore/After`, `meanErrorBefore/After`, `wrongFloorSeconds(After)`). Only if the phone has no samples for a phase does
+  the game fall back to its own sampler (needs >= 8 samples, skips 1.6 s after any teleport, phase by `phone.pos.mode`);
+  with no data the card shows an em dash, never an invented number.
 
 ## Known gaps
 * Daikichi's queue is whatever the crowd director produces; if nobody is queueing at arrival the Aya
