@@ -1,15 +1,14 @@
 // =============================================================================
 // Recipe registry: name → synthesized sample data. Names are stable cache
 // keys, e.g. 'fs:tile:sneaker:3', 'mus:bossa', 'bed:hvac:tile', 'ir:platform',
-// 'voice:ja:f:12:まもなく…'. Worker-safe (imported by worker.js).
+// 'ir:platform'. Worker-safe (imported by worker.js). (No synthesized speech: the PA uses real voices.)
 // =============================================================================
 import * as F from './foley.js';
 import * as M from './music.js';
 import * as B from './beds.js';
 import * as T from './trainsfx.js';
 import { impulse } from './ir.js';
-import { formantVoice, walla } from './formant.js';
-import { Biquad, normalize } from './dsp.js';
+import { walla } from './formant.js';
 
 const mono = (a) => [a];
 
@@ -20,7 +19,6 @@ export function rateFor(name, base) {
   if (kind === 'ir') return base;
   if (kind === 'mus') return Math.min(cap, 24000); // long loops: speaker EQ cuts >7.5 kHz anyway
   if (kind === 'mel' || kind === 'chime') return Math.min(cap, 32000);
-  if (kind === 'voice' || kind === 'bark') return Math.min(cap, 24000);
   if (kind === 'bed') { const v = name.split(':')[1]; return v === 'leaves' || v === 'water' || v === 'steps' ? Math.min(cap, 32000) : Math.min(cap, 24000); }
   if (name === 'tr:roll' || name === 'tr:aux') return Math.min(cap, 24000);
   return cap;
@@ -32,12 +30,6 @@ export function synthesize(name, base) {
   let ch, loop = false;
   switch (p[0]) {
     case 'fs': ch = mono(p[1] === 'squeak' ? F.squeak(sr, +p[2] || 0) : F.footstep(sr, p[1], +p[3] || 0, p[2] || 'sneaker')); break;
-    case 'bark': { // bark:<lang>:<gender>:<seed>:<text> — a person's voice, dry, no PA horn (excuse me / irasshaimase / chatter)
-      const text = p.slice(4).join(':'), male = p[2] === 'm';
-      const v = formantVoice(sr, text, { lang: p[1], gender: p[2], seed: +p[3] || 1, rate: 1.12, pa: false, breath: 0.07, f0: male ? 236 : 216 });
-      new Biquad('highpass', 140, 0.7, 0, sr).run(v); new Biquad('lowpass', 5200, 0.7, 0, sr).run(v); new Biquad('peaking', 2600, 0.9, 4, sr).run(v);
-      ch = mono(normalize(v, 0.6)); break;
-    }
     case 'ui': {
       const fn = { select: F.select, rustle: F.rustle, gate_ok: F.gateOk, gate_low: F.gateLow, gate_fail: F.gateFail, phone_open: F.phoneOpen, phone_close: F.phoneClose, notify: F.notify, order: F.order, pay: F.pay, cup: F.cup, bell: F.counterBell }[p[1]];
       if (!fn) throw new Error('no ui sound ' + p[1]);
@@ -96,12 +88,6 @@ export function synthesize(name, base) {
       break;
     }
     case 'ir': ch = impulse(sr, p[1]); break;
-    case 'voice': {
-      // voice:<lang>:<gender>:<seed>:<text>
-      const text = p.slice(4).join(':');
-      ch = mono(formantVoice(sr, text, { lang: p[1], gender: p[2], seed: +p[3] || 1, rate: p[1] === 'ja' ? 1 : 1.05 }));
-      break;
-    }
     default: throw new Error('unknown recipe ' + name);
   }
   return { channels: ch, sampleRate: sr, loop };

@@ -17,6 +17,8 @@ import { Title } from '../ui/title.js';
 import { Demo } from './demo.js';
 import * as V from './vignettes.js';
 import { QUESTS, DEMO } from './script.js';
+import { orderItem, hasCounter } from './order.js';
+import { Walkthrough } from './walkthrough.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -48,6 +50,11 @@ export class Game {
     applySettings(ctx, this.settings);
     this.hud = ctx.hud || null;
     this.interactions = new Interactions(ctx);
+    // v2 item 7: service counters from the Shops agent (ctx.counters) -> order / say hi at the order spot
+    this.orders = [];
+    this.interactions.counterItem = (c) => (c && c.slotId && c.slotId !== DEMO.slot ? orderItem(this, c) : null);
+    this.interactions.counterCovers = (it) => !!(it.business && hasCounter(this, it.business.slot));
+    this.walkthrough = new Walkthrough(ctx, this);
     this.panels = new Panels(ctx);
     this.journal = new Journal(ctx, this);
     this.meals = this.journal.meals;
@@ -206,7 +213,8 @@ export class Game {
     const q = this.quests.tempura;
     d.innerHTML = `<h3>Today <small>今日の予定</small></h3>
       <ul><li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li></ul>
-      <p class="p-hint">Q opens your phone. Mouse looks, WASD walks. Esc brings this menu back.</p>`;
+      ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
+      <p class="p-hint">Q lifts your phone (or hold right-click for a quick look). Mouse looks, WASD walks. Esc brings this menu back.</p>`;
     return d;
   }
   pause() {
@@ -285,7 +293,9 @@ export class Game {
       } else if (b.key === 'tempura_tendon' || b.key === 'tempura_closed') {
         def = { prompt: 'Look inside', promptJa: 'のぞく', onUse: () => V.peek(this, b) };
       } else if (COFFEE_CATS.has(cat)) {
-        def = { prompt: 'Order a coffee', promptJa: '注文する', onUse: () => this.vignette('coffee', () => V.orderCoffee(this, b)) };
+        // superseded: when the shop publishes an order spot (ctx.counters) the quick non-modal order at the counter
+        // replaces this modal menu (see order.js); without one the old vignette is still the fallback
+        def = { prompt: 'Order a coffee', promptJa: '注文する', superseded: true, onUse: () => this.vignette('coffee', () => V.orderCoffee(this, b)) };
       } else if (info.food || cat === 'closed') {
         def = { prompt: cat === 'closed' ? 'Peer in' : 'Look inside', promptJa: 'のぞく', onUse: () => V.peek(this, b) };
       }
@@ -492,6 +502,7 @@ export class Game {
         if (t.t <= 0) { this._timers.splice(i, 1); try { t.fn(); } catch (e) { console.error('[game timer]', e); } }
       }
       this.journal.update(dt);
+      this.walkthrough && this.walkthrough.update(dt);
       if (!this.quiet) this.demo.update(dt);
     }
     const b = ctx.player.body;

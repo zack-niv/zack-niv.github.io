@@ -35,8 +35,11 @@ function boosted(m, boost) {
 }
 
 function woodTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
+  // v2: designed at 256, rasterised at 512 (x2) so floors and counters hold up at 1-2 m
+  const K = 2;
+  const c = document.createElement('canvas'); c.width = c.height = 256 * K;
   const g = c.getContext('2d');
+  g.scale(K, K);
   g.fillStyle = '#c8a27a'; g.fillRect(0, 0, 256, 256);
   let s = 7;
   const r = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
@@ -49,17 +52,19 @@ function woodTexture() {
     g.stroke();
   }
   const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
 function tileTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const K = 2;
+  const c = document.createElement('canvas'); c.width = c.height = 128 * K;
   const g = c.getContext('2d');
+  g.scale(K, K);
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, 128, 128);
   g.fillStyle = 'rgba(0,0,0,0.18)';
   g.fillRect(0, 0, 128, 2); g.fillRect(0, 0, 2, 128); g.fillRect(0, 63, 128, 2); g.fillRect(63, 0, 2, 128);
   const t = new THREE.CanvasTexture(c);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   return t;
 }
 function shutterTexture() {
@@ -127,7 +132,11 @@ export function proto(name) {
       const pts = []; for (let i = 0; i <= 7; i++) { const t = i / 7; pts.push(new THREE.Vector2(0.06 + 0.44 * Math.sin(Math.PI * (0.08 + 0.84 * t)), t)); }
       g = new THREE.LatheGeometry(pts, 10); break;
     }
-    case 'chair_frame': g = mergeGeometries([boxG(0.03, 0.45, 0.42, -0.2, 0.225, 0), boxG(0.03, 0.45, 0.42, 0.2, 0.225, 0), boxG(0.03, 0.42, 0.03, -0.2, 0.66, 0.2), boxG(0.03, 0.42, 0.03, 0.2, 0.66, 0.2)].map(nonIndexed)); break;
+    case 'chair_frame': g = mergeGeometries([   // v2: slim legs + rails instead of two solid side slabs
+      boxG(0.035, 0.45, 0.035, -0.2, 0.225, -0.2), boxG(0.035, 0.45, 0.035, 0.2, 0.225, -0.2),
+      boxG(0.035, 0.95, 0.035, -0.2, 0.475, 0.2), boxG(0.035, 0.95, 0.035, 0.2, 0.475, 0.2),
+      boxG(0.4, 0.035, 0.03, 0, 0.4, -0.2), boxG(0.4, 0.035, 0.03, 0, 0.4, 0.2), boxG(0.03, 0.035, 0.4, -0.2, 0.4, 0), boxG(0.03, 0.035, 0.4, 0.2, 0.4, 0),
+      boxG(0.4, 0.05, 0.03, 0, 0.93, 0.2)].map(nonIndexed)); break;
     case 'chair_seat': g = mergeGeometries([boxG(0.44, 0.05, 0.44, 0, 0.47, 0), boxG(0.42, 0.24, 0.04, 0, 0.74, 0.21)].map(nonIndexed)); break;
     case 'stool': g = mergeGeometries([new THREE.CylinderGeometry(0.18, 0.18, 0.06, 6).translate(0, 0.7, 0), new THREE.CylinderGeometry(0.03, 0.03, 0.68, 5, 1, true).translate(0, 0.35, 0), new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8, 1, true).translate(0, 0.01, 0)].map(nonIndexed)); break;
     case 'table_leg': g = mergeGeometries([new THREE.CylinderGeometry(0.035, 0.035, 0.72, 5, 1, true).translate(0, 0.36, 0), new THREE.CylinderGeometry(0.22, 0.24, 0.03, 6).translate(0, 0.015, 0)].map(nonIndexed)); break;

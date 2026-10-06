@@ -14,8 +14,10 @@
 //   hall    {H, dur}               browse a food hall / concourse
 //   meet    {M, dur}               wait at a landmark for a friend
 //   join    {target}               the friend: walk up, wave, leave together
-//   post    {x, z, yaw, kind}      staff standing post
+//   post    {x, z, yaw, kind}      staff standing post (counter staff: C = ctx.counters entry)
 //   patrol  {H}                    cleaners / security walking a hall
+//   window  {B, dur}               stand at a shop window, looking in (v2)
+//   order   {B}                    café: line up at the counter (beside the player's order spot), order, then dine (v2)
 // =============================================================================
 import { MODE, POSE } from './sim.js';
 import { BIT } from './looks.js';
@@ -38,6 +40,8 @@ export class Behave {
   endLeg(a) {
     const L = a.legs && a.legs[a.leg]; if (!L) return;
     if (L.t === 'queue' && L.B) { const k = L.B.queue.indexOf(a); if (k >= 0) L.B.queue.splice(k, 1); }
+    if (L.t === 'order' && a.d && a.d.C) { const k = a.d.C.queue.indexOf(a); if (k >= 0) a.d.C.queue.splice(k, 1); }
+    if (L.t === 'window' && a.d && a.d.w) { a.d.w.used = 0; }
     if (L.t === 'board' && a.mark) { a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1); a.mark = null; }
     if ((L.t === 'dine' || L.t === 'browse') && a.spot) { a.spot.used = 0; a.spot = null; if (L.t === 'dine' && L.B && a.d && a.d.counted) { L.B.seated = Math.max(0, L.B.seated - 1); a.d.counted = false; } }
     a.dyn = 0; a.d = null; a.queueing = false; a.faceSet = false; a.pose = POSE.WALK;
@@ -59,7 +63,7 @@ export class Behave {
         if (!L.en.ready) { a.mode = MODE.STAND; a.waitField = true; if (a.fadeDir === 0 && a.fade <= 0) { /* stays hidden */ } return; }
         a.waitField = false;
         S.setField(a, L.en, L.arrive || 1.2);
-        if (a.nearStart) { a.nearStart = false; a.ffFrac = 0; if (!this.director.placeNear(a, false, 3, 90)) a.ffFrac = 0.5; }
+        if (a.nearStart) { a.nearStart = false; a.ffFrac = 0; if (!this.director.placeNear(a, false, 3, 60)) a.ffFrac = 0.5; }
         if (a.ffFrac > 0) this._fastForward(a);
         if (a.fadeDir === 0) this._reveal(a);
         a.hesT = 8 + this.r() * 30;
@@ -142,6 +146,22 @@ export class Behave {
         a.d.next = this.time + 4 + this.r() * 12;
         return;
       }
+      case 'window': {
+        const w = this._windowSpot(L.B);
+        if (!w) { this.nextLeg(a); return; }
+        a.d.w = w; a.d.until = 0;
+        if (L.inside) { S.setPos(a, L.B.level, w.x, w.z); a.yaw = w.yaw; this._arriveWindow(a, L); this._reveal(a); }
+        else { S.goTo(a, w.x, w.z, null, 0.3); a.d.slow = 0.8; }
+        return;
+      }
+      case 'order': {
+        const C = L.B && L.B.ctr;
+        if (!C || !C.npc || (C.queue.length >= 4)) { this.nextLeg(a); return; }
+        C.queue.push(a); a.d.k = -1; a.d.C = C; a.d.orderT = 0;
+        if (L.inside) { const sl = this._orderSlot(C, C.queue.length - 1); S.setPos(a, L.B.level, sl.x, sl.z); a.yaw = sl.yaw; this._reveal(a); }
+        this._orderMove(a, L);
+        return;
+      }
       default: this.nextLeg(a);
     }
   }
@@ -176,8 +196,18 @@ export class Behave {
       if (nav.rmp[v] < 0) { lastFloor = v; if (left <= 0) break; }
     }
     v = lastFloor;
+    // spread: never drop two people on the same spot (walk on a few nodes until there is room)
+    const D = this.director;
+    for (let k = 0; k < 10; k++) {
+      const lvk = S.levelNames[nav.lvl[v]];
+      if (D.free(lvk, nav.x[v] + a.jx, nav.z[v] + a.jz, 1.2)) break;
+      const w = F.next(a.en, v);
+      if (w < 0 || nav.rmp[w] >= 0 || a.en.dist[w] <= a.arriveDm + 20) break;
+      v = w;
+    }
     if (v !== v0) {
       const lv = S.levelNames[nav.lvl[v]];
+      D.claim(lv, nav.x[v] + a.jx, nav.z[v] + a.jz);
       S.setPos(a, lv, nav.x[v] + a.jx, nav.z[v] + a.jz);
       const w = F.next(a.en, v);
       if (w >= 0) a.yaw = Math.atan2(-(nav.x[w] - nav.x[v]), -(nav.z[w] - nav.z[v]));
@@ -205,15 +235,15 @@ export class Behave {
               const fx = Math.sin(a.yaw), fz = Math.cos(a.yaw);
               const tx = a.x + fx * 6, tz = a.z + fz * 6;
               if (S.col.walkable(a.level, tx, tz)) { a.d.back = true; S.goTo(a, tx, tz, null, 0.8); a.pose = POSE.WALK; }
-            } else if (a.rampNext < 0) {
-              a.d.hes = this.time + 1.8 + this.r() * 3.2; a.d.hesPose = r < 0.6 ? POSE.LOOKUP : POSE.PHONE;
-              a.mode = MODE.STAND; a.pose = a.d.hesPose; if (a.d.hesPose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);
-              a.lookYaw = (this.r() - 0.5) * 1.6; a.lookT = 2.5;
+            } else if (a.rampNext < 0 && !a.followers && !this._nearRampOrGate(a)) {
+              // stop to look at the signs / the phone, but first step out of the flow to the side (keep left)
+              const side = this._asidePoint(a);
+              if (side) { a.d.aside = true; a.d.hesPose = r < 0.6 ? POSE.LOOKUP : POSE.PHONE; S.goTo(a, side.x, side.z, null, 0.35); a.d.slow = 0.7; }
             }
             a.hesT = 15 + this.r() * 40 * (0.5 + a.conf);
           }
         }
-        if (a.d.hes && this.time > a.d.hes) { a.d.hes = 0; a.mode = MODE.FIELD; a.aimT = 0; a.dyn &= ~(1 << BIT.PHONE); }
+        if (a.d.hes && this.time > a.d.hes) { a.d.hes = 0; S.setField(a, L.en, L.arrive || 1.2); a.dyn &= ~(1 << BIT.PHONE); }
         a.pose = a.mode === MODE.STAND && a.d.hes ? a.d.hesPose : (a.phoneWalk ? POSE.PHONE : POSE.WALK);
         if (a.phoneWalk) a.dyn |= (1 << BIT.PHONE);
         return;
@@ -311,7 +341,31 @@ export class Behave {
         } else if (a.mode === MODE.STAND || (a.mode === MODE.PATH && this.r() < dt)) S.goTo(a, T.x, T.z, null, 1.3);
         return;
       }
+      case 'window': {
+        if (a.st === 1) {
+          a.t -= dt;
+          a.t2 -= dt;
+          if (a.t2 <= 0) { a.t2 = 2 + this.r() * 4; a.lookYaw = (this.r() - 0.5) * 1.1; a.lookT = 2.2; }
+          if (a.t <= 0) this.nextLeg(a);
+        }
+        return;
+      }
+      case 'order': {
+        const C = a.d.C, k = C.queue.indexOf(a);
+        if (k < 0) { this.nextLeg(a); return; }
+        if (k !== a.d.k) this._orderMove(a, L);
+        a.queueing = true;
+        if (k === 0 && a.mode === MODE.STAND) {
+          a.d.orderT += dt;
+          a.pose = POSE.TALK;
+          if (!a.d.lookedAt && C.agent && C.agent.alive) { this.sim.lookAt(a, C.agent.x, C.agent.z, 3); a.d.lookedAt = true; C.serveFor = a; }
+          if (a.d.orderT > 5 + (a.serial % 4)) { a.cafeCup = true; a.dyn |= (1 << BIT.CUP); C.serveFor = null; C.lastServe = this.time; this.nextLeg(a); }
+        } else if (a.mode === MODE.STAND) a.pose = (a.serial & 1) ? POSE.PHONE : POSE.STAND;
+        if (a.pose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE); else a.dyn &= ~(1 << BIT.PHONE);
+        return;
+      }
       case 'post': {
+        if (L.C) { this._counterTick(a, L, dt); return; }
         if (this.time > a.d.next) {
           a.d.next = this.time + 5 + this.r() * 14;
           const r = this.r();
@@ -368,7 +422,17 @@ export class Behave {
     if (!L) { this._finish(a); return; }
     const S = this.sim;
     switch (L.t) {
-      case 'go': case 'to': this.nextLeg(a); return;
+      case 'go':
+        if (a.d && a.d.back) { a.d.back = false; S.setField(a, L.en, L.arrive || 1.2); return; }   // turned round: resume
+        if (a.d && a.d.aside) {                                                                      // stepped aside: stop and think
+          a.d.aside = false; a.d.slow = 0;
+          a.d.hes = this.time + 1.8 + this.r() * 3.2;
+          S.stand(a, a.yaw); a.pose = a.d.hesPose; if (a.d.hesPose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);
+          a.lookYaw = (this.r() - 0.5) * 1.6; a.lookT = 2.5;
+          return;
+        }
+        this.nextLeg(a); return;
+      case 'to': this.nextLeg(a); return;
       case 'exit': S.stand(a); return;
       case 'queue': {
         const sl = this.P.qSlot(L.B, Math.max(0, a.d.k));
@@ -401,6 +465,8 @@ export class Behave {
       }
       case 'meet': S.stand(a); return;
       case 'join': S.stand(a); return;
+      case 'window': if (a.st === 0) this._arriveWindow(a, L); else S.stand(a); return;
+      case 'order': { const sl = this._orderSlot(a.d.C, Math.max(0, a.d.k)); S.stand(a, sl.yaw); return; }
       default: S.stand(a);
     }
   }
@@ -413,6 +479,108 @@ export class Behave {
   onRideEnd(a) { if (a.legs && a.legs[a.leg] && a.legs[a.leg].t === 'go') a.pose = a.phoneWalk ? POSE.PHONE : POSE.WALK; }
 
   // ---------------------------------------------------------------------------
+  // v2 helpers
+  _nearRampOrGate(a) {
+    const P = this.P;
+    for (const R of P.ramps) {
+      if (R.r.lower !== a.level && R.r.upper !== a.level) continue;
+      for (const e of [R.ends.low, R.ends.high]) if (Math.abs(e.x - a.x) < 7 && Math.abs(e.z - a.z) < 7) return true;
+    }
+    const gl = P.gatesByLevel && P.gatesByLevel[a.level];
+    if (gl) for (const G of gl) { const pa = (G.axis === 'x' ? a.z : a.x) - G.at, lat = G.axis === 'x' ? a.x : a.z; if (Math.abs(pa) < 6 && lat > G.lo - 2 && lat < G.hi + 2) return true; }
+    return false;
+  }
+  // a spot 1.4-3 m to the side of our path (left first), with room, out of the main flow
+  _asidePoint(a) {
+    const S = this.sim, fx = -Math.sin(a.yaw), fz = -Math.cos(a.yaw);
+    for (const side of [-1, 1]) {
+      const sx = fz * side, sz = -fx * side; // side -1 = left of travel
+      for (const dist of [2.6, 2.0, 1.4]) {
+        const x = a.x + -sx * dist, z = a.z + -sz * dist;
+        if (!S.col.walkable(a.level, x, z) || !S.col.walkable(a.level, a.x - sx * dist * 0.5, a.z - sz * dist * 0.5)) continue;
+        // the spot must be beside a wall / edge (not the middle of a hall) and not occupied
+        const probe = { level: a.level, x, z }; S.col.move(probe, -sx * 0.9, -sz * 0.9, 0.2);
+        if (Math.hypot(probe.x - x, probe.z - z) > 0.45) continue;
+        let busy = false; S.near(a.level, x, z, 0.9, (b) => { if (b !== a) busy = true; });
+        if (!busy) return { x, z };
+      }
+    }
+    return null;
+  }
+  // stand at a shop window: along the frontage (not in the doorway), facing the glass
+  _windowSpot(B) {
+    const S = this.sim, d = B.door, [x0, z0, x1, z1] = B.rect;
+    if (!B.wins) {
+      B.wins = [];
+      const nx = d.nx, nz = d.nz;               // outward normal of the frontage
+      const tx = -nz, tz = nx;
+      // the frontage line passes through the door point
+      const ext = Math.abs(tx) > 0.5 ? (x1 - x0) : (z1 - z0);
+      for (let u = -ext; u <= ext; u += 1.1) {
+        if (Math.abs(u) < 1.4) continue;          // keep the doorway clear
+        const x = d.x + tx * u + nx * 0.62, z = d.z + tz * u + nz * 0.62;
+        const inX = x >= x0 - 1.2 && x <= x1 + 1.2 && z >= z0 - 1.2 && z <= z1 + 1.2;
+        if (!inX || !S.col.walkable(B.level, x, z)) continue;
+        const probe = { level: B.level, x, z }; S.col.move(probe, -nx * 0.9, -nz * 0.9, 0.2);
+        if (Math.hypot(probe.x - x, probe.z - z) > 0.45) continue;            // must be glass / wall in front, not an opening
+        B.wins.push({ x, z, yaw: Math.atan2(nx, nz), used: 0 });
+      }
+    }
+    const free = B.wins.filter(w => !w.used);
+    if (!free.length) return null;
+    const w = free[Math.floor(this.r() * free.length)];
+    w.used = 1;
+    return w;
+  }
+  _arriveWindow(a, L) {
+    const w = a.d.w; a.st = 1;
+    this.sim.stand(a, w.yaw); a.faceYaw = w.yaw;
+    a.pose = a.kind === 'tourist' && this.r() < 0.3 ? POSE.PHOTO : POSE.STAND;
+    if (a.pose === POSE.PHOTO) a.dyn |= (1 << BIT.PHONE);
+    a.t = L.dur || (6 + this.r() * 14); a.t2 = 1 + this.r() * 2;
+  }
+  // café counter line: NPCs order one step to the side of the player's order spot, the line goes back from there
+  _orderSlot(C, k) {
+    const n = C.npc;
+    return { x: n.x + n.bx * 0.72 * k, z: n.z + n.bz * 0.72 * k, yaw: n.yaw };
+  }
+  _orderMove(a, L) {
+    const C = a.d.C, k = C.queue.indexOf(a);
+    a.d.k = k;
+    const sl = this._orderSlot(C, k);
+    const d = Math.hypot(sl.x - a.x, sl.z - a.z);
+    if (d > 0.3) { this.sim.goTo(a, sl.x, sl.z, L.B.rect, 0.22); a.d.slow = 0.7; }
+    else this.sim.stand(a, sl.yaw);
+  }
+  // counter staff: idle behind the counter, nod now and then, serve the person ordering, greet the player
+  _counterTick(a, L, dt) {
+    const C = L.C, S = this.sim, V = S.viewer;
+    if (a.d.until && this.time < a.d.until) return;
+    if (a.d.until) { a.d.until = 0; a.pose = POSE.STAND; }
+    // the player walks up to the counter: look at them, a small nod (Flow plays the order exchange)
+    if (V.has && V.level === a.level) {
+      const dp = Math.hypot(V.x - a.x, V.z - a.z);
+      if (dp < 3.2) {
+        if (a.lookT <= 0) S.lookAt(a, V.x, V.z, 1.5);
+        if (this.time > (a.d.greetT || 0)) { a.d.greetT = this.time + 25; a.pose = POSE.NOD; a.d.until = this.time + 1.5; return; }
+      }
+    }
+    if (C.served) { C.served = false; a.pose = POSE.SERVE; a.d.until = this.time + 1.6; a.d.next = this.time + 3; return; }
+    if (C.serveFor && C.serveFor.alive) {
+      if (a.lookT <= 0) S.lookAt(a, C.serveFor.x, C.serveFor.z, 2);
+      if (!a.d.servedFor || a.d.servedFor !== C.serveFor) { a.d.servedFor = C.serveFor; a.pose = POSE.NOD; a.d.until = this.time + 1.4; return; }
+      if (this.time > (a.d.next || 0)) { a.d.next = this.time + 4; a.pose = POSE.SERVE; a.d.until = this.time + 1.6; return; }
+      return;
+    }
+    if (this.time > a.d.next) {
+      a.d.next = this.time + 6 + this.r() * 12;
+      const r = this.r();
+      if (r < 0.3) { a.pose = POSE.NOD; a.d.until = this.time + 1.5; }
+      else if (r < 0.45) { a.pose = POSE.SERVE; a.d.until = this.time + 1.5; }   // wiping / handling something
+      else { a.pose = POSE.STAND; a.lookYaw = (this.r() - 0.5) * 1.4; a.lookT = 2.5; }
+    }
+  }
+
   _queueMove(a, L) {
     const B = L.B, k = B.queue.indexOf(a);
     a.d.k = k;

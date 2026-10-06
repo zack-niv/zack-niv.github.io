@@ -27,9 +27,17 @@ import { GeoBatch } from '../render/geobatch.js';
 import { Atlas } from './env/atlas.js';
 import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js';
 import { ShopCtx } from './env/shopctx.js';
+import { POSTER_TEXT } from './env/posters.js';
 import { buildShop, regions } from './env/shopbuild.js';
 import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js';
 
+// v2 counters contract: business category -> counter kind / staff role
+const COUNTER_KIND = {
+  cafe: 'cafe', kissaten: 'cafe', coffeestand: 'cafe', bakery: 'cafe', sweets: 'food', takoyaki: 'food',
+  tempura: 'tempura', tendon: 'tempura',
+  conbini: 'shop', books: 'shop', drugstore: 'shop', phone: 'shop', ticket: 'shop', exchange: 'shop', souvenir: 'shop', florist: 'shop',
+};
+const ROLE = { cafe: 'barista', kissaten: 'barista', coffeestand: 'barista', bakery: 'clerk', sweets: 'clerk', takoyaki: 'chef' };
 const CHUNK = 32;
 const FRONT_R = 190;      // shopfronts (cheap: fascia, glazing, samples) are built out to here
 const INT_R = 62;         // interiors are built within this ...
@@ -47,6 +55,8 @@ export function envFor(ctx) {
     ctx, world: ctx.world, materials: ctx.materials,
     sign: new Atlas('env_sign', { lit: true, glow: 2.0 }),
     print: new Atlas('env_print', { lit: false, boost: 0.28 }),
+    // posters: own pages (exact 2:3 / 16:9 canvases), wide gutters + edge bleed so mips never leak neighbours
+    poster: new Atlas('env_poster', { lit: false, boost: 0.40, pad: 8, aniso: 16 }),
     chunks: new ChunkBatches(CHUNK, 'env'),
     lights: [],
   };
@@ -74,6 +84,7 @@ function glyphText() {
   txt += 'らーめんうどん寿司とんかつカレー天丼お好み焼串かつ居酒屋焼肉洋食喫茶珈琲パン菓たこ薬みやげ本文具花ガチャ金券厨房自動ドア激安特価人気新数量限定円税込おつり返却食券つめた〜いあったか〜いお〜いお茶';
   txt += '醤油味玉チャーシュー麺つけ餃子ライス生ビールきつね肉釜玉いなり上海老野菜小そばみそ汁定食海老天きす舞茸ハイボールビーフカツチキントッピング大盛りにぎり並ちらし鉄火巻赤だしランチ握りロースヒレミックスフライ丼キャベツおかわり自由豚モダンねぎ焼きそば串どて土手盛合せだし巻き玉子枝豆唐揚げ日本酒特上カルビタン塩ホルモンセットビビンバオムライスハンバーグエビナポリタンシチューブレンドラテ抹茶チーズケーキ季節タルトサンドイッチモーニングクリームソーダ厚切りトーストジュースプリンハンドドリップエスプレッソ豆クロワッサンメロンあん詰め合わせお土産箱個明石';
   txt += '秋冬コレクション入荷セール最大医薬品化粧品毎日安いうるおい続く新登場マロン乾杯夜明けの境界線全国ロードショーいのち輝く未来へ大阪関西みらい高野山特急で北斎と浪華浮世絵市立美術館機種のりかえ還元ラーメン博なんばパークスハロウィンごくっと新幹線回数券高速バス切手営業時間開店';
+  txt += POSTER_TEXT + 'ご注文はこちらドリンクスイーツおすすめ本日の豆若草珈琲';
   txt += 'ウォーク新作入荷激安特価人気限定開催中ペットボトル缶びん燃えるゴミカプセルトイ時間運行情報平常どおり南海電車御堂筋線千日前線ご利用ありがとうございます開催中ハロウィンフェア';
   return txt;
 }
@@ -93,6 +104,7 @@ export class Shops {
     const t0 = performance.now();
     const env = envFor(ctx);
     this.env = env;
+    if (!ctx.counters) ctx.counters = [];
     const bySlot = new Map(BUSINESSES.map(b => [b.slot, b]));
     const unitMap = new Map();
     // ---- logic pass: obstacles, spots, lights (no geometry) --------------------
@@ -118,6 +130,7 @@ export class Shops {
       }
     }
     this.units = [...unitMap.values()];
+    this._collectCounters();
     for (const [id, fn] of [['taka_b1', buildDepachika], ['taka_1f', buildTaka1F]]) {
       try {
         const H = new Hall(env, id);
@@ -133,6 +146,47 @@ export class Shops {
     this.afterBuild();
     ctx.events.on('player:teleport', () => this._forceNear());
     this.stats = { initMs: Math.round(performance.now() - t0), shops: this.recs.size, units: this.units.length };
+  }
+
+  // ---- v2 contract: ctx.counters (staff post + order spot per café / food place / key clerk shop) --------------------
+  // Templates call S.service(role, [a,d] order, [a,d] staff). Anything without one falls back to its crowd 'counter'
+  // spot + nearest 'staff' spot. Order spots are snapped to a free, reachable shop cell (and re-checked against the
+  // nav grid in _validateSpots, mutating the same objects so consumers can hold the array).
+  _collectCounters() {
+    const ctx = this.ctx, out = ctx.counters;
+    out.length = 0;
+    for (const rec of this.recs.values()) {
+      const S = rec.S, b = rec.b, cat = b.cat;
+      if (cat === 'closed') continue;
+      const kind = COUNTER_KIND[cat] || (b.info && b.info.food ? 'food' : null);
+      if (!kind) continue;
+      let svc = S.svc;
+      if (!svc) {
+        const c = rec.counter, st = S.spots.filter(s => s.kind === 'staff').sort((p, q) => Math.hypot(p.x - c.x, p.z - c.z) - Math.hypot(q.x - c.x, q.z - c.z))[0];
+        if (!c || !st) continue;
+        const lo = S.local(c.x, c.z), ls = S.local(st.x, st.z);
+        svc = { role: null, order: { a: lo.a, d: lo.d }, staff: { a: ls.a, d: ls.d } };
+      }
+      // snap the order point to a free, reachable cell of the shop
+      let { a, d } = svc.order;
+      const ci = Math.floor(a), cj = Math.floor(d);
+      if (d >= 0 && !S.free(ci, cj)) {   // d < 0: take-away counters are served from the corridor (nav check later)
+        let best = null;
+        for (let r = 1; r <= 3 && !best; r++) for (let j = cj - r; j <= cj + r; j++) for (let i = ci - r; i <= ci + r; i++) {
+          if (Math.max(Math.abs(i - ci), Math.abs(j - cj)) !== r || !S.free(i, j)) continue;
+          const dd = Math.hypot(i + 0.5 - a, j + 0.5 - d);
+          if (!best || dd < best.dd) best = { i, j, dd };
+        }
+        if (!best) continue;
+        a = best.i + 0.5; d = best.j + 0.5;
+      }
+      const ow = S.world(a, d), sw = S.world(svc.staff.a, svc.staff.d);
+      const yaw = Math.atan2(-(ow.x - sw.x), -(ow.z - sw.z));
+      const role = svc.role || ROLE[cat] || (kind === 'cafe' ? 'barista' : kind === 'shop' ? 'clerk' : 'chef');
+      const entry = { slotId: b.slot, name: b.en, kind, level: b.level, staff: { x: sw.x, y: S.y, z: sw.z, yaw }, order: { x: ow.x, y: S.y, z: ow.z }, role };
+      out.push(entry);
+      rec.service = entry;
+    }
   }
 
   _run(S, R) {
@@ -303,6 +357,25 @@ export class Shops {
       if (rec.counter && !ok(rec.counter)) rec.counter = rec.spots.find(s => s.kind === 'counter') || rec.spots.find(s => s.kind !== 'staff') || rec.counter;
     }
     for (const h of Object.values(this.halls)) if (h) h.spots = h.spots.filter(ok);
+    // counters: the order spot must be on a walkable cell; nudge to the nearest valid cell of the same shop, else drop it
+    const cs = this.ctx.counters;
+    for (let k = cs.length - 1; k >= 0; k--) {
+      const c = cs[k], g = this.ctx.world.grids[c.level], good = (x, z) => { const i = g.cellOf(x, z); return i >= 0 && nav.cellNode[c.level][i] >= 0; };
+      if (good(c.order.x, c.order.z)) continue;
+      const rec = this.recs.get(c.slotId), S = rec && rec.S; let fix = null;
+      if (S) for (let r = 1; r <= 3; r++) {
+        for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+          if (Math.max(Math.abs(i), Math.abs(j)) !== r) continue;
+          const x = Math.floor(c.order.x) + i + 0.5, z = Math.floor(c.order.z) + j + 0.5;
+          const l = S.local(x, z);
+          if (l.a < 0 || l.d < 0 || l.a >= S.W || l.d >= S.D || !good(x, z)) continue;
+          const dd = Math.hypot(x - c.order.x, z - c.order.z);
+          if (!fix || dd < fix.dd) fix = { x, z, dd };
+        }
+        if (fix) break;
+      }
+      if (fix) { c.order.x = fix.x; c.order.z = fix.z; } else { cs.splice(k, 1); console.warn('[shops] counter dropped (no walkable order cell)', c.slotId); }
+    }
     this._spotsValid = true;
   }
 

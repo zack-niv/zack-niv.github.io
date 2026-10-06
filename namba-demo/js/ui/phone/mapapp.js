@@ -624,26 +624,49 @@ export class MapApp {
     this.sheetEl.className = `mp-sheet mp-${name}${full ? ' mp-full' : ''}`;
     this.sheetIn.scrollTop = 0;
   }
+  // Aya's tempura place: the suggestion the home sheet leads with (one tap to directions)
+  _goal() { if (!this._goalP) { const b = businessBySlot.parks_6Fdw03; this._goalP = b ? this._bizPlace(b) : null; } return this._goalP; }
+  _accTxt() { const p = this.pos; return p.acc < 6 ? 'High accuracy' : p.acc < 12 ? 'Approximate location' : 'Low accuracy — indoor'; }
   showHome() {
-    const p = this.pos;
+    const p = this.pos, G = this._goal();
     const sp = this.ctx.world.spaceAt(p.level, p.x, p.z);
     const z = sp && ZONES[sp.zone];
-    const accTxt = p.acc < 6 ? 'High accuracy' : p.acc < 12 ? 'Approximate location' : 'Low accuracy — indoor';
     this._setSheet('home', `
-      <div class="mp-home"><div class="mp-home-t">${esc(z ? z.name : 'Namba')}</div>
-      <div class="mp-home-s">${LEVELS[p.level].label} · ${esc(z ? z.ja : 'なんば')}</div>
-      <div class="mp-home-acc"><i></i>${accTxt} (±${Math.round(p.acc)} m)</div></div>`);
+      <div class="mp-home"><div class="mp-here"><i class="mp-here-dot"></i><div><b class="mp-home-t">${esc(z ? z.name : 'Namba')}</b>
+      <small class="mp-home-s">${LEVELS[p.level].label} · ${this._accTxt()} (±${Math.round(p.acc)} m)</small></div></div>
+      ${G ? `<button class="mp-aya"><i class="mp-ic food">🍤</i><div><small>From Aya’s message</small><b>${esc(G.en)}</b><span class="mp-aya-s"></span></div><em>Directions</em></button>` : ''}</div>`);
     this._homeEl = this.sheetIn.querySelector('.mp-home');
+    const btn = this.sheetIn.querySelector('.mp-aya');
+    if (btn) btn.addEventListener('click', () => { this.results = [G]; this.select(G); this.startRoute(G); });
+    this._refreshHome();
   }
   _refreshHome() {
     if (this.sheet !== 'home' || !this._homeEl) return;
-    const p = this.pos;
+    const p = this.pos, G = this._goal();
     const sp = this.ctx.world.spaceAt(p.level, p.x, p.z);
     const z = sp && ZONES[sp.zone];
-    const accTxt = p.acc < 6 ? 'High accuracy' : p.acc < 12 ? 'Approximate location' : 'Low accuracy — indoor';
-    this._homeEl.querySelector('.mp-home-t').textContent = z ? z.name : 'Namba';
-    this._homeEl.querySelector('.mp-home-s').textContent = `${LEVELS[p.level].label} · ${z ? z.ja : 'なんば'}`;
-    this._homeEl.querySelector('.mp-home-acc').innerHTML = `<i class="${p.acc < 12 ? 'ok' : ''}"></i>${accTxt} (±${Math.round(p.acc)} m)`;
+    const set = (c, t) => { const e = this._homeEl.querySelector(c); if (e && e.textContent !== t) e.textContent = t; };
+    set('.mp-home-t', z ? z.name : 'Namba');
+    set('.mp-home-s', `${LEVELS[p.level].label} · ${this._accTxt()} (±${Math.round(p.acc)} m)`);
+    this._homeEl.querySelector('.mp-here-dot').classList.toggle('ok', p.acc < 12);
+    if (G) set('.mp-aya-s', `Namba Parks · ${LEVELS[G.level].label} · ${fmtDist(this._crow(G))}`);
+  }
+
+  // what the lowered phone's glance card shows: the vague hint (crow-flies arrow & distance, the
+  // believed floor), or the one-floor route this app manages — the frustration, legibly
+  glanceInfo() {
+    const p = this.pos, R = this.route;
+    const warn = p.noService ? 'No service' : p.acc > 16 ? 'GPS signal lost' : p.acc > 9 ? 'GPS signal weak' : '';
+    const here = `you’re on ${LEVELS[p.level].label}`;
+    const angTo = (x, z) => { const dx = x - p.x, dz = z - p.z; let d = Math.atan2(-dx, -dz) - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); return -d * 180 / Math.PI; };
+    if (R && R.arrived) return { kind: 'arr', icon: 'arrow', ang: 0, title: 'You have arrived', sub: `${R.target.en} · probably`, warn: '' };
+    if (R && !R.failed && R.leg && R.legs.length > 1 && R.leg.ramp >= 0 && R.leg.pts.length) {
+      const r = LAYOUT.ramps[R.leg.ramp], to = R.leg.dir > 0 ? r.upper : r.lower, e = R.leg.pts[R.leg.pts.length - 1];
+      return { kind: 'route', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(e[0], e[1]), title: `Take the ${this._rampWord(r)} ${R.leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`, sub: `${fmtDist(Math.hypot(e[0] - p.x, e[1] - p.z))} · ${here}`, warn };
+    }
+    const t = (R && R.target) || this._goal();
+    if (!t) return { kind: 'crow', icon: 'lost', title: 'Maps', sub: here, warn };
+    return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
   }
   showResults() {
     const mins = this.ctx.clock.minutes;
@@ -785,8 +808,8 @@ export class MapApp {
     if (legs.length > 1 && leg.ramp >= 0) {
       const r = LAYOUT.ramps[leg.ramp];
       const to = leg.dir > 0 ? r.upper : r.lower;
-      step = `${leg.dir > 0 ? '↗' : '↘'} Take ${this._rampWord(r)} ${leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`;
-      sub = `Walk ${fmtDist(leg.len)} · then continue on ${LEVELS[to].label}`;
+      step = `${leg.dir > 0 ? '↗' : '↘'} Take the ${this._rampWord(r)} ${leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`;
+      sub = `${fmtDist(leg.len)} · then continue on ${LEVELS[to].label}`;
     } else {
       step = `➤ Head to ${t.en}`; sub = `${fmtDist(leg ? leg.len : R.total)} on this floor`;
     }

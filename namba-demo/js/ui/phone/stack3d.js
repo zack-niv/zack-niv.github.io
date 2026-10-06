@@ -535,6 +535,8 @@ export class Stack3D {
       const u = L.mat.uniforms; u.uGain.value = L.gain; u.uAlpha.value = L.alpha; u.uTime.value = this.time; u.uSweep.value = L.sweep; u.uPlayer.value.set(this.player.x, 0, this.player.z);
       L.lmat.uniforms.uOpacity.value = L.line; L.mat.uniforms.uFadeMin.value = L.lmat.uniforms.uFadeMin.value = (this.fadeN.value ? (isCur ? 0.65 : onRoute ? 0.32 : 0.10) : 1);
       L.labelMat.opacity = isCur ? 1 : onRoute ? 0.85 : 0.5;
+      // compact preview (guide view): only your floor and the destination floor are labelled
+      L.label.visible = !this.compact || isCur || (this.dest && lv === this.dest.level);
     }
     // constant-screen-size sprites & world-scale helpers
     const Hpx = this._h, pxPerM = Hpx / (2 * c.dist * Math.tan(this.camera.fov * Math.PI / 360));
@@ -564,6 +566,7 @@ export class Stack3D {
       this.destLabel.center.x = 0.5 - off / lw;
     }
     for (const lv in this.levels) { const s = this.levels[lv].label; spx(s, s.userData.px[0], s.userData.px[1]); }
+    this.markGroup.visible = !this.compact;          // escalator / canyon chips only in the full 3D view
     for (const s of this.markGroup.children) spx(s, s.userData.px[0], s.userData.px[1]);
     this.ribCore.uniforms.uTime.value = this.ribGlow.uniforms.uTime.value = this.time;
     this.bgMat.uniforms.uTime.value = this.time;

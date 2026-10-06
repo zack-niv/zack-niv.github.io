@@ -9,8 +9,12 @@
 // =============================================================================
 import { rgb, mix, WHITE, protoUV } from './kit.js';
 import * as D from './draw.js';
+import { drawPoster, POSTER_PORT, POSTER_LAND } from './posters.js';
 import { CAT, MENU, SAMPLES, LIGHT } from './catalog.js';
 import { rng, hash } from '../../core/rng.js';
+import { cafeInterior } from './cafe.js';
+import { diningInterior } from './dining.js';
+import { Cells, scatter } from './seating.js';
 
 const K = (hex, k = 1) => rgb(hex, k);
 const GLOW = 2.0;   // lit atlas multiplier (keep band colours in step)
@@ -19,19 +23,19 @@ const GLOW = 2.0;   // lit atlas multiplier (keep band colours in step)
 // atlas regions (cached by key)
 // ----------------------------------------------------------------------------
 export function regions(env) {
-  const { sign, print } = env;
+  const { sign, print, poster } = env;
   const R = {
     fascia(b, st) {
-      const H = 72;
+      const H = 96;      // v2: 72 -> 96 px (a 0.6 m name band is read from 1-3 m)
       const g = sign.pages[0].g;
-      const w = Math.min(900, Math.max(H * 3, D.fasciaWidth(g, b, st, H)));
+      const w = Math.min(1200, Math.max(H * 3, D.fasciaWidth(g, b, st, H)));
       return sign.add(`fascia|${b.en}|${b.ja}|${st.bg}|${st.fg}|${st.mode}|${st.emblem || ''}`, w, H, (g2, W2, H2) => D.drawFascia(g2, W2, H2, b, st));
     },
     blade(b, st, glyph) { return sign.add(`blade|${b.en}|${st.bg}|${glyph}`, 88, 132, (g, w, h) => D.drawBlade(g, w, h, b, st, glyph)); },
     noren(text, sub, bg, fg) { return print.add(`noren|${text}|${sub}|${bg}`, 320, 144, (g, w, h) => D.drawNoren(g, w, h, text, sub, bg, fg)); },
     lantern(text, bg) { return sign.add(`lantern|${text}|${bg}`, 160, 128, (g, w, h) => D.drawLantern(g, w, h, text, bg)); },
-    chalk(title, items, seed) { return print.add(`chalk|${title}|${seed % 3}`, 144, 200, (g, w, h) => D.drawChalkMenu(g, w, h, title, items, seed)); },
-    photoMenu(title, items, foods, accent) { return print.add(`photo|${title}|${accent}`, 176, 240, (g, w, h) => D.drawPhotoMenu(g, w, h, title, items, (gg, x, y, ww, hh, i) => { gg.save(); gg.translate(x, y); D.drawFood(gg, ww, hh, foods[i % foods.length], i); gg.restore(); }, accent)); },
+    chalk(title, items, seed) { return print.add(`chalk|${title}|${items.length}|${seed % 3}`, 252, 350, (g, w, h) => D.drawChalkMenu(g, w, h, title, items, seed)); },
+    photoMenu(title, items, foods, accent) { return print.add(`photo|${title}|${accent}`, 264, 360, (g, w, h) => D.drawPhotoMenu(g, w, h, title, items, (gg, x, y, ww, hh, i) => { gg.save(); gg.translate(x, y); D.drawFood(gg, ww, hh, foods[i % foods.length], i); gg.restore(); }, accent)); },
     pop(kind, price) { return print.add(`pop|${kind}|${price}`, 96, 72, (g, w, h) => D.drawPOP(g, w, h, kind, price)); },
     food(kind) { return print.add(`food|${kind}`, 96, 96, (g, w, h) => D.drawFood(g, w, h, kind)); },
     prod(kind, v) { return print.add(`prod|${kind}|${v}`, 384, 64, (g, w, h) => D.drawProducts(g, w, h, kind, v + 1)); },
@@ -40,11 +44,12 @@ export function regions(env) {
     vending(kind, seed) { return sign.add(`vend|${kind}|${seed % 3}`, 160, 288, (g, w, h) => D.drawVending(g, w, h, kind, seed % 3 + 1)); },
     hoarding(b) { return print.add(`hoard|${b.zone}`, 512, 300, (g, w, h) => D.drawHoarding(g, w, h, b)); },
     hours(b, fmt) { return print.add(`hours|${b.slot}`, 200, 200, (g, w, h) => D.drawHours(g, w, h, b, fmt)); },
-    tanzaku(cat) { const it = (MENU[cat] || MENU.izakaya).concat(MENU.izakaya).slice(0, 10); return print.add(`tanz|${cat}`, 40 * it.length, 280, (g, w, h) => D.drawTanzaku(g, w, h, it)); },
+    tanzaku(cat) { const it = (MENU[cat] || MENU.izakaya).concat(MENU.izakaya).slice(0, 10); return print.add(`tanz|${cat}`, 56 * it.length, 392, (g, w, h) => D.drawTanzaku(g, w, h, it)); },
     banner(lines, bg, fg) { return print.add(`banner|${lines.join('/')}|${bg}`, 384, 96, (g, w, h) => D.drawBanner(g, w, h, lines, bg, fg)); },
     vbanner(text, bg, fg) { return print.add(`vban|${text}|${bg}`, 64, 300, (g, w, h) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; D.vText(g, text, w / 2, h * 0.06, h * 0.94, w * 0.7, 900); }); },
-    poster(kind, portrait = true) { return print.add(`poster|${kind}|${portrait}`, portrait ? 128 : 224, portrait ? 192 : 126, (g, w, h) => D.drawAd(g, w, h, kind, 7)); },
-    ad(kind, seed, portrait = true) { return sign.add(`ad|${kind}|${portrait}`, portrait ? 200 : 352, portrait ? 300 : 198, (g, w, h) => D.drawAd(g, w, h, kind, seed)); },
+    // v2 posters: dedicated high-resolution atlas, exact 2:3 / 16:9 canvases (callers keep the quad aspect, see POSTER_*)
+    poster(kind, portrait = true) { const [w, h] = portrait ? POSTER_PORT : POSTER_LAND; return poster.add(`poster|${kind}|${portrait ? 'P' : 'L'}`, w, h, (g, ww, hh) => drawPoster(g, ww, hh, kind)); },
+    ad(kind, seed, portrait = true) { return R.poster(kind, portrait); },
     label(text, bg, fg, w = 256, h = 48, fam) { return print.add(`label|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800, fam); }); },
     litLabel(text, bg, fg, w = 256, h = 48) { return sign.add(`llabel|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800); }); },
   };
@@ -90,7 +95,9 @@ function wallCol(S, c) {
 // entry point
 // ----------------------------------------------------------------------------
 export function buildShop(S, R) {
-  const c = CAT[S.b.cat] || CAT.fashion;
+  let c = CAT[S.b.cat] || CAT.fashion;
+  // v2: wide cafés get a real glazed front with a door (so a window bar fits behind it)
+  if (c.group === 'cafe' && S.W >= 7) c = { ...c, front: 'glass' };
   S.cat = c;
   S.R = R;
   S.st = S.styleOverride ? { ...S.styleOverride } : styleFor(S);
@@ -114,7 +121,7 @@ const POSTER_KINDS = {
   bakery: ['autumn'], sweets: ['autumn', 'halloween'], takoyaki: ['ramenfair'], rcounter: ['ramenfair', 'beer'], rtable: ['beer', 'ramenfair'], sushi: ['travel'],
 };
 function dressWalls(S, c) {
-  if (S.b.key === 'tempura_great') return;   // hand-dressed
+  if (S.b.key === 'tempura_great' || c.group === 'cafe') return;   // hand-dressed
   const P = S.inner, R = S.R, r = S.r;
   const kinds = POSTER_KINDS[c.group];
   if (!kinds || c.group === 'closed') return;
@@ -191,6 +198,9 @@ function finish(S, c) {
     for (let a = 1.2; a < W - 0.6; a += 2) P.qh('env_glow', a - 0.06, a + 0.06, 0.6, Dp - 0.6, yc, false, glow);
   } else if (c.group === 'rtable' || c.group === 'kissa' || c.group === 'rcounter' || c.group === 'sushi') {
     for (let d = 1.5; d < Dp - 0.8; d += 2.4) for (let a = 1.2; a < W - 0.8; a += 2.4) P.qh('env_glow', a - 0.09, a + 0.09, d - 0.09, d + 0.09, yc, false, glow);
+  } else if (c.group === 'cafe') {
+    // warm downlights, staggered and sparse (the pendants do the rest)
+    for (let d = 1.3, k = 0; d < Dp - 0.5; d += 2.6, k++) for (let a = 1.2 + (k % 2) * 1.2; a < W - 0.5; a += 2.4) P.qh('env_glow', a - 0.08, a + 0.08, d - 0.08, d + 0.08, yc, false, [glow[0] * 0.8, glow[1] * 0.7, glow[2] * 0.55]);
   } else {
     // downlight grid
     for (let d = 1.0; d < Dp - 0.5; d += 1.6) for (let a = 0.9; a < W - 0.5; a += 1.6) P.qh('env_glow', a - 0.07, a + 0.07, d - 0.07, d + 0.07, yc, false, glow);
@@ -225,7 +235,7 @@ function front(S, c) {
       if (show && p1 - p0 >= 0.9 && dt > 2.2) {
         const reg = R.poster(kind, true), pc = (p0 + p1) / 2;
         P.box('env_metal', pc - 0.4, pc + 0.4, 0.82, 1.98, -0.075, -0.05, [0.35, 0.36, 0.38]);
-        P.tq(reg, pc - 0.37, pc + 0.37, 0.85, 1.95, -0.076, -1);
+        P.tq(reg, pc - 0.37, pc + 0.37, 0.85, 1.95, -0.082, -1);
       }
     }
   }
@@ -237,7 +247,7 @@ function front(S, c) {
   if (sw > maxW) { sw = maxW; sh = sw * reg.h / reg.w; }
   const a0 = (W - sw) / 2, y0 = dt + (bandTop - dt - sh) / 2;
   P.box(lit ? 'env_glow' : 'env_matte', a0 - 0.02, a0 + sw + 0.02, y0 - 0.02, y0 + sh + 0.02, -0.12, -0.066, lit ? bg.map(v => v * GLOW * 0.92) : mix(bg, [0, 0, 0], 0.2));
-  P.tq(reg, a0, a0 + sw, y0, y0 + sh, -0.122, -1);
+  P.tq(reg, a0, a0 + sw, y0, y0 + sh, -0.127, -1);
   if (c.stripes) { // conbini stripes under the sign
     P.qd('env_glow', 0, W, dt + 0.02, dt + 0.07, -0.126, -1, K(st.fg, GLOW));
     P.qd('env_glow', 0, W, dt + 0.07, dt + 0.11, -0.126, -1, K(st.accent, GLOW));
@@ -1008,7 +1018,7 @@ INTERIOR.books = (S, c) => {
     }
   }
   register(S, P, W - 2.2, W - 0.8, 1.0, 1.6, [0.55, 0.4, 0.28]);
-  if (S.solid(W - 2.2, W - 0.8, 1.0, 1.6)) S.spot('counter', W - 1.5, 2.2, 0, -1);
+  if (S.solid(W - 2.2, W - 0.8, 1.0, 1.6)) S.service('clerk', [W - 1.5, 2.3], [W - 1.5, 0.55]);
 };
 
 // lifestyle / zakka: wooden tables & shelves, plants
@@ -1148,7 +1158,8 @@ INTERIOR.service = (S, c) => {
 };
 
 // cafés (chain or independent)
-INTERIOR.cafe = (S, c) => {
+INTERIOR.cafe = cafeInterior;
+INTERIOR.cafeOld = (S, c) => {
   const P = S.inner, W = S.W, r = S.r;
   const Dm = depthLimit(S);
   const wood = r() < 0.5 ? [0.55, 0.38, 0.24] : [0.78, 0.62, 0.45];
@@ -1218,11 +1229,15 @@ INTERIOR.cafe = (S, c) => {
 
 export function cafeTable(S, P, a, d, wood, seatCol, round = false) {
   if (!S.solid(a - 0.33, a + 0.33, d - 0.33, d + 0.33)) return false;
+  const j = (S.r() - 0.5) * 0.4;
   P.geo('env_metal', 'table_leg', a, 0, d, 0, 1, [0.15, 0.15, 0.15]);
   if (round) P.cyl('env_wood', a, 0.72, 0.75, d, 0.36, wood);
   else P.box('env_wood', a - 0.33, a + 0.33, 0.72, 0.75, d - 0.33, d + 0.33, wood);
-  chair(P, a, d - 0.62, 0, [0.15, 0.15, 0.15], seatCol);
-  chair(P, a, d + 0.62, Math.PI, [0.15, 0.15, 0.15], seatCol);
+  // v2: chairs FACE the table (backrest away from it), slightly out of square
+  P.geo('env_metal', 'chair_frame', a, 0, d - 0.62, Math.PI + j, 1, [0.15, 0.15, 0.15]);
+  P.geo('env_matte', 'chair_seat', a, 0, d - 0.62, Math.PI + j, 1, seatCol);
+  P.geo('env_metal', 'chair_frame', a, 0, d + 0.62, -j, 1, [0.15, 0.15, 0.15]);
+  P.geo('env_matte', 'chair_seat', a, 0, d + 0.62, -j, 1, seatCol);
   S.spot('seat', a, d - 0.62, 0, 1); S.spot('seat', a, d + 0.62, 0, -1);
   // cups
   if (S.r() < 0.4) P.cyl('env_gloss', a + 0.1, 0.75, 0.84, d - 0.1, 0.04, [0.97, 0.97, 0.95]);
@@ -1253,8 +1268,8 @@ INTERIOR.kissa = (S, c) => {
       P.geo('env_gloss', 'sphere', a, 1.15, cd + 0.3, 0, 0.07, [0.2, 0.1, 0.05]);
       P.cyl('env_glow', a, 1.05, 1.09, cd + 0.3, 0.04, [2.4, 1.2, 0.4]);
     }
-    for (let a = 1.2; a < W - 2; a += 0.7) { chair(P, a, cd - 0.45, 0, [0.2, 0.15, 0.1], velvet); S.spot('seat', a, cd - 0.5, 0, 1); }
-    S.spot('counter', W - 2.6, cd - 0.6, 0, 1); S.spot('staff', W / 2, cd + 1.2, 0, -1);
+    for (let a = 1.2; a < W - 3.2; a += 0.7) { stool(P, a, cd - 0.5, [0.45, 0.07, 0.09]); S.spot('seat', a, cd - 0.5, 0, 1); }
+    S.service('barista', [W - 2.5, cd - 0.5], [W - 2.5, cd + 1.1]);
     // shelves of cups & bottles behind
     for (let k = 0; k < 3; k++) {
       P.box('env_wood', 0.8, W - 1.8, 1.4 + k * 0.38, 1.43 + k * 0.38, Dm - 0.35, Dm, dark);
@@ -1298,10 +1313,29 @@ INTERIOR.stand = (S, c) => {
   if (S.solid(0.8, W - 0.8, cd, cd + 0.6, { pocket: 99, force: false })) {
     P.box('env_wood', 0.8, W - 0.8, 0, 1.05, cd, cd + 0.6, wood);
     P.box('env_wood', 0.75, W - 0.75, 1.05, 1.1, cd - 0.08, cd + 0.6, [0.82, 0.66, 0.46]);
-    S.spot('counter', W / 2, cd - 0.5, 0, 1); S.spot('staff', W / 2, cd + 1.1, 0, -1);
+    S.service('barista', [Math.floor(W / 2) + 0.5, cd - 0.5], [W / 2, cd + 1.1]);
   }
-  backOfHouse(S, P, Math.min(S.D, cd + 2.4));
+  const back = Math.min(S.D, cd + 2.4);
+  backOfHouse(S, P, back);
   standingLedges(S, P, cd, wood);
+  if (!S.b.key) {
+    // v2: a working bar: espresso machine + grinder on the counter, cups, menu boards and a back shelf behind it
+    const R = S.R, am = W / 2;
+    P.box('env_metal', am - 0.95, am - 0.35, 1.1, 1.14, cd + 0.12, cd + 0.52, [0.55, 0.56, 0.58]);
+    P.box('env_metal', am - 0.93, am - 0.37, 1.14, 1.5, cd + 0.14, cd + 0.5, [0.78, 0.79, 0.82]);
+    P.box('env_matte', am - 0.9, am - 0.4, 1.22, 1.28, cd + 0.5, cd + 0.56, [0.08, 0.08, 0.09]);
+    P.box('env_matte', am + 0.35, am + 0.6, 1.1, 1.45, cd + 0.2, cd + 0.5, [0.1, 0.1, 0.11]);
+    P.geo('env_glass_case', 'sphere', am + 0.47, 1.52, cd + 0.35, 0, 0.09, WHITE);
+    for (let k = 0; k < 5; k++) P.cyl('env_gloss', am - 0.2 + k * 0.1, 1.1, 1.19, cd + 0.4, 0.035, [0.96, 0.96, 0.94], 'cyl6');
+    for (let k = 0; k < 2; k++) {
+      const y = 1.4 + k * 0.4;
+      P.box('env_wood', 0.5, W - 0.5, y, y + 0.03, back - 0.3, back - 0.01, wood, 'nsewt');
+      for (let a = 0.7; a < W - 0.7; a += 0.2) if ((a * 5 | 0) % 2) P.cyl('env_gloss', a, y + 0.03, y + 0.11, back - 0.15, 0.04, [0.95, 0.95, 0.9], 'cyl6');
+    }
+    const mb = [R.chalk('MENU', MENU.coffeestand, hash(S.b.slot) + 3), R.chalk('本日の豆', MENU.coffeestand.slice().reverse(), hash(S.b.slot) + 9)];
+    mb.forEach((reg, k) => P.tq(reg, W / 2 - 1.5 + k * 1.5, W / 2 - 0.1 + k * 1.5, 1.85, 2.85 > S.ceil - 0.3 ? S.ceil - 0.3 : 2.85, back - 0.012, -1));
+    for (let a = 1.5; a < W - 1; a += 2) { P.box('env_metal', a - 0.004, a + 0.004, 1.95, S.ceil, cd + 0.3, cd + 0.308, [0.1, 0.1, 0.1]); P.geo('env_gloss', 'bowl', a, 1.92, cd + 0.3, 0, [0.15, -0.11, 0.15], [0.14, 0.14, 0.15]); P.qh('env_glow', a - 0.07, a + 0.07, cd + 0.23, cd + 0.37, 1.89, false, [2.4, 1.9, 1.3]); }
+  }
   queuePoints(S, S.doorA0, S.doorA1, 4);
 };
 
@@ -1321,8 +1355,9 @@ INTERIOR.bakery = (S, c) => {
   const Dm = Math.min(depthLimit(S), 12);
   if (S.D > Dm + 1.5) backOfHouse(S, P, Dm);
   const wood = [0.7, 0.52, 0.34];
-  for (let d = 1.4; d < Dm - 2.8; d += 2.4) {
-    for (let a = 1.2; a < W - 1.2; a += 2.6) {
+  for (let d = 1.4, row = 0; d < Dm - 2.8; d += 2.4, row++) {
+    for (let a = 1.2 + (row % 2) * 1.3; a < W - 1.2; a += 2.6) {
+      if (S.r() < 0.22) continue;              // v2: staggered rows, a few gaps (never a parade ground)
       if (!S.solid(a - 0.55, a + 0.55, d, d + 1.0)) continue;
       P.box('env_wood', a - 0.55, a + 0.55, 0, 0.8, d, d + 1.0, wood);
       for (let k = 0; k < 4; k++) {
@@ -1342,7 +1377,7 @@ INTERIOR.bakery = (S, c) => {
   if (S.solid(0, 0.45, 1.2, Dm - 2, { pocket: 4 })) shelfRun(S, P, { a: 0, d: 1.2, ra: 0, rd: 1, na: 1, nd: 0, len: Dm - 3.2, depth: 0.45, h: 1.8, kinds: ['bread'], levels: 4, frame: wood, rail: false });
   // register + tray station
   register(S, P, W / 2 - 1, W / 2 + 1, Dm - 1.6, Dm - 1.0, wood);
-  if (S.solid(W / 2 - 1, W / 2 + 1, Dm - 1.6, Dm - 1.0, { pocket: 3 })) { S.spot('counter', W / 2, Dm - 2.2, 0, 1); S.spot('staff', W / 2, Dm - 0.5, 0, -1); }
+  if (S.solid(W / 2 - 1, W / 2 + 1, Dm - 1.6, Dm - 1.0, { pocket: 3 })) { S.service('clerk', [W / 2, Dm - 2.2], [W / 2, Dm - 0.5]); }
   queuePoints(S, S.doorA0, S.doorA1, 2);
 };
 
@@ -1366,7 +1401,7 @@ INTERIOR.sweets = (S, c) => {
       else P.qh(reg.atlas.mat(reg), a - 0.1, a + 0.1, 0.65, 0.85, 0.86, true, WHITE, reg.atlas.uv(reg));
     }
     const nW = Math.floor((ca1 - ca0) / 0.9);
-    for (let k = 0; k < Math.max(1, nW); k++) { const a = ca0 + 0.45 + k * 0.9; S.spot('counter', a, -0.4, 0, 1); S.spot('staff', a, 1.9, 0, -1); }
+    for (let k = 0; k < Math.max(1, nW); k++) { const a = ca0 + 0.45 + k * 0.9; if (k === 0) S.service('clerk', [a, -0.45], [a, 1.9]); else { S.spot('counter', a, -0.4, 0, 1); S.spot('staff', a, 1.9, 0, -1); } }
   }
   // back counter with gift boxes & a noren-like curtain to the kitchen
   if (S.solid(0.3, W - 0.3, Dm - 0.7, Dm, { pocket: 99 })) {
@@ -1394,7 +1429,7 @@ INTERIOR.takoyaki = (S, c) => {
       P.box('env_metal', a, a + 0.56, 0.85, 0.92, 0.6, 1.1, [0.12, 0.12, 0.12]);
       P.qh(reg.atlas.mat(reg), a + 0.02, a + 0.54, 0.62, 1.08, 0.921, true, [0.9, 0.9, 0.9], reg.atlas.uv(reg));
     }
-    S.spot('counter', (ca0 + ca1) / 2, -0.45, 0, 1); S.spot('staff', (ca0 + ca1) / 2, 1.7, 0, -1); S.spot('staff', ca0 + 0.6, 1.7, 0, -1);
+    S.service('chef', [(ca0 + ca1) / 2, -0.45], [(ca0 + ca1) / 2, 1.7]); S.spot('staff', ca0 + 0.6, 1.7, 0, -1);
   }
   // giant octopus on the bulkhead (Dotonbori style)
   const oa = W - 0.9, oy = S.doorTop + 0.05;
@@ -1419,7 +1454,7 @@ INTERIOR.rcounter = (S, c) => {
   const P = S.inner, W = S.W, r = S.r;
   const Dm = depthLimit(S);
   const cat = S.b.cat;
-  const wood = cat === 'tempura' ? [0.9, 0.78, 0.6] : [0.5, 0.33, 0.2];
+  const wood = cat === 'tempura' || cat === 'sushi' ? [0.9, 0.78, 0.6] : [0.5, 0.33, 0.2];
   // L-shaped counter: along the back half, kitchen behind
   const right = r() < 0.5;
   const ka0 = right ? W - 2.2 : 0, ka1 = right ? W : 2.2;  // kitchen strip
@@ -1433,9 +1468,17 @@ INTERIOR.rcounter = (S, c) => {
     // counter with stools
     P.box('env_wood', ca0, ca1, 0, 1.0, kd0, kd1, mix(wood, [0, 0, 0], 0.3));
     P.box('env_wood', ca0 - (right ? 0.15 : 0), ca1 + (right ? 0 : 0.15), 1.0, 1.05, kd0, kd1, wood);
-    P.box('env_wood', ca0, ca1, 1.05, 1.25, kd0, kd1, mix(wood, [0, 0, 0], 0.2)); // raised ledge
+    if (cat === 'sushi') {
+      // lit neta case along the counter (fish on ice) instead of the ledge
+      const cx0 = ca0 + 0.06, cx1 = ca1 - 0.06, cz0 = kd0 + 1.3, cz1 = kd1 - 0.3;
+      P.box('env_matte', cx0, cx1, 1.05, 1.1, cz0, cz1, [0.92, 0.9, 0.86]);
+      P.box('env_glass_case', cx0, cx1, 1.1, 1.38, cz0, cz1, WHITE);
+      P.qh('env_glow', cx0 + 0.03, cx1 - 0.03, cz0 + 0.03, cz1 - 0.03, 1.375, false, [2, 2, 2]);
+      const reg = S.R.food('sushi');
+      for (let d = cz0 + 0.04; d + 0.4 < cz1; d += 0.44) P.qh(reg.atlas.mat(reg), cx0 + 0.04, cx1 - 0.04, d, d + 0.4, 1.12, true, WHITE, reg.atlas.uv(reg));
+    } else P.box('env_wood', ca0, ca1, 1.05, 1.25, kd0, kd1, mix(wood, [0, 0, 0], 0.2)); // raised ledge
     const sa = right ? ca0 - 0.45 : ca1 + 0.45;
-    for (let d = kd0 + 0.4; d < kd1 - 0.3; d += 0.62) {
+    for (let d = kd0 + 1.0; d < kd1 - 0.3; d += 0.62) {     // (the first slot is the ordering spot)
       stool(P, sa, d, cat === 'ramen' ? [0.7, 0.1, 0.1] : [0.25, 0.2, 0.15]);
       S.spot('seat', sa, d, right ? 1 : -1, 0);
       // bowl on the counter now and then
@@ -1444,14 +1487,20 @@ INTERIOR.rcounter = (S, c) => {
       if (r() < 0.5) P.cyl('env_glass_case', right ? ca0 + 0.15 : ca1 - 0.15, 1.05, 1.15, d + 0.2, 0.035, WHITE);
     }
     for (let d = kd0 + 0.5; d < kd1; d += 1.3) S.spot('staff', (ka0 + ka1) / 2, d, right ? -1 : 1, 0);
-    S.spot('counter', sa, kd0 - 0.2, 0, 1);
+    S.service('chef', [sa, kd0 + 0.5], [(ka0 + ka1) / 2, kd0 + 0.5]);
     // wall menu tanzaku above the kitchen
     const tz = S.R.tanzaku(cat);
     P.ta(tz, kd0, Math.min(kd1, kd0 + 4), 1.7, 2.5, right ? W - 0.03 : 0.03, right ? -1 : 1);
   }
-  // tables on the other side
-  const tA0 = right ? 0.5 : ca1 + 1.2, tA1 = right ? ca0 - 1.2 : W - 0.5;
-  for (let d = 1.8; d < Dm - 1.2; d += 2.0) for (let a = tA0 + 0.35; a < tA1 - 0.3; a += 1.8) cafeTable(S, P, a, d, wood, [0.2, 0.15, 0.1]);
+  // tables on the other side: a loose scatter of 2-tops and 4-tops (v2), never a grid
+  {
+    const cells = new Cells(W, Dm), [dA0, dA1] = S.doorCells || [S.doorA0, S.doorA1];
+    cells.mark(dA0 - 1, dA1, 0, 2);
+    cells.mark(Math.floor(Math.min(ka0, ca0)), Math.ceil(Math.max(ka1, ca1)) - 1, 0, Math.ceil(Dm));      // counter + kitchen strip
+    cells.mark(Math.floor(right ? ca0 - 1.2 : ca1) - 0, Math.floor(right ? ca0 : ca1 + 1) - 0, 0, Math.ceil(Dm));  // aisle by the stools
+    const i0 = right ? 0 : Math.ceil(ca1 + 1.2), i1 = right ? Math.floor(ca0 - 2.2) : W - 1;
+    scatter(S, P, cells, Math.min(6, Math.max(1, Math.round((i1 - i0 + 1) * (Dm - 3) / 9))), Math.max(1, i0), Math.max(1, i1 - 1), 2, Math.floor(Dm - 3), () => ({ axis: r() < 0.5 ? 'd' : 'a', n: r() < 0.4 ? 2 : 1, wood, seatCol: [0.2, 0.15, 0.1], woodChair: true }));
+  }
   // posters
   const pm = S.R.photoMenu('おすすめ ' + S.b.info.ja, MENU[cat] || MENU.ramen, SAMPLES[cat] || ['ramen'], S.st.accent);
   P.ta(pm, 1.2, 2.0, 1.2, 2.3, right ? 0.03 : W - 0.03, right ? 1 : -1);
@@ -1515,8 +1564,7 @@ INTERIOR['key:tempura_great'] = (S, c) => {
       P.box('env_matte', a - 0.8, a + 0.8, 2.3, 2.62, 7.0, 8.0, [0.16, 0.15, 0.15]);                 // hood (dark, out of the glare)
       S.spot('staff', a, 6.65, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
     }
-    S.spot('staff', W / 2, 6.8, 0, -1, { outfit: { apron: '#f4efe2', cap: true } });
-    S.spot('counter', W / 2, cd0 - 0.9, 0, 1);
+    S.service('chef', [W / 2, cd0 - 0.9], [W / 2, 6.8], { outfit: { apron: '#f4efe2', cap: true } });
     // pendant lamps over the counter
     for (let a = 1.8; a < W - 1.2; a += 1.65) {
       P.box('env_metal', a - 0.004, a + 0.004, 2.15, S.ceil, 5.7, 5.708, [0.1, 0.1, 0.1]);
@@ -1546,8 +1594,9 @@ INTERIOR['key:tempura_great'] = (S, c) => {
 };
 
 // sushi: straight counter with lit neta case
-INTERIOR.sushi = (S, c) => {
-  const P = S.inner, W = S.W;
+INTERIOR.sushi = (S, c) => INTERIOR.rcounter(S, c);
+INTERIOR.sushiOld = (S, c) => {
+  const P = S.inner, W = S.W, r2 = S.r;
   const Dm = depthLimit(S);
   const hinoki = [0.92, 0.82, 0.64];
   const cd = Math.min(Dm - 2.4, 5);
@@ -1558,17 +1607,22 @@ INTERIOR.sushi = (S, c) => {
     P.qh('env_glow', 0.82, W - 0.82, cd + 0.27, cd + 0.58, 1.29, false, [2, 2, 2]);
     const reg = S.R.food('sushi');
     for (let a = 0.85; a < W - 1.2; a += 0.45) P.qh(reg.atlas.mat(reg), a, a + 0.4, cd + 0.28, cd + 0.56, 1.08, true, WHITE, reg.atlas.uv(reg));
-    for (let a = 1.0; a < W - 0.9; a += 0.65) { stool(P, a, cd - 0.45, [0.3, 0.2, 0.12]); S.spot('seat', a, cd - 0.45, 0, 1); if (S.r() < 0.4) foodItem(S, P, 'sushi', a, 1.06, cd - 0.05, 0.1); }
+    for (let a = 1.9; a < W - 0.9; a += 0.65) { stool(P, a, cd - 0.45, [0.3, 0.2, 0.12]); S.spot('seat', a, cd - 0.45, 0, 1); if (S.r() < 0.4) foodItem(S, P, 'sushi', a, 1.06, cd - 0.05, 0.1); }
     S.spot('staff', W / 2, cd + 1.2, 0, -1); S.spot('staff', W / 2 + 1.2, cd + 1.2, 0, -1);
-    S.spot('counter', 0.7, cd - 0.6, 0, 1);
+    S.service('chef', [1.0, cd - 0.55], [1.0, cd + 1.2]);
   }
-  for (let d = 1.4; d < cd - 1.2; d += 1.9) for (let a = 1.0; a < W - 0.8; a += 1.9) cafeTable(S, P, a, d, hinoki, [0.25, 0.2, 0.15]);
+  {
+    const cells = new Cells(W, Dm), [dA0, dA1] = S.doorCells || [S.doorA0, S.doorA1];
+    cells.mark(dA0 - 1, dA1, 0, 2); cells.mark(0, W - 1, Math.floor(cd) - 1, Math.ceil(Dm));
+    scatter(S, P, cells, Math.max(1, Math.round(W * (cd - 3) / 9)), 1, W - 2, 3, Math.floor(cd - 2), () => ({ axis: r2() < 0.5 ? 'd' : 'a', n: r2() < 0.4 ? 2 : 1, wood: hinoki, seatCol: [0.25, 0.2, 0.15], woodChair: true }));
+  }
   const tz = S.R.tanzaku('sushi');
   P.tq(tz, 0.6, Math.min(W - 0.6, 4.5), 1.6, 2.5, Dm - 0.03, -1);
 };
 
 // table restaurants: okonomiyaki / kushikatsu / tonkatsu / izakaya / yakiniku / omurice
-INTERIOR.rtable = (S, c) => {
+INTERIOR.rtable = diningInterior;
+INTERIOR.rtableOld = (S, c) => {
   const P = S.inner, W = S.W, r = S.r, cat = S.b.cat;
   const Dm = depthLimit(S);
   const wood = cat === 'izakaya' || cat === 'yakiniku' ? [0.38, 0.24, 0.13] : [0.6, 0.45, 0.3];
@@ -1578,8 +1632,8 @@ INTERIOR.rtable = (S, c) => {
   if (S.solid(0.4, W - 0.4, kd, kd + 0.6, { pocket: 99 })) {
     P.box('env_wood', 0.4, W - 0.4, 0, 1.0, kd, kd + 0.6, wood);
     P.box('env_wood', 0.35, W - 0.35, 1.0, 1.05, kd - 0.05, kd + 0.6, mix(wood, [1, 1, 1], 0.15));
-    for (let a = 1; a < W - 1; a += 1.4) S.spot('staff', a, kd + 1.1, 0, -1);
-    S.spot('counter', 1.0, kd - 0.5, 0, 1);
+    for (let a = 3; a < W - 1; a += 1.4) S.spot('staff', a, kd + 1.1, 0, -1);
+    S.service('chef', [1.5, kd - 0.5], [1.5, kd + 1.1]);
     // sake bottles / beer crates
     const bt = S.R.prod('bottles', 1);
     for (let a = 0.6; a < W - 1.8; a += 1.2) P.tq(bt, a, a + 1.15, 1.05, 1.35, kd + 0.3, -1);
@@ -1601,7 +1655,7 @@ INTERIOR.rtable = (S, c) => {
         const f = (SAMPLES[cat] || ['salad'])[Math.floor(r() * 2)];
         foodItem(S, P, f, a - 0.2, c.teppan ? 0.76 : 0.74, d, 0.12);
       }
-      for (const [oa, od, rot] of [[-0.3, -0.62, 0], [0.3, -0.62, 0], [-0.3, 0.62, Math.PI], [0.3, 0.62, Math.PI]]) {
+      for (const [oa, od, rot] of [[-0.3, -0.62, Math.PI], [0.3, -0.62, Math.PI], [-0.3, 0.62, 0], [0.3, 0.62, 0]]) {
         chair(P, a + oa, d + od, rot, [0.15, 0.12, 0.1], seat);
         S.spot('seat', a + oa, d + od, 0, od < 0 ? 1 : -1);
       }

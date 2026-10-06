@@ -91,7 +91,8 @@ export function buildSettingsPanel(ctx, onChange) {
 export const CONTROLS = [
   [['W', 'A', 'S', 'D'], 'Walk', '歩く'],
   [['Shift'], 'Hurry', '急ぐ'],
-  [['Q'], 'Phone', 'スマホ'],
+  [['Q'], 'Phone up / down', 'スマホを出す・しまう'],
+  [['Right-click'], 'Hold for a quick phone look', '長押しでちらっと確認'],
   [['E'], 'Interact', '調べる'],
   [['Esc'], 'Pause', '一時停止'],
 ];

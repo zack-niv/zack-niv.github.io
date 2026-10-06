@@ -9,9 +9,12 @@
 //   getVolume(bus)
 //   play(name, opts)              UI / foley one-shots, see SOUNDS below.
 //                                 opts: { gain, rate, pos:{x,y?,z,level?}, pan }
-//   say({ ja, en, kind, pos })    speak a PA-style line (TTS or formant PA voice)
+//   say({ ja, en, kind, pos })    a PA-style line: chime, then the browser's ja-JP voice, then an en-* voice
+//                                 (no voice: chime + caption only). Volume follows where you stand (zones.js).
+//   debug()                       zone / bed gains / last PA text+voice (for tests)
+//   paVolume(payload)             0..1: how audible an 'announce' payload is from here (HUD captions use it)
 //   setMuted(bool), stats(), debugText()
-//   useSpeech (bool)              allow SpeechSynthesis voices (default true)
+//   useSpeech (bool)              allow SpeechSynthesis voices (default true; false = chime + caption only)
 // Events consumed: player:step/land/bump, phone:open/close, phone:message,
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant }
@@ -23,6 +26,8 @@ import { Mixer } from './mixer.js';
 import { acousticFor } from './ir.js';
 import { Announcer } from './announcer.js';
 import { Ambience, moodOf } from './ambience.js';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js';
+import { EXCUSE } from './phrases.js';
 import { Sources } from './sources.js';
 import { Trains, pumpAudioTimers } from './trains.js';
 
@@ -37,8 +42,7 @@ export const SOUNDS = {
   gacha: ['fx:gacha', 0.6, 'sfx'], grinder: ['fx:grinder', 0.5, 'sfx'], steam: ['fx:steam', 0.5, 'sfx'], rustle: ['ui:rustle', 0.4, 'sfx'],
   pa_chime: ['chime:pa', 0.5, 'voice'],
 };
-const BARK_EXCUSE = ['すみません', 'あ、すみません', 'すいません', 'しつれいします', 'ごめんなさい'];
-const BARK_CALLOUT = ['いらっしゃいませー', 'いらっしゃいませ、どうぞー', 'いらっしゃいませー、こんにちはー', 'ただいま、おせき、ごあんないできます'];
+const CALLOUT = ['いらっしゃいませ', 'いらっしゃいませ、どうぞ', 'いらっしゃいませ、こんにちは'];
 const STEP_N = 8; // footstep variants per surface
 const SURF = { tile: 'tile', stone: 'stone', wood: 'wood', metal: 'metal', paving: 'paving', grass: 'grass', carpet: 'soft', gravel: 'gravel', soft: 'soft' };
 
@@ -47,9 +51,9 @@ export class Audio {
     this.ctx = ctx;
     this.enabled = !params.noaudio && typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
     this.ac = null; this.mixer = null; this.bank = null;
-    // station PA defaults to the formant PA voice (reverb, horn EQ, position); SpeechSynthesis is an opt-in
-    // accessibility setting (settings 'speech') because it cannot be routed into Web Audio
-    this.useSpeech = false; this.allowSpeech = true;
+    // the PA and every spoken line use the browser's real voices (speechSynthesis, ja-JP then en-*); setting 'speech'
+    // = false leaves chime + caption only
+    this.useSpeech = true; this.allowSpeech = true;
     this._lastTap = { t: -9, x: 0, z: 0 }; this._gateRecent = []; this._barkT = {}; this._lastPlay = {};
     this.L = null;
     this.muted = false;
@@ -64,7 +68,7 @@ export class Audio {
 
   init() {
     if (!this.enabled) return;
-    const kick = () => { this.resume(); };
+    const kick = () => { this.resume(); if (this.announcer) this.announcer.unlock(); };
     this._gestures = ['pointerdown', 'keydown', 'touchend', 'click'];
     this._kick = kick;
     for (const g of this._gestures) addEventListener(g, kick, { capture: true, passive: true });
@@ -109,6 +113,7 @@ export class Audio {
     try {
       if (!this.ac) this._build(new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }));
       this._wantRunning = true;
+      if (this.announcer && navigator.userActivation && navigator.userActivation.isActive) this.announcer.unlock();
       if (this._gestures) { for (const g of this._gestures) removeEventListener(g, this._kick, { capture: true }); this._gestures = null; }
       if (this.ac.state !== 'running') return this.ac.resume().then(() => true).catch(() => false);
     } catch (e) { console.warn('[audio] cannot start', e.message); this.enabled = false; return Promise.resolve(false); }
@@ -130,7 +135,7 @@ export class Audio {
     if (biz) this.sources.build(biz);
     else import('../world/directory.js').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
-    this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify'], 6);
+    this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');
     this._lastAcoustic = null;
     this.update(0);
@@ -172,7 +177,10 @@ export class Audio {
 
   _listenerState() {
     const p = this.ctx.player, b = p.body, world = this.ctx.world;
-    const L = { level: b.level, x: b.x, y: b.y != null ? b.y : LEVELS[b.level].y, z: b.z, zone: p.zone, space: p.space, ramp: null, rampBlend: null };
+    // locate the body ourselves (cheap grid lookup): player.space lags a frame behind teleports
+    let loc = null; try { loc = world && world.locate ? world.locate(b) : null; } catch (e) { loc = null; }
+    const space = loc ? loc.space : p.space, zone = loc && loc.zone ? loc.zone : p.zone;
+    const L = { level: b.level, x: b.x, y: b.y != null ? b.y : LEVELS[b.level].y, z: b.z, zone, space, ramp: null, rampBlend: null };
     if (b.ramp >= 0) {
       const r = LAYOUT.ramps[b.ramp];
       L.ramp = r;
@@ -188,10 +196,10 @@ export class Audio {
       if (r.kind === 'stairs' && sp && !sp.outdoor && (k > 0.2 && k < 0.8)) L.acoustic = 'passage';
       L.stepSurface = r.kind === 'escalator' ? 'metal' : (sp && sp.outdoor ? 'paving' : 'stone');
     } else {
-      L.acoustic = acousticFor(p.space, p.zone, null);
-      L.stepSurface = surfaceGuess(p.space);
+      L.acoustic = acousticFor(space, zone, null);
+      L.stepSurface = surfaceGuess(space);
     }
-    L.outdoorish = !!(p.space && p.space.outdoor);
+    L.outdoorish = !!(space && space.outdoor);
     return L;
   }
 
@@ -233,24 +241,21 @@ export class Audio {
     else this.mixer.play(`fs:soft:sneaker:${Math.floor(Math.random() * STEP_N)}`, { bus: 'sfx', gain: 0.25 * sp, rate: 0.7, send: 0.25 });
   }
   // ---- crowd voices: "sumimasen" when someone needs you to move, shop staff "irasshaimase" ----------------
+  // short, real phrases in a real voice (queued behind the PA, volume by distance); the caption carries them too
   _bark(e, kind) {
-    if (!this.mixer || !e || this.muted) return;
+    if (!this.mixer || !e || this.muted || !this.announcer) return;
     const L = this.L, now = this.ac.currentTime;
     if (!L || e.level !== L.level) return;
     const d = Math.hypot(e.x - L.x, e.z - L.z);
-    const maxD = kind === 'excuse' ? 6 : 14;
+    const maxD = kind === 'excuse' ? 6 : 10;
     if (d > maxD) return;
-    if (now - (this._barkT[kind] || -9) < (kind === 'excuse' ? 1.2 : 1.8)) return;
+    if (now - (this._barkT[kind] || -9) < (kind === 'excuse' ? 2.5 : 6)) return;
     this._barkT[kind] = now;
-    const female = kind === 'callout' ? this._rnd() < 0.65 : !!e.female;
-    const g = female ? 'f' : 'm';
-    const list = kind === 'excuse' ? BARK_EXCUSE : BARK_CALLOUT;
-    const i = Math.floor(this._rnd() * list.length), seed = 21 + Math.floor(this._rnd() * 3);
-    const name = `bark:ja:${g}:${seed}:${list[i]}`;
+    const txt = kind === 'excuse' ? EXCUSE[Math.floor(this._rnd() * EXCUSE.length)] : CALLOUT[Math.floor(this._rnd() * CALLOUT.length)];
     const y = e.y != null ? e.y : (LEVELS[e.level] ? LEVELS[e.level].y + 1.55 : L.y + 1.5);
-    const o = { bus: 'voice', pos: { x: e.x, y, z: e.z }, gain: kind === 'excuse' ? 0.75 : 0.55, ref: kind === 'excuse' ? 1.2 : 2.2, rolloff: 1.1, hrtf: true, send: 0.3, rate: 0.96 + this._rnd() * 0.1, wait: true, prio: 2, when: kind === 'callout' ? now + this._rnd() * 0.5 : undefined };
-    if (L.level === e.level && this.ctx.world) { try { if (!this.ctx.world.visible(L.level, L.x, L.z, e.x, e.z)) { o.lp = 900; o.gain *= 0.5; } } catch (er) { /* */ } }
-    this.mixer.play(name, o);
+    let gain = kind === 'excuse' ? 0.8 : 0.5;
+    if (this.ctx.world) { try { if (!this.ctx.world.visible(L.level, L.x, L.z, e.x, e.z)) gain *= 0.5; } catch (er) { /* */ } }
+    this.announcer.say({ kind: 'crowd', parts: [{ lang: 'ja', text: txt }], pos: { x: e.x, y, z: e.z }, ref: kind === 'excuse' ? 1.8 : 3, gain, sameLevel: true, caption: false, maxAge: 1.2 });
     if (kind === 'excuse' && d < 3) this.ctx.events.emit('caption', { text: e.en || 'Excuse me', en: e.en || 'Excuse me', ja: e.ja || 'すみません', kind: 'say', speaker: 'Stranger', duration: 1.8 });
   }
   _rnd() { this._rs = ((this._rs || 987654321) * 1664525 + 1013904223) >>> 0; return this._rs / 4294967296; }
@@ -315,6 +320,30 @@ export class Audio {
     const parts = []; if (ja) parts.push({ lang: 'ja', text: ja }); if (en) parts.push({ lang: 'en', text: en });
     return this.announcer.say({ kind, parts, pos, gain, chime, send: pos ? 0.4 : 0.9 });
   }
+  // how audible an 'announce' payload is from where the player stands (0..1): train lines belong to their platform,
+  // others are point speakers. The HUD can use this to caption only what is heard.
+  paVolume(e) {
+    const L = this.L; if (!L || !e) return 0;
+    const plat = platformOf(e);
+    if (plat) return platformGain(plat, L);
+    const p = e.position || (e.x != null ? { x: e.x, y: e.y, z: e.z } : null);
+    return p ? pointGain(p, L, 12, true) : 1;
+  }
+  // test / debug readout: the soundscape area you are in, bed gains, last PA line and the voice it used
+  debug() {
+    if (!this.mixer) return { state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
+    const L = this.L || {}, a = this.ambience, sp = L.space;
+    const mood = a.mood;
+    return {
+      state: this.ac.state,
+      zone: { level: L.level, zone: L.zone, space: sp ? sp.id : null, kind: sp ? sp.kind : null, mood, area: AREA[mood] || mood, y: L.y != null ? +L.y.toFixed(1) : null },
+      ...a.debug(),
+      acoustic: this.mixer.acoustic,
+      pa: this.announcer.debug(),
+      trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => ({ id: t.tr.id, phase: t.phase, hear: +this.trains._hears(t).toFixed(2) })),
+      sources: [...this.sources.live.keys()].length,
+    };
+  }
   setVolume(bus, v) {
     if (typeof bus === 'number') { v = bus; bus = 'master'; }
     this._vols[bus] = Math.max(0, Math.min(1, +v));
@@ -335,7 +364,7 @@ export class Audio {
       state: this.ac.state, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
       layers: Object.values(a.layers).filter(l => l.em).map(l => l.name), sources: [...this.sources.live.keys()], oneShots: this.mixer.liveOneShots,
       trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => `${t.tr.id}:${t.phase}`),
-      speech: this.announcer.hasJaVoice ? 'ja-JP voice' : 'formant', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
+      speech: this.announcer.hasJaVoice ? 'ja-JP voice' : this.announcer.hasEnVoice ? 'en voice only' : 'chime + caption', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
     };
   }
   debugText() { const s = this.stats(); return s.mood ? `audio ${s.state} ${s.acoustic}/${s.mood} ppl ${s.people} steps/s ${s.cloudRate} src ${s.sources.length} 1shot ${s.oneShots}` : `audio ${s.state}`; }

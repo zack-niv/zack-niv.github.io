@@ -304,12 +304,12 @@ export class Places {
     if (sh) {
       try {
         if (sh.hallSpots) for (const id of ['taka_b1', 'taka_1f']) for (const sp of (sh.hallSpots(id) || [])) {
-          if (sp.kind !== 'staff') continue;
+          if (sp.kind !== 'staff' || sp.svc) continue;
           this.posts.push({ kind: 'staff_shop', level: sp.level, x: sp.x, z: sp.z, yaw: sp.yaw, hall: id, apron: hex(sp.outfit && sp.outfit.apron), cap: !!(sp.outfit && sp.outfit.cap), callout: true, real: true });
         }
         if (sh.spots) for (const B of this.biz) {
           if (B.closed) continue;
-          const sps = (sh.spots(B.id) || []).filter(q => q.kind === 'staff');
+          const sps = (sh.spots(B.id) || []).filter(q => q.kind === 'staff' && !q.svc); // svc posts: counters.js (ctx.counters) places that person
           for (const sp of sps.slice(0, B.restaurant ? 2 : 1)) this.posts.push({ kind: 'staff_shop', level: sp.level, x: sp.x, z: sp.z, yaw: sp.yaw, biz: B, apron: hex(sp.outfit && sp.outfit.apron), cap: !!(sp.outfit && sp.outfit.cap), callout: B.restaurant || B.cat === 'takoyaki', real: true });
         }
       } catch (e) { console.warn('[crowd] shop staff spots', e); }

@@ -64,6 +64,7 @@ export class ShopCtx {
     this.reach = this._bfs();
     this.spots = []; this.queue = []; this.counterPt = null; this.boxes = [];
     this.lights = [];
+    this.svc = null;     // service point published to ctx.counters (see service())
   }
   // Replay the build with real painters: every obstacle/clearance query
   // returns what the logic pass decided, so the result is identical.
@@ -235,6 +236,22 @@ export class ShopCtx {
     if (kind === 'queue') this.queue.push(s);
     if (kind === 'counter' && !this.counterPt) this.counterPt = s;
     return s;
+  }
+  // Service point (v2 contract, ctx.counters): where the staff member stands (behind the counter) and where the
+  // customer stands to order. Local coords (a, d); staff faces the order spot. Logic pass only (the replay never
+  // re-registers). A later call replaces an earlier one.
+  service(role, order, staff, extra = null) {
+    if (this.replay) return null;
+    this.svc = { role, order: { a: order[0], d: order[1] }, staff: { a: staff[0], d: staff[1] } };
+    // also keep the crowd-facing spots in step: staff spot (does not path), counter spot (customers queue here)
+    const w = this.world(staff[0], staff[1]);
+    this.spots = this.spots.filter(s => !(s.kind === 'staff' && s.svc));
+    this.spot('staff', staff[0], staff[1], order[0] - staff[0], order[1] - staff[1], { svc: true, role, ...(extra || {}) });
+    this.spots = this.spots.filter(s => !(s.kind === 'counter' && s.svc));
+    const c = this.spot('counter', order[0], order[1], staff[0] - order[0], staff[1] - order[1], { svc: true });
+    if (c) this.counterPt = c;
+    void w;
+    return this.svc;
   }
   light(a, y, d, color, intensity, range, kind = 'panel') {
     // aggregate: one interior panel + one sign light per shop (featured get extras)

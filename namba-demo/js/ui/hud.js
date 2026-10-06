@@ -5,7 +5,7 @@
 //   · ICOCA balance chip after a gate tap, cup-in-hand glyph, fades
 //   · fallback phone-notification banner if the phone doesn't render texts
 // API: hud.prompt(t|null) · hud.toast({kind,title,en,ja}) · hud.caption({en,ja,speaker,duration,kind})
-//      hud.ic({balance,fare,ok,reason}) · hud.cup(on) · hud.fade(alpha, ms) → Promise
+//      hud.ic({balance,fare,ok,reason}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
 import { params } from '../core/params.js';
@@ -81,6 +81,9 @@ export class Hud {
   }
   // is this PA / distant line something the player is near enough to hear?
   paAudible(a) {
+    // the sound system knows what is actually spoken where the player stands (platforms loud, concourse faint, else silent)
+    const au = this.ctx.audio;
+    if (au && typeof au.paVolume === 'function') { try { const v = au.paVolume(a); if (typeof v === 'number' && isFinite(v)) return v > 0.06; } catch (e) { /* fall through */ } }
     const pl = this.ctx.player, b = pl && pl.body;
     if (!b) return true;
     const inStation = STATION_ZONES.has(pl.zone);
@@ -158,19 +161,26 @@ export class Hud {
   clearCaptions() { this.el.captions.innerHTML = ''; }
 
   // ---- ICOCA chip -----------------------------------------------------------------
-  ic({ balance = 0, fare = 0, ok = true, reason = '' } = {}) {
+  ic({ balance = 0, fare = 0, ok = true, reason = '', label = '' } = {}) {
     if (this.quiet) return;
     const e = this.el;
     e.ic.classList.toggle('ng', !ok);
     e.icState.innerHTML = ok
-      ? (fare ? `<span>運賃 Fare</span><b>−${yen(fare)}</b>` : `<span class="ok">ピッ</span><b>${esc(reason || '')}</b>`)
+      ? (fare ? `<span>${esc(label || '運賃 Fare')}</span><b>−${yen(fare)}</b>` : `<span class="ok">ピッ</span><b>${esc(reason || '')}</b>`)
       : `<span class="ng">残高不足</span><b>${esc(reason || 'Please charge')}</b>`;
     e.icBal.textContent = yen(balance);
     e.ic.classList.remove('on'); void e.ic.offsetWidth; e.ic.classList.add('on');
     clearTimeout(this._icT);
     this._icT = setTimeout(() => e.ic.classList.remove('on'), ok ? 2600 : 4200);
   }
-  cup(on) { this.el.cup.classList.toggle('on', !!on); }
+  // the cup icon that stays after ordering; label = tooltip ("☕ latte — Pine Tree Coffee"), n = how many so far
+  cup(on, label, n) {
+    const c = this.el.cup;
+    c.classList.toggle('on', !!on);
+    if (label) { c.title = label; c.setAttribute('aria-label', label); }
+    c.dataset.n = n > 1 ? String(n) : '';
+    if (on && label) { c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); }
+  }
 
   // ---- controls hint (bottom centre, fades on its own) ---------------------------------
   // kinds: 'keys' (the four controls) | 'phone' (Q) | or a ready-made html string

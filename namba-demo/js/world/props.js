@@ -359,7 +359,8 @@ export class Props {
           const rk = r();
           // wall programme: a wall is never empty (hose cabinet, AED, staff door, poster frame, screen)
           const kind0 = screen ? 'screen' : rk < 0.1 ? 'hose' : rk < 0.16 ? 'aed' : rk < 0.26 ? 'staffdoor' : 'poster';
-          const w = kind0 === 'screen' ? 1.8 : kind0 === 'hose' ? 0.75 : kind0 === 'aed' ? 0.34 : kind0 === 'staffdoor' ? 1.0 : r() < 0.4 ? 1.0 : 1.5;
+          // posters keep their exact 2:3 art ratio (never stretched): width follows the room height
+          const w = kind0 === 'screen' ? 1.8 : kind0 === 'hose' ? 0.75 : kind0 === 'aed' ? 0.34 : kind0 === 'staffdoor' ? 1.0 : Math.min(r() < 0.4 ? 0.95 : 1.2, (sp.ceil - 0.5 - 0.85) / 1.5);
           const sc = s + w / 2;
           const q = [e.ax + t[0] * sc, e.az + t[1] * sc];
           // stay off shop frontage, doors, ramps, columns; wall cells in front must be free of tall claims
@@ -374,7 +375,8 @@ export class Props {
           const kind = kind0;
           const pr = r() < 0.5 ? 1.5 : 1.35;
           const y0 = { screen: 1.55, hose: 0.55, aed: 1.2, staffdoor: 0.0 }[kind] ?? 0.85;
-          const y1 = { screen: y0 + w * 0.5625, hose: 1.65, aed: 1.55, staffdoor: 2.1 }[kind] ?? y0 + w * pr;
+          const y1 = { screen: y0 + w * 0.5625, hose: 1.65, aed: 1.55, staffdoor: 2.1 }[kind] ?? y0 + w * 1.5;
+          void pr;
           const it = this._push({ k: kind, level: lv, x: q[0], z: q[1], rot: Math.atan2(-n[0], -n[1]), n, w, y0, y1: Math.min(y1, sp.ceil - 0.5), ad: ads[Math.floor(r() * ads.length)], seed: Math.floor(r() * 1e9), src: Math.floor(r() * 4), zone: sp.zone });
           this.wallItems.push({ kind, level: lv, x: q[0], z: q[1], nx: n[0], nz: n[1], a: w, y0: it.y0, y1: it.y1 });
           // claim a thin strip so the next one keeps a gap
@@ -520,7 +522,7 @@ export class Props {
     if (this.screens) return this.screens;
     const S = [];
     for (let i = 0; i < 4; i++) {
-      const c = document.createElement('canvas'); c.width = 512; c.height = 288;
+      const c = document.createElement('canvas'); c.width = 768; c.height = 432;
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
       const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1, 1, 1).multiplyScalar(1.8) });
       mat.name = 'props_screen' + i;
@@ -536,9 +538,11 @@ export class Props {
     S.forEach((sc, i) => {
       const slide = Math.floor(time / 6 + i * 2.7);
       if (!force && sc.slide === slide && Math.abs(time - sc.t) < 1.9) return;
-      sc.t = time; const g = sc.g, w = 512, h = 288;
+      sc.t = time; const g = sc.g, w = 768, h = 432;
       if (i === 3) {
-        // info board: clock + weather + ticker
+        // info board: clock + weather + ticker (designed on 512x288, drawn at 1.5x)
+        g.save(); g.scale(w / 512, h / 288);
+        { const w = 512, h = 288;
         g.fillStyle = '#0b1c33'; g.fillRect(0, 0, w, h);
         const m = this.ctx.clock ? this.ctx.clock.minutes : 720;
         const hh = String(Math.floor(m / 60) % 24).padStart(2, '0'), mm = String(Math.floor(m) % 60).padStart(2, '0');
@@ -548,6 +552,8 @@ export class Props {
         g.fillStyle = '#16365e'; g.fillRect(0, h * 0.78, w, h * 0.22);
         g.fillStyle = '#fff'; const off = (time * 40) % 700;
         D.fitText(g, '南海電車 · 御堂筋線 · 千日前線  ご利用ありがとうございます    Namba CITY  ハロウィンフェア開催中', w * 0.5 - off + 350, h * 0.89, 1400, h * 0.09, 700, undefined, 'center');
+        }
+        g.restore();
       } else {
         const kind = kinds[(slide * 5 + i * 3 + 100) % kinds.length];
         D.drawAd(g, w, h, kind, 3 + slide);
@@ -832,26 +838,29 @@ const BUILD = {
   },
   colad(S, P, R, it) {
     const reg = R.ad(it.ad, 1 + (it.seed % 2), true);
-    const y0 = 0.95, y1 = 2.0;
     const faces = [[0, -1, it.hx * 2, it.hz], [0, 1, it.hx * 2, it.hz], [-1, 0, it.hz * 2, it.hx], [1, 0, it.hz * 2, it.hx]];
     const f = P.f;
     const n = it.faces || 4;
     for (let k = 0; k < n; k++) {
       const [nx, nz, wf, off] = faces[k];
-      const w = Math.min(wf - 0.1, (y1 - y0) * 0.68);
+      // exact 2:3 poster, as big as the column face allows (max 0.8 x 1.2 m), hung with its centre at 1.55 m
+      const w = Math.min(wf - 0.12, 0.8), hP = w * 1.5, y0 = 1.55 - hP / 2, y1 = y0 + hP;
       if (w < 0.3) continue;
       // build with a local frame rotated to face (nx,nz) at distance `off` from the column centre
       const cx = it.x + nx * (off + 0.012), cz = it.z + nz * (off + 0.012);
       // Frame rot: d axis = (sin rot, cos rot) = -n  => local -d faces outward
       const PF = new Painter(P.gb, new Frame(cx, f.oy, cz, Math.atan2(-nx, -nz)));
-      PF.tq(reg, -w / 2, w / 2, y0, y1, 0, -1);
+      // (the poster used to sit exactly on the frame box's front face: z-fighting = the 'broken' column ads)
       PF.box('env_metal', -w / 2 - 0.03, w / 2 + 0.03, y0 - 0.03, y1 + 0.03, 0.0, 0.035, steel);
+      PF.tq(reg, -w / 2, w / 2, y0, y1, -0.006, -1);
     }
   },
   platad(S, P, R, it) {
     const reg = R.ad(it.ad, 1 + (it.seed % 2), false);
-    const w = it.w, h = it.h;
-    P.tq(reg, -w / 2 + 0.02, w / 2 - 0.02, it.yc - h / 2 + 0.02, it.yc + h / 2 - 0.02, -0.012, -1);
+    // 16:9 artwork fitted inside the frame (never stretched); the paper margin either side is plain backing
+    const h = it.h - 0.04, w = Math.min(it.w - 0.04, h * 16 / 9), hh = w * 9 / 16;
+    P.qd('env_matte', -it.w / 2 + 0.02, it.w / 2 - 0.02, it.yc - it.h / 2 + 0.02, it.yc + it.h / 2 - 0.02, -0.004, -1, [0.9, 0.9, 0.88]);
+    P.tq(reg, -w / 2, w / 2, it.yc - hh / 2, it.yc + hh / 2, -0.012, -1);
   },
   fountain(S, P, R, it) { buildFountain(S, P, R, it); },
   vflag(S, P, R, it) {
