@@ -16,11 +16,11 @@ import { rng } from '../core/rng.js';
 const gauss = (x, c, w) => Math.exp(-((x - c) * (x - c)) / (2 * w * w));
 const PERSON = {
   //            pref speed  sd    conf  hurry  space  phone
-  commuter: { v: 1.42, sd: 0.12, conf: 0.95, hurry: 0.75, space: 0.35, phone: 0.3 },
-  student:  { v: 1.3, sd: 0.1, conf: 0.85, hurry: 0.5, space: 0.25, phone: 0.45 },
-  tourist:  { v: 1.06, sd: 0.12, conf: 0.35, hurry: 0.2, space: 0.55, phone: 0.35 },
-  shopper:  { v: 1.12, sd: 0.1, conf: 0.8, hurry: 0.3, space: 0.45, phone: 0.25 },
-  elderly:  { v: 0.84, sd: 0.08, conf: 0.75, hurry: 0.1, space: 0.6, phone: 0.05 },
+  commuter: { v: 1.42, sd: 0.12, conf: 0.95, hurry: 0.75, space: 0.35, phone: 0.55 },
+  student:  { v: 1.3, sd: 0.1, conf: 0.85, hurry: 0.5, space: 0.25, phone: 0.75 },
+  tourist:  { v: 1.06, sd: 0.12, conf: 0.35, hurry: 0.2, space: 0.55, phone: 0.6 },
+  shopper:  { v: 1.12, sd: 0.1, conf: 0.8, hurry: 0.3, space: 0.45, phone: 0.5 },
+  elderly:  { v: 0.84, sd: 0.08, conf: 0.75, hurry: 0.1, space: 0.6, phone: 0.12 },
   child:    { v: 1.1, sd: 0.1, conf: 0.9, hurry: 0.4, space: 0.2, phone: 0 },
   staff_station: { v: 1.1, sd: 0.05, conf: 1, hurry: 0.3, space: 0.4, phone: 0 },
   staff_shop: { v: 1.1, sd: 0.05, conf: 1, hurry: 0.3, space: 0.4, phone: 0 },

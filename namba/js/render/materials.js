@@ -101,9 +101,9 @@ export class Materials {
     D('band_grey', band(0x5b5f66));
     // ---- ceilings -----------------------------------------------------------
     D('ceiling_panel', P('ceil_grid', { scale: 1, color: 0xfafafa, normal: 0.6 }));
-    D('ceiling_plaster', () => new THREE.MeshStandardMaterial({ color: 0xf4f5f6, roughness: 0.9 }));
-    D('ceiling_grid', P('ceil_grid', {}));
-    D('ceiling_perforated', P('ceil_perf', {}));
+    D('ceiling_plaster', () => new THREE.MeshStandardMaterial({ color: 0xf4f5f6, roughness: 0.9, emissive: 0x6c6e70 }));  // emissive lifts ceilings (they get little baked diffuse)
+    D('ceiling_grid', () => { const m = this._pbrMat('ceil_grid', {}); m.emissive.setHex(0x5a5c5e); m.emissiveMap = m.map; return m; });
+    D('ceiling_perforated', () => { const m = this._pbrMat('ceil_perf', {}); m.emissive.setHex(0x5a5c5e); m.emissiveMap = m.map; return m; });
     D('ceiling_linear', P('ceil_linear', {}));
     D('ceiling_metal', P('ceil_linear', { color: 0xc8ccd2 }));
     D('ceiling_dark', P('panel_dark', { color: 0x8a8a8a }));

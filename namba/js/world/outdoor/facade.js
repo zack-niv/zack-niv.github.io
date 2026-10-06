@@ -17,6 +17,7 @@ export function facadeMat(ctx /*, kind (ignored: kind is per-vertex) */) {
   if (!M.factories.has(name)) M.define(name, () => {
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, metalness: 0.0, vertexColors: true });
     m.userData.nbReflect = 0;
+    m.customProgramCacheKey = () => 'out_facade_v2';
     m.onBeforeCompile = (s) => {
       s.uniforms.uNight = FACADE_U.uNight; s.uniforms.uSkyCol = FACADE_U.uSkyCol;
       s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute float aKind;\nvarying float vFK;\nvarying vec2 vFUv;\nvarying vec3 vFN;')

@@ -286,7 +286,7 @@ export function buildCanyon(ctx, parks) {
   // ---- shopfronts --------------------------------------------------------------
   buildShopfronts(ctx, parks, F, shops);
 
-  parks.canyon = { F, bands, shops, ups, boxes };
+  parks.canyon = { F, bands, shops, ups, boxes, gOpen, shopAt };
   return parks.canyon;
 }
 

@@ -114,7 +114,26 @@ const REVIEWS = {
 };
 const NAMES = ['Mika T.', 'Daniel R.', 'Yuto K.', 'Sophie L.', 'Haruka S.', 'Marco P.', 'Chen W.', 'Aiko N.', 'Liam O.', 'Rina M.'];
 
+const KEYED_REVIEWS = {
+  tempura_great: [['Counter seats only. Get there before 11:30 or queue an hour. Worth it.', 5, 'Mika T.'], ['Sesame oil, kisu and kabocha. The line wraps around the escalator by 12:15.', 5, 'Hiro'], ['Tourist trap? No. But arrive early.', 4, 'Dan R.']],
+  coffee_great: [['カウンターだけ。朝はいつも並んでる。', 5, 'ゆうこ'], ['Hard to find. Look for the queue, not the sign.', 5, 'Sam W.']],
+};
+// "Popular times": 7:00–21:00 relative busyness (deterministic per business)
+export function popularTimes(b) {
+  const R = rng(hash('pop' + (b.slot || b.en)));
+  const food = catGroup(b.cat) === 'food', cafe = catGroup(b.cat) === 'cafe';
+  const out = [];
+  for (let h = 7; h <= 21; h++) {
+    let v = 0.15 + R() * 0.12;
+    if (food) v += 0.9 * Math.exp(-Math.pow((h - 12.5) / 1.1, 2)) + 0.55 * Math.exp(-Math.pow((h - 18.6) / 1.5, 2));
+    else if (cafe) v += 0.7 * Math.exp(-Math.pow((h - 8.3) / 1.2, 2)) + 0.5 * Math.exp(-Math.pow((h - 15) / 1.6, 2));
+    else v += 0.6 * Math.exp(-Math.pow((h - 15.5) / 2.6, 2));
+    out.push(Math.min(1, v));
+  }
+  return out;
+}
 export function reviewsFor(b) {
+  if (b.key && KEYED_REVIEWS[b.key]) return KEYED_REVIEWS[b.key].map(([text, stars, who], i) => ({ who, text, stars, when: `${2 + i * 3} weeks ago` }));
   const R = rng(hash('rev' + (b.slot || b.en)));
   const list = REVIEWS[b.cat] || REVIEWS[catGroup(b.cat)] || REVIEWS.retail;
   const out = [];

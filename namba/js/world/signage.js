@@ -226,7 +226,7 @@ export class Signage {
     this._place(world); lap('place');
     this._declare(); lap('declare');
     this._faces = this._faceViewers();
-    this._dests = DESTINATIONS.map(d => ({ id: d.id, goals: d.goals })); lap('faces');
+    this._dests = DESTINATIONS.map(d => ({ id: d.id, kind: d.kind, goals: d.goals })); lap('faces');
   }
 
   // ===========================================================================

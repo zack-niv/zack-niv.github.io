@@ -11,6 +11,8 @@ e/f = 12:10 crowd experiments with and without post.
 
 Harness caveat: SwiftShader drops dynamic resolution to `drsMin` 0.6, so screenshots are softer than real play. Nothing below is a resolution complaint.
 
+Note: the code is changing while I review. Batches a/b were shot around 03:15. The d close-ups (around 08:45) already show newer work: wear decals (`arch/details.js`), portals (`arch/portals.js`), a lit clerestory over the Nankai 3F gate hall, and the facade shader fix. Where a d shot shows an issue already improved, that is noted below.
+
 ---
 
 ## Top 10 issues, ranked by impact on the player's feeling
@@ -19,10 +21,13 @@ Harness caveat: SwiftShader drops dynamic resolution to `drsMin` 0.6, so screens
 * **What:** `b/pose_1F_0_-203_0_6.png` is the player standing on the 1F Sennichimae-dori sidewalk (street_s_walk) looking north. There is no ground. You look straight down into NAMBAWALK: B1 ceiling panels, shop shutters, partition tops, a cut-away of the whole mall. The road beyond is a flat untextured white plane.
 * `b/pose_1F_-12_68_90_12.png` and `b/city_1f.png` (Namba CITY 1F court) show stacked slab edges floating in the ceiling plane. A brown box and a grey box hang with no rods. A full shelf of 2F merchandise is visible *through* the 1F ceiling at the top-left of `city_1f.png`: the 2F shop interior pokes through, or the slab around the court ceiling (6 m = 2F floor height) is missing.
 * `b/pose_1F_-70_-192_180_8.png` (plaza looking at Takashimaya): horizontal louvre rods run across the open shop entrance at head height, *in front of people*. The store has no glass line at all, so you look into an open-fronted dollhouse. Cantilevered slab chunks hang in the sky.
+* **New in the d batch:**
+  * `d/d_nk_void.png` (2F at the Nankai void, looking down): you don't see 1F. You see the **top of the 1F ceiling**: a grid of white light panels and beige coffers lying in the void. The 2F slab hole was cut, but the 1F ceiling plane under it was not, so the void is a balcony over a lighting grid.
+  * `d/d_walk_x2.png` (NAMBAWALK cross aisle to Exit 18): a strip of 1F street facades shows **through a gap at the top of the B1 ceiling**.
 * **Why it breaks:** a single see-through floor tells the player "level geometry", and the illusion never recovers. TLOU2 and Hitman never let you see the back of the set.
 * **Fix:**
   1. Every B1 cell under an outdoor 1F cell needs a structural sandwich: B1 ceiling at `ceil`, a plenum, then the 1F ground slab top at y = 0 (paving / asphalt) with a 0.3 m slab-edge band wherever it meets a stair well. Architecture owns the slab, Outdoors owns the top finish. Add a test to `tools/check-layout.mjs`: for every walkable 1F/2F cell, raycast down from +0.5 m against the built meshes. A miss fails the build.
-  2. Slab edges at every void (City court void `[2,54,14,82]` and the Nankai 2F void): a 0.9–1.2 m deep fascia bulkhead clad in white metal panel, a soffit return, and the glass balustrade mounted on it. The 2F floor must close around the void; nothing from 2F may be visible from 1F except through the void.
+  2. Voids must cut *every* horizontal surface they span: the upper floor slab, the lower level's ceiling, plenum and light fixtures. Line the shaft with a finished soffit. The ceiling builder should subtract `LAYOUT.voids` from its ceiling grid and fixture placement on the level below. Slab edges at every void (City court void `[2,54,14,82]` and the Nankai 2F void): a 0.9–1.2 m deep fascia bulkhead clad in white metal panel, a soffit return, and the glass balustrade mounted on it. The 2F floor must close around the void; nothing from 2F may be visible from 1F except through the void.
   3. Any hanging object needs visible suspension: two 8 mm rods or cables to the slab, or a ceiling-flush mount.
   4. Takashimaya facade: put a 3–4 m glazed shopfront line with automatic doors behind the louvres, and stop the louvres at the canopy line (+5 m).
 
@@ -58,6 +63,7 @@ Harness caveat: SwiftShader drops dynamic resolution to `drsMin` 0.6, so screens
 * **Fix:**
   * Terrazzo: chips 2–8 mm, with the second (large) layer at 1/4 density and ≤ 12 mm. Palette: off-white, light grey and warm beige, plus about 5% charcoal and ≤ 2% muted red. Base `0.82` with ±0.03 variation. Roughness 0.25–0.35 so reflections are soft, not mirror-like.
   * Marble veins: soft, wide, low-contrast (ΔL ≤ 0.12), following a warped fbm direction field rather than crack lines. Tile at 0.6 × 1.2 m with per-tile rotation and offset so seams change.
+  * Wear decals have just landed (`d/d_mido_esc.png`, `d/d_nk_void.png`), but the gum spots are **20–30 cm opaque dark blots**, and the scuffs are crescent strokes the size of a shoe. They read as oil stains or bugs. Real gum is 1–3 cm, flattened, and *lighter or greyer* than the floor (ΔL −0.05 to −0.15). Scuffs are 5–15 cm, low-contrast (multiply 0.9) and clustered in traffic lanes and at thresholds, never in open floor. Scale them down by 5–10× and cut the contrast by about 60%.
   * Wear layer (one shared 2048² decal atlas, GeoBatch-merged per chunk): darkened traffic lanes (multiply 0.92) down the corridor centres, gum spots, scuffs at escalator combs and gate lanes, grout darkening near walls, rubber heel marks on stair nosings.
   * TLOU2 and Cyberpunk sell reality almost entirely through this kind of layer.
 
@@ -73,7 +79,8 @@ Harness caveat: SwiftShader drops dynamic resolution to `drsMin` 0.6, so screens
   * Target: a blank wall run never exceeds 8 m.
 
 ### 6. The Nankai station has no hero moment
-* **What:** the 3F gate concourse (`a/nankai_gate.png`) is a black truss void over a flat tile wall. From the spawn you look away from the gates at a single board. The 2F and 1F are generic coffer boxes (`a/nankai_2f.png`, `a/nankai_1f.png`). The void between them isn't visible from the 2F spawn.
+* **Update:** `d/d_nk_gates.png`, shot from the paid side, now shows a lit clerestory band, white trusses, the 中央改札口 sign and the gate line. Much better, and close to the real feeling. The problems that remain are below.
+* **What (older shot):** the 3F gate concourse (`a/nankai_gate.png`) is a black truss void over a flat tile wall. From the spawn you look away from the gates at a single board. The 2F and 1F are generic coffer boxes (`a/nankai_2f.png`, `a/nankai_1f.png`). The void between them isn't visible from the 2F spawn.
 * **Real:** Nankai Namba's 3F central gate hall is one of Japan's great terminal spaces. A 20+ lane gate line spans the hall under a high ceiling with a giant departure board directly over the gates. Beyond it, the forest of platform ends and buffer stops sits under the bright shed. The 2F has the iconic escalator banks rising to it.
 * **Fix:**
   * Rotate the `nankai_gate` spawn 180° so the first view is the gate line plus the board plus the platforms beyond.
@@ -119,6 +126,9 @@ Harness caveat: SwiftShader drops dynamic resolution to `drsMin` 0.6, so screens
 ---
 
 ## Keep: this works
+* The Nankai 1F→2F escalator bank (`d/d_nk_esc.png`): three escalators with glass balustrades, a hanging "2F ↑ 南海線なんば駅" sign and a coffered ceiling. This is the best vertical-circulation moment in the game. Replace the two black ribbed "scribble" panels framing it (they read as noise) with stone or brushed stainless.
+* The NAMBAWALK court around the fountain (`d/d_walk_fountain.png`): pillars, a lit ad box, recycling bins, benches, a toilet sign, and Exit 21·24 hanging overhead. The best-dressed hub in the game. Use it as the density reference.
+* The cross aisle to Exit 18 (`d/d_walk_x2.png`): tile walls with an orange line and a stair glimpse at the end under the yellow 出口 18 sign. A real "aha, an exit" moment.
 * Midosuji B1 concourse language (`a/midosuji_gate.png`): slatted ceiling with long strip lights, red line bands on mosaic columns, the gate island rhythm and the overhead black direction sign. It reads as Osaka Metro immediately.
 * Exit 18 stair (`b/pose_1F_43_-247_0_0.png`): dark granite treads with yellow anti-slip nosing, steel handrails, the Metro pole sign at the top and daylight spilling down. A great "emerging into the city" moment.
 * Glossy floors in NAMBAWALK and City (`a/walk.png`, `b/city_b1.png`) give real depth with SSR. Keep them, but tone down the terrazzo (see #4 and `rendering.md`).

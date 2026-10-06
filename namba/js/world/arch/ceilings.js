@@ -59,6 +59,16 @@ export function buildCeilings(K) {
       const ins = Math.min(3, Math.min(W, D) / 4);
       raise = (x, z) => (x > bx0 + ins && x < bx1 - ins && z > bz0 + ins && z < bz1 - ins) ? 0.8 : 0;
     }
+    // never raise a coffer into the floor slab of the level above (it pokes through into the shops up there)
+    {
+      const upl = K.above(lv);
+      const cap = upl ? Math.max(0, K.y(upl) - H - 0.2) : Infinity;
+      if (cap < 5) {
+        const r0 = raise;
+        raise = (x, z) => Math.min(r0(x, z), cap);
+        if (coffer) coffer.rise = Math.min(coffer.rise, cap);
+      }
+    }
     // ---- base surfaces (row runs by height) ---------------------------------------
     const rot = prog === 'metro' && axis === 'z';
     for (let z = Math.floor(bz0); z < bz1; z++) {

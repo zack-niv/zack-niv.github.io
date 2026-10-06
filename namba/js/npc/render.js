@@ -105,6 +105,13 @@ export class CrowdRenderer {
     L[0].n = L[1].n = L[2].n = 0;
     let nb = 0;
     const BA = this.blobA.array, BB = this.blobB.array;
+    this._frame = (this._frame || 0) + 1;
+    const lighting = this.ctx.lighting, sunO = this.ctx.exterior && this.ctx.exterior.sun;
+    let sunI = 0, shX = 0, shZ = 1, shL = 1;
+    if (sunO && sunO.direction && sunO.direction.y > 0.05) {
+      const d = sunO.direction; sunI = Math.min(1, sunO.intensity || 0);
+      const hl = Math.hypot(d.x, d.z) || 1; shX = -d.x / hl; shZ = -d.z / hl; shL = hl / d.y;
+    }
     for (let k = 0; k < list.length; k++) {
       const a = list[k];
       let l = a._d2 < n0 ? 0 : a._d2 < n1 ? 1 : 2;
@@ -118,6 +125,16 @@ export class CrowdRenderer {
         BA[o] = a._rx; BA[o + 1] = a.ramp >= 0 ? a.y : a.y; BA[o + 2] = a._rz; BA[o + 3] = (0.62 + 0.22 * a.pSit) * h;
         BB[o] = a.fade * (a.ramp >= 0 ? 0.6 : 1); BB[o + 1] = 1.25 + a.pAmt * 0.25; BB[o + 2] = a.yaw; BB[o + 3] = 0;
         nb++;
+        // directional sun shadow where the cell is in sun (outdoors): one long soft blob away from the sun
+        if (sunI > 0.12 && a._d2 < 45 * 45 && nb < this.blobCap) {
+          if (((this._frame + a.serial) & 7) === 0 || a._sunV === undefined) a._sunV = lighting && lighting.sample ? lighting.sample(a.level, a._rx, a._rz).sun : 0;
+          if (a._sunV > 0.2) {
+            const o3 = nb * 4, len = Math.min(3.8 * h, 1.5 * h * shL), wid = 0.5 * h;
+            BA[o3] = a._rx + shX * (len * 0.5 - 0.1); BA[o3 + 1] = a.y; BA[o3 + 2] = a._rz + shZ * (len * 0.5 - 0.1); BA[o3 + 3] = wid;
+            BB[o3] = a.fade * Math.min(0.7, 0.8 * a._sunV * sunI); BB[o3 + 1] = len / wid; BB[o3 + 2] = Math.atan2(shX, shZ); BB[o3 + 3] = 0;
+            nb++;
+          }
+        }
         // per-foot contact shadows for the near crowd (they stop people floating)
         if (a._d2 < 14 * 14 && a.pSit < 0.5 && nb + 2 <= this.blobCap) {
           const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw), sw = Math.sin(a.phase) * a.pAmt * 0.2 * h;

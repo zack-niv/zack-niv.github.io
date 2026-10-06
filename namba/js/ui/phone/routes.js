@@ -17,6 +17,95 @@ import { LEVEL_ORDER } from '../../world/layout.js';
 
 export const STRIDE = 7;
 
+// ---- fare-gate audience ------------------------------------------------------
+// Signs and phone directions for anything that is not a train line must never
+// send you INTO the paid area (through the ticket gates, onto a platform).
+// paidMasks() floods the paid region (platforms + paid spaces) without crossing
+// any gate line and marks edges free -> paid; fieldNoEntry() builds a field
+// that refuses them and walkPath/routeLegs honour f.cutOut.
+export function paidMasks(nav) {
+  if (nav._wayPaid) return nav._wayPaid;
+  const W = nav.world, L = W.layout, N = nav.N;
+  const flood = new Uint8Array(nav.outDst.length);
+  for (const gt of L.gates) {
+    const lv = gt.level; if (!W.grids[lv] || nav.levelIdx[lv] == null) continue;
+    const lvI = nav.levelIdx[lv];
+    const fence = gt.fence || [[gt.from - 30, gt.from], [gt.to, gt.to + 30]];
+    const lo = fence[0][0], hi = fence[1][1];
+    const g = W.grids[lv], map = nav.cellNode[lv];
+    for (const off of [-0.5, 0.5]) for (let p = Math.floor(lo) - 1; p <= Math.ceil(hi) + 1; p++) {
+      const x = gt.axis === 'x' ? p + 0.5 : gt.at + off, z = gt.axis === 'x' ? gt.at + off : p + 0.5;
+      const ci = g.cellOf(x, z); if (ci < 0) continue;
+      const u = map[ci]; if (u < 0) continue;
+      for (let e = nav.outStart[u]; e < nav.outStart[u + 1]; e++) {
+        const w = nav.outDst[e];
+        if (nav.lvl[u] !== lvI || nav.lvl[w] !== lvI || nav.rmp[u] >= 0 || nav.rmp[w] >= 0) continue;
+        const a = gt.axis === 'x' ? nav.z[u] : nav.x[u], b = gt.axis === 'x' ? nav.z[w] : nav.x[w];
+        if ((a - gt.at) * (b - gt.at) >= 0) continue;
+        const t = (gt.at - a) / (b - a);
+        const pp = gt.axis === 'x' ? nav.x[u] + (nav.x[w] - nav.x[u]) * t : nav.z[u] + (nav.z[w] - nav.z[u]) * t;
+        if (pp < lo - 1 || pp > hi + 1) continue;
+        flood[e] = 1;
+      }
+    }
+  }
+  const paid = new Uint8Array(N), q = new Int32Array(N); let qh = 0, qt = 0;
+  for (const lv of nav.levelNames) {
+    const g = W.grids[lv], map = nav.cellNode[lv];
+    for (let i = 0; i < map.length; i++) {
+      const v = map[i]; if (v < 0) continue;
+      const s = L.spaces[g.space[i]];
+      if (s && (s.kind === 'platform' || s.paid) && !paid[v]) { paid[v] = 1; q[qt++] = v; }
+    }
+  }
+  while (qh < qt) {
+    const u = q[qh++];
+    for (let e = nav.outStart[u]; e < nav.outStart[u + 1]; e++) { if (flood[e]) continue; const v = nav.outDst[e]; if (!paid[v]) { paid[v] = 1; q[qt++] = v; } }
+  }
+  if (qt > N * 0.35) paid.fill(0);   // leaked: don't pretend
+  const cutOut = new Uint8Array(nav.outDst.length), cutIn = new Uint8Array(nav.inSrc.length);
+  for (let u = 0; u < N; u++) if (!paid[u]) for (let e = nav.outStart[u]; e < nav.outStart[u + 1]; e++) if (paid[nav.outDst[e]]) cutOut[e] = 1;
+  for (let v = 0; v < N; v++) if (paid[v]) for (let e = nav.inStart[v]; e < nav.inStart[v + 1]; e++) if (!paid[nav.inSrc[e]]) cutIn[e] = 1;
+  return (nav._wayPaid = { paid, cutOut, cutIn, count: qt });
+}
+
+// Cost-to-goal field that never enters the paid area from outside.
+export function fieldNoEntry(nav, key, goals) {
+  let f = nav.fields.get(key); if (f) return f;
+  const { cutIn, cutOut } = paidMasks(nav);
+  const N = nav.N, dist = new Float32Array(N).fill(Infinity), done = new Uint8Array(N);
+  const heapN = new Int32Array(N + 16), heapD = new Float32Array(N + 16); let hs = 0;
+  const push = (v, d) => { let i = hs++; while (i > 0) { const p = (i - 1) >> 1; if (heapD[p] <= d) break; heapN[i] = heapN[p]; heapD[i] = heapD[p]; i = p; } heapN[i] = v; heapD[i] = d; };
+  for (const gl of goals) if (gl >= 0) { dist[gl] = 0; push(gl, 0); }
+  const { inStart, inSrc, inCost } = nav;
+  while (hs > 0) {
+    const d0 = heapD[0], v = heapN[0]; const last = --hs; const ln = heapN[last], ld = heapD[last]; let i = 0;
+    for (;;) { let c = 2 * i + 1; if (c >= hs) break; if (c + 1 < hs && heapD[c + 1] < heapD[c]) c++; if (heapD[c] >= ld) break; heapN[i] = heapN[c]; heapD[i] = heapD[c]; i = c; }
+    heapN[i] = ln; heapD[i] = ld;
+    if (done[v]) continue; done[v] = 1;
+    for (let e = inStart[v]; e < inStart[v + 1]; e++) {
+      if (cutIn[e]) continue;
+      const u = inSrc[e]; if (done[u]) continue;
+      const nd = Math.fround(d0 + inCost[e]);
+      if (nd < dist[u]) { dist[u] = nd; if (hs < heapN.length) push(u, nd); }
+    }
+  }
+  f = { key, dist, cutOut };
+  nav.fields.set(key, f);
+  return f;
+}
+function stepNext(nav, f, v) {
+  if (!f.cutOut) return nav.next(f, v);
+  let best = -1, bd = f.dist[v];
+  for (let e = nav.outStart[v]; e < nav.outStart[v + 1]; e++) {
+    if (f.cutOut[e]) continue;
+    const w = nav.outDst[e];
+    const d = f.dist[w] + nav.outCost[e] * 0.001;
+    if (d < bd) { bd = d; best = w; }
+  }
+  return best;
+}
+
 export function walkPath(nav, f, v, maxLen = 18, rampExtra = 5) {
   const L = nav.world.layout;
   let x = nav.x[v], z = nav.z[v];
@@ -24,7 +113,7 @@ export function walkPath(nav, f, v, maxLen = 18, rampExtra = 5) {
   let prevLevel = nav.levelNames[nav.lvl[v]];
   let cur = v;
   for (let i = 0; i < 400; i++) {
-    const w = nav.next(f, cur);
+    const w = stepNext(nav, f, cur);
     if (w < 0) break;
     const wx = nav.x[w], wz = nav.z[w];
     const step = Math.hypot(wx - x, wz - z);
@@ -52,7 +141,7 @@ export function computeDirections(nav, faces, dests, { dropFields = true } = {})
     if (!goals.length) continue;
     const key = 'wayfind:' + dests[d].id;
     const had = nav.fields.has(key);
-    const f = nav.field(key, goals);
+    const f = dests[d].kind === 'line' || dests[d].kind === 'gate' ? nav.field(key, goals) : fieldNoEntry(nav, key, goals);
     for (let i = 0; i < NF; i++) {
       const v = nodes[i];
       if (v < 0 || !isFinite(f.dist[v])) continue;
@@ -74,7 +163,7 @@ export function routeLegs(nav, f, v, maxNodes = 4000) {
   let leg = { level: nav.levelNames[nav.lvl[v]], pts: [[nav.x[v], nav.z[v]]], ramp: -1, dir: 0, len: 0 };
   let cur = v, inRamp = -1;
   for (let i = 0; i < maxNodes; i++) {
-    const w = nav.next(f, cur);
+    const w = stepNext(nav, f, cur);
     if (w < 0) break;
     const ri = nav.rmp[w];
     if (ri >= 0 && inRamp < 0) {

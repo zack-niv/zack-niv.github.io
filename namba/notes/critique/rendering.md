@@ -12,7 +12,8 @@ The batches and harness caveats are listed in `architecture.md`.
 
 ## Top 10 issues, ranked by impact on the player's feeling
 
-### 1. `out_facade_*` doesn't compile: every procedural building facade is missing (P0, a five-minute fix)
+### 1. `out_facade_*` didn't compile, so every procedural building facade was missing (P0; **fixed in the working tree during this review**)
+* **Status:** by 08:45 `facade.js` injects `vFN` after `#include <beginnormal_vertex>` and selects the kind with a per-vertex `aKind`, so the d batch shows no shader error. All the a/b outdoor shots were taken *with* the bug. Re-check the outdoor visuals once the Parks batch lands. Keep the CI guard (point 3 below).
 * **What:** the console in every run shows `THREE.WebGLProgram: Shader Error … Material Name: out_facade_office … ERROR: 0:462: 'objectNormal' : undeclared identifier`, followed by `useProgram: program not valid`.
 * **Cause:** in `js/world/outdoor/facade.js` the vertex patch injects `vFN = normalize(mat3(modelMatrix) * objectNormal);` after `#include <uv_vertex>`. That runs **before** `#include <beginnormal_vertex>` declares `objectNormal`.
 * **Second bug, same file:** all five kinds (`office`, `grid`, `curtain`, `apartment`, `stone`) use an identical `onBeforeCompile` source text with the kind baked in through closure, and there is no `customProgramCacheKey`. three.js therefore hashes them to **one program**: whichever kind compiles first, every facade gets its window grid. Only one error is logged because only one program exists.

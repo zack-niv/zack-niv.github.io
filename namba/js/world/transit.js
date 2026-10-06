@@ -15,6 +15,7 @@
 //   gatePass(gateId, lane, dir, ok=true)   animate a gate lane (crowd / game)
 //   gateLanes(gateId)            [{i, x, z, policy, width}]
 //   laneAt(gateId, x, z)         lane index at a world point or -1
+//   boardingSpot(trackId, body)  nearest open door + aboard point + yaw
 //   ticketMachines()             [{level, x, z, gate, kind, facing}]
 //   now()                        service-day minutes
 // Events: train:approach, train:arrive, train:closing, train:depart, announce,
@@ -467,6 +468,19 @@ export class Transit {
     }
   }
 
+  // The player's own arrival: when the game actually starts (not while the title is up) the
+  // rapi:t at the platform makes its terminal announcement and the crowd alights (the
+  // 'initial' arrival at load only populates the platform).
+  onStart() {
+    for (const tr of this.trains) {
+      if (!tr.svc || !tr.svc.anchor || (tr.state !== 'doors' && tr.state !== 'stopped')) continue;
+      const cfg = this.cfg[tr.track], s = tr.svc;
+      this.ctx.events.emit('train:arrive', { line: cfg.line.id, track: cfg.t.id, trackNo: cfg.t.no, platform: cfg.t.platform, level: cfg.level, trainId: s.id, type: s.type, typeJa: s.typeJa, typeEn: s.typeEn, destinationJa: s.destJa, destinationEn: s.destEn, carCount: s.cars, doors: this._doorList(cfg, s), terminal: true, initial: true, start: true });
+      const ap = cfg.announcePos;
+      this.ctx.events.emit('announce', { kind: 'arrive', line: cfg.line.id, track: cfg.t.id, trackNo: cfg.t.no, textJa: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', textEn: 'Namba, Namba. This is the last stop. Please make sure you have all your belongings with you.', ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', text: 'Namba, Namba. This is the last stop. Please make sure you have all your belongings with you.', level: cfg.level, x: ap.x, y: ap.y, z: ap.z, position: { x: ap.x, y: ap.y, z: ap.z }, sound: 'nankai_arrive', operator: cfg.line.operator, trainId: s.id, start: true });
+    }
+  }
+
   _onTap(e) {
     const p = this.ctx.player && this.ctx.player.body; if (!p || !e || !e.gate) return;
     const gt = this.ctx.layout.gates.find(g => g.id === e.gate); if (!gt) return;
@@ -500,6 +514,19 @@ export class Transit {
     if (Math.abs(cr - cfg.edge) > 2.0) return false;
     const dw = SPECS[FORMATIONS[cfg.line.id === 'nankai' ? 'comm8' : STD_FORMATION[cfg.line.id]].models[0]].dw;
     return doors.some(d => Math.abs(d.along - along) < dw / 2 + 0.45);
+  }
+  // The door nearest to a body while doors are open, for "step aboard" interactions:
+  // { door:{x,z,level,nx,nz,car,door,along}, dist (m along the edge), aboard:{x,z,y} (1.9 m
+  // inside the car, on the carriage floor), yaw (looking into the car), train }, or null.
+  boardingSpot(trackId, body) {
+    const doors = this.doorsOpen(trackId); if (!doors) return null;
+    const cfg = this.cfg[trackId];
+    const along = body ? (cfg.axis === 'z' ? body.z : body.x) : null;
+    let best = null, bd = 1e9;
+    for (const d of doors) { const dd = along == null ? 0 : Math.abs(d.along - along); if (dd < bd) { bd = dd; best = d; } }
+    if (!best) return null;
+    const ax = best.x - best.nx * 1.9, az = best.z - best.nz * 1.9;
+    return { door: best, dist: bd, aboard: { x: ax, z: az, y: LEVELS[cfg.level].y + 0.15 }, yaw: Math.atan2(best.nx, best.nz), train: this._state[trackId].svc.id };
   }
   trackInfo(trackId) {
     const c = this.cfg[trackId]; if (!c) return null;

@@ -37,7 +37,7 @@ const INT_FREE_R = 125;   // ... and released again beyond this (bounded memory)
 const HALL_R = 110;       // halls (depachika, Takashimaya 1F)
 const FORCE_FRONT_R = 120;   // synchronous radii on teleport
 const FORCE_INT_R = 46;
-const BUDGET_MS = 8;
+const BUDGET_MS = 12;
 
 // one shared environment context (atlases, chunk batches) for shops + props
 export function envFor(ctx) {
@@ -74,7 +74,7 @@ function glyphText() {
   txt += 'らーめんうどん寿司とんかつカレー天丼お好み焼串かつ居酒屋焼肉洋食喫茶珈琲パン菓たこ薬みやげ本文具花ガチャ金券厨房自動ドア激安特価人気新数量限定円税込おつり返却食券つめた〜いあったか〜いお〜いお茶';
   txt += '醤油味玉チャーシュー麺つけ餃子ライス生ビールきつね肉釜玉いなり上海老野菜小そばみそ汁定食海老天きす舞茸ハイボールビーフカツチキントッピング大盛りにぎり並ちらし鉄火巻赤だしランチ握りロースヒレミックスフライ丼キャベツおかわり自由豚モダンねぎ焼きそば串どて土手盛合せだし巻き玉子枝豆唐揚げ日本酒特上カルビタン塩ホルモンセットビビンバオムライスハンバーグエビナポリタンシチューブレンドラテ抹茶チーズケーキ季節タルトサンドイッチモーニングクリームソーダ厚切りトーストジュースプリンハンドドリップエスプレッソ豆クロワッサンメロンあん詰め合わせお土産箱個明石';
   txt += '秋冬コレクション入荷セール最大医薬品化粧品毎日安いうるおい続く新登場マロン乾杯夜明けの境界線全国ロードショーいのち輝く未来へ大阪関西みらい高野山特急で北斎と浪華浮世絵市立美術館機種のりかえ還元ラーメン博なんばパークスハロウィンごくっと新幹線回数券高速バス切手営業時間開店';
-  txt += 'ペットボトル缶びん燃えるゴミカプセルトイ時間運行情報平常どおり南海電車御堂筋線千日前線ご利用ありがとうございます開催中ハロウィンフェア';
+  txt += 'ウォーク新作入荷激安特価人気限定開催中ペットボトル缶びん燃えるゴミカプセルトイ時間運行情報平常どおり南海電車御堂筋線千日前線ご利用ありがとうございます開催中ハロウィンフェア';
   return txt;
 }
 
@@ -321,7 +321,15 @@ export class Shops {
           if (u.kind === 'hall') { if (!u.built && d < HALL_R * HALL_R) cand.push([d, u, 0]); }
           else if (!u.frontBuilt && d < FRONT_R * FRONT_R) cand.push([d * 0.6, u, 0]);   // fronts first
         }
-        for (const rec of this.recs.values()) if (!rec.group && !rec.intBusy) { const d = this._recDist2(rec, cam); if (d < INT_R * INT_R) cand.push([d, rec, 1]); }
+        const fw = this._fw || (this._fw = new THREE.Vector3());
+        this.ctx.engine.camera.getWorldDirection(fw);
+        for (const rec of this.recs.values()) if (!rec.group && !rec.intBusy) {
+          const d = this._recDist2(rec, cam);
+          if (d >= INT_R * INT_R) continue;
+          // build what the player is walking towards first; things behind wait
+          const ahead = (rec.cx - cam.x) * fw.x + (rec.cz - cam.z) * fw.z;
+          cand.push([ahead < 0 && d > 144 ? d * 2.5 : d, rec, 1]);
+        }
         cand.sort((a, b) => a[0] - b[0]);
         for (const [, o, kind] of cand) { if (kind) this._buildInterior(o); else this._buildUnit(o); if (performance.now() - t0 > BUDGET_MS) break; }
       }

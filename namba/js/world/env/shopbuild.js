@@ -43,7 +43,7 @@ export function regions(env) {
     tanzaku(cat) { const it = (MENU[cat] || MENU.izakaya).concat(MENU.izakaya).slice(0, 10); return print.add(`tanz|${cat}`, 40 * it.length, 280, (g, w, h) => D.drawTanzaku(g, w, h, it)); },
     banner(lines, bg, fg) { return print.add(`banner|${lines.join('/')}|${bg}`, 384, 96, (g, w, h) => D.drawBanner(g, w, h, lines, bg, fg)); },
     vbanner(text, bg, fg) { return print.add(`vban|${text}|${bg}`, 64, 300, (g, w, h) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; D.vText(g, text, w / 2, h * 0.06, h * 0.94, w * 0.7, 900); }); },
-    poster(kind, portrait = true) { return print.add(`poster|${kind}|${portrait}`, portrait ? 200 : 352, portrait ? 300 : 198, (g, w, h) => D.drawAd(g, w, h, kind, 7)); },
+    poster(kind, portrait = true) { return print.add(`poster|${kind}|${portrait}`, portrait ? 128 : 224, portrait ? 192 : 126, (g, w, h) => D.drawAd(g, w, h, kind, 7)); },
     ad(kind, seed, portrait = true) { return sign.add(`ad|${kind}|${portrait}`, portrait ? 200 : 352, portrait ? 300 : 198, (g, w, h) => D.drawAd(g, w, h, kind, seed)); },
     label(text, bg, fg, w = 256, h = 48, fam) { return print.add(`label|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800, fam); }); },
     litLabel(text, bg, fg, w = 256, h = 48) { return sign.add(`llabel|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800); }); },
@@ -55,26 +55,35 @@ export function regions(env) {
 // helpers
 // ----------------------------------------------------------------------------
 const FLOORS = {
-  wood: ['env_wood', [0.85, 0.66, 0.48]], tile: ['env_tile', [0.95, 0.95, 0.93]], dark: ['env_tile', [0.32, 0.3, 0.29]],
-  gloss: ['env_gloss', [0.93, 0.92, 0.9]], carpet: ['env_matte', [0.42, 0.12, 0.1]], carpetgrey: ['env_matte', [0.45, 0.46, 0.48]], concrete: ['env_matte', [0.55, 0.55, 0.53]],
+  wood: ['env_wood', [0.85, 0.66, 0.48]], tile: ['env_tile', [0.8, 0.8, 0.78]], dark: ['env_tile', [0.32, 0.3, 0.29]],
+  gloss: ['env_gloss', [0.74, 0.72, 0.7]], carpet: ['env_matte', [0.42, 0.12, 0.1]], carpetgrey: ['env_matte', [0.45, 0.46, 0.48]], concrete: ['env_matte', [0.55, 0.55, 0.53]],
 };
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
 function styleFor(S) {
   const c = CAT[S.b.cat] || CAT.fashion;
   const st = { ...c.styles[Math.floor(S.r() * c.styles.length)] };
   if (['ramen', 'udon', 'tendon', 'tempura', 'curry', 'sushi', 'tonkatsu', 'okonomiyaki', 'kushikatsu', 'izakaya', 'yakiniku'].includes(S.b.cat)) st.emblem = (c.blade || '').slice(0, 1);
+  // bold fascias: a pale band becomes a saturated/dark brand wall with pale lettering (most shops)
+  const flip = S.r() < 0.78;
+  if (flip && st.mode !== 'wood' && lum(K(st.bg)) > 0.72) {
+    const fgDark = lum(K(st.fg)) < 0.2;
+    const bg = fgDark && lum(K(st.accent)) > 0.08 && lum(K(st.accent)) < 0.75 ? st.accent : st.fg;
+    st.fg = st.bg; st.bg = bg;
+  }
   return st;
 }
-// wall colour per group
+// wall colour per group: never pure white (Namba retail is saturated and cluttered)
+const WALLS = {
+  fashion: ['#d6c5b0', '#2d2f33', '#c4b2a0', '#e5cfc9', '#b9c4c9'], shoes: ['#33363a', '#b69a7a', '#c8b8a2'],
+  accessory: ['#e3b5bd', '#2a2227', '#d8b99a', '#c9a1a8'], cosme: ['#ecc9cf', '#e8dccd', '#2f2f35'],
+  drug: ['#f5e9a6', '#f0ece0', '#dce8f2'], conbini: ['#e9e6da'], books: ['#d8c7a8', '#cfc6b8'], zakka: ['#e2d3bd', '#c9d3c4'],
+  gacha: ['#2c2d5b'], service: ['#d6e1ec', '#e9e2d3'], florist: ['#cfe1cf'], sweets: ['#f6d9df', '#efe3cc', '#cfe2d3'],
+  takoyaki: ['#e7c9a0'], bakery: ['#ecd9b8', '#dcc7a0'], stand: ['#e5dcc8'], cafe: ['#efe6d6', '#dfe6dc', '#3d3a36', '#c9b79c'],
+  rtable: ['#e0cfb0', '#c9b08a'], rcounter: ['#e0cfb0', '#d8c3a0'], sushi: ['#e0cfb0'], kissa: ['#5a2a1e'],
+};
 function wallCol(S, c) {
-  const r = S.r;
-  switch (c.group) {
-    case 'fashion': case 'shoes': return [K('#f2f0eb'), K('#2b2b2b'), K('#e8e0d4'), K('#d9dfe3')][Math.floor(r() * 4)];
-    case 'rtable': case 'rcounter': case 'sushi': return K('#e9dcc6');
-    case 'kissa': return K('#5a2a1e');
-    case 'cafe': case 'stand': case 'bakery': return [K('#efe6d6'), K('#dfe6dc'), K('#3d3a36')][Math.floor(r() * 3)];
-    case 'cosme': case 'accessory': return K('#fbf8f6');
-    default: return K('#f4f4f2');
-  }
+  const list = WALLS[c.group] || ['#e6e4dc'];
+  return K(list[Math.floor(S.r() * list.length)]);
 }
 
 // ----------------------------------------------------------------------------
@@ -146,7 +155,9 @@ function finish(S, c) {
   if (c.group !== 'closed') P.qh(fm, 0.02, W - 0.02, 0.02, Dp - 0.02, 0.006, true, fc);
   // wall finishes (inside faces)
   const wc = S.wall, h = S.ceil - 0.02;
-  P.qd('env_matte', 0, W, 0, h, Dp - 0.015, -1, wc);
+  const brandC = K(S.st.bg);
+  const accentBack = !['rtable', 'rcounter', 'sushi', 'kissa', 'closed', 'cafe', 'stand'].includes(c.group) && lum(brandC) < 0.85;
+  P.qd('env_matte', 0, W, 0, h, Dp - 0.015, -1, accentBack ? mix(wc, brandC, 0.55) : wc);
   P.qa('env_matte', 0, Dp, 0, h, 0.015, 1, mix(wc, [0, 0, 0], 0.06));
   P.qa('env_matte', 0, Dp, 0, h, W - 0.015, -1, mix(wc, [0, 0, 0], 0.06));
   // wainscot (brand-tinted lower wall + rail) and a brand cove band under the ceiling
@@ -206,12 +217,22 @@ function front(S, c) {
   if (pil > 0) {
     P.box('env_matte', 0, pil, 0, dt, -0.05, 0.02, mix(bg, S.wall, 0.4));
     P.box('env_matte', W - pil, W, 0, dt, -0.05, 0.02, mix(bg, S.wall, 0.4));
+    // poster frame / light box on each pier (the wall between two shops is never bare)
+    const pk = POSTER_KINDS[c.group] || ['autumn', 'travel'];
+    for (const [p0, p1] of [[0, pil], [W - pil, W]]) {
+      const show = S.r() < 0.7, kind = pk[Math.floor(S.r() * pk.length)];
+      if (show && p1 - p0 >= 0.9 && dt > 2.2) {
+        const reg = R.poster(kind, true), pc = (p0 + p1) / 2;
+        P.box('env_metal', pc - 0.4, pc + 0.4, 0.82, 1.98, -0.075, -0.05, [0.35, 0.36, 0.38]);
+        P.tq(reg, pc - 0.37, pc + 0.37, 0.85, 1.95, -0.076, -1);
+      }
+    }
   }
   // name panel
   const reg = R.fascia(S.b, st);
-  const maxH = Math.min(0.5, bandTop - dt - 0.12);
+  const maxH = Math.min(0.62, bandTop - dt - 0.08);
   let sh = maxH, sw = sh * reg.w / reg.h;
-  const maxW = W - 0.7;
+  const maxW = W - 0.4;
   if (sw > maxW) { sw = maxW; sh = sw * reg.h / reg.w; }
   const a0 = (W - sw) / 2, y0 = dt + (bandTop - dt - sh) / 2;
   P.box(lit ? 'env_glow' : 'env_matte', a0 - 0.02, a0 + sw + 0.02, y0 - 0.02, y0 + sh + 0.02, -0.12, -0.066, lit ? bg.map(v => v * GLOW * 0.92) : mix(bg, [0, 0, 0], 0.2));
@@ -526,10 +547,46 @@ export function shelfRun(S, P, o) {
       const u0 = k * sl + 0.03, u1 = (k + 1) * sl - 0.03;
       boxF('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
       face(reg, u0, u1, y, y + ph, depth - 0.029);
+      if (!P.isNull) packs(S, P, { a, d, ra, rd, na, nd, kind, u0, u1, y, ph, depth, key: `${a.toFixed(1)}|${d.toFixed(1)}|${na}|${nd}|${lv}|${k}` }, L);
       if (rail) face(R.rail(lv + k), u0, u1, y - 0.045, y - 0.003, depth + 0.012);
     }
   }
   if (top) box('env_matte', 0, len, h, h + 0.03, 0, depth, frame);
+}
+
+// 3-D merchandise: little instanced-looking packs / bottles standing in front of the shelf print,
+// so shelves have depth and a silhouette. Deterministic per shelf cell (own rng: layout RNG untouched).
+const PACK = {
+  drug: ['#ffffff', '#2f7fd0', '#1fa75a', '#f06a9a', '#ffd400', '#e8372c'], cosme: ['#f4b6c6', '#d4af37', '#ffffff', '#c9446a', '#111111', '#8fd0c0'],
+  snack: ['#e60012', '#ffd400', '#f39800', '#1fa75a', '#0068b7', '#8a4b15'], drink: ['#0068b7', '#1fa75a', '#e60012', '#f39800', '#ffffff', '#6a3906'],
+  book: ['#1d3557', '#c0392b', '#e9c46a', '#2a9d8f', '#f2efe8', '#6a4c93', '#222222'], magazine: ['#e63946', '#ffd400', '#2a9d8f', '#f2efe8', '#1982c4', '#ff6392'],
+  stationery: ['#1982c4', '#ff595e', '#ffca3a', '#8ac926', '#ffffff', '#6a4c93'], souvenir: ['#c8102e', '#f2c14e', '#ffffff', '#1d2b4a', '#2d5a3d'],
+  folded: ['#e8dfd0', '#2b3a55', '#a3405a', '#c9b79c', '#556b4a', '#d9d9d9'], shoes: ['#f2f2f2', '#222222', '#c0392b', '#2b5aa8', '#c9a56a'],
+  gadget: ['#111111', '#ffffff', '#2b5aa8', '#c0c4c8'], zakka: ['#c9a56a', '#ffffff', '#6aa59a', '#d77a61', '#e8dfd0'], gacha: ['#e60012', '#0068b7', '#ffd400', '#1fa75a', '#ff6392'],
+  bread: ['#c98a3a', '#e8c070', '#8a5a2a'], onigiri: ['#ffffff', '#222222', '#e60012'], toys: ['#e60012', '#ffd400', '#0068b7', '#1fa75a'],
+};
+const BOTTLE = new Set(['drink', 'cosme']);
+function packs(S, P, o, L) {
+  const { kind, u0, u1, y, ph, depth, na, nd, key } = o;
+  const pal = (PACK[kind] || PACK.drug).map(h => rgb(h));
+  const pr = rng(hash(S.slot.id + '|' + key));
+  const front = na !== 0 ? (na > 0 ? 'e' : 'w') : (nd > 0 ? 's' : 'n');
+  const faces = front + 't';
+  const n0 = depth - 0.036, n1 = depth + 0.024;
+  let u = u0 + 0.02;
+  while (u < u1 - 0.08) {
+    const w = 0.07 + pr() * 0.08, h = ph * (0.5 + pr() * 0.45);
+    const uu1 = Math.min(u1 - 0.02, u + w);
+    const col = pal[Math.floor(pr() * pal.length)];
+    if (BOTTLE.has(kind) && pr() < 0.45) {
+      const c = L((u + uu1) / 2, (n0 + n1) / 2);
+      P.cyl('env_gloss', c.a, y, y + h * 0.9, c.d, Math.min(0.04, (uu1 - u) / 2), col, 'cyl6');
+    } else {
+      const p = L(u, n0), q = L(uu1, n1);
+      P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col, faces);
+    }
+    u = uu1 + 0.012;
+  }
 }
 
 // double-sided gondola centred on lateral a, from d0 to d1

@@ -15,12 +15,19 @@ import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/di
 import { businessBySlot } from '../../world/directory.js';
 import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js';
 import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js';
-import { routeLegs, simplify } from './routes.js';
-import { placeArt, reviewsFor } from './art.js';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js';
+import { hash } from '../../core/rng.js';
+import { placeArt, reviewsFor, popularTimes } from './art.js';
 
 const BASE_PPM = 4;          // cached base layer resolution (px per metre)
 const ZOOM_MIN = 0.45, ZOOM_MAX = 14;
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
+// Presentation-layer overrides for the hand-made quest places: how a maps
+// listing would really show a tiny standing bar (few reviews, Japanese name,
+// geocoded to the wrong side of the passage).
+const LISTING = {
+  coffee_great: { rating: 4.9, reviews: 38, jaOnly: true, fuzz: 22 },
+};
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 export const fmtDist = (m) => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`;
 
@@ -303,7 +310,7 @@ export class MapApp {
       o.x += (x0 + x1) / 2 * a; o.z += (z0 + z1) / 2 * a; o.a += a;
     }
     for (const zk in acc) { const o = acc[zk]; const Z = ZONES[zk]; if (Z && o.a > 300 && zk !== 'street') L.zones.push({ x: o.x / o.a, z: o.z / o.a, en: Z.name, ja: Z.ja, zone: zk }); }
-    for (const b of BUSINESSES) if (b.level === level) L.biz.push(b);
+    for (const b of BUSINESSES) if (b.level === level) L.biz.push(this._view(b));
     for (const r of LAYOUT.ramps) if (r.lower === level || r.upper === level) L.ramps.push(r);
     for (const ex of LAYOUT.exits) {
       const info = EXIT_INFO[ex.id]; if (!info) continue;
@@ -390,22 +397,22 @@ export class MapApp {
     }
     // businesses
     const showNames = k >= 2.3, showIcons = k >= 1.15;
-    const sorted = L.biz.slice().sort((a, b) => (b.key ? 2 : 0) + b.rating / 5 - ((a.key ? 2 : 0) + a.rating / 5));
+    const sorted = L.biz.slice().sort((a, b) => Math.log10(b.reviews + 10) - Math.log10(a.reviews + 10));
     for (const b of sorted) {
-      if (!showIcons && !b.key) continue;
-      const [sx, sy] = this.toScreen(b.x, b.z);
+      if (!showIcons) continue;
+      const [sx, sy] = this.toScreen(b.px, b.pz);
       if (!inView(sx, sy)) continue;
       const grp = catGroup(b.cat);
       const col = { food: '#f08a3c', cafe: '#b8713a', retail: '#8b6fd1', service: '#3a8bd1', closed: '#9b9b9b' }[grp];
-      const sel = this.selected && this.selected.b === b;
+      const sel = this.selected && this.selected.b && this.selected.b.slot === b.slot;
       if (!free(sx - 9, sy - 9, 18, 18) && !sel) continue;
       g.fillStyle = col; g.beginPath(); g.arc(sx, sy, sel ? 11 : 8.5, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
       g.font = `${sel ? 12 : 10}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; g.textAlign = 'center'; g.fillText(b.info.icon, sx, sy + 1);
       this._hits.push({ x: sx, y: sy, place: this._bizPlace(b) });
-      if (showNames || b.key && k > 1.5) {
+      if (showNames) {
         const name = k > 4.5 ? `${b.en}` : b.en;
-        g.font = `${b.key ? 600 : 500} 11px Inter, "Noto Sans JP", sans-serif`;
+        g.font = `500 11px Inter, "Noto Sans JP", sans-serif`;
         const w = g.measureText(name).width;
         if (free(sx + 11, sy - 7, w + 4, 14)) {
           g.textAlign = 'left'; g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText(name, sx + 12, sy);
@@ -507,8 +514,35 @@ export class MapApp {
   }
 
   // ------------------------------------------------------------ search ----
+  // What the maps app *lists* is not what the directory knows: tiny places have
+  // few reviews and a Japanese-only name; many small underground shops are
+  // pinned some metres off (the listing was geocoded from a street address).
+  _view(b) {
+    const c = this._views || (this._views = new Map());
+    let v = c.get(b.slot); if (v) return v;
+    v = { ...b, raw: b };
+    const ov = LISTING[b.key];
+    if (ov) Object.assign(v, ov);
+    if (ov && ov.jaOnly) { v.en = b.ja; v.ja = ''; }
+    // pin position: the shop door, or a geocoding error for small underground places
+    let px = b.door ? b.door.ox : b.x, pz = b.door ? b.door.oz : b.z;
+    const h = hash('pin:' + b.slot) % 100;
+    const fuzz = ov ? ov.fuzz : (b.level === 'B1' || b.level === 'B2') && h < 30 ? 9 + (h % 7) : 0;
+    if (fuzz && this.ctx.nav) {
+      const a0 = (hash('ang:' + b.slot) % 628) / 100;
+      for (let r = fuzz; r >= 5 && (px === (b.door ? b.door.ox : b.x)); r -= 2) for (let k = 0; k < 8; k++) {
+        const a = a0 + k * Math.PI / 4, tx = px + Math.cos(a) * r, tz = pz + Math.sin(a) * r;
+        const n = this.ctx.nav.nodeAtPoint(b.level, tx, tz);
+        if (n >= 0 && this.ctx.nav.nodeLevel(n) === b.level && Math.hypot(this.ctx.nav.x[n] - px, this.ctx.nav.z[n] - pz) > r * 0.6) { px = this.ctx.nav.x[n]; pz = this.ctx.nav.z[n]; break; }
+      }
+    }
+    v.px = px; v.pz = pz;
+    c.set(b.slot, v);
+    return v;
+  }
   _bizPlace(b) {
-    return { id: 'b:' + b.slot, kind: 'biz', b, en: b.en, ja: b.ja, level: b.level, x: b.door ? b.door.ox : b.x, z: b.door ? b.door.oz : b.z, sub: `${CATEGORIES[b.cat].en} · ${ZONES[b.zone] ? ZONES[b.zone].name : ''}` };
+    b = b.raw ? b : this._view(b);
+    return { id: 'b:' + b.slot, kind: 'biz', b, en: b.en, ja: b.ja, level: b.level, x: b.px, z: b.pz, sub: `${CATEGORIES[b.cat].en} · ${ZONES[b.zone] ? ZONES[b.zone].name : ''}` };
   }
   _facPlace(f) {
     const I = FACILITY_INFO[f.kind];
@@ -532,9 +566,10 @@ export class MapApp {
     if (/taxi|タクシー/.test(q)) for (const f of FACILITIES) if (f.kind === 'taxi') out.push(this._facPlace(f));
     const m = q.match(/(?:exit|出口)\s*(\d+)/) || (/^\d{1,2}$/.test(q) ? [q, q] : null);
     if (m || /^exit|出口/.test(q)) for (const ex of LAYOUT.exits) { const info = EXIT_INFO[ex.id]; if (info && (!m || info.no === m[1])) out.push(this._exitPlace(info.no)); }
-    const biz = searchBusinesses(q).filter(b => b.cat !== 'closed' || q.length > 4);
+    const biz = searchBusinesses(q).filter(b => b.cat !== 'closed' || q.length > 4).map(b => this._view(b));
     const mins = this.ctx.clock.minutes;
-    const sc = (b) => (isOpen(b, mins) ? 2 : 0) + b.rating - this._crow(b) / 500;
+    // like every maps app: open now, then popularity (reviews, rating), then (crow-flies) nearness
+    const sc = (b) => (isOpen(b, mins) ? 2 : 0) + Math.log10(b.reviews + 10) * 1.3 + b.rating * 0.45 - Math.hypot(b.px - this.pos.x, b.pz - this.pos.z) / 600;
     biz.sort((a, b) => sc(b) - sc(a));
     for (const b of biz.slice(0, 30)) out.push(this._bizPlace(b));
     return out;
@@ -653,6 +688,7 @@ export class MapApp {
         <div class="mp-pc-meta">${st}</div>${floorNote}
         <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button><button>⇪ Share</button></div>
         ${b.blurb ? `<p class="mp-blurb">${esc(b.blurb)}</p>` : ''}
+        ${this._popularHtml(b)}
         <div class="mp-hours">🕘 Hours <b>${hm(b.hours[0])} – ${hm(b.hours[1])}</b></div>
         <div class="mp-revs"><div class="mp-sh-h"><b>Reviews</b></div>${revs}</div></div>`;
     } else if (p.kind === 'transit') {
@@ -673,6 +709,13 @@ export class MapApp {
     const go = this.sheetIn.querySelector('.mp-go');
     if (go) go.addEventListener('click', () => this.startRoute(p));
     this.ctx.events.emit('phone:select', { id: p.id, kind: p.kind, slot: p.b && p.b.slot, key: p.b && p.b.key });
+  }
+  _popularHtml(b) {
+    if (b.cat === 'closed') return '';
+    const v = popularTimes(b), h = Math.floor(this.ctx.clock.minutes / 60);
+    const now = Math.max(0, Math.min(v.length - 1, h - 7));
+    const busy = v[now] > 0.75 ? 'Busier than usual' : v[now] > 0.5 ? 'Usually busy' : 'Usually not too busy';
+    return `<div class="mp-pop"><div class="mp-sh-h"><b>Popular times</b><small>${busy}</small></div><div class="mp-pop-b">${v.map((x, i) => `<i class="${i === now ? 'now' : ''}" style="height:${Math.round(6 + x * 34)}px"></i>`).join('')}</div><div class="mp-pop-l"><span>7a</span><span>10a</span><span>1p</span><span>4p</span><span>7p</span></div></div>`;
   }
   _departuresHtml(trackId) {
     const tr = this.ctx.transit;
@@ -697,7 +740,8 @@ export class MapApp {
     const nav = this.ctx.nav; if (!nav) return;
     const t = R.target, p = this.pos;
     const key = 'phone:' + t.id;
-    const f = nav.fieldToPoint(key, t.level, t.x, t.z);
+    // anything that is not a train/gate/platform must not route through the fare gates
+    const f = t.kind === 'transit' ? nav.fieldToPoint(key, t.level, t.x, t.z) : fieldNoEntry(nav, key, [nav.nodeAtPoint(t.level, t.x, t.z)]);
     // the route starts where the PHONE thinks you are, on the floor it thinks
     let v = nav.nodeAtPoint(p.level, p.x, p.z);
     if (v < 0 || !isFinite(f.dist[v])) {
@@ -732,7 +776,7 @@ export class MapApp {
       return;
     }
     const leg = R.leg, legs = R.legs;
-    const minutes = Math.max(1, Math.round(R.total / 1.3 / 60));
+    const minutes = Math.max(1, Math.round(R.total / 1.3 / 60 * (this.ctx.clock.scale || 1)));   // game minutes (the clock runs faster than feet)
     const eta = hm(this.ctx.clock.minutes + minutes);
     let step, sub = '';
     if (legs.length > 1 && leg.ramp >= 0) {
@@ -780,8 +824,8 @@ export class MapApp {
     R.recalc += dt;
     const p = this.pos, t = R.target;
     // arrived?
-    const real = this.ctx.player.body;
-    if (real.level === t.level && Math.hypot(real.x - t.x, real.z - t.z) < 7) {
+    // "arrived" is the phone's belief, not the truth: it can fire 10 m early or late
+    if (p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 7) {
       if (!R.arrived) { R.arrived = true; this.banner.hidden = false; this.banner.innerHTML = `<div class="mp-bn-ic">✓</div><div><b>You have arrived</b><small>${esc(t.en)}</small></div>`; this.ctx.events.emit('phone:arrive', { id: t.id }); }
       return;
     }

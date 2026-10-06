@@ -42,11 +42,11 @@ const G = 1.5;   // lit atlas multiplier (matches shops)
 const PROFILE = {
   metro_platform:   { dens: 0.55, kinds: { bench: 4, vend: 2, bin: 1 }, art: 0, free: 16 },
   metro_concourse:  { dens: 0.5, kinds: { vend: 4, bench: 1, atm: 1.2, plant: 0.6, gacha: 1, bin: 1 }, art: 0.6, free: 16 },
-  arcade:           { dens: 0.4, kinds: { vend: 3, bench: 1, plant: 1, gacha: 1.2, bin: 1 }, art: 0.7, free: 0 },
+  arcade:           { dens: 0.4, kinds: { vend: 3, bench: 1, plant: 1, gacha: 1.2, bin: 1 }, art: 0.7, free: 30 },
   arcade_court:     { dens: 0.5, kinds: { bench: 2, plant: 2, vend: 1, gacha: 1, bin: 1 }, art: 0.5, free: 0 },
-  passage:          { dens: 0.5, kinds: { vend: 3, bench: 1.5, plant: 1, gacha: 1.2, atm: 0.8, bin: 1 }, art: 0.7, free: 0 },
+  passage:          { dens: 0.5, kinds: { vend: 3, bench: 1.5, plant: 1, gacha: 1.2, atm: 0.8, bin: 1 }, art: 0.7, free: 30 },
   city_plaza:       { dens: 0.4, kinds: { bench: 2, plant: 2, vend: 1.5, bin: 1 }, art: 0.5, free: 16 },
-  city_mall:        { dens: 0.4, kinds: { vend: 2, bench: 1, plant: 1.5, bin: 1, atm: 0.6 }, art: 0.5, free: 34 },
+  city_mall:        { dens: 0.4, kinds: { vend: 2, bench: 1, plant: 1.5, bin: 1, atm: 0.6 }, art: 0.5, free: 28 },
   city_court:       { dens: 0.55, kinds: { bench: 2, plant: 2, vend: 1.5, gacha: 1, bin: 1 }, art: 0.6, free: 14 },
   dining_street:    { dens: 0.35, kinds: { vend: 2, bench: 1, plant: 1, bin: 1 }, art: 0.4, free: 0 },
   terminal_hall:    { dens: 0.55, kinds: { vend: 3, bench: 2, atm: 1.2, plant: 1, bin: 2, gacha: 0.6 }, art: 0.7, free: 12 },
@@ -95,6 +95,8 @@ export class Props {
     this._prepare();
     const guard = (name, fn) => { try { fn(); } catch (e) { console.error('[props]', name, e); ctx.errors.push(`props: ${name}: ${e.message}`); } };
     guard('fountain', () => this._fountain());
+    guard('display', () => this._plazaDisplay());
+    guard('flags', () => this._flags());
     guard('wall', () => this._wallFurniture());
     guard('free', () => this._freeStanding());
     guard('art', () => this._wallArt());
@@ -130,7 +132,7 @@ export class Props {
     for (const c of (A && A.columns) || []) add(this.cols, c.level, [c.x - c.hx - 0.7, c.z - c.hz - 0.7, c.x + c.hx + 0.7, c.z + c.hz + 0.7]);
     // shop frontage keep-out: 3 m out from every door
     for (const sl of LAYOUT.shopSlots) {
-      const [x0, z0, x1, z1] = sl.door, o = 3.2;
+      const [x0, z0, x1, z1] = sl.door, o = 2.3;
       const f = sl.front === 'n' ? [0, -o] : sl.front === 's' ? [0, o] : sl.front === 'w' ? [-o, 0] : [o, 0];
       add(this.doors, sl.level, [Math.min(x0, x1, x0 + f[0], x1 + f[0]) - 0.3, Math.min(z0, z1, z0 + f[1], z1 + f[1]) - 0.3, Math.max(x0, x1, x0 + f[0], x1 + f[0]) + 0.3, Math.max(z0, z1, z0 + f[1], z1 + f[1]) + 0.3]);
     }
@@ -461,9 +463,46 @@ export class Props {
     this.jets = [];
     const y0 = LEVELS[lv].y + 1.82;
     const add = (x, z, y, h, ph) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.scale.set(1, h, 1); m.userData.ph = ph; m.userData.h = h; m.frustumCulled = true; grp.add(m); this.jets.push(m); };
-    add(cx, cz, y0, 1.35, 0);
-    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; add(cx + Math.cos(a) * (R - 0.45), cz + Math.sin(a) * (R - 0.45), LEVELS[lv].y + 0.45, 0.7 + (i % 2) * 0.25, i * 0.9); }
+    add(cx, cz, y0, 1.0, 0);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; add(cx + Math.cos(a) * (R - 0.45), cz + Math.sin(a) * (R - 0.45), LEVELS[lv].y + 0.45, 1.1 + (i % 2) * 0.4, i * 0.9); }
+    this._makeCrystal(lv, cx, cz, grp);
     this.ctx.engine.levelRoot(lv).add(grp);
+  }
+  // vertical hanging banners (縦バナー) down the centre of the shopping streets, every ~12 m
+  _flags() {
+    const STY = new Set(['arcade', 'city_mall', 'passage', 'dining_street', 'city_plaza']);
+    for (const sp of LAYOUT.spaces) {
+      if (sp.kind === 'room' || sp.outdoor || !sp.rect || !STY.has(sp.style) || sp.ceil < 3.0) continue;
+      const [x0, z0, x1, z1] = sp.rect, w = x1 - x0, h = z1 - z0, alongX = w >= h, long = alongX ? w : h, short = alongX ? h : w;
+      if (short < 5.5 || long < 14) continue;
+      const r = rng(hash('flag|' + sp.id));
+      const g = this.world.grids[sp.level];
+      for (let u = 6 + r() * 5; u < long - 4; u += 11 + r() * 3) {
+        const lat = short / 2 + (r() - 0.5) * 1.2;
+        const x = alongX ? x0 + u : x0 + lat, z = alongX ? z0 + lat : z0 + u;
+        const i = g.cellOf(x, z);
+        if (i < 0 || g.type[i] !== CELL.WALK || LAYOUT.spaces[g.space[i]].kind === 'room') continue;
+        this._push({ k: 'vflag', level: sp.level, x, z, rot: alongX ? Math.PI / 2 : 0, ceil: sp.ceil, seed: Math.floor(r() * 1e9) });
+      }
+    }
+  }
+  // Namba CITY north plaza: a seasonal (Halloween) pumpkin display under the coffer
+  _plazaDisplay() {
+    const poi = LAYOUT.pois.find(p => p.id === 'city_rocket');
+    if (!poi) return;
+    const lv = poi.level;
+    // nearest free spot to the landmark (the tactile route crosses the plaza itself)
+    let x = null, z = 0, best = 1e9;
+    for (let dx = -20; dx <= 20; dx += 1) for (let dz = -9; dz <= 9; dz += 1) {
+      const d = Math.hypot(dx, dz * 1.5);
+      if (d < best && this._rectFreeSimple(lv, poi.x + dx, poi.z + dz, 3.2, 3.2) && !this._nearPt(lv, poi.x + dx, poi.z + dz)) { best = d; x = poi.x + dx; z = poi.z + dz; }
+    }
+    if (x == null) return;
+    this._box(lv, x, z, 2.1, 2.1);
+    const g = this.world.grids[lv];
+    for (let dz = -3.5; dz <= 3.5; dz += 1) for (let dx = -3.5; dx <= 3.5; dx += 1) { const i = g.cellOf(x + dx, z + dz); if (i >= 0) this.claim[lv][i] |= 3; }
+    this._push({ k: 'display', level: lv, x, z, rot: 0, seed: 11 });
+    this._addLight(lv, x, 3.0, z, [1, 0.7, 0.35], 1.2, 9, 'lamp');
   }
   _rectFreeSimple(lv, x, z, hx, hz) {
     for (let dx = -hx; dx <= hx + 0.01; dx += 0.5) for (let dz = -hz; dz <= hz + 0.01; dz += 0.5) {
@@ -591,6 +630,32 @@ export class Props {
       if (this.jets) this._animateJets(time, cam);
     }
   }
+  // faceted glass sculpture, lit from inside, slowly cycling hue (one shared material)
+  _makeCrystal(lv, cx, cz, grp) {
+    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, 1.6, 2.0), transparent: true, opacity: 0.8, depthWrite: false });
+    this.crystalMat = mat;
+    const y0 = LEVELS[lv].y + 1.85;
+    const hs = [3.3, 2.5, 2.2, 2.0, 1.7, 1.9, 1.5];
+    hs.forEach((h, i) => {
+      const geo = new THREE.CylinderGeometry(0.03, 0.2 + (i % 3) * 0.04, h * 0.5, 6, 1); geo.translate(0, h * 0.25, 0);
+      const m = new THREE.Mesh(geo, mat);
+      const a = i === 0 ? 0 : (i - 1) / 6 * Math.PI * 2;
+      const rr = i === 0 ? 0 : 0.5;
+      m.position.set(cx + Math.cos(a) * rr, y0 + (i === 0 ? 0 : 0.0), cz + Math.sin(a) * rr);
+      m.rotation.z = i === 0 ? 0 : 0.16 * Math.cos(a); m.rotation.x = i === 0 ? 0 : 0.16 * Math.sin(a);
+      grp.add(m);
+    });
+    // splash rings at the water surface
+    this.rings = [];
+    const rg = new THREE.RingGeometry(0.2, 0.28, 16); rg.rotateX(-Math.PI / 2);
+    for (let i = 0; i < 8; i++) {
+      const rm = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.8, 2.0), transparent: true, opacity: 0.5, depthWrite: false });
+      const a = i / 8 * Math.PI * 2, rr2 = this.fountain.r - 0.45;
+      const m = new THREE.Mesh(rg, rm);
+      m.position.set(cx + Math.cos(a) * rr2, LEVELS[lv].y + 0.47, cz + Math.sin(a) * rr2); m.userData.ph = i * 0.8;
+      grp.add(m); this.rings.push(m);
+    }
+  }
   _animateJets(time, cam) {
     const f = this.fountain; if (!f) return;
     const near = Math.hypot(cam.x - f.x, cam.z - f.z) < 40 && Math.abs(cam.y - LEVELS[f.level].y) < 6;
@@ -600,6 +665,8 @@ export class Props {
       const k = 0.8 + 0.2 * Math.sin(time * 2.1 + jt.userData.ph);
       jt.scale.set(1, jt.userData.h * k, 1);
     }
+    if (near && this.crystalMat) this.crystalMat.color.setHSL((time * 0.03) % 1, 0.7, 0.62).multiplyScalar(2.0);
+    if (near && this.rings) for (const rg of this.rings) { const t = (time * 0.9 + rg.userData.ph) % 1; rg.scale.setScalar(1 + t * 2.2); rg.material.opacity = 0.5 * (1 - t); }
   }
 }
 
@@ -787,6 +854,35 @@ const BUILD = {
     P.tq(reg, -w / 2 + 0.02, w / 2 - 0.02, it.yc - h / 2 + 0.02, it.yc + h / 2 - 0.02, -0.012, -1);
   },
   fountain(S, P, R, it) { buildFountain(S, P, R, it); },
+  vflag(S, P, R, it) {
+    const r = rng(it.seed);
+    const TXT = ['秋の味覚フェア', 'セール開催中', '激安特価', 'ハロウィン', '数量限定', 'なんばウォーク', '人気'];
+    const COL = [['#c8102e', '#ffffff'], ['#1d2b4a', '#ffe08a'], ['#f39800', '#ffffff'], ['#2a0a3a', '#ff9a1f'], ['#00703c', '#ffffff'], ['#ffd400', '#c8102e']];
+    const c = COL[Math.floor(r() * COL.length)];
+    const reg = R.vbanner(TXT[Math.floor(r() * TXT.length)], c[0], c[1]);
+    const y1 = it.ceil - 0.16, y0 = y1 - 1.0, hw = 0.24;
+    P.box('env_metal', -hw - 0.03, hw + 0.03, y1, y1 + 0.03, -0.02, 0.02, [0.4, 0.4, 0.42]);
+    P.box('env_metal', -0.005, 0.005, y1, it.ceil, -0.005, 0.005, [0.4, 0.4, 0.42]);
+    P.tq(reg, -hw, hw, y0, y1, -0.006, -1);
+    P.qd(reg.atlas.mat(reg), -hw, hw, y0, y1, 0.006, 1, [0.85, 0.85, 0.85], reg.atlas.uv(reg));
+  },
+  display(S, P, R, it) {
+    const r = rng(it.seed);
+    P.box('env_wood', -2.1, 2.1, 0, 0.3, -2.1, 2.1, [0.25, 0.17, 0.11]);
+    P.box('env_matte', -2.0, 2.0, 0.3, 0.34, -2.0, 2.0, [0.1, 0.07, 0.1]);
+    for (let i = 0; i < 16; i++) {
+      const a = (r() - 0.5) * 3.4, d = (r() - 0.5) * 3.4, sz = 0.22 + r() * 0.38;
+      const col = r() < 0.75 ? [1.0, 0.45 + r() * 0.15, 0.05] : [0.95, 0.9, 0.7];
+      P.geo('env_gloss', 'blob', a, 0.34 + sz * 0.7, d, r() * 6, [sz, sz * 0.8, sz], col);
+      P.geo('env_matte', 'cyl6', a, 0.34 + sz * 1.45, d, 0, [0.03, 0.12, 0.03], [0.2, 0.35, 0.12]);
+      if (r() < 0.6) P.qd('env_glow', a - sz * 0.35, a + sz * 0.35, 0.34 + sz * 0.5, 0.34 + sz * 0.95, d - sz * 0.9, -1, [2.6, 1.6, 0.3]);   // lit jack-o'-lantern face
+    }
+    // backdrop panel with the fair title, on two posts
+    for (const a of [-1.9, 1.9]) P.box('env_metal', a - 0.04, a + 0.04, 0.34, 3.0, 1.8, 1.9, [0.12, 0.12, 0.14]);
+    P.box('env_matte', -2.1, 2.1, 2.1, 3.0, 1.85, 1.93, [0.12, 0.05, 0.2]);
+    P.tq(R.litLabel('なんばCITY ハロウィンフェア  HALLOWEEN FAIR', '#2a0a3a', '#ff9a1f', 512, 72), -2.0, 2.0, 2.2, 2.2 + 4.0 * 72 / 512 * 1.0, 1.84, -1);
+    for (let k = 0; k < 10; k++) P.geo('env_matte', 'blob', -2.0 + k * 0.44, 3.35 + (k % 2) * 0.1, -2.0 + (k % 3) * 1.4, k, [0.1, 0.03, 0.18], [0.05, 0.02, 0.07]);
+  },
 };
 
 // crop a landscape screen to its centre portrait strip so totems look right

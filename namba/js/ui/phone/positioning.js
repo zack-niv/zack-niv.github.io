@@ -45,11 +45,11 @@ export class Positioning {
     const outdoor = sp && sp.outdoor;
     const lv = body.level;
     if (outdoor) return { env: 'outdoor', sigma: 2.2, bias: 4, fix: 0.3, sig: 4 };
-    if (sp && (sp.zone === 'parks' || sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 5.5, bias: 9, fix: 0.6, sig: 4 };
-    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 7.5, bias: 14, fix: 0.8, sig: 3 };
-    if (lv === '1F') return { env: 'ground', sigma: 9, bias: 16, fix: 0.9, sig: 3 };
-    if (lv === 'B1') return { env: 'under', sigma: 16, bias: 26, fix: 1.4, sig: 2 };
-    if (lv === 'B2') return { env: 'deep', sigma: 23, bias: 34, fix: 2.2, sig: 0 };
+    if (sp && (sp.zone === 'parks' || sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 4.5, bias: 9, fix: 0.6, sig: 4 };
+    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 5.5, bias: 14, fix: 0.8, sig: 3 };
+    if (lv === '1F') return { env: 'ground', sigma: 6, bias: 16, fix: 0.9, sig: 3 };
+    if (lv === 'B1') return { env: 'under', sigma: 8, bias: 26, fix: 1.4, sig: 2 };
+    if (lv === 'B2') return { env: 'deep', sigma: 11, bias: 34, fix: 2.2, sig: 0 };
     return { env: 'indoor', sigma: 8, bias: 12, fix: 0.8, sig: 3 };
   }
 

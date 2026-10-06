@@ -248,3 +248,11 @@
 @media (max-height: 520px) { .ph-wrap.open { transform: translate(calc(-50% + var(--sx)), calc(20% + var(--sy))) scale(var(--s)); } }
 @media (prefers-reduced-motion: reduce) { .ph-wrap, .ph-view { transition: none; } }
 #phone-root [hidden] { display: none !important; }
+
+/* popular times */
+.mp-pop { margin: 10px 0 4px; }
+.mp-pop .mp-sh-h small { color: #6b6f76; font-size: 11px; font-weight: 500; margin-left: 8px; }
+.mp-pop-b { display: flex; align-items: flex-end; gap: 3px; height: 42px; padding: 2px 2px 0; border-bottom: 1px solid #e3e5e8; }
+.mp-pop-b i { flex: 1; background: #c9d6ee; border-radius: 3px 3px 0 0; }
+.mp-pop-b i.now { background: #3b7ddd; }
+.mp-pop-l { display: flex; justify-content: space-between; font-size: 9.5px; color: #8a8e95; padding: 2px 2px 0; }

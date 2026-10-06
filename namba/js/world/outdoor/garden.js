@@ -13,6 +13,7 @@ import { rng } from '../../core/rng.js';
 import { MeshAcc, lin, mulc } from './meshacc.js';
 import { Vegetation } from './vegetation.js';
 import { PALETTE } from './canyon.js';
+import { canyonFloor } from './canyonfloor.js';
 
 // Paths per terrace: polylines [x,z] + width. 'deck' areas are timber.
 export const GARDENS = {
@@ -294,6 +295,7 @@ export function buildGardens(ctx, parks) {
       if (depth > 4 && R.chance(0.08)) veg.add(R.pick(['olive', 'momiji', 'pine']), x, ysl, z, R.range(0.7, 1.0), R.range(0, 6));
     }
   }
+  try { canyonFloor(ctx, parks, veg); } catch (e) { console.error('[canyonFloor]', e); ctx.errors.push('canyonFloor: ' + e.message); }
   veg.build();
   const M = materials;
   const vc = (name, color, r, m) => { if (!M.factories.has(name)) M.define(name, () => new THREE.MeshStandardMaterial({ color, roughness: r, metalness: m, vertexColors: true })); return M.get(name); };

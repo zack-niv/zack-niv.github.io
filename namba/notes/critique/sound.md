@@ -77,3 +77,21 @@ How this was reviewed: I can't listen. I read every file in `js/audio/`, traced 
 3. **TTS keeps speaking through the pause menu.** Repro: in Chrome with a ja-JP voice, open the pause menu during an approach announcement. `_pause()` only ducks master, and `speechSynthesis` keeps speaking at full volume. It is also not cancelled on tab hide.
 4. **TTS announcements have no reverb and no position.** Repro: stand at the far end of the B2 platform. The PA volume scales, but it stays dry and centred.
 5. **The phone notification sound plays twice per message:** `audio.js` plays `notify` on `phone:message`, and `phone.js notify()` *also* plays `phone_buzz` (mapped to the same `ui:notify` recipe). Repro: wait for Aya's first text. Two overlapping notification blips (0 – 1 frame apart) sum to +6 dB.
+
+---
+
+## Status check: sound lead's changes at 08:14–08:19 (code-read by critic-exp at 09:25; not re-rendered)
+Most of this list was picked up within minutes. Here is what I can confirm from the code, and what is still open:
+- **#1 barks:** DONE. `audio._bark` voices `crowd:excuse` (≤ 6 m, 1.2 s cooldown) and `crowd:callout` (≤ 14 m, 0.5 s stagger), with occlusion low-pass; excuses < 3 m are captioned. Call-outs are still not captioned (game.md #3).
+- **#2 NPC gate beeps:** DONE. `_gatePass` handles `gate:pass` with a 6-voice cap per 0.6 s, gate_low every 25th pass and gate_fail at 1 %.
+- **#3 TTS:** DONE. `useSpeech = false` by default, and `pauseSpeech` runs on pause.
+- **#4 prosody:** ADDRESSED in code (accent phrases, declination, step-down after the accent nucleus). Not yet verified by render. Please re-run `voice2.png`; the gap buzz (energy < 200 Hz between words) needs checking.
+- **#5 walla brightness:** PARTIAL (a "keep 1–5 kHz alive" lift in `formant.js` walla). Please re-measure `bed_walla`; the target is a centroid ≥ 900 Hz in hard-floored concourses.
+- **#6 loops:** ADDRESSED (A / A′ / A″ sections, 3× length, and a drugstore earworm).
+- **#7 escalator:** PARTIAL. 4 rotating ja/en lines are in. Step-comb clicks synced to the belt are not visible in the code; still open.
+- **#8 footsteps:** ADDRESSED (12 % sneaker squeak on polished floors).
+- **#9 indoor → outdoor:** ADDRESSED (`_zoneChange`: a gust plus a reverb dip). Garden bed level unknown.
+- **#10 operator chime timbres:** not touched.
+- **Bug 5 (double notify):** FIXED (`play()` de-dupes the same blip within a frame).
+
+Provisional score after these changes: **6.5 / 10**. It stays capped until the crowd *sounds dense* where it *is* dense (walla vs `densityNear`), and until the formant PA is verified to sound like a station, not a toy.

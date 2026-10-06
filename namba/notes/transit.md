@@ -33,6 +33,7 @@ trains.js, env.js, gates.js, boards.js, textures.js). System name `transit` (bui
   (1–2 Koya line, 3–4 airport incl. rapi:t, 5–6 main line incl. 特急サザン, 7–8 locals/Semboku).
 * **Player's train**: rapi:t β on **nk_track_4**, arrived 10:41, doors open at 10:42 start,
   departs **11:00** (≈3 real minutes). (Wayfinding: rapi:t is tracks 3/4, not 7.)
+  The `anchor` service has `svc.anchor === true`.
 * Positions are a pure function of `ctx.clock.minutes` — clock jumps/pauses are safe.
 
 ## API (`ctx.transit`)
@@ -46,6 +47,13 @@ trains.js, env.js, gates.js, boards.js, textures.js). System name `transit` (bui
   the doors, normal points into the platform) while doors are open, else `null`.
 * `isBoardable(trackId, body?)` → bool; with a body, also requires the body within 2 m of the
   edge and aligned with a door (±dw/2+0.45 m).
+* `boardingSpot(trackId, body?)` → nearest open door while doors are open, else null:
+  `{ door:{x,z,level,nx,nz,car,door,along}, dist (m along the edge to `body`), aboard:{x,z,y}
+  (1.9 m inside the car), yaw (player yaw looking into the car), train (id) }`.
+* `onStart()` (system hook): at `game:start` the anchor rapi:t re-emits `train:arrive`
+  `{terminal:true, initial:true, start:true}` and a terminal `announce` (`start:true`, sound
+  `nankai_arrive`) so the arrival wave happens when play begins, not under the title card.
+  (The `initial:true` arrive at load, without `start`, only populates the platform.)
 * `trackInfo(trackId)` → `{ id, line, lineJa, lineEn, color, no, platform, level, dirJa, dirEn,
   axis, centre, edge, inward, stopFront, platformRange, psd, stopDoors:[{x,z,level,nx,nz,car,door}] }`.
 * `trackState(trackId)` → `{ state, svc, open, psdOpen, front, speed }` or null.
@@ -84,6 +92,9 @@ model in view regardless of train count (Nankai with 6 trains: 3–6 models ≈ 
 env/PSD/markings/gates batched per 48 m chunk + material; boards 1–2 calls each.
 
 ## Requests to other areas
+* **Wayfinding (phone `ui/phone/apps.js` row `nk_track_7` 'rapi:t', `places.js` trip track `nk_track_5`)**:
+  rapi:t uses tracks **nk_track_3/4** (4 for the 10:41 arrival). Use `transit.nextDepartures(id)`
+  `typeKey` ('rapitb'/'rapita') instead of hard-coding a track.
 * **Architecture**: please drop your rails at the track-rect centre (I draw rails at the real
   offset: train centre = platform edge ∓ 1.5 m). Keep ballast/back walls. If you build a vaulted
   ceiling spanning the track pits, tell me and I'll stop drawing the flat pit ceiling.
@@ -93,7 +104,13 @@ env/PSD/markings/gates batched per 48 m chunk + material; boards 1–2 calls eac
 * **Sound**: play from `announce.sound` + `textJa` (spatial at x,y,z) and train rumble from
   `ctx.transit.trains` (x,z,speed,state).
 
+## Env change (round 2)
+* Nankai shed ceiling over the track pits is now the light `arch_vault` finish with continuous
+  cool-white LED strips over each track (was dark metal), so the platforms read bright.
+
 ## Log
+* round 2: headways retuned (Midosuji 62–84 real s per track, Sennichimae 74–100), clearance
+  checked numerically; boardingSpot + onStart added; shed brightened.
 * v1: timetable + kinematics, 10 car models (Midosuji 30000-ish, Sennichimae 25, Nankai
   8300-ish commuter, 12000 Southern, 50000 rapi:t), PSDs, markings, tunnels/shed/viaduct,
   gates/booths/machines/fare charts, boards, events/API. Lightweight harness used for

@@ -260,7 +260,7 @@ export function buildDepachika(env, R, H = new Hall(env, 'taka_b1')) {
   // hanging banners over the main aisle (autumn fair)
   const P = H.painter(-16, -166);
   const ban = R.banner(['秋の味覚フェア', 'AUTUMN FOOD FAIR · B1 食料品'], '#7b2d0a', '#ffe9c0');
-  for (let z = Z0 + 8; z < Z1 - 6; z += 14) {
+  for (let z = Z0 + 6; z < Z1 - 4; z += 6) {
     P.tq(ban, -18.5, -13.5, 2.0, 2.6, z, -1);
     P.qd(ban.atlas.mat(ban), -18.5, -13.5, 2.0, 2.6, z + 0.005, 1, WHITE, ban.atlas.uv(ban));
     P.box('env_metal', -18.4, -18.38, 2.6, 3.0, z - 0.01, z + 0.01, [0.6, 0.6, 0.6]);
@@ -302,6 +302,7 @@ function island(H, R, x0, z0, x1, z1, V, r) {
       for (let x = s.ax[0] + 0.1; x < s.ax[1] - 0.5; x += 0.62) {
         const reg = R.food(V.foods[Math.floor(r() * V.foods.length)]);
         P.qh(reg.atlas.mat(reg), x, x + 0.55, zf - s.n[1] * 0.12 - 0.27, zf - s.n[1] * 0.12 + 0.27, 0.87, true, WHITE, reg.atlas.uv(reg));
+        if (((x * 7) | 0) % 2 === 0) foodItem({ R }, P, V.foods[Math.floor(r() * V.foods.length)], x + 0.27, 0.875, zf - s.n[1] * 0.12, 0.17);   // a real plated item every other tray
       }
       const rr = R.rail(Math.floor(r() * 6));
       P.tq(rr, s.ax[0] + 0.05, s.ax[1] - 0.05, 0.86, 0.91, zf - (s.n[1] < 0 ? 0.002 : -0.002), s.n[1] < 0 ? -1 : 1);
@@ -320,6 +321,7 @@ function island(H, R, x0, z0, x1, z1, V, r) {
       for (let z = s.az[0] + 0.1; z < s.az[1] - 0.4; z += 0.62) {
         const reg = R.food(V.foods[Math.floor(r() * V.foods.length)]);
         P.qh(reg.atlas.mat(reg), xf - s.n[0] * 0.12 - 0.27, xf - s.n[0] * 0.12 + 0.27, z, z + 0.55, 0.87, true, WHITE, reg.atlas.uv(reg));
+        if (((z * 7) | 0) % 2 === 0) foodItem({ R }, P, V.foods[Math.floor(r() * V.foods.length)], xf - s.n[0] * 0.12, 0.875, z + 0.27, 0.17);
       }
       H.spot('browse', xf + s.n[0] * 0.55, (s.az[0] + s.az[1]) / 2, -s.n[0], 0);
       H.spot('staff', xf - s.n[0] * 1.3, (s.az[0] + s.az[1]) / 2, s.n[0], 0, { outfit: { apron: V.col, cap: true } });
@@ -405,10 +407,10 @@ export function buildTaka1F(env, R, H = new Hall(env, 'taka_1f')) {
   const promenade = (x0, z0, x1, z1) => (x1 > -72 && x0 < -48 && z0 < -156) || (z1 > -164 && z0 < -154) || (x1 > -8 && x0 < 8 && z1 > -160);
   let bi = 0;
   const cw = 6, ch = 4;
-  for (let z = Z0 + 3; z + ch <= Z1 - 3; z += ch + 3.5) {
-    for (let x = X0 + 3; x + cw <= X1 - 3; x += cw + 3.5) {
+  for (let z = Z0 + 3; z + ch <= Z1 - 3; z += ch + 2.8) {
+    for (let x = X0 + 3; x + cw <= X1 - 3; x += cw + 2.8) {
       if (promenade(x, z, x + cw, z + ch)) continue;
-      if (!H.clear(x, z, x + cw, z + ch, 1)) continue;
+      if (!H.clear(x, z, x + cw, z + ch, 0.5, true)) continue;
       brandCounter(H, R, x, z, x + cw, z + ch, BRANDS[bi++ % BRANDS.length]);
     }
   }

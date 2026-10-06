@@ -11,6 +11,7 @@
 //                            scaled, sign: +x turns right, +y looks down
 //   input.jog / input.running   brisk walk (Shift, L3, touch stick past ring)
 //   input.slow                  browse walk (C toggles, Alt holds, LB)
+//   input.shuffle               fine shuffle (hold C for > 0.35 s): queues, counters
 //   input.down(code) / input.pressed(code)   raw keys (KeyboardEvent.code)
 //   input.action(name)          edge-triggered: 'interact' (E / A / touch),
 //                               'phone' (Q / Tab / Y / touch), 'menu' (Esc / Start)
@@ -61,7 +62,8 @@ export class Input {
     this.look = { x: 0, y: 0 };
     this.lookRad = { x: 0, y: 0 };
     this.move = { x: 0, y: 0 };
-    this.jog = false; this.slow = false;
+    this.jog = false; this.slow = false; this.shuffle = false;
+    this._cDown = 0;
     this._slowLatch = false;
     this.locked = false;
     this.enabled = true;
@@ -80,13 +82,17 @@ export class Input {
       this.device = 'kbm';
       this.keys.add(e.code); this._pressed.add(e.code);
       for (const a in ACTION_KEYS) if (ACTION_KEYS[a].includes(e.code)) this._actions.add(a);
-      if (e.code === 'KeyC' && this.settings.slowToggle) this._slowLatch = !this._slowLatch;
+      if (e.code === 'KeyC') { this._cDown = performance.now(); if (this.settings.slowToggle) this._slowLatch = !this._slowLatch; }
       // keep the page from scrolling / focus-hopping / opening menus while playing
       if (['Tab', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'AltLeft', 'AltRight'].includes(e.code)) e.preventDefault();
       if ((e.ctrlKey || e.metaKey) && this.locked && ['KeyW', 'KeyS', 'KeyD', 'KeyA'].includes(e.code)) e.preventDefault();
     });
-    addEventListener('keyup', e => { this.keys.delete(e.code); if (e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault(); });
-    addEventListener('blur', () => { this.keys.clear(); });
+    addEventListener('keyup', e => {
+      // C held past a tap was a shuffle, not a browse toggle: undo the toggle
+      if (e.code === 'KeyC' && this._cDown && performance.now() - this._cDown > 350 && this.settings.slowToggle) this._slowLatch = !this._slowLatch;
+      if (e.code === 'KeyC') this._cDown = 0;
+      this.keys.delete(e.code); if (e.code === 'AltLeft' || e.code === 'AltRight') e.preventDefault(); });
+    addEventListener('blur', () => { this.keys.clear(); this._cDown = 0; });
     addEventListener('mousemove', e => {
       if (!this.locked || !this.enabled) return;
       const dx = e.movementX || 0, dy = e.movementY || 0;
@@ -144,7 +150,7 @@ export class Input {
     const dt = Math.min(0.1, Math.max(0, (now - this._lastT) / 1000)); this._lastT = now;
     if (this._script) {
       const s = this._script;
-      this.move.x = s.x; this.move.y = s.y; this.jog = !!s.jog; this.slow = !!s.slow;
+      this.move.x = s.x; this.move.y = s.y; this.jog = !!s.jog; this.slow = !!s.slow; this.shuffle = !!s.shuffle;
       return;
     }
     let x = 0, y = 0;
@@ -167,6 +173,7 @@ export class Input {
     if (pad) { jog = jog || pad.jog; slow = slow || pad.slow; }
     if (!this.enabled) { x = 0; y = 0; }
     this.move.x = x; this.move.y = y;
+    this.shuffle = !this._script && this.down('KeyC') && this._cDown > 0 && performance.now() - this._cDown > 350 && !jog;
     this.jog = jog;
     this.slow = slow && !jog;
     if (this.jog && this._slowLatch && (x || y)) this._slowLatch = false; // jogging cancels browse
@@ -203,10 +210,14 @@ export class Input {
     const [rx, ry] = dz(gp.axes[2] || 0, gp.axes[3] || 0, 0.12);
     const any = mx || my || rx || ry || B.some(Boolean);
     if (any) this.device = 'gamepad';
+    if (!rx && !ry) this._pad.fullT = 0;
     if (rx || ry) {
       // response curve (quadratic-ish) — analog sticks need one, mice don't
       const m = Math.hypot(rx, ry), c = Math.pow(m, 1.8) / m;
-      const rate = 2.8 * this.settings.padSensitivity; // rad/s at full tilt
+      // holding the stick fully over for a moment speeds the turn up (180° in a corridor shouldn't take 1.1 s)
+      this._pad.fullT = m > 0.92 ? (this._pad.fullT || 0) + dt : 0;
+      const ramp = 1 + Math.min(1, Math.max(0, (this._pad.fullT - 0.4) / 0.4));
+      const rate = 2.8 * this.settings.padSensitivity * ramp; // rad/s at full tilt
       this.lookRad.x += rx * c * rate * dt;
       this.lookRad.y += ry * c * rate * 0.75 * dt;
     }

@@ -29,13 +29,15 @@ import { rampAlong, stairSurfaceY, stairTread, rampSlope } from './stairs.js';
 
 // ---- tuning -------------------------------------------------------------------
 export const MOVE = {
-  walk: 1.5, jog: 3.2, slow: 0.8, phone: 0.85,         // m/s on the flat
+  walk: 1.5, jog: 3.2, slow: 0.8, shuffle: 0.35,       // m/s on the flat (shuffle = hold C: queues, counters)
+  phone: 1.15, phoneJog: 2.0,                          // eyes on the phone: ~25% slower, a hurry is still a hurry
   back: 0.68, strafe: 0.86,                            // direction scaling (ellipse)
   stairsUp: 0.47, stairsDown: 0.58,                    // horizontal factor on stair flights
   escWalk: 0.55,                                       // walking on a moving escalator (relative)
   // velocity spring: w = stiffness (1/s), a = max acceleration (m/s²)
   // j = max jerk (m/s³): how fast effort builds — the 'weight' at starts/stops
   accel: { w: 6.5, a: 2.6, j: 16 }, accelJog: { w: 5.2, a: 3.4, j: 16 }, brake: { w: 8.0, a: 4.2, j: 26 },
+  shuffle: { w: 12, a: 3.2, j: 40 },                   // precise approach / stop (≈0.15 s brake)
   turnCarry: 0.85,                                     // share of velocity that turns with the view
   radius: 0.28, eye: 1.62,
 };
@@ -66,6 +68,10 @@ export class Player {
     this._closing = false;
     this._camY = 0;                     // main.js teleport sets null → reset head
     this._bumpCd = 0;
+    this._t = 0;                        // own clock (s)
+    this._holdT = 0;                    // seconds forward is held while latched on an escalator
+    this._lastLand = null;              // { ramp, t } last ramp exit (re-capture hysteresis)
+    this._enterT = -9; this._strikeT = -9; this._pushBlockT = 0; this._passT = 0;
     this._lastYaw = 0;
     this.interactables = new InteractableSet();
     this.head = new HeadCam(this);
@@ -122,7 +128,7 @@ export class Player {
     // someone else zeroed our velocity (e.g. a ticket gate refusing us): drop momentum too
     if (this.vel.x === 0 && this.vel.y === 0 && (this._pvx || this._pvz)) this.acc.set(0, 0);
     dt = Math.min(dt, 0.1);
-    this._bumpCd -= dt;
+    this._bumpCd -= dt; this._t += dt;
     const S = input.settings || {};
     const b = this.body;
 
@@ -146,21 +152,29 @@ export class Player {
     const mv = this.frozen ? { x: 0, y: 0 } : input.move;
     let mx = mv.x, my = mv.y;
     const mag = Math.min(1, Math.hypot(mx, my));
-    const jog = !this.frozen && !!(input.jog || input.running) && !this.phoneOpen;
+    const jog = !this.frozen && !!(input.jog || input.running);
+    const shuffle = !this.frozen && !!input.shuffle && !jog;
     const slow = !this.frozen && !!input.slow;
     // escalator boarding latch: you step on and stand; release+press to walk
     if (onEsc) {
       if (this._standLatch) {
-        if (mag < 0.05) this._latchNeedsRelease = false;
-        else if (!this._latchNeedsRelease || jog) this._standLatch = false;
+        if (mag < 0.05) { this._latchNeedsRelease = false; this._holdT = 0; }
+        else {
+          // a fresh press, Shift, or simply holding forward for a moment steps you into the left lane
+          this._holdT += dt;
+          if (!this._latchNeedsRelease || jog || this._holdT > 1.2) this._standLatch = false;
+        }
       }
+      // wedged on the belt (someone ahead, a wall of people at the foot): drop the latch so W walks you off
+      this._stuckT = onEsc && this.speed < 0.08 && Math.abs(conv ? conv.x + conv.z : 1) > 0 ? (this._stuckT || 0) + dt : 0;
+      if (this._standLatch && this._stuckT > 1.0) this._standLatch = false;
       if (this._standLatch) { mx = 0; my = 0; }
     }
     const f = this.forward, r = this.right;
     let wx = f.x * my + r.x * mx, wz = f.z * my + r.z * mx;
     const wl = Math.hypot(wx, wz);
-    let top = jog ? MOVE.jog : slow ? MOVE.slow : MOVE.walk;
-    if (this.phoneOpen) top = Math.min(top, MOVE.phone);
+    let top = jog ? MOVE.jog : shuffle ? MOVE.shuffle : slow ? MOVE.slow : MOVE.walk;
+    if (this.phoneOpen) top = Math.min(top, jog ? MOVE.phoneJog : MOVE.phone);
     // ellipse: slower backwards and sideways
     if (wl > 1e-4) {
       const lx = mx / Math.max(1e-4, Math.hypot(mx, my)), ly = my / Math.max(1e-4, Math.hypot(mx, my));
@@ -201,7 +215,7 @@ export class Player {
 
     // ---- velocity spring ---------------------------------------------------------
     const tl = Math.hypot(tvx, tvz), vl = this.vel.length();
-    const P = tl < 1e-4 || tl < vl - 0.05 ? MOVE.brake : jog ? MOVE.accelJog : MOVE.accel;
+    const P = shuffle ? MOVE.shuffle : tl < 1e-4 || tl < vl - 0.05 ? MOVE.brake : jog ? MOVE.accelJog : MOVE.accel;
     const n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n;
     for (let i = 0; i < n; i++) {
       let jx = (P.w * P.w * (tvx - this.vel.x) - 2 * P.w * this.acc.x) * h;
@@ -240,7 +254,7 @@ export class Player {
     }
     // crowd soft collisions
     let px = 0, pz = 0;
-    const pushed = this._crowd(dt);
+    const pushed = this._crowd(dt, tvx, tvz);
     if (pushed) { px = pushed.x; pz = pushed.z; }
 
     const prevLevel = b.level, prevRamp = b.ramp;
@@ -279,15 +293,25 @@ export class Player {
       const nc = world.conveyor(b);
       if (conv) { this.vel.x += conv.x; this.vel.y += conv.z; }
       if (nc) { this.vel.x -= nc.x; this.vel.y -= nc.z; }
-      if (newRamp && newRamp.kind === 'escalator') {
-        this._standLatch = true; this._latchNeedsRelease = mag > 0.05;
+      // re-capture at a ramp mouth (crowd, a wall of people, dithering on the comb plate):
+      // no latch, kick or land event for entries/exits within a second of each other
+      const recap = !!(newRamp && this._lastLand && this._lastLand.ramp === newRamp && this._t - this._lastLand.t < 1.0);
+      const quick = !!(oldRamp && this._t - this._enterT < 1.0 && this._lastLand && this._lastLand.ramp === oldRamp);
+      if (newRamp) { if (!recap) this._enterT = this._t; else this._enterT = this._t - 0.5; }
+      if (newRamp && newRamp.kind === 'escalator' && !recap) {
+        this._standLatch = true; this._latchNeedsRelease = mag > 0.05; this._holdT = 0;
         this.head.kick(-0.05 * this._bobScale(), 0, 0, 0);
       }
       if (oldRamp) {
         const dir = b.level === oldRamp.upper ? 'up' : 'down';
         const kind = oldRamp.kind === 'escalator' ? 'escalator' : 'stairs';
-        this.head.kick((kind === 'escalator' ? -0.09 : dir === 'up' ? -0.07 : -0.1) * Math.max(0.35, this._bobScale()), 0, 0, 0);
-        events.emit('player:land', { kind, dir, ramp: oldRamp, level: b.level, surface: surfaceOf(this.ctx.world.spaceAt(b.level, b.x, b.z), null) });
+        // the last tread's lift already gave a bump: don't double it
+        const struck = this._t - this._strikeT < 0.25;
+        this._lastLand = { ramp: oldRamp, t: this._t };
+        if (!quick) {
+          if (!struck) this.head.kick((kind === 'escalator' ? -0.09 : dir === 'up' ? -0.07 : -0.1) * Math.max(0.35, this._bobScale()), 0, 0, 0);
+          events.emit('player:land', { kind, dir, ramp: oldRamp, level: b.level, surface: surfaceOf(this.ctx.world.spaceAt(b.level, b.x, b.z), null) });
+        }
       }
       events.emit('player:ramp', { ramp: newRamp, entering: !!newRamp, from: oldRamp });
     }
@@ -404,6 +428,7 @@ export class Player {
     }
     this.bobPhase = this.stepPhase * Math.PI;
     if (strike) {
+      this._strikeT = this._t;
       const loc = this.ctx.world.locate(b);
       const surface = surfaceOf(loc.space, loc.ramp);
       const intensity = Math.min(1.5, final ? 0.35 : 0.3 + v / MOVE.walk * 0.55 + (this.gait === 'stairs_down' ? 0.15 : 0));
@@ -418,54 +443,98 @@ export class Player {
   }
 
   // Soft collisions with crowd agents (guarded: crowd may not expose this).
-  _crowd(dt) {
+  // Your intent always wins at walking pace: people can slow you, bump you and
+  // you slip past them, but they never carry you sideways or across a ramp
+  // mouth. Push is capped (0.6 m/s along your intent, 0.15 m/s across it, 0.3 m/s
+  // when standing); nudges from people walking into you are small and
+  // only along the contact normal.
+  _crowd(dt, tvx, tvz) {
     const crowd = this.ctx.crowd;
     if (!crowd || typeof crowd.agentsNear !== 'function') return null;
     const b = this.body;
     let list;
     try { list = crowd.agentsNear(b.level, b.x, b.z, 1.4); } catch (e) { return null; }
-    if (!list || !list.length) return null;
-    let px = 0, pz = 0, hit = null, hitSp = 0;
+    if (!list || !list.length) { this._pushBlockT = 0; return null; }
+    const onRamp = b.ramp >= 0;
+    const tl = Math.hypot(tvx, tvz);
+    const ix = tl > 0.05 ? tvx / tl : 0, iz = tl > 0.05 ? tvz / tl : 0;   // intent direction
+    let px = 0, pz = 0, hit = null, hitSp = 0, blocked = false, bdx = 0, bdz = 0;
     for (const a of list) {
       if (!a || a === this) continue;
-      if (a.y != null && Math.abs(a.y - b.y) > 1.0) continue;   // e.g. on an escalator beside us
+      // on a ramp only people on it count; off it, people riding an escalator beside us don't
+      if (onRamp ? a.onRamp === false : (a.onRamp && a.y != null && Math.abs(a.y - b.y) > 0.5)) continue;
+      if (a.y != null && Math.abs(a.y - b.y) > 1.0) continue;
       const ar = a.radius != null ? a.radius : a.r != null ? a.r : 0.25;
       const dx = b.x - a.x, dz = b.z - a.z;
       const d = Math.hypot(dx, dz), R = this.radius + ar;
       if (d < 1e-5 || d > R + 0.5) continue;
       const nx = dx / d, nz = dz / d;
       const avx = a.vx || 0, avz = a.vz || 0;
-      const rel = (this.vel.x - avx) * -nx + (this.vel.y - avz) * -nz;   // closing speed
+      const own = -(this.vel.x * nx + this.vel.y * nz);               // our speed into them
+      const ahead = ix * -nx + iz * -nz;                               // 1 = they are straight ahead of our intent
+      if (own > 0.2 && ahead > 0.5 && d < R + 0.35) { blocked = true; bdx = -nx; bdz = -nz; }
       if (d >= R) {
         // personal space: ease off before contact (people don't walk into each other at full speed)
-        if (rel > 0) {
+        if (own > 0) {
           const k = Math.min(1, dt * 7 * (1 - (d - R) / 0.5));
-          this.vel.x += nx * rel * k; this.vel.y += nz * rel * k;
-          this._sidestep(nx, nz, rel * k * 0.6);
+          this.vel.x += nx * own * k; this.vel.y += nz * own * k;
+          if (tl > 0.05) this._sidestep(nx, nz, own * k * 0.6);
         }
         continue;
       }
       const ov = R - d;
-      // positional correction (soft: eased over a few frames)
+      // positional correction: soft, eased, and capped (applied below)
       const k = Math.min(1, dt * 14);
       px += nx * ov * k; pz += nz * ov * k;
-      // you can't walk through people: remove most of the closing velocity, damp the rest
-      if (rel > 0) { this.vel.x += nx * rel * 0.6; this.vel.y += nz * rel * 0.6; this.acc.multiplyScalar(0.5); this._sidestep(nx, nz, rel * 0.35); }
+      // you can't walk through people: remove most of your closing velocity, damp the rest
+      if (own > 0) { this.vel.x += nx * own * 0.6; this.vel.y += nz * own * 0.6; this.acc.multiplyScalar(0.5); if (tl > 0.05) this._sidestep(nx, nz, own * 0.35); }
+      // someone walking into you gives a small nudge along the contact normal
+      const theirs = (avx * -nx + avz * -nz);                          // their speed into us (≥0)
+      if (theirs > 0.3) { const nud = Math.min(0.35, theirs * 0.25); const cur = this.vel.x * nx + this.vel.y * nz; if (cur < nud) { this.vel.x += nx * (nud - cur) * Math.min(1, dt * 6); this.vel.y += nz * (nud - cur) * Math.min(1, dt * 6); } }
       this.vel.multiplyScalar(1 - Math.min(0.5, dt * 3));
+      const rel = own + theirs;
       if (rel > hitSp) { hitSp = rel; hit = { a, nx, nz }; }
     }
     if (hit && hitSp > 0.25 && this._bumpCd <= 0) {
       this._bumpCd = 0.6;
       const r = this.right;
       const side = hit.nx * r.x + hit.nz * r.z;
-      const s = Math.min(1, hitSp / 1.5);
-      this.head.kick(-0.06 * s, side * 0.25 * s, -side * 0.06 * s, -0.05 * s);
+      const s = Math.min(1, hitSp / 1.5) * this._bobScale();
+      this.head.kick(-0.06 * s, side * 0.25 * s, -side * 0.15 * s, -0.05 * s);
       this.ctx.events.emit('player:bump', { kind: 'person', agent: hit.a, speed: hitSp, x: this.body.x, z: this.body.z, level: this.body.level });
       if (typeof crowd.onPlayerBump === 'function') { try { crowd.onPlayerBump(hit.a, hitSp); } catch (e) { /* ignore */ } }
     }
-    const pl = Math.hypot(px, pz), maxP = 0.08;
-    if (pl > maxP) { px *= maxP / pl; pz *= maxP / pl; }
-    return pl > 0 ? { x: px, z: pz } : null;
+    // held forward into a cluster: ask people to make way (crowd.requestPass, optional)
+    if (blocked && this.speed < 0.3) this._pushBlockT += dt; else this._pushBlockT = Math.max(0, this._pushBlockT - dt * 2);
+    if (this._pushBlockT > 0.8 && this._t - this._passT > 0.5 && typeof crowd.requestPass === 'function') {
+      this._passT = this._t;
+      try { crowd.requestPass(b, { x: bdx, z: bdz }); } catch (e) { /* ignore */ }
+    }
+    // cap the push: ≤ 0.6 m/s along the intent axis, ≤ 0.15 m/s across it; ≤ 0.3 m/s if standing
+    let pl = Math.hypot(px, pz);
+    if (pl < 1e-9) return null;
+    if (tl > 0.05) {
+      const al = px * ix + pz * iz;
+      let lx = px - ix * al, lz = pz - iz * al;
+      const ll = Math.hypot(lx, lz), lm = 0.15 * dt;
+      if (ll > lm) { lx *= lm / ll; lz *= lm / ll; }
+      const am = 0.6 * dt, ac = Math.max(-am, Math.min(am, al));
+      px = ix * ac + lx; pz = iz * ac + lz;
+    } else {
+      const m = 0.3 * dt; if (pl > m) { px *= m / pl; pz *= m / pl; }
+    }
+    // never shove the body into a stair/escalator mouth it isn't walking into
+    if (!onRamp && this._inRampRect(b.level, b.x + px, b.z + pz) && !this._inRampRect(b.level, b.x, b.z)) return null;
+    return { x: px, z: pz };
+  }
+  _inRampRect(level, x, z) {
+    let list = (this._rampRects || (this._rampRects = {}))[level];
+    if (!list) {
+      list = this._rampRects[level] = [];
+      for (const r of LAYOUT.ramps) if (r.lower === level || r.upper === level) list.push(r.rect);
+    }
+    for (const r of list) if (x >= r[0] - 0.05 && x < r[2] + 0.05 && z >= r[1] - 0.05 && z < r[3] + 0.05) return true;
+    return false;
   }
 
   // collision segments (walls, rails, obstacles, ramp sides) within maxD of the body

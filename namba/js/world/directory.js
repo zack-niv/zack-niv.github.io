@@ -153,7 +153,7 @@ function hoursFor(cat, slot, r) {
     case 'cafe': return [450 + v(), 1290];
     case 'kissaten': return [480, 1260];
     case 'coffeestand': return [450, 1140];
-    case 'bakery': return [480, 1260];
+    case 'bakery': return [450, 1260];
     case 'conbini': return [420, 1380];
     case 'izakaya': return [1020, 1440];
     case 'kushikatsu': return [690, 1380];
@@ -161,7 +161,7 @@ function hoursFor(cat, slot, r) {
     case 'ramen': case 'udon': case 'curry': return [660, 1380];
     case 'okonomiyaki': case 'sushi': case 'tonkatsu': case 'omurice': case 'tendon': case 'tempura': return [660, 1320];
     case 'sweets': case 'takoyaki': return [600, 1260];
-    case 'drugstore': return [600, 1290];
+    case 'drugstore': return [540, 1290];
     case 'exchange': case 'ticket': return [600, 1200];
     case 'phone': return [660, 1200];
     case 'closed': return [0, 0];
