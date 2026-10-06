@@ -12,6 +12,7 @@
 //   ctx.shops.spots(slotId)      -> [{x,z,level,yaw,kind}] kind: browse|counter|queue|seat|staff
 //   ctx.shops.counter(slotId)    -> {x,z,level,yaw,kind:'counter'} service point (order here)
 //   ctx.shops.queuePoints(slotId)-> [{x,z,level,yaw}] first = at the door, then back along the line
+//   ctx.shops.seats(slotId)      -> [{x,z,level,yaw,sit:true}] real chairs/stools to sit on
 //   ctx.shops.hallSpots(spaceId) -> spots of 'taka_b1' (depachika) / 'taka_1f' (staff spots carry outfit hints)
 //   ctx.shops.isShuttered(slotId)-> true while the shutter is down (outside opening hours)
 //   ctx.shops.record(slotId)     -> { b, cx, cz, level, W, D, front }
@@ -30,8 +31,13 @@ import { buildShop, regions } from './env/shopbuild.js';
 import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js';
 
 const CHUNK = 32;
-const BUILD_R = 80;     // build geometry within this (weighted) distance
-const FORCE_R = 60;     // synchronous build radius on teleport
+const FRONT_R = 190;      // shopfronts (cheap: fascia, glazing, samples) are built out to here
+const INT_R = 62;         // interiors are built within this ...
+const INT_FREE_R = 125;   // ... and released again beyond this (bounded memory)
+const HALL_R = 110;       // halls (depachika, Takashimaya 1F)
+const FORCE_FRONT_R = 120;   // synchronous radii on teleport
+const FORCE_INT_R = 46;
+const BUDGET_MS = 8;
 
 // one shared environment context (atlases, chunk batches) for shops + props
 export function envFor(ctx) {
@@ -68,6 +74,7 @@ function glyphText() {
   txt += 'らーめんうどん寿司とんかつカレー天丼お好み焼串かつ居酒屋焼肉洋食喫茶珈琲パン菓たこ薬みやげ本文具花ガチャ金券厨房自動ドア激安特価人気新数量限定円税込おつり返却食券つめた〜いあったか〜いお〜いお茶';
   txt += '醤油味玉チャーシュー麺つけ餃子ライス生ビールきつね肉釜玉いなり上海老野菜小そばみそ汁定食海老天きす舞茸ハイボールビーフカツチキントッピング大盛りにぎり並ちらし鉄火巻赤だしランチ握りロースヒレミックスフライ丼キャベツおかわり自由豚モダンねぎ焼きそば串どて土手盛合せだし巻き玉子枝豆唐揚げ日本酒特上カルビタン塩ホルモンセットビビンバオムライスハンバーグエビナポリタンシチューブレンドラテ抹茶チーズケーキ季節タルトサンドイッチモーニングクリームソーダ厚切りトーストジュースプリンハンドドリップエスプレッソ豆クロワッサンメロンあん詰め合わせお土産箱個明石';
   txt += '秋冬コレクション入荷セール最大医薬品化粧品毎日安いうるおい続く新登場マロン乾杯夜明けの境界線全国ロードショーいのち輝く未来へ大阪関西みらい高野山特急で北斎と浪華浮世絵市立美術館機種のりかえ還元ラーメン博なんばパークスハロウィンごくっと新幹線回数券高速バス切手営業時間開店';
+  txt += 'ペットボトル缶びん燃えるゴミカプセルトイ時間運行情報平常どおり南海電車御堂筋線千日前線ご利用ありがとうございます開催中ハロウィンフェア';
   return txt;
 }
 
@@ -103,7 +110,7 @@ export class Shops {
         for (const l of S.lights) env.lights.push(l);
         const k = `${slot.level}|${Math.floor(S.cx / CHUNK)}|${Math.floor(S.cz / CHUNK)}`;
         let u = unitMap.get(k);
-        if (!u) unitMap.set(k, u = { kind: 'chunk', key: k, level: slot.level, x: (Math.floor(S.cx / CHUNK) + 0.5) * CHUNK, z: (Math.floor(S.cz / CHUNK) + 0.5) * CHUNK, y: S.y + 1.5, recs: [], built: false });
+        if (!u) unitMap.set(k, u = { kind: 'chunk', key: k, level: slot.level, x: (Math.floor(S.cx / CHUNK) + 0.5) * CHUNK, z: (Math.floor(S.cz / CHUNK) + 0.5) * CHUNK, y: S.y + 1.5, recs: [], built: false, frontBuilt: false });
         u.recs.push(rec);
       } catch (e) {
         console.error('[shops] slot', slot.id, e);
@@ -143,42 +150,55 @@ export class Shops {
   }
 
   // ---- lazy geometry ------------------------------------------------------------
-  _buildUnit(u) {
+  // Three kinds of work units:
+  //   chunk fronts   one merged batch per 32 m chunk (fascia, glazing, cases, noren ...)
+  //   shop interior  one small group per shop (furniture, merchandise); built near, released far
+  //   hall           depachika / Takashimaya 1F, built whole when close
+  _buildFront(u) {
+    if (u.frontBuilt) return;
+    u.frontBuilt = true;
+    const ctx = this.ctx, R = this.env.R;
+    const gb = new GeoBatch();
+    for (const rec of u.recs) {
+      const S = rec.S;
+      try { S.begin(gb, null); this._run(S, R); S.end(); }
+      catch (e) { S.replay = false; console.error('[shops] front', S.slot.id, e); ctx.errors.push(`shops: front ${S.slot.id}: ${e.message}`); }
+    }
+    const grp = new THREE.Group();
+    grp.name = 'shopfronts:' + u.key;
+    grp.userData.chunk = { level: u.level, x: u.x, z: u.z, r: CHUNK * 0.8 };
+    for (const m of gb.build(ctx.materials, { name: 'shopfront' })) { m.receiveShadow = false; grp.add(m); }
+    ctx.engine.levelRoot(u.level).add(grp);
+    u.group = grp;
+  }
+  _buildInterior(rec) {
+    if (rec.group || rec.intBusy) return;
+    const ctx = this.ctx, S = rec.S;
+    try {
+      const gb = new GeoBatch();
+      S.begin(null, gb); this._run(S, this.env.R); S.end();
+      const group = new THREE.Group();
+      group.name = 'shop:' + S.slot.id;
+      group.userData.chunk = { level: rec.level, x: S.cx, z: S.cz, r: Math.hypot(S.W, S.D) / 2 + 1 };
+      for (const m of gb.build(ctx.materials, { name: 'shop' })) { m.receiveShadow = false; group.add(m); }
+      group.visible = false;
+      ctx.engine.levelRoot(rec.level).add(group);
+      rec.group = group;
+    } catch (e) { S.replay = false; console.error('[shops] interior', S.slot.id, e); ctx.errors.push(`shops: interior ${S.slot.id}: ${e.message}`); rec.intBusy = true; }
+  }
+  _releaseInterior(rec) {
+    const g = rec.group; if (!g) return;
+    g.parent && g.parent.remove(g);
+    g.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+    rec.group = null;
+  }
+  _buildHall(u) {
     if (u.built) return;
     u.built = true;
-    const ctx = this.ctx, env = this.env, R = env.R;
-    try {
-      if (u.kind === 'hall') {
-        u.hall.begin();
-        u.fn(env, R, u.hall);
-        u.groups = u.hall.end();
-      } else {
-        const gb = new GeoBatch();
-        for (const rec of u.recs) {
-          const S = rec.S;
-          try {
-            S.begin(gb);
-            this._run(S, R);
-            S.end();
-            const group = new THREE.Group();
-            group.name = 'shop:' + S.slot.id;
-            group.userData.chunk = { level: rec.level, x: S.cx, z: S.cz, r: Math.hypot(S.W, S.D) / 2 + 1 };
-            for (const m of S.inner.gb.build(ctx.materials, { name: 'shop' })) { m.receiveShadow = false; group.add(m); }
-            group.visible = false;
-            ctx.engine.levelRoot(rec.level).add(group);
-            rec.group = group;
-            S.inner = null;
-          } catch (e) { S.replay = false; console.error('[shops] build', S.slot.id, e); ctx.errors.push(`shops: build ${S.slot.id}: ${e.message}`); }
-        }
-        const grp = new THREE.Group();
-        grp.name = 'shopfronts:' + u.key;
-        grp.userData.chunk = { level: u.level, x: u.x, z: u.z, r: CHUNK * 0.8 };
-        for (const m of gb.build(ctx.materials, { name: 'shopfront' })) { m.receiveShadow = false; grp.add(m); }
-        ctx.engine.levelRoot(u.level).add(grp);
-        u.group = grp;
-      }
-    } catch (e) { console.error('[shops] unit', u.key, e); ctx.errors.push(`shops: unit ${u.key}: ${e.message}`); }
+    try { u.hall.begin(); u.fn(this.env, this.env.R, u.hall); u.groups = u.hall.end(); }
+    catch (e) { console.error('[shops] hall', u.key, e); this.ctx.errors.push(`shops: hall ${u.key}: ${e.message}`); }
   }
+  _buildUnit(u) { if (u.kind === 'hall') this._buildHall(u); else this._buildFront(u); }
   _dist2(u, p) {
     let dx, dz;
     if (u.rect) { dx = Math.max(u.rect[0] - p.x, 0, p.x - u.rect[2]); dz = Math.max(u.rect[1] - p.z, 0, p.z - u.rect[3]); }
@@ -186,19 +206,28 @@ export class Shops {
     const dy = (u.y - p.y) * 3;
     return dx * dx + dz * dz + dy * dy;
   }
+  _recDist2(rec, p) { const dx = rec.cx - p.x, dz = rec.cz - p.z, dy = (rec.y - p.y) * 3; return dx * dx + dz * dz + dy * dy; }
   _forceNear() {
+    if (!this.env.fontsReady) { this._pendingForce = true; return; }
+    this._pendingForce = false;
     const p = this.ctx.engine.camera.position;
     const b = this.ctx.player && this.ctx.player.body;
     const pos = b ? { x: b.x, y: (b.y || 0) + 1.6, z: b.z } : p;
-    this.buildNear(null, pos.x, pos.z, FORCE_R, pos.y);
+    this.buildNear(null, pos.x, pos.z, FORCE_FRONT_R, pos.y, FORCE_INT_R);
   }
-  buildNear(level, x, z, r = FORCE_R, y) {
+  buildNear(level, x, z, r = FORCE_FRONT_R, y, ri = FORCE_INT_R) {
     const yy = y != null ? y : (level ? LEVELS[level].y + 1.6 : this.ctx.engine.camera.position.y);
     const p = { x, y: yy, z };
-    for (const u of this.units) if (!u.built && this._dist2(u, p) < r * r) this._buildUnit(u);
-    this.env.sign.touch(); this.env.print.touch();
+    for (const u of this.units) {
+      if (u.kind === 'hall') { if (!u.built && this._dist2(u, p) < HALL_R * HALL_R) this._buildHall(u); continue; }
+      if (!u.frontBuilt && this._dist2(u, p) < r * r) this._buildFront(u);
+    }
+    for (const rec of this.recs.values()) if (!rec.group && this._recDist2(rec, p) < ri * ri) this._buildInterior(rec);
   }
-  buildAll() { for (const u of this.units) this._buildUnit(u); }
+  buildAll() {
+    for (const u of this.units) this._buildUnit(u);
+    for (const rec of this.recs.values()) this._buildInterior(rec);
+  }
 
   // ---- shutters ---------------------------------------------------------------
   _buildShutters() {
@@ -279,15 +308,22 @@ export class Shops {
     if (!this._shutterReady && this.ctx.nav) this._applyShutters(this.ctx.clock.minutes, true);
     if (!this._spotsValid && this.ctx.nav) { this._validateSpots(); this._forceNear(); }
     const cam = this.ctx.engine.camera.position;
-    // lazy build queue: nearest unbuilt unit within BUILD_R, ~8 ms per frame
+    if (this._pendingForce && this.env.fontsReady) this._forceNear();
+    // lazy build queue: nearest work first, ~8 ms per frame
     this._q -= dt;
     if (this._q <= 0) {
-      this._q = 0.15;
+      this._q = 0.12;
       if (this.env.fontsReady) {
         const t0 = performance.now();
-        const cand = this.units.filter(u => !u.built).map(u => [this._dist2(u, cam), u]).filter(([d]) => d < BUILD_R * BUILD_R).sort((a, b) => a[0] - b[0]);
-        for (const [, u] of cand) { this._buildUnit(u); if (performance.now() - t0 > 8) break; }
-        if (cand.length) { this.env.sign.touch(); this.env.print.touch(); }
+        const cand = [];
+        for (const u of this.units) {
+          const d = this._dist2(u, cam);
+          if (u.kind === 'hall') { if (!u.built && d < HALL_R * HALL_R) cand.push([d, u, 0]); }
+          else if (!u.frontBuilt && d < FRONT_R * FRONT_R) cand.push([d * 0.6, u, 0]);   // fronts first
+        }
+        for (const rec of this.recs.values()) if (!rec.group && !rec.intBusy) { const d = this._recDist2(rec, cam); if (d < INT_R * INT_R) cand.push([d, rec, 1]); }
+        cand.sort((a, b) => a[0] - b[0]);
+        for (const [, o, kind] of cand) { if (kind) this._buildInterior(o); else this._buildUnit(o); if (performance.now() - t0 > BUDGET_MS) break; }
       }
     }
     // distance culling of interiors (every ~0.2 s)
@@ -299,7 +335,9 @@ export class Shops {
     for (const rec of this.recs.values()) {
       if (!rec.group) continue;
       const dx = rec.cx - cam.x, dy = (rec.y - cam.y) * 3, dz = rec.cz - cam.z;
-      const v = dx * dx + dy * dy + dz * dz < f2;
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > INT_FREE_R * INT_FREE_R) { this._releaseInterior(rec); continue; }
+      const v = d2 < f2;
       if (rec.group.visible !== v) rec.group.visible = v;
     }
   }
@@ -309,6 +347,7 @@ export class Shops {
   spots(id) { const r = this.recs.get(id); return r ? r.spots.slice() : []; }
   counter(id) { const r = this.recs.get(id); return r ? r.counter : null; }
   queuePoints(id) { const r = this.recs.get(id); return r ? r.queue.slice() : []; }
+  seats(id) { const r = this.recs.get(id); return r ? r.spots.filter(s => s.kind === 'seat').map(s => ({ x: s.x, z: s.z, level: s.level, yaw: s.yaw, sit: true })) : []; }
   hallSpots(spaceId) { const h = this.halls[spaceId]; return h ? h.spots.slice() : []; }
   isShuttered(id) { const r = this.recs.get(id); return !!(r && r.closedNow); }
 }

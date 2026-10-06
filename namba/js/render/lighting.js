@@ -275,7 +275,7 @@ export class Lighting {
           const si = g.spaceAt(ch.x + dx, ch.z + dz);
           if (si >= 0 && world.layout.spaces[si].outdoor) { out = true; break; }
         }
-        if (out) grp.traverse(o => { if (o.isMesh && !o.material.transparent) o.castShadow = true; });
+        if (out) { grp.userData.nbOutdoor = true; grp.traverse(o => { if (o.isMesh && !o.material.transparent) o.castShadow = true; }); }
       }
     }
   }

@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { rng } from '../../core/rng.js';
 import { MeshAcc, lin, mulc } from './meshacc.js';
-import { facadeMat, facadeQuad, facadeBox, FACADE_U } from './facade.js';
+import { facadeMat, facadeAcc, facadeQuad, facadeBox, FACADE_U } from './facade.js';
 import { PALETTE } from './canyon.js';
 import { strataFace } from './terraces.js';
 
@@ -29,7 +29,7 @@ export function buildMassing(ctx, ex) {
   const { materials } = ctx;
   const root = new THREE.Group(); root.name = 'massing';
   ex.root.add(root);
-  const office = new MeshAcc(), curtain = new MeshAcc(), stoneF = new MeshAcc(), apart = new MeshAcc(), grid = new MeshAcc();
+  const office = facadeAcc('office'), curtain = facadeAcc('curtain'), stoneF = facadeAcc('stone'), grid = facadeAcc('grid');
   const roof = new MeshAcc(), strata = new MeshAcc(), solid = new MeshAcc(), steel = new MeshAcc(), stoneCol = new MeshAcc();
   const R = rng(31337);
 

@@ -8,10 +8,12 @@
 // TIME: the schedule is in game minutes (what the boards show). Physical
 // motion (approach, braking, dwell, doors) happens in REAL seconds, because
 // the player walks in real time: with the clock at 6x, one game minute is
-// 10 real seconds. A real Midosuji train needs ~65 real seconds of platform
-// occupancy (approach+dwell+clear) so the game-minute headways are stretched
-// (8-12 game min = 80-120 real s per track). From the player's point of view
-// that is a train every ~45 s on the island platform: busy.
+// 10 real seconds. A train needs ~55-60 real seconds of platform occupancy
+// (approach+dwell+clear), so per-track headways are 6-8 game min (rush..midday)
+// on Midosuji (both directions together: a train every ~3-4 game min, i.e.
+// "every 3 min" at peak, ~6 at night) and 7.5-10 on Sennichimae (every 4-5
+// combined). The physical clearance between a departing and the following
+// train is checked by tools-free script in notes (>= 25 m).
 // =============================================================================
 import { rng, hash } from '../../core/rng.js';
 
@@ -180,7 +182,7 @@ export class Timetable {
     if (t.line === 'midosuji' || t.line === 'sennichimae') {
       const m = t.line === 'midosuji';
       // real-second headways (see header)
-      const hMid = m ? 112 : 150, hRush = m ? 80 : 118;
+      const hMid = m ? 84 : 100, hRush = m ? 62 : 74;
       let time = 5 * 60 + (t.no === 1 ? 3 : 7) + r() * 3;
       const end = 24 * 60 + 15;
       while (time < end) {
@@ -193,7 +195,7 @@ export class Timetable {
         out.push(this._svc(t, { type: m ? 'm_local' : 's_local', dest, formation: m ? 'm10' : 's4', arr: time, dep: time + this.g(dwell) }));
         let hw = (hMid + (hRush - hMid) * rush + r.range(-7, 7));
         if (h < 6.2 || h > 23) hw *= 1.5;
-        hw = Math.max(hw, dwell + 50);
+        hw = Math.max(hw, dwell + 34);
         time += this.g(hw);
       }
     } else if (t.line === 'nankai') {

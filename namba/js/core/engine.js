@@ -25,12 +25,33 @@ export const QUALITY = {
 };
 export const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 
+// Pick a starting tier from cheap device hints; the benchmark in
+// render/visibility steps further down if needed.
+function detectTier(canvas) {
+  if (matchMedia('(pointer: coarse)').matches) return 'low';
+  let name = '', gpu = '';
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+    gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
+    gl && gl.getExtension('WEBGL_lose_context') && gl.getExtension('WEBGL_lose_context').loseContext();
+  } catch (e) { /* fall through */ }
+  name = 'high';
+  const cores = navigator.hardwareConcurrency || 4, mem = navigator.deviceMemory || 8;
+  if (/swiftshader|llvmpipe|software|mali|adreno|powervr|videocore/i.test(gpu)) name = 'low';
+  else if (/intel/i.test(gpu) && !/\barc\b/i.test(gpu)) name = /hd graphics [2-5]\d\d\b/i.test(gpu) ? 'low' : 'medium';
+  else if (/apple/i.test(gpu) && cores <= 4) name = 'medium';
+  if (cores <= 2 || mem <= 2) name = 'low';
+  else if ((cores <= 4 || mem <= 4) && name === 'high') name = 'medium';
+  return name;
+}
+
 export class Engine {
   constructor(canvas) {
     this.canvas = canvas;
     let qName = params.quality;
     this.qualityForced = !!(qName && QUALITY[qName]);
-    if (!this.qualityForced) qName = matchMedia('(pointer: coarse)').matches ? 'low' : 'high';
+    if (!this.qualityForced) qName = detectTier(canvas);
     this.qualityName = QUALITY[qName] ? qName : 'high';
     this.quality = { ...QUALITY[this.qualityName] };
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: params.test });
@@ -63,6 +84,7 @@ export class Engine {
     this.onQuality = [];
     addEventListener('resize', () => this.resize());
     this.stats = { frame: 0, fps: 60, ms: 16, calls: 0, tris: 0, gpuMs: 0 };
+    this._initGpuTimer();
     this._sceneInfo = null;
   }
   levelRoot(level) { return this.levels[level]; }
@@ -97,10 +119,38 @@ export class Engine {
   }
   // the post pipeline reports the main scene pass (quad passes would hide it)
   sceneStats(info) { this._sceneInfo = { calls: info.calls, tris: info.triangles }; }
+  // GPU frame time via EXT_disjoint_timer_query_webgl2 (two queries in flight)
+  _initGpuTimer() {
+    this.gpuTimerOK = false; this._tq = [];
+    if (params.has('nogputimer')) return;
+    try {
+      const gl = this.renderer.getContext();
+      this._tExt = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+      this._gl = gl; this.gpuTimerOK = !!this._tExt;
+    } catch (e) { /* no timer */ }
+  }
+  _gpuBegin() {
+    if (!this.gpuTimerOK || this._tq.length >= 3) return false;
+    const gl = this._gl; const q = gl.createQuery();
+    gl.beginQuery(this._tExt.TIME_ELAPSED_EXT, q); this._tq.push(q);
+    return true;
+  }
+  _gpuEnd() { this._gl.endQuery(this._tExt.TIME_ELAPSED_EXT); }
+  _gpuPoll() {
+    const gl = this._gl, q = this._tq[0];
+    if (!q) return;
+    if (!gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)) return;
+    const bad = gl.getParameter(this._tExt.GPU_DISJOINT_EXT);
+    if (!bad) { const ms = gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6; this.stats.gpuMs += (ms - this.stats.gpuMs) * (this.stats.gpuMs ? 0.15 : 1); }
+    gl.deleteQuery(q); this._tq.shift();
+  }
   render(dt) {
     this._sceneInfo = null;
+    const timing = this.gpuTimerOK && this._gpuBegin();
     if (this.renderFn) this.renderFn(dt);
     else this.renderer.render(this.scene, this.camera);
+    if (timing) this._gpuEnd();
+    if (this.gpuTimerOK) this._gpuPoll();
     const info = this._sceneInfo || { calls: this.renderer.info.render.calls, tris: this.renderer.info.render.triangles };
     this.stats.calls = info.calls; this.stats.tris = info.tris;
   }

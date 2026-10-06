@@ -67,11 +67,13 @@ export class ShopCtx {
   }
   // Replay the build with real painters: every obstacle/clearance query
   // returns what the logic pass decided, so the result is identical.
-  begin(frontGB) {
+  // frontGB / innerGB may be null: that half is then not drawn (and, because
+  // atlas regions are lazy, costs no canvas work either).
+  begin(frontGB, innerGB) {
     this.replay = true; this.ri = 0;
     this.r = rng(hash('shop:' + this.slot.id));
-    this.front = new Painter(frontGB, this.f);
-    this.inner = new Painter(new GeoBatch(), this.f);
+    this.front = frontGB ? new Painter(frontGB, this.f) : new NullPainter(this.f);
+    this.inner = innerGB ? new Painter(innerGB, this.f) : new NullPainter(this.f);
     this._spots = this.spots; this._queue = this.queue; this._counter = this.counterPt; this._lights = this.lights;
     this.spots = []; this.queue = []; this.counterPt = null; this.lights = [];
     this.doorCells = this._doorCells0 !== undefined ? this._doorCells0 : this.doorCells;
@@ -238,6 +240,8 @@ export class ShopCtx {
     if (kind !== 'panel' && kind !== 'sign' && !this.b.key) return;
     if (this.lights.some(l => l.kind === kind) && !this.b.key) return;
     const w = this.world(a, d);
-    this.lights.push({ level: this.level, x: w.x, y: this.y + y, z: w.z, color, intensity, range, kind, shop: this.slot.id });
+    const l = { level: this.level, x: w.x, y: this.y + y, z: w.z, color, intensity, range, kind, shop: this.slot.id };
+    if (kind === 'sign') l.dir = [-this.f.s, 0, -this.f.c];   // faces the corridor (local -d)
+    this.lights.push(l);
   }
 }

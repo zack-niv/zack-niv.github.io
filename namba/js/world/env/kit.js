@@ -84,6 +84,7 @@ export function defineMaterials(materials) {
   materials.define('env_metal', vc({ roughness: 0.34, metalness: 0.75 }, 0.06));
   materials.define('env_wood', () => boosted(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, map: woodTexture() }), 0.12));
   materials.define('env_tile', () => boosted(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, map: tileTexture() }), 0.08));
+  materials.define('env_water', () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.04, metalness: 0.15, transparent: true, opacity: 0.88, emissive: 0x1a4a66, emissiveIntensity: 0.5 }));
   materials.define('env_glow', () => new THREE.MeshBasicMaterial({ vertexColors: true }));
   materials.define('env_glass', () => new THREE.MeshStandardMaterial({ color: 0xcfe4ea, roughness: 0.04, metalness: 0.2, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide }));
   materials.define('env_glass_case', () => new THREE.MeshStandardMaterial({ color: 0xe8f6ff, roughness: 0.03, metalness: 0.1, transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, emissive: 0x9fb8c0, emissiveIntensity: 0.15 }));
@@ -254,6 +255,7 @@ export class Painter {
 const NOGB = { quad() {}, box() {}, geometry() {}, rectH() {}, wall() {}, cylinder() {}, tri() {}, empty: true };
 export class NullPainter extends Painter {
   constructor(frame) { super(NOGB, frame); }
+  get isNull() { return true; }
   box() {} rbox() {} qd() {} qa() {} qh() {} tq() {} ta() {} th() {} tbox() {} geo() {} geoT() {} cyl() {}
 }
 // Stub atlas region returned during the logic pass (never drawn)

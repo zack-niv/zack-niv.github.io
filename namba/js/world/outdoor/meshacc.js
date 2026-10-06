@@ -3,7 +3,9 @@
 import * as THREE from 'three';
 
 export class MeshAcc {
-  constructor() { this.p = []; this.n = []; this.uv = []; this.c = []; this.idx = []; this.v = 0; }
+  constructor() { this.p = []; this.n = []; this.uv = []; this.c = []; this.idx = []; this.v = 0; this.k = null; this.kv = 0; }
+  // optional per-vertex scalar (shader 'aKind'): set acc.kv before adding faces
+  _k(n) { if (this.kv !== 0 && !this.k) { this.k = new Array(this.v).fill(0); } if (this.k) for (let i = 0; i < n; i++) this.k.push(this.kv); }
   // quad a,b,c,d counter-clockwise seen from the front. n: one normal or [na,nb,nc,nd]
   quad(a, b, c, d, n, uv, col) {
     const ns = Array.isArray(n[0]) ? n : [n, n, n, n];
@@ -17,6 +19,7 @@ export class MeshAcc {
       this.c.push(cs[i][0], cs[i][1], cs[i][2]);
     }
     const v = this.v;
+    this._k(4);
     this.idx.push(v, v + 1, v + 2, v, v + 2, v + 3);
     this.v += 4;
   }
@@ -33,6 +36,7 @@ export class MeshAcc {
     const uvs = uv || [[0, 0], [1, 0], [0, 1]];
     const ns = Array.isArray(n[0]) ? n : [n, n, n];
     for (const [i, p] of [a, b, c].entries()) { this.p.push(...p); this.n.push(...ns[i]); this.uv.push(...uvs[i]); this.c.push(...cs[i]); }
+    this._k(3);
     this.idx.push(this.v, this.v + 1, this.v + 2); this.v += 3;
   }
   // merge a THREE geometry with a matrix (and optional colour)
@@ -50,6 +54,7 @@ export class MeshAcc {
     }
     if (g.index) for (let i = 0; i < g.index.count; i++) this.idx.push(base + g.index.getX(i));
     else for (let i = 0; i < P.count; i++) this.idx.push(base + i);
+    this._k(P.count);
     this.v += P.count;
   }
   get empty() { return this.v === 0; }
@@ -59,6 +64,7 @@ export class MeshAcc {
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     if (withColor) g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
+    if (this.k) g.setAttribute('aKind', new THREE.Float32BufferAttribute(this.k, 1));
     g.setIndex(this.v > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1));
     g.computeBoundingSphere(); g.computeBoundingBox();
     return g;

@@ -189,6 +189,7 @@ export class Game {
         <nav class="p-nav">
           <button type="button" data-a="resume" class="sel">Resume <small>再開</small></button>
           <button type="button" data-a="goals">Today <small>今日の予定</small></button>
+          <button type="button" data-a="journal">Journal <small>日記</small></button>
           <button type="button" data-a="settings">Settings <small>設定</small></button>
           <button type="button" data-a="controls">Controls <small>操作</small></button>
           <button type="button" data-a="quit">Quit to title <small>タイトルへ</small></button>
@@ -202,6 +203,7 @@ export class Game {
       el.querySelectorAll('.p-nav button').forEach(b => b.classList.toggle('sel', b.dataset.a === a));
       body.innerHTML = '';
       if (a === 'settings') { body.insertAdjacentHTML('beforeend', '<h3>Settings <small>設定</small></h3>'); body.appendChild(buildSettingsPanel(this.ctx)); }
+      else if (a === 'journal') body.appendChild(this._journalView());
       else if (a === 'controls') { body.insertAdjacentHTML('beforeend', '<h3>Controls <small>操作</small></h3>'); body.appendChild(buildControlsCard()); }
       else body.appendChild(this._goalsView());
     };
@@ -221,6 +223,17 @@ export class Game {
     d.innerHTML = `<h3>Today <small>今日の予定</small></h3>
       <ul>${(qs.length ? qs : Object.values(this.quests)).map(q => `<li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li>`).join('')}</ul>
       <div class="p-stats"><span>${this.ctx.clock.hhmm}</span><span>${(this.journal.distance / 1000).toFixed(2)} km walked</span><span>ICOCA ${yen(this.ic.balance)}</span><span>${this.journal.found.size} places</span></div>`;
+    return d;
+  }
+  _journalView() {
+    const d = document.createElement('div');
+    d.className = 'p-journal';
+    const j = this.journal;
+    const places = j.places;
+    d.innerHTML = `<h3>Journal <small>日記</small></h3>
+      <div class="p-stats first"><span>${(j.distance / 1000).toFixed(2)} km walked</span><span>${j.floors.size} floors</span><span>${j.wrongTurns} wrong turn${j.wrongTurns === 1 ? '' : 's'}</span><span>${j.coffees} coffee${j.coffees === 1 ? '' : 's'}</span></div>
+      ${places.length ? `<ul class="p-places">${places.map(p => `<li><span class="p-pl-t">${esc(p.at)}</span><b>${esc(p.en)}</b><small>${esc(p.ja || '')}</small></li>`).join('')}</ul>` : '<p class="p-empty">Nothing yet. Go and get a little lost.</p>'}
+      ${j.meals.length ? `<div class="p-meals"><span>Eaten &amp; drunk</span> ${j.meals.map(esc).join(' · ')}</div>` : ''}`;
     return d;
   }
   pause() {

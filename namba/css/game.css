@@ -329,6 +329,15 @@
 .p-goals b { font: 600 17px/1.3 var(--g-sans); display: block; }
 .p-goals small { font: 400 12px/1.4 var(--g-ja); color: var(--g-faint); }
 .p-goals p { font: 400 13.5px/1.5 var(--g-sans); color: var(--g-dim); margin: 6px 0 0; font-style: italic; }
+.p-stats.first { margin-top: 0; padding-top: 0; border-top: 0; margin-bottom: 22px; }
+.p-places { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; max-height: 52vh; overflow: auto; }
+.p-places li { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--g-line); }
+.p-pl-t { font: 500 11.5px var(--g-sans); color: var(--g-faint); font-variant-numeric: tabular-nums; }
+.p-places b { font: 500 14.5px var(--g-sans); }
+.p-places small { font: 400 11.5px var(--g-ja); color: var(--g-faint); }
+.p-empty { font: italic 400 14px var(--g-sans); color: var(--g-dim); }
+.p-meals { margin-top: 20px; font: 400 13px/1.6 var(--g-sans); color: var(--g-dim); }
+.p-meals span { color: var(--g-accent); letter-spacing: .14em; text-transform: uppercase; font-size: 10px; margin-right: 8px; }
 .p-stats { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--g-line); font: 500 12px/1 var(--g-sans); color: var(--g-dim); font-variant-numeric: tabular-nums; }
 
 /* ---------- end card --------------------------------------------------------- */

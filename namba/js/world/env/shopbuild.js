@@ -399,6 +399,7 @@ export function ticketMachine(S, P, a, d0, reg) {
 }
 
 export function aFrame(P, reg, a, d) {
+  if (P.isNull) return;
   P.geo('env_wood', 'aframe', a, 0, d, 0, 1, [0.45, 0.3, 0.18]);
   const f = P.f, uv = reg.atlas.uv(reg), mat = reg.atlas.mat(reg);
   const o = (u, y, dd) => f.p(a + u, y, dd);

@@ -44,11 +44,20 @@ export class Atlas {
     this.pages.push(page);
     return page;
   }
-  // Allocate (or fetch cached) region of w×h pixels, drawn by draw(g, w, h).
-  // Shelf packing with best-fit height classes (few wasted pixels).
+  // Region of w×h pixels drawn by draw(g, w, h). LAZY: the returned object knows
+  // its size immediately; page/x/y/u0.. are accessors that pack + draw the
+  // region on first read. Painters that draw nothing (logic pass, front-only
+  // builds) therefore never cost any canvas work.
   add(key, w, h, draw) {
     if (key && this.cache.has(key)) return this.cache.get(key);
     w = Math.ceil(w); h = Math.ceil(h);
+    const r = { atlas: this, w, h, _res: null };
+    const res = () => r._res || (r._res = this._pack(w, h, draw, key));
+    for (const k of ['page', 'x', 'y', 'u0', 'u1', 'v0', 'v1']) Object.defineProperty(r, k, { enumerable: true, get: () => res()[k] });
+    if (key) this.cache.set(key, r);
+    return r;
+  }
+  _pack(w, h, draw, key) {
     let page = null, shelf = null;
     for (const pg of this.pages) {
       for (const sh of pg.shelves) if (sh.h >= h && sh.h <= h * 1.3 + 4 && sh.x + w + PAD <= this.size && (!shelf || sh.h < shelf.h)) { shelf = sh; page = pg; }
@@ -76,10 +85,8 @@ export class Atlas {
     } catch (e) { /* ignore */ }
     page.tex.needsUpdate = true;
     const S = this.size;
-    const r = { atlas: this, page: this.pages.indexOf(page), x, y, w, h,
+    return { page: this.pages.indexOf(page), x, y,
       u0: (x + 0.5) / S, u1: (x + w - 0.5) / S, v0: 1 - (y + h - 0.5) / S, v1: 1 - (y + 0.5) / S };
-    if (key) this.cache.set(key, r);
-    return r;
   }
   mat(r) { return this.pages[r.page].mat; }
   // quad uv list for GeoBatch.quad (a=bottom-left, b=bottom-right, c=top-right, d=top-left)

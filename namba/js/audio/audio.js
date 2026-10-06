@@ -149,6 +149,9 @@ export class Audio {
     // steps: preload the surface you're about to walk on
     if (L.stepSurface !== this._lastSurf) { this._lastSurf = L.stepSurface; this._prefetchSteps(L.stepSurface); }
     this.announcer.useSpeech = this.useSpeech;
+    // HRTF convolution is the costliest panner: only above 'low' quality (quality can change at runtime)
+    const q = this.ctx.engine && this.ctx.engine.qualityName;
+    if (q !== this._q) { this._q = q; this.mixer.hrtf = q !== 'low'; }
     try { this.ambience.update(dt, L); } catch (e) { this._err('ambience', e); }
     try { this.sources.update(dt, L); } catch (e) { this._err('sources', e); }
     try { this.trains.update(dt); } catch (e) { this._err('trains', e); }

@@ -7,42 +7,45 @@ import * as THREE from 'three';
 
 export const FACADE_U = { uNight: { value: 0 }, uSkyCol: { value: new THREE.Color(0.6, 0.7, 0.85) } };
 
-const KINDS = {
-  //            cell w, h     win x0, y0, y1      glassiness  lit prob
-  office:    { cell: [3.2, 3.8], win: [0.06, 0.22, 0.9], glass: 0.85, lit: 0.55, ribbon: 1 },
-  grid:      { cell: [2.6, 3.3], win: [0.18, 0.28, 0.82], glass: 0.6, lit: 0.45, ribbon: 0 },
-  curtain:   { cell: [1.6, 4.0], win: [0.03, 0.06, 0.97], glass: 1.0, lit: 0.5, ribbon: 0 },
-  apartment: { cell: [3.6, 2.95], win: [0.12, 0.3, 0.86], glass: 0.55, lit: 0.6, ribbon: 0, balcony: 1 },
-  stone:     { cell: [3.0, 4.4], win: [0.28, 0.25, 0.8], glass: 0.5, lit: 0.4, ribbon: 0 },
-};
+export const FKIND = { office: 0, grid: 1, curtain: 2, apartment: 3, stone: 4, shop: 5 };
+// A MeshAcc whose faces use facade kind `kind` (aKind vertex attribute: ONE shader program for every kind)
+import { MeshAcc } from './meshacc.js';
+export function facadeAcc(kind) { const a = new MeshAcc(); a.kv = FKIND[kind] || 0; a.k = []; return a; }
 
-export function facadeMat(ctx, kind = 'office') {
-  const M = ctx.materials, name = 'out_facade_' + kind;
+export function facadeMat(ctx /*, kind (ignored: kind is per-vertex) */) {
+  const M = ctx.materials, name = 'out_facade';
   if (!M.factories.has(name)) M.define(name, () => {
-    const K = KINDS[kind];
     const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, metalness: 0.0, vertexColors: true });
     m.userData.nbReflect = 0;
     m.onBeforeCompile = (s) => {
       s.uniforms.uNight = FACADE_U.uNight; s.uniforms.uSkyCol = FACADE_U.uSkyCol;
-      s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vFUv;\nvarying vec3 vFN;')
-        .replace('#include <uv_vertex>', '#include <uv_vertex>\nvFUv = uv;\nvFN = normalize(mat3(modelMatrix) * objectNormal);');
+      s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute float aKind;\nvarying float vFK;\nvarying vec2 vFUv;\nvarying vec3 vFN;')
+        .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvFUv = uv;\nvFK = aKind;\nvFN = normalize(mat3(modelMatrix) * objectNormal);');
       s.fragmentShader = s.fragmentShader.replace('#include <common>', `#include <common>
-        uniform float uNight; uniform vec3 uSkyCol; varying vec2 vFUv; varying vec3 vFN;
+        uniform float uNight; uniform vec3 uSkyCol; varying vec2 vFUv; varying vec3 vFN; varying float vFK;
         float fh(vec2 p) { p = fract(p * vec2(234.34, 435.345)); p += dot(p, p + 34.23); return fract(p.x * p.y); }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-          vec2 fcell = vec2(${K.cell[0].toFixed(2)}, ${K.cell[1].toFixed(2)});
+          // kind table: cell (w,h), window x0, y0, y1, glassiness, lit probability, ribbon, balcony
+          vec2 fcell = vec2(3.2, 3.8); vec3 fwin = vec3(0.06, 0.22, 0.9); float fglass = 0.85, flit = 0.55, fribbon = 1.0, fbalc = 0.0;
+          float fk = floor(vFK + 0.5);
+          if (fk == 1.0) { fcell = vec2(2.6, 3.3); fwin = vec3(0.18, 0.28, 0.82); fglass = 0.6; flit = 0.45; fribbon = 0.0; }
+          else if (fk == 2.0) { fcell = vec2(1.6, 4.0); fwin = vec3(0.03, 0.06, 0.97); fglass = 1.0; flit = 0.5; fribbon = 0.0; }
+          else if (fk == 3.0) { fcell = vec2(3.6, 2.95); fwin = vec3(0.12, 0.3, 0.86); fglass = 0.55; flit = 0.6; fribbon = 0.0; fbalc = 1.0; }
+          else if (fk == 4.0) { fcell = vec2(3.0, 4.4); fwin = vec3(0.28, 0.25, 0.8); fglass = 0.5; flit = 0.4; fribbon = 0.0; }
+          else if (fk == 5.0) { fcell = vec2(2.2, 3.4); fwin = vec3(0.14, 0.2, 0.84); fglass = 0.45; flit = 0.5; fribbon = 0.0; fbalc = 1.0; }
           vec2 fc = vFUv / fcell; vec2 fid = floor(fc); vec2 ff = fract(fc);
-          float wx = ${K.ribbon ? '1.0' : `step(${K.win[0].toFixed(2)}, ff.x) * step(ff.x, ${(1 - K.win[0]).toFixed(2)})`};
-          float wmask = wx * step(${K.win[1].toFixed(2)}, ff.y) * step(ff.y, ${K.win[2].toFixed(2)});
+          float wx = fribbon > 0.5 ? 1.0 : step(fwin.x, ff.x) * step(ff.x, 1.0 - fwin.x);
+          float wmask = wx * step(fwin.y, ff.y) * step(ff.y, fwin.z);
           wmask *= step(0.6, vFUv.y) * (1.0 - step(0.5, abs(vFN.y)));
           float fr = fh(fid + floor(vFUv.x / 37.0) * 7.0);
-          ${K.balcony ? 'float balc = step(0.0, ff.y) * step(ff.y, 0.12); diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.25 + 0.05, balc);' : ''}
+          float balc = fbalc * step(0.0, ff.y) * step(ff.y, 0.12);
+          diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 1.25 + 0.05, balc);
           // day: glazing reflects the sky (darker below, brighter up high)
-          vec3 glass = mix(vec3(0.05, 0.065, 0.08), uSkyCol * 0.35, 0.35 + 0.4 * fr) * ${K.glass.toFixed(2)} + vec3(0.03) * (1.0 - ${K.glass.toFixed(2)});
+          vec3 glass = mix(vec3(0.05, 0.065, 0.08), uSkyCol * 0.35, 0.35 + 0.4 * fr) * fglass + vec3(0.03) * (1.0 - fglass);
           // occasional open blinds / interiors
           glass = mix(glass, vec3(0.28, 0.25, 0.22), step(0.86, fr) * 0.6);
           diffuseColor.rgb = mix(diffuseColor.rgb, glass, wmask);
-          float fLit = step(1.0 - ${K.lit.toFixed(2)}, fh(fid * 1.37 + 3.1)) * wmask;`)
+          float fLit = step(1.0 - flit, fh(fid * 1.37 + 3.1)) * wmask;`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
           roughnessFactor = mix(roughnessFactor, 0.12, wmask);`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>

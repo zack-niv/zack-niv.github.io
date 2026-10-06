@@ -22,9 +22,13 @@ trains.js, env.js, gates.js, boards.js, textures.js). System name `transit` (bui
 ## Timetable model (important for everyone)
 * Schedule is in **game minutes** (what boards/clock show). Physical motion (approach, braking,
   dwell, doors) is in **real seconds** (1 game min = 10 real s at clock scale 6).
-* Midosuji: a train every ~80 (rush) – 115 real s **per track** (= 8–12 game min on the board),
-  10 cars (scaled to 14 m so the 140 m platform holds it), dwell 22–34 s, approach at 60 km/h
-  braking at 0.92 m/s² out of the tunnel. Sennichimae: 4 cars, every ~120–150 real s.
+* Midosuji: per track a train every **~62 (rush) – 84 (midday) real s = 6.2–8.4 game min**, x1.5 before
+  6:12 / after 23:00; both directions together => a train every ~3 game min at rush, ~4 midday, ~6 at
+  night. 10 cars (scaled to 14 m so the 140 m platform holds it), dwell 24–34 s, approach at 60 km/h
+  braking at 0.92 m/s² out of the tunnel. Sennichimae: 4 cars, per track every 74–100 real s
+  (7.4–10 game min; ~4–5 both directions). Minimum clearance (follower front to leaver rear) is
+  >= 100 m (Midosuji) / 230 m (Sennichimae) over the day, verified numerically (round 2). The
+  physical floor is ~52 s at 25 m clearance, so ~3 game min per *track* is impossible at clock x6.
   Nankai: terminating trains, dwell 140–300 real s, then depart south; patterns per track
   (1–2 Koya line, 3–4 airport incl. rapi:t, 5–6 main line incl. 特急サザン, 7–8 locals/Semboku).
 * **Player's train**: rapi:t β on **nk_track_4**, arrived 10:41, doors open at 10:42 start,

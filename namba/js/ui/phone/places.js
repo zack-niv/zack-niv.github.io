@@ -133,8 +133,8 @@ export const TRANSIT_PLACES = [
     keys: ['shin-osaka', 'shinosaka', 'shin osaka', 'shinkansen', '新大阪'], trip: { from: 'Namba (M20)', to: 'Shin-Osaka (M13)', stops: 7, min: 15, fare: 290, track: 'm_track2' } },
   { id: 'tp_umeda', kind: 'trip', line: 'midosuji', en: 'Umeda', ja: '梅田', sub: 'Midosuji Line (for Umeda / Shin-Osaka) · Track 2 · 8 min · ¥240', at: ['B2', -111, -130],
     keys: ['umeda', 'osaka station', '梅田'], trip: { from: 'Namba (M20)', to: 'Umeda (M16)', stops: 4, min: 8, fare: 240, track: 'm_track2' } },
-  { id: 'tp_kix', kind: 'trip', line: 'nankai', en: 'Kansai Airport', ja: '関西空港', sub: 'Nankai Airport Line · rapi:t from Track 5–8 · 38 min', at: ['3F', -16, -70],
-    keys: ['airport', 'kix', 'kansai', '関西空港'], trip: { from: 'Namba (NK01)', to: 'Kansai Airport (NK45)', stops: 6, min: 38, fare: 970, track: 'nk_track_5' } },
+  { id: 'tp_kix', kind: 'trip', line: 'nankai', en: 'Kansai Airport', ja: '関西空港', sub: 'Nankai Airport Line · rapi:t from Track 3–4 · 38 min', at: ['3F', -16, -70],
+    keys: ['airport', 'kix', 'kansai', '関西空港'], trip: { from: 'Namba (NK01)', to: 'Kansai Airport (NK45)', stops: 6, min: 38, fare: 970, track: 'nk_track_4' } },
 ];
 
 // Station name boards (platform signs): prev ← this → next, as seen from the
@@ -145,15 +145,15 @@ export const PLATFORM_BOARDS = {
   nankai: { here: ['なんば', 'Namba', 'NK01'], minus: null, plus: ['新今宮', 'Shin-Imamiya', 'NK02'], axis: 'z' },
 };
 // Nankai tracks: line groups (real Namba: 1–4 Koya Line, 5–8 Nankai Main Line/Airport)
-export const NANKAI_TRACKS = {
+export const NANKAI_TRACKS = {   // matches transit/timetable.js NK_PATTERNS
   1: ['高野線', 'Koya Line', '橋本・極楽橋方面', 'for Hashimoto / Gokurakubashi'],
   2: ['高野線', 'Koya Line', '橋本・極楽橋方面', 'for Hashimoto / Gokurakubashi'],
-  3: ['高野線', 'Koya Line', '河内長野・林間田園都市方面', 'for Kawachinagano'],
-  4: ['高野線', 'Koya Line', '河内長野・林間田園都市方面', 'for Kawachinagano'],
-  5: ['南海線', 'Nankai Line', '関西空港・和歌山市方面', 'for Kansai Airport / Wakayamashi'],
-  6: ['南海線', 'Nankai Line', '関西空港・和歌山市方面', 'for Kansai Airport / Wakayamashi'],
-  7: ['空港線', 'Airport Line', 'ラピート 関西空港', 'rapi:t for Kansai Airport'],
-  8: ['空港線', 'Airport Line', 'ラピート 関西空港', 'rapi:t for Kansai Airport'],
+  3: ['空港線', 'Airport Line', '関西空港方面（空港急行）', 'for Kansai Airport'],
+  4: ['空港線', 'Airport Line', 'ラピート 関西空港方面', 'rapi:t for Kansai Airport'],
+  5: ['南海線', 'Nankai Line', '和歌山市方面（サザン）', 'for Wakayamashi / Southern'],
+  6: ['南海線', 'Nankai Line', '和歌山市・みさき公園方面', 'for Wakayamashi / Misaki-koen'],
+  7: ['高野線', 'Koya Line', '泉北・河内長野方面', 'for Izumi-chuo / Kawachinagano'],
+  8: ['南海線', 'Nankai Line', '普通 羽倉崎・みさき公園方面', 'Local for Hagurazaki / Misaki-koen'],
 };
 
 // Which operator's signage family governs a zone.

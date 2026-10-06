@@ -112,7 +112,7 @@ export class TransitApp {
       ['midosuji', 'm_track2', '2', '梅田・新大阪方面', 'for Umeda / Shin-Osaka'],
       ['midosuji', 'm_track1', '1', '天王寺・なかもず方面', 'for Tennoji / Nakamozu'],
       ['sennichimae', 's_track1', '1', '日本橋・鶴橋方面', 'for Nippombashi / Tsuruhashi'],
-      ['nankai', 'nk_track_7', '7', 'ラピート 関西空港', 'rapi:t for Kansai Airport'],
+      ['nankai', 'nk_track_4', '4', 'ラピート 関西空港', 'rapi:t for Kansai Airport'],
     ];
     const off = this.phone.pos.noService;
     this.root.innerHTML = `<div class="tr-h"><b>Transit</b><small>${off ? '圏外 No service — showing saved timetable info' : 'Namba · 4 stations nearby'}</small></div>

@@ -123,8 +123,9 @@ export class Ambience {
     const c = this.ctx.crowd;
     try {
       if (c && typeof c.densityNear === 'function') {
+        // crowd.densityNear is people per m² → head count inside the 12 m disc
         const v = c.densityNear(L.level, L.x, L.z, 12);
-        if (typeof v === 'number' && isFinite(v)) return v > 1.5 ? v : v * 60; // count, or 0..1 normalised
+        if (typeof v === 'number' && isFinite(v)) return v * Math.PI * 144;
       }
       if (c && typeof c.agentsNear === 'function') {
         const a = c.agentsNear(L.level, L.x, L.z, 12);
