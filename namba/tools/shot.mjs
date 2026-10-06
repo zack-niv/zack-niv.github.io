@@ -10,6 +10,7 @@
 // NOTE: SwiftShader (software GL) is ~10-50x slower than a real GPU; use the
 // timings only relatively (draw calls & triangle counts are reliable).
 import { chromium } from 'playwright';
+import { acquireSlot } from './slot.mjs';
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -24,6 +25,7 @@ const W = +(args.w || 1280), H = +(args.h || 720);
 const port = 8000 + Math.floor(Math.random() * 900);
 const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: root, stdio: 'ignore' });
 await new Promise(r => setTimeout(r, 600));
+const releaseSlot = await acquireSlot(process.argv.slice(2).join(' '));
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: W, height: H } });
 const errors = [];
@@ -43,17 +45,18 @@ try {
     if (!ok) { console.log('unknown view', v); continue; }
     const f0 = await page.evaluate(() => window.__namba.engine.stats.frame);
     const ts = Date.now();
-    await page.waitForFunction(n => window.__namba.engine.stats.frame >= n, f0 + frames, { timeout: 300000 });
+    await page.waitForFunction(n => window.__namba.engine.stats.frame >= n, f0 + frames, { timeout: 600000 });
     const dt = (Date.now() - ts) / frames;
     if (args.wait) await page.waitForTimeout(+args.wait);
     const st = await page.evaluate(() => { const n = window.__namba; const s = n.engine.stats; const p = n.player.body; return { calls: s.calls, tris: s.tris, level: p.level, x: p.x, z: p.z, zone: n.player.zone, errors: n.errors.slice() }; });
     const name = v.replace(/[^a-z0-9_.-]/gi, '_');
-    await page.screenshot({ path: path.join(out, name + '.png') });
+    await page.screenshot({ path: path.join(out, name + '.png'), timeout: 180000 });
     console.log(`${v.padEnd(22)} ${dt.toFixed(0)}ms/frame(swiftshader)  calls ${st.calls}  tris ${(st.tris / 1000).toFixed(0)}k  @ ${st.level} ${st.x.toFixed(1)},${st.z.toFixed(1)} ${st.zone}`);
     if (st.errors.length) console.log('  system errors:', st.errors.join(' | '));
   }
 } catch (e) { console.log('HARNESS ERROR', e.message); }
 if (errors.length) { console.log('--- console errors/warnings (' + errors.length + ') ---'); console.log([...new Set(errors)].slice(0, 30).join('\n')); }
 await browser.close();
+releaseSlot();
 server.kill();
 console.log('screenshots in', out);

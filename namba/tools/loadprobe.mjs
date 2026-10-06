@@ -1,6 +1,7 @@
 // Reports which system the loader is on over time (find slow/hung builds).
 //   node tools/loadprobe.mjs [--extra "&nocrowd"] [--max 300]
 import { chromium } from 'playwright';
+import { acquireSlot } from './slot.mjs';
 import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,6 +10,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => {
 const port = 8000 + Math.floor(Math.random() * 900);
 const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: root, stdio: 'ignore' });
 await new Promise(r => setTimeout(r, 600));
+const releaseSlot = await acquireSlot(process.argv.slice(2).join(' '));
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', m => { if (m.type() === 'error') console.log('[err]', m.text().slice(0, 200)); });
@@ -23,4 +25,5 @@ for (let i = 0; i < (+(args.max || 300)); i++) {
   if (s.ready) { console.log('READY', ((Date.now() - t0) / 1000).toFixed(1) + 's', s.errs); break; }
   await new Promise(r => setTimeout(r, 1000));
 }
-await browser.close(); server.kill();
+await browser.close();
+releaseSlot(); server.kill();

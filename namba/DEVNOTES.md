@@ -60,6 +60,10 @@ Static site, no build step. `python3 -m http.server` in `namba/` and open
 * `node tools/check-layout.mjs /tmp/<you>/plans` — rebuilds the world+nav in
   Node, verifies connectivity (every spawn & shop reachable), writes per-level
   PNG plans.
+* Headless runs share a machine-wide semaphore (tools/slot.mjs, 2 concurrent
+  browsers): your run may print "waiting for a slot" — that's normal. If you
+  write your own playwright scripts, `import { acquireSlot } from '<repo>/namba/tools/slot.mjs'`
+  and call it before launching chromium.
 * `node tools/loadprobe.mjs [--extra "&nocrowd"]` — prints which system the
   loader is on over time + HTTP errors. Use it to keep your init fast. Budget:
   the WHOLE load ≤ ~60 s in this headless probe (≈ ≤ 6–10 s on a laptop); no
