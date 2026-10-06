@@ -100,6 +100,29 @@ a red tote and long dark hair, and waves with the real Wave clip.
 * **World / lead:** small pillars / kiosks added with `world.addBox` that don't cover a cell centre are invisible
   to the nav grid; people now slide round them, but marking them in `blocked` would route them cleanly.
 
-## Status / what I'm unsure about
+## Status
 
-See the bottom of this file (updated at the end of the round).
+Done: items 5, 8 and 7-staff as above. `node tools/loadprobe.mjs`: READY in 23.4 s, no errors (the crowd step,
+including loading and building the human library, takes ~1 s). Headless runs show no console errors from the crowd.
+The only messages are the known Google-Fonts certificate error and SwiftShader ReadPixels warnings.
+Sim CPU (`node js/npc/bench.mjs 1500 600 12:10 city_2f`, 425 agents): avg 2.0 ms, p50 1.3 ms, p90 4.3 ms.
+Screenshots (`notes/v2-shots/humans/`): `before/` = v1 procedural people (`?v1crowd`), `after/` = v2 (taken at
+`quality=medium`, because TAA ghosting at SwiftShader frame times smears moving people on `high`; same models and
+shading). Pine Tree / Sunny Side: barista behind the counter, a customer lined up beside the player's order spot.
+Wakakusa closes at 19:00 (directory hours [450,1140]), so at 19:54 it is closed and correctly has nobody behind the
+counter. Earlier misses right after a teleport are fixed: staff now spawn on the teleport frame.
+
+## What I'm unsure about
+
+* **Keep left vs Osaka's stand-right**: the spec says keep left, so that is what I implemented (one constant in sim.js to flip).
+* Real-GPU frame time: I could only measure draw calls, triangles and CPU in SwiftShader. On high, worst case is
+  32 skinned people (~7 k tris each) + instanced LODs (~0.2–0.4 M tris). If a mid laptop struggles, lower
+  `TIERS.high.near` / `nearD` in render.js (e.g. 20 / 12 m).
+* The look is stylised low-poly with real proportions. It reads as people, not toys, but it is not photoreal.
+  Faces are simple, and all men of an outfit share one hair mesh, re-coloured per person.
+* Far LOD2 (10 %) shows some colour bleeding between clothes at > 34 m. It is invisible at that size in my shots,
+  but worth a glance.
+* Density: ≈ 400 people at lunch (high). The route corridors average 4–12 people within 8 m of a walking player.
+  If the critic finds it too empty or too full, change `DEMO_POP` / `nearShare` in trips.js.
+* Accessory boxes (bags, suitcase, apron) are simple shapes. The suitcase is fixed to the body (no wheel physics),
+  and the hand holds it through the `walkcase` clip.

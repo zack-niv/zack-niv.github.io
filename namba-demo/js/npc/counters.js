@@ -106,6 +106,11 @@ export class CounterStaff {
     const lk = a.look;
     lk.colA[0] = pick(TOP[role] || TOP.barista); lk.colA[1] = role === 'chef' ? 0x2b2b2e : 0x1b1b1d; lk.colB[1] = lk.colA[0];
     if (role === 'chef') { lk.colB[3] = 0xf4f3ef; lk.flags |= (1 << BIT.CAP); }
+    else {
+      // the apron must read against the shirt: dark shirt -> light / coloured apron, light shirt -> dark apron
+      const lum = (c) => ((c >> 16) & 255) * 0.3 + ((c >> 8) & 255) * 0.59 + (c & 255) * 0.11;
+      if (Math.abs(lum(lk.colB[3]) - lum(lk.colA[0])) < 60) lk.colB[3] = lum(lk.colA[0]) < 128 ? [0x8a6a48, 0x3f6b4c, 0xc9b79b][h % 3] : 0x2b2b2e;
+    }
     lk.flags |= (1 << BIT.APRON);
     lk.flags &= ~((1 << BIT.BRIEFCASE) | (1 << BIT.SHOULDERBAG) | (1 << BIT.BACKPACK) | (1 << BIT.TOTE) | (1 << BIT.SHOPBAG) | (1 << BIT.SHOPBAG2) | (1 << BIT.MASK) | (1 << BIT.JACKET) | (1 << BIT.COAT) | (1 << BIT.SKIRT));
     a.flags = lk.flags;

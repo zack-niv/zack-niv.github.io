@@ -26,6 +26,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { BIT } from './looks.js';
+import { ESC_STAND_SIDE } from './sim.js';
 
 export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8 };
 const MAX_MATS = 24;
@@ -265,8 +266,11 @@ export class HumanLibrary {
     });
     make('walkcase', C.walk, C.walk.duration, 16, () => caseArm());
     make('idlecase', C.idle, C.idle.duration, 8, () => caseArm());
-    // escalator: people stand on the LEFT (sim.js ESC_STAND_SIDE), left hand on the handrail
-    make('ride', C.idle, C.idle.duration, 8, () => { aim('UpperArmL', 'LowerArmL', V(0.4, -0.9, 0.12)); aim('LowerArmL', 'WristL', V(0.25, -0.35, 1)); });
+    // escalator: the hand on the standing side (sim.js ESC_STAND_SIDE) rests on the handrail
+    make('ride', C.idle, C.idle.duration, 8, () => {
+      const s = ESC_STAND_SIDE > 0 ? 'R' : 'L', sx = ESC_STAND_SIDE > 0 ? -1 : 1;
+      aim('UpperArm' + s, 'LowerArm' + s, V(0.4 * sx, -0.9, 0.12)); aim('LowerArm' + s, 'Wrist' + s, V(0.25 * sx, -0.35, 1));
+    });
   }
 
   // sample `base` over `dur` (looping) at `keys` keys, run fn(u) to modify the pose, bake all bone tracks

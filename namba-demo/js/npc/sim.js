@@ -3,8 +3,8 @@
 //
 // Agents follow destination-keyed flow fields, smoothed by look-ahead and a
 // per-agent lane offset, with social-force/anticipatory avoidance on a uniform
-// spatial hash. Escalators: keep LEFT (standers on the left, walkers pass on
-// the right; ESC_STAND_SIDE), admission intervals per lane; people waiting for
+// spatial hash. Escalators: Osaka style (standers on the right, walkers pass on
+// the left; ESC_STAND_SIDE), admission intervals per lane; people waiting for
 // a lane line up single file behind its mouth instead of clumping. Ticket
 // gates: lanes chosen by proximity + load, one passenger per lane at a time.
 // The player is a moving obstacle everybody anticipates: people sidestep early
@@ -22,9 +22,8 @@ import { rng } from '../core/rng.js';
 export const MODE = { NONE: 0, FIELD: 1, PATH: 2, STAND: 3, RIDE: 4, GATE: 5, FOLLOW: 6 };
 export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12, NOD: 13, SERVE: 14 };
 const TWO_PI = Math.PI * 2;
-// v2: Japanese stations ask people to keep LEFT (stand on the left of escalators, pass on the right).
-// (Osaka itself traditionally stands on the right; flip to +1 for that.)
-export const ESC_STAND_SIDE = -1;
+// Osaka stands on the RIGHT of escalators and passes on the left (Tokyo is the reverse); -1 = Tokyo style.
+export const ESC_STAND_SIDE = +1;
 const PLAYER_R = 0.62;     // nobody comes closer to the player's centre than this
 
 export class Agent {
@@ -428,7 +427,7 @@ export class CrowdSim {
     } else {
       a.walkLane = true;
       const hw = Math.max(0.3, R.hw - 0.3);
-      u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? ESC_STAND_SIDE : -ESC_STAND_SIDE); // stairs: keep left too
+      u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? ESC_STAND_SIDE : -ESC_STAND_SIDE); // stairs: same side as escalator standers
     }
     a.rampU = u;
     a.aimX = end.x + end.dx * 0.45 + rx * u; a.aimZ = end.z + end.dz * 0.45 + rz * u;
