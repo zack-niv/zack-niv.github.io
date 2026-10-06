@@ -28,7 +28,13 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
     { k: 'Position error', cap: ['mean, by the phone', 'mean, by the phone'], b: b.err, a: a && a.err, fmt: (v) => `${err(v)}<small>m</small>` },
     { k: 'Wrong-floor seconds', cap: ['phone put you on the wrong floor', (v) => (v < 1 ? 'right floor, every time' : 'corrected in a heartbeat')], b: b.wrongFloorS, a: a && a.wrongFloorS, fmt: (v) => `${Math.round(v)}<small>s</small>` },
     { k: 'Net progress toward Daikichi', cap: [(v) => (v < 10 ? 'wandering: barely any closer' : 'closer to the door, per minute'), 'closer to the door, per minute'], b: pg.before, a: a && pg.after, fmt: mpm },
-  ];
+  ].filter((r) => {
+    if (r.fmt !== mpm) return true;
+    // Net progress only says something when the "before" phase was genuinely lost; for a player who happened to walk
+    // the right way anyway, the per-minute pace is about equal and the row would be noise. Show it only when it tells
+    // the real story (Lodestone clearly faster), never fabricate it.
+    return isFinite(r.b) && isFinite(r.a) && r.a >= 1.3 * Math.max(r.b, 5);
+  });
   const total = [
     s.totalSeconds != null && isFinite(s.totalSeconds) ? `${mmss(s.totalSeconds)} min` : null,
     s.totalMeters != null && isFinite(s.totalMeters) ? `${metres(s.totalMeters)} m on foot` : null,

@@ -422,7 +422,7 @@ export class Demo {
     // Net progress toward the door, in metres per minute: how much the nav distance to Daikichi dropped over the
     // phase, divided by the phase's minutes. Honest whatever route each phase happened to cover (can be ~0 or
     // negative while lost). A phase under ~10 s is too short to rate.
-    const rate = (r0, r1, sec) => (num(r0) != null && num(r1) != null && num(sec) != null && sec >= 10 ? (r0 - r1) / (sec / 60) : null);
+    const rate = (r0, r1, sec) => { const v = num(r0) != null && num(r1) != null && num(sec) != null && sec >= 10 ? (r0 - r1) / (sec / 60) : null; return v != null && v < 200 ? v : null; };   // > 200 m/min = a teleport, not a walk
     const r0 = this._lost.init, rEnd = this.remArrive != null ? this.remArrive : this._lost.rem;
     const progress = upgraded && this.readyT != null
       ? { before: rate(r0, this.remReady, this.readyT), after: rate(this.remReady, rEnd, tEnd - this.readyT) }

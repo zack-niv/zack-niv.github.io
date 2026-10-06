@@ -25,7 +25,7 @@
    camera kept centred on her head (`_lookAtAya`). She is **re-dressed** by `_dressAya()` the moment the queue is seeded (so
    there is no pop): a fresh `makeLook('shopper', …, {female:true})` with a mustard coat (`0xe3a41c`), navy legs, white
    sneakers, long dark hair, a red tote, no mask/cap/briefcase; assigned to `agent.look` / `agent.flags`, which the crowd
-   renderer reads every frame (try/catch'd: if it fails she just stays as she was, flagged `agent._aya`);
+   renderer reads every frame; at the wave, `_clearSight()` fades out (<= 2) strangers standing on the eye-to-Aya line so she is never hidden behind someone's back (try/catch'd: if it fails she just stays as she was, flagged `agent._aya`);
    sizzle (`ctx.audio?.play?.('tempura')`), the chef's welcome, the counter view; ~7 s total, then the end card.
 6. **End card** (`game/endcard.js`): left = "Indoor spaces shouldn't run on guesswork.", the note to the Oriient
    team, an optional contact line (`ENDCARD.contact` in `game/script.js`; **empty = the line is not rendered**, it is
@@ -36,7 +36,7 @@
    slower. Net progress = (nav distance to the Daikichi door at the phase start - at the phase end) / phase minutes,
    with `ctx.nav.distance` sampled at begin (spawn), at `phone:upgrade {stage:'ready'}` (`demo.remReady`) and at
    arrival (`demo.remArrive`); `summary().progress = {before, after}`; null (shown as an em dash) if a phase is < 10 s
-   or a sample is missing. Before can honestly be low or negative; it is printed with a true minus sign.
+   a sample is missing, or the rate exceeds 200 m/min (a debug teleport, not walking). Before can honestly be low or negative; it is printed with a true minus sign.
 7. **Distraction removed**: discovery toasts off (only Parks + canyon get a soft place-name card), no
    quest toasts, pause menu = Resume / Settings / Controls (+ a "Today" panel), coffee/other shops are flavour
    only (coffee order still works, costs 2 game minutes, no quest). Tendon/Kitsune/Daikichi vignettes and the
@@ -87,3 +87,10 @@ core/clock.js now starts at 11:20 with scale 1.2 (done by the lead). The game no
   and `chapter()` cards are suppressed; Aya's and the chef's lines still show.
 * The phone's bottom-right message peek (`.ph-peek`) lifts the subtitle band (`body:has(.ph-peek:not([hidden])) .h-captions`),
   so the two never overlap.
+
+## Evidence / measured (full-route bot walk, `scratchpad/fix-flow/walk.out`)
+Offer fired at 106 s with `why=stalled` (crowd-blocked at the Nankai gates for ~25 s); Aya's canyon text at 372.8 s on
+reaching the bridge; arrival 484 s. End card: error +-10 m -> +-0.5 m, wrong floor 21 s -> 0 s, net progress 62 -> 60 m/min.
+**Caveat:** the bot always walks the true route, so its "before" pace is as good as it gets; a human who is really lost
+gets a much lower before-value. The metric is honest (per-minute, so a longer after-phase cannot hurt it), but it only
+favours Lodestone when the player was actually lost. Position error and wrong-floor lead the card for that reason.
