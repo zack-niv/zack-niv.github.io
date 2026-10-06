@@ -391,6 +391,7 @@ export class Director {
     if (!T && ev && ev.platform) { const pl = P.platformById[ev.platform]; if (pl) T = pl.tracks[0]; }
     if (!T) return;
     T.doorsT0 = S.time; T.doorsUntil = S.time + (ev.dwell || 22);
+    if (ev.force) T.forceUntil = S.time + 24;   // the demo's opening train: its passengers always step out
     this.counts.trains++;
     // door positions
     let doors = [];
@@ -417,7 +418,7 @@ export class Director {
   }
   _alight(T, d) {
     const S = this.sim, P = this.P;
-    if (S.count - this.extra > this.target() * 1.25) return;
+    if (!(T.forceUntil > S.time) && S.count - this.extra > this.target() * 1.25) return;
     const tw = this._tripWeights(true);
     const trip = pickW(tw, this.r);
     const a = this._create(trip, { line: T.line });

@@ -158,6 +158,9 @@ export class LodestoneApp {
     if (!s) return;
     if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 266; s.bandRight = 46; }
     else { s.bandTop = this._navBottom || 200; s.bandBottom = 214; s.bandRight = 0; }
+    s.compact = this.view !== 'stack';
+    // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards
+    try { this.el.c3d.style.setProperty('--ld-band-t', `${Math.round(s.bandTop) - 8}px`); this.el.c3d.style.setProperty('--ld-band-b', `${Math.round(s.bandBottom) - 6}px`); } catch (e) { /* ignore */ }
   }
   _set(st) { this.state = st; this.root.dataset.state = st; }
 

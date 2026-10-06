@@ -161,12 +161,12 @@ export class Hud {
   clearCaptions() { this.el.captions.innerHTML = ''; }
 
   // ---- ICOCA chip -----------------------------------------------------------------
-  ic({ balance = 0, fare = 0, ok = true, reason = '' } = {}) {
+  ic({ balance = 0, fare = 0, ok = true, reason = '', label = '' } = {}) {
     if (this.quiet) return;
     const e = this.el;
     e.ic.classList.toggle('ng', !ok);
     e.icState.innerHTML = ok
-      ? (fare ? `<span>運賃 Fare</span><b>−${yen(fare)}</b>` : `<span class="ok">ピッ</span><b>${esc(reason || '')}</b>`)
+      ? (fare ? `<span>${esc(label || '運賃 Fare')}</span><b>−${yen(fare)}</b>` : `<span class="ok">ピッ</span><b>${esc(reason || '')}</b>`)
       : `<span class="ng">残高不足</span><b>${esc(reason || 'Please charge')}</b>`;
     e.icBal.textContent = yen(balance);
     e.ic.classList.remove('on'); void e.ic.offsetWidth; e.ic.classList.add('on');

@@ -522,3 +522,8 @@
 .ld-x3d { bottom: 208px; }
 .ld .ld-sheet { bottom: 44px; }
 .ld-ctl { bottom: 252px; }
+/* critic: the guide-view 3D preview is framed between the instruction card and the trip card (soft fade, no labels under the cards) */
+.ld-main[data-view="guide"] .ld-3d {
+  -webkit-mask-image: linear-gradient(180deg, transparent var(--ld-band-t, 190px), #000 calc(var(--ld-band-t, 190px) + 26px), #000 calc(100% - var(--ld-band-b, 208px) - 26px), transparent calc(100% - var(--ld-band-b, 208px)));
+          mask-image: linear-gradient(180deg, transparent var(--ld-band-t, 190px), #000 calc(var(--ld-band-t, 190px) + 26px), #000 calc(100% - var(--ld-band-b, 208px) - 26px), transparent calc(100% - var(--ld-band-b, 208px)));
+}

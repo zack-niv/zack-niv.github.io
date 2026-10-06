@@ -79,6 +79,9 @@ export class Demo {
       game.after(0.2, () => hud?.chapter({ ja: '南海なんば駅', en: 'Nankai Namba Station', sub: `Platform 4 · ${ctx.clock.hhmm} · off the rapi:t from Kansai Airport` }, 6.5));
       game.after(2.6, () => game.lookYaw(0, 0.0, 0.55));
       game.after(DEMO.introHold, () => { game.intro = false; game.clearLook(); game._syncFrozen(); });
+      // you are not the only one off the rapi:t: fellow passengers (suitcases, commuters) step out of the
+      // doors around you over the first ~15 s and head for the gates, so the platform is alive from frame one
+      game.after(0.3, () => { try { const D = ctx.crowd && ctx.crowd.behave && ctx.crowd.behave.director; if (D && D.onTrainArrive) D.onTrainArrive({ track: 'nk_track_4', line: 'nankai', platform: 'nk_plat_2', dwell: 40, force: true }, false); } catch (e) { /* the crowd is optional */ } });
       tt = DEMO.introHold;
     }
     // the terminal PA ("Namba, Namba. This is the last stop."): transit speaks it and the HUD captions it;

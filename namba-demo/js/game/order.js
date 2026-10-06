@@ -125,7 +125,7 @@ function pay(game, price) {
   if (ic && ic.balance >= price) {
     ic.balance -= price;
     game.ctx.audio?.play?.('pay');
-    game.hud?.ic({ balance: ic.balance, fare: price, ok: true });
+    game.hud?.ic({ balance: ic.balance, fare: price, ok: true, label: 'お支払い Paid' });
   }
 }
 

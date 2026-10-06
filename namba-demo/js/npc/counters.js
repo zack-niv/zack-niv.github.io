@@ -104,6 +104,8 @@ export class CounterStaff {
     const female = ((h >> 3) & 1) === 1;
     const a = D.makeAgent('staff_shop', { look: { female, apron: pick(APRON[role] || APRON.barista), cap: role === 'chef' || ((h >> 5) & 3) === 0 } });
     const lk = a.look;
+    // counters are deep (pastry case + back bar): a short figure reads as 'sunk' behind them. Staff are never below ~1.63 m.
+    if (lk.h != null && lk.h < 0.96) lk.h = 0.96 + ((h >> 7) & 3) * 0.01;
     lk.colA[0] = pick(TOP[role] || TOP.barista); lk.colA[1] = role === 'chef' ? 0x2b2b2e : 0x1b1b1d; lk.colB[1] = lk.colA[0];
     if (role === 'chef') { lk.colB[3] = 0xf4f3ef; lk.flags |= (1 << BIT.CAP); }
     else {
