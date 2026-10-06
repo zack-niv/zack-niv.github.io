@@ -656,7 +656,7 @@ export class MapApp {
   // believed floor), or the one-floor route this app manages — the frustration, legibly
   glanceInfo() {
     const p = this.pos, R = this.route;
-    const warn = p.noService ? 'No service · ' : p.acc > 16 ? 'GPS lost · ' : p.acc > 9 ? 'GPS weak · ' : '';
+    const warn = p.noService ? 'No service' : p.acc > 16 ? 'GPS signal lost' : p.acc > 9 ? 'GPS signal weak' : '';
     const here = `you’re on ${LEVELS[p.level].label}`;
     const angTo = (x, z) => { const dx = x - p.x, dz = z - p.z; let d = Math.atan2(-dx, -dz) - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); return -d * 180 / Math.PI; };
     if (R && R.arrived) return { kind: 'arr', icon: 'arrow', ang: 0, title: 'You have arrived', sub: `${R.target.en} · probably`, warn: '' };
@@ -666,8 +666,7 @@ export class MapApp {
     }
     const t = (R && R.target) || this._goal();
     if (!t) return { kind: 'crow', icon: 'lost', title: 'Maps', sub: here, warn };
-    const sameFloor = t.level === p.level;
-    return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies${sameFloor ? '' : ' · ' + LEVELS[t.level].label}`, warn };
+    return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
   }
   showResults() {
     const mins = this.ctx.clock.minutes;

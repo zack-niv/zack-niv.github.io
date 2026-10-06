@@ -72,9 +72,9 @@ export class Glance {
     if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
     else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;
     else if (i.cls === 'gl-ld') ic = `<i class="gl-ic">${i.live ? icon('straight', 'gl-arrow') : icon(i.icon || 'straight')}</i>`;
-    else ic = `<i class="gl-ic">${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
+    else ic = `<i class="gl-ic">${i.warn ? `<b class="gl-wb" title="${esc(i.warn)}">!</b>` : ''}${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
     const bar = i.pct != null ? `<u class="gl-bar"><i style="width:${(i.pct * 100).toFixed(0)}%"></i></u>` : '';
-    const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${i.warn ? `<em class="gl-warn">${esc(i.warn)}</em>` : ''}${esc(i.sub || '')}</span>`;
+    const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${esc(i.sub || '')}</span>`;
     const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${esc(i.title)}</b>`;
     this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'}`;
     this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} read</span>` : k}`;
