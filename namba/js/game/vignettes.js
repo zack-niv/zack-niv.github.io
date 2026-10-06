@@ -37,15 +37,24 @@ async function think(game, text, dur) {
 }
 
 // Fade out, advance the clock, fade back. Optional text shown in the dark.
-export async function passTime(game, minutes, html, holdMs = 1600) {
+export async function passTime(game, minutes, html, holdMs = 1600, opts = {}) {
   const hud = game.hud;
-  await hud.fade(1, 900);
+  const veil = !opts.black;
+  hud.veil(veil);
+  await hud.fade(1, veil ? 1100 : 900);
   if (html) hud.fadeText(`${html}<div class="h-fade-clock">${hhmm(game.ctx.clock.minutes)} → ${hhmm(game.ctx.clock.minutes + minutes)}</div>`);
   game.ctx.clock.minutes += minutes;
   game.ctx.clock.update(0);
   await sleep(holdMs);
   hud.fadeText('');
-  await hud.fade(0, 1100);
+  await hud.fade(0, 1300);
+  hud.veil(false);
+}
+
+// settle the view on the counter / the fryer while the world carries on behind the veil
+function faceShop(game, b, pitch = -0.2) {
+  const d = b && b.door;
+  if (d && game.lookDir) game.lookDir(-d.nx, -d.nz, pitch);
 }
 
 function closedCard(game, b, extraHtml = '') {
@@ -66,6 +75,7 @@ export async function orderCoffee(game, b) {
   const { ctx } = game;
   const key = b.key && b.key.startsWith('coffee_') ? b.key : 'cafe';
   if (!isOpen(b, ctx.clock.minutes)) { await closedCard(game, b); return; }
+  faceShop(game, b, -0.24);
   const lines = BARISTA[key] || BARISTA.cafe;
   game.hud.caption({ ja: lines[0].ja, en: lines[0].en, speaker: key === 'coffee_kissa' ? 'Mama-san' : 'Barista', duration: 4 });
   const menu = MENUS[key] || MENUS.cafe;
@@ -166,6 +176,7 @@ export async function daikichi(game, b) {
       `<div class="h-fade-big">並ぶ</div><div class="h-fade-small">You wait on a tiny stool. The couple ahead are from Nagoya and very proud of it. Someone comes out and says "maji de umai" to nobody in particular.</div>`, 3200);
   }
   // seated at the counter
+  faceShop(game, b, -0.38);
   ctx.audio?.play?.('tempura');
   game.hud.caption({ ja: 'いらっしゃいませ！カウンターへどうぞ。', en: 'Welcome! Please, at the counter.', speaker: 'Chef', duration: 3.6 });
   const html = `<div class="g-kicker">昼のおまかせ · Lunch omakase</div><div class="g-title-ja">${esc(b.ja)}</div>

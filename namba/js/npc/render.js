@@ -48,7 +48,7 @@ export class CrowdRenderer {
     const bg = new THREE.InstancedBufferGeometry();
     const bb = buildBlob();
     bg.setIndex(bb.getIndex()); bg.setAttribute('position', bb.getAttribute('position')); bg.setAttribute('uv', bb.getAttribute('uv'));
-    const bcap = 900;
+    const bcap = 1500;
     this.blobA = new THREE.InstancedBufferAttribute(new Float32Array(bcap * 4), 4); this.blobA.setUsage(THREE.DynamicDrawUsage);
     this.blobB = new THREE.InstancedBufferAttribute(new Float32Array(bcap * 4), 4); this.blobB.setUsage(THREE.DynamicDrawUsage);
     bg.setAttribute('iBlob', this.blobA); bg.setAttribute('iBlobB', this.blobB);
@@ -118,6 +118,16 @@ export class CrowdRenderer {
         BA[o] = a._rx; BA[o + 1] = a.ramp >= 0 ? a.y : a.y; BA[o + 2] = a._rz; BA[o + 3] = (0.62 + 0.22 * a.pSit) * h;
         BB[o] = a.fade * (a.ramp >= 0 ? 0.6 : 1); BB[o + 1] = 1.25 + a.pAmt * 0.25; BB[o + 2] = a.yaw; BB[o + 3] = 0;
         nb++;
+        // per-foot contact shadows for the near crowd (they stop people floating)
+        if (a._d2 < 14 * 14 && a.pSit < 0.5 && nb + 2 <= this.blobCap) {
+          const sy = Math.sin(a.yaw), cy = Math.cos(a.yaw), sw = Math.sin(a.phase) * a.pAmt * 0.2 * h;
+          for (let side = -1; side <= 1; side += 2) {
+            const o2 = nb * 4, fw = side * sw;               // along facing (yaw 0 faces -Z)
+            BA[o2] = a._rx + (cy * side * 0.09 * h) - sy * fw; BA[o2 + 1] = a.y; BA[o2 + 2] = a._rz + (-sy * side * 0.09 * h) - cy * fw; BA[o2 + 3] = 0.13 * h;
+            BB[o2] = a.fade * 0.55 * (a.ramp >= 0 ? 0.6 : 1); BB[o2 + 1] = 1.9; BB[o2 + 2] = a.yaw; BB[o2 + 3] = 0;
+            nb++;
+          }
+        }
       }
     }
     for (const lod of L) {
@@ -192,7 +202,7 @@ export class CrowdRenderer {
   _write(L, n, a) {
     const o = n * 4, at = L.attrs, lk = a.look;
     let p = at.iPos.array; p[o] = a._rx; p[o + 1] = a.y; p[o + 2] = a._rz; p[o + 3] = a.yaw;
-    p = at.iPose.array; p[o] = a.phase; p[o + 1] = a.pAmt; p[o + 2] = a.pSit; p[o + 3] = a.pLean;
+    p = at.iPose.array; p[o] = a.phase; p[o + 1] = a.pAmt * (lk.stride || 1); p[o + 2] = a.pSit; p[o + 3] = a.pLean;
     p = at.iHead.array; p[o] = a.pHP; p[o + 1] = a.pHY; p[o + 2] = a.pInL; p[o + 3] = a.pInR;
     p = at.iArmL.array; p[o] = a.aL[0]; p[o + 1] = a.aL[1]; p[o + 2] = a.aL[2]; p[o + 3] = a.aL[3];
     p = at.iArmR.array; p[o] = a.aR[0]; p[o + 1] = a.aR[1]; p[o + 2] = a.aR[2]; p[o + 3] = a.aR[3];

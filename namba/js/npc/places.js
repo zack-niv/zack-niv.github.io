@@ -289,6 +289,22 @@ export class Places {
       if (!this.col.walkable(B.level, x, z)) continue;
       this.posts.push({ kind: 'staff_shop', level: B.level, x, z, yaw: Math.atan2(-d.nx, -d.nz), biz: B, callout: B.restaurant || B.cat === 'takoyaki' || B.cat === 'drugstore' });
     }
+    // real staff spots from the environment (depachika counters, shop counters / tills): people stand exactly there
+    const sh = this.ctx && this.ctx.shops;
+    const hex = (c) => { if (typeof c === 'number') return c; if (typeof c === 'string' && c[0] === '#') return parseInt(c.slice(1), 16); return null; };
+    if (sh) {
+      try {
+        if (sh.hallSpots) for (const id of ['taka_b1', 'taka_1f']) for (const sp of (sh.hallSpots(id) || [])) {
+          if (sp.kind !== 'staff') continue;
+          this.posts.push({ kind: 'staff_shop', level: sp.level, x: sp.x, z: sp.z, yaw: sp.yaw, hall: id, apron: hex(sp.outfit && sp.outfit.apron), cap: !!(sp.outfit && sp.outfit.cap), callout: true, real: true });
+        }
+        if (sh.spots) for (const B of this.biz) {
+          if (B.closed) continue;
+          const sps = (sh.spots(B.id) || []).filter(q => q.kind === 'staff');
+          for (const sp of sps.slice(0, B.restaurant ? 2 : 1)) this.posts.push({ kind: 'staff_shop', level: sp.level, x: sp.x, z: sp.z, yaw: sp.yaw, biz: B, apron: hex(sp.outfit && sp.outfit.apron), cap: !!(sp.outfit && sp.outfit.cap), callout: B.restaurant || B.cat === 'takoyaki', real: true });
+        }
+      } catch (e) { console.warn('[crowd] shop staff spots', e); }
+    }
     // security at big concourses
     for (const [id, fx, fz] of [['nankai_2f', 0.3, 0.6], ['nankai_3f_concourse', 0.6, 0.3], ['walk_court', 0.2, 0.7], ['city_b1_north', 0.8, 0.5], ['m_north_free', 0.3, 0.7], ['nankai_1f', 0.7, 0.4], ['parks_2f_hall', 0.4, 0.5]]) {
       const s = this.spaceById(id); if (!s || !s.rect) continue;

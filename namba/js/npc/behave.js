@@ -151,7 +151,11 @@ export class Behave {
     a.fadeDir = -1;
     if (a.followers) for (const f of a.followers) f.fadeDir = -1;
   }
-  _reveal(a) { if (a.fadeDir === 0) a.fadeDir = 1; if (a.followers) for (const f of a.followers) if (f.fadeDir === 0) { f.fadeDir = 1; } }
+  _reveal(a) {
+    const inst = this.sim.time < 2.5; // the opening fill is already there, nobody condenses out of the air
+    if (a.fadeDir === 0) { a.fadeDir = 1; if (inst) a.fade = 1; }
+    if (a.followers) for (const f of a.followers) if (f.fadeDir === 0) { f.fadeDir = 1; if (inst) f.fade = 1; }
+  }
 
   // advance an agent along its current field (initial fill: mid-trip placement)
   _fastForward(a) {

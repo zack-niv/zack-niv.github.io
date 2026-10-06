@@ -13,7 +13,7 @@ import { CAT, MENU, SAMPLES, LIGHT } from './catalog.js';
 import { rng, hash } from '../../core/rng.js';
 
 const K = (hex, k = 1) => rgb(hex, k);
-const GLOW = 1.5;   // lit atlas multiplier (keep band colours in step)
+const GLOW = 2.0;   // lit atlas multiplier (keep band colours in step)
 
 // ----------------------------------------------------------------------------
 // atlas regions (cached by key)
@@ -93,7 +93,7 @@ export function buildShop(S, R) {
   dressWalls(S, c);
   // shop light for the lighting system (aggregated)
   const lc = LIGHT[c.light] || LIGHT.neutral;
-  if (c.group !== 'closed') S.light(S.W / 2, S.ceil - 0.3, Math.min(S.D / 2, 6), lc, 1.0, Math.max(S.W, Math.min(S.D, 14)) * 0.8, 'panel');
+  if (c.group !== 'closed') S.light(S.W / 2, S.ceil - 0.3, Math.min(S.D / 2, 6), lc, 1.8, Math.max(S.W, Math.min(S.D, 14)) * 0.8, 'panel');
 }
 
 // posters / banners on the interior walls (above the shelf line), so no wall stays bare.
@@ -220,7 +220,7 @@ function front(S, c) {
     P.qd('env_glow', 0, W, dt + 0.02, dt + 0.07, -0.126, -1, K(st.fg, GLOW));
     P.qd('env_glow', 0, W, dt + 0.07, dt + 0.11, -0.126, -1, K(st.accent, GLOW));
   }
-  S.light(W / 2, dt + 0.3, -0.4, mix(K(st.bg), [1, 0.95, 0.85], 0.6), 0.6, 4, 'sign');
+  S.light(W / 2, dt + 0.3, -0.4, mix(K(st.bg), [1, 0.95, 0.85], 0.6), 1.6, 5.5, 'sign');
   // blade sign (projecting), visible down the corridor
   const glyph = c.blade || (st.primary === 'en' ? S.b.en.replace(/[^A-Za-z]/g, '').slice(0, 2).toUpperCase() : S.b.ja.slice(0, 2));
   if (S.outCeil >= 2.9 && W >= 4) {

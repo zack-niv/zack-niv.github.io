@@ -43,8 +43,12 @@ export function makeLook(kind, r, o = {}) {
   let flags = 0;
   const set = (b) => { flags |= (1 << b); };
   const female = o.female != null ? o.female : r() < 0.5;
-  let h = female ? 0.93 + r() * 0.08 : 0.98 + r() * 0.09; // relative to 1.70 m
-  let build = female ? 0.9 + r() * 0.1 : 0.98 + r() * 0.14;
+  // heights ~ normal: Japanese average women 1.58 m, men 1.71 m (relative to the 1.70 m model)
+  const g3 = () => (r() + r() + r() - 1.5) / 0.5; // ~N(0, 1), clamped to +-3
+  let h = female ? 0.93 + g3() * 0.026 : 1.005 + g3() * 0.028;
+  // slim / average / heavier build, with a tail
+  const bt = r();
+  let build = (female ? 0.93 : 1.02) + g3() * 0.045 + (bt < 0.14 ? 0.12 : bt < 0.3 ? -0.06 : 0);
   let skin = SKIN_JP(r), hair = HAIR_JP(r), top = TOP(r), bottom = BOTTOM(r), shoes = SHOES(r), inner = SHIRT(r), acc = BAG(r), acc2 = TIE(r);
   let hs = female ? (r() < 0.45 ? 2 : r() < 0.6 ? 1 : 3) : (r() < 0.9 ? 0 : 4);
   if (r() < (kind === 'tourist' ? 0.04 : 0.17)) set(BIT.MASK);
@@ -135,6 +139,7 @@ export function makeLook(kind, r, o = {}) {
     case 'staff_shop': {
       top = r() < 0.6 ? 0x19191b : TOP(r); bottom = r() < 0.7 ? 0x19191b : BOTTOM(r); shoes = 0x111112;
       set(BIT.APRON); acc2 = W([[0x1a1a1a, 3], [0x5a3b26, 2], [0x2f4a36, 1.5], [0x22283a, 1.5], [0xc9b79b, 1.5], [0x8c2430, 0.5]])(r);
+      if (o.apron != null) acc2 = o.apron;
       if (o.cap) { set(BIT.CAP); }
       hs = female ? 3 : 0;
       break;
@@ -155,7 +160,8 @@ export function makeLook(kind, r, o = {}) {
   flags |= hairBits(hs);
   if (o.phone) set(BIT.PHONE);
   if (o.umbrella) set(BIT.UMBRELLA);
-  return { h, build, flags, female, colA: [top, bottom, shoes, hair], colB: [skin, inner, acc, acc2] };
+  const stride = kind === 'elderly' ? 0.72 + r() * 0.1 : kind === 'child' ? 1.0 : kind === 'commuter' ? 1.0 + r() * 0.12 : 0.92 + r() * 0.16;
+  return { h, build, flags, female, stride, colA: [top, bottom, shoes, hair], colB: [skin, inner, acc, acc2] };
 }
 
 export function hasBit(flags, b) { return (flags >> b) & 1; }

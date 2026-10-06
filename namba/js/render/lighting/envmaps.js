@@ -111,22 +111,33 @@ export class EnvMaps {
     this.qscene = new THREE.Scene(); this.qscene.add(this.quad);
     this.qcam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   }
-  build() {
-    for (const name in MOODS) {
-      const m = MOODS[name];
-      const scene = m.sky ? buildOutdoor(m) : buildInterior(m);
-      const rt = this.pm.fromScene(scene, 0.0, 0.1, 200, { size: this.size });
-      this.maps[name] = rt;
-      this.ref[name] = this._measure(scene);
-      scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(x => x.dispose()); });
-    }
-    const any = this.maps.metro;
+  _make(name) {
+    const m = MOODS[name];
+    const scene = m.sky ? buildOutdoor(m) : buildInterior(m);
+    const rt = this.pm.fromScene(scene, 0.0, 0.1, 200, { size: this.size });
+    this.maps[name] = rt;
+    this.ref[name] = this._measure(scene);
+    scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) [].concat(o.material).forEach(x => x.dispose()); });
+  }
+  // Only the start mood is built at load; the others are built one per frame
+  // afterwards (update()) so loading stays cheap.
+  build(first = 'metro') {
+    this._make(first);
+    this.queue = Object.keys(MOODS).filter(n => n !== first);
+    const any = this.maps[first];
     this.blendRT = new THREE.WebGLRenderTarget(any.width, any.height, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, colorSpace: THREE.LinearSRGBColorSpace, depthBuffer: false, magFilter: THREE.LinearFilter, minFilter: THREE.LinearFilter, generateMipmaps: false });
     this.blendRT.texture.mapping = THREE.CubeUVReflectionMapping;
     this.blendRT.texture.name = 'nb-env-blend';
-    this.cur = 'metro'; this.from = 'metro'; this.to = 'metro'; this.t = 1;
+    this.cur = first; this.from = first; this.to = first; this.t = 1;
     this._render();
     return this.blendRT.texture;
+  }
+  // build the next queued mood (prioritising the one being asked for)
+  _pump(want) {
+    if (!this.queue || !this.queue.length) return;
+    const i = want ? this.queue.indexOf(want) : -1;
+    const name = i >= 0 ? this.queue.splice(i, 1)[0] : this.queue.shift();
+    this._make(name);
   }
   // mean irradiance luminance of the mood env (cheap cube readback at load)
   _measure(scene) {
@@ -149,7 +160,8 @@ export class EnvMaps {
     return Math.max(0.05, avgRad * Math.PI);
   }
   setMood(name) {
-    if (!this.maps[name] || name === this.to) return;
+    if (name === this.to) return;
+    if (!this.maps[name]) { this._pump(name); if (!this.maps[name]) return; }
     // start a cross-fade from the currently displayed blend
     this.from = this.t >= 0.5 ? this.to : this.from;
     this.to = name; this.t = 0;
@@ -159,6 +171,7 @@ export class EnvMaps {
     return a + (b - a) * this.t;
   }
   update(dt) {
+    if (this.queue && this.queue.length && this.t >= 1 && (this._pt = (this._pt || 0) + dt) > 0.5) { this._pt = 0; this._pump(); }
     if (this.t >= 1) return false;
     this.t = Math.min(1, this.t + dt / 1.6);
     this._render();

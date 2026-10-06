@@ -483,7 +483,7 @@ export class Props {
     for (let i = 0; i < 4; i++) {
       const c = document.createElement('canvas'); c.width = 512; c.height = 288;
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-      const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1, 1, 1).multiplyScalar(1.35) });
+      const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1, 1, 1).multiplyScalar(1.8) });
       mat.name = 'props_screen' + i;
       S.push({ c, g: c.getContext('2d'), tex, mat, slide: -1, t: 0 });
     }

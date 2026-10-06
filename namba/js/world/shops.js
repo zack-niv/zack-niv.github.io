@@ -45,7 +45,7 @@ export function envFor(ctx) {
   defineMaterials(ctx.materials);
   const env = {
     ctx, world: ctx.world, materials: ctx.materials,
-    sign: new Atlas('env_sign', { lit: true, glow: 1.5 }),
+    sign: new Atlas('env_sign', { lit: true, glow: 2.0 }),
     print: new Atlas('env_print', { lit: false, boost: 0.28 }),
     chunks: new ChunkBatches(CHUNK, 'env'),
     lights: [],

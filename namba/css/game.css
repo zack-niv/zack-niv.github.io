@@ -136,6 +136,12 @@
 
 .h-fade { position: absolute; inset: 0; background: #050506; opacity: 0; transition: opacity .9s ease; pointer-events: none; display: grid; place-items: center; }
 .h-fade.block { pointer-events: auto; }
+.h-fade.veil { background: radial-gradient(ellipse at 50% 58%, rgba(5, 5, 6, .62), rgba(5, 5, 6, .86)); -webkit-backdrop-filter: blur(7px) saturate(.8); backdrop-filter: blur(7px) saturate(.8); }
+.h-fade.ride { overflow: hidden; }
+.h-fade.ride::before { content: ''; position: absolute; left: -400px; right: -400px; top: 30%; height: 26%; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 170px, rgba(255, 226, 160, .42) 170px 186px, transparent 186px 340px); filter: blur(7px); animation: g-tunnel .7s linear infinite; }
+.h-fade.ride::after { content: ''; position: absolute; left: 0; right: 0; top: 24%; height: 38%; pointer-events: none; border-top: 1px solid rgba(255, 255, 255, .08); border-bottom: 1px solid rgba(255, 255, 255, .08); }
+@keyframes g-tunnel { to { transform: translateX(-340px); } }
 .h-fade-text { text-align: center; max-width: 640px; padding: 0 24px; animation: g-in 1.4s var(--g-ease) both; }
 .h-fade-kicker { font: 500 11px/1 var(--g-sans); letter-spacing: .26em; color: var(--g-dim); margin-bottom: 18px; font-family: var(--g-ja); }
 .h-fade-big { font: 700 40px/1.25 var(--g-ja); letter-spacing: .08em; margin-bottom: 12px; }

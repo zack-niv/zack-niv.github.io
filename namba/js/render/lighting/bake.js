@@ -59,6 +59,8 @@ export function normLight(l) {
   };
 }
 
+// per-space-style gain on the baked field (visual hierarchy: shops > courts > corridors)
+const SPACE_GAIN = { shop: 1.5, restaurant: 1.35, department: 1.15, depachika: 1.1, arcade_court: 1.25, city_court: 1.2, arcade: 0.82, passage: 0.85, city_mall: 0.92, dining_street: 0.95 };
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export function bakeLevel(world, lv, lights, upperLights, opts = {}) {
@@ -349,11 +351,15 @@ export function bakeLevel(world, lv, lights, upperLights, opts = {}) {
   const A = new Float32Array(N * 4), B = new Float32Array(N * 4), C = new Uint8Array(N * 4);
   for (let i = 0; i < N; i++) {
     const r = bounce[i * 3], gg = bounce[i * 3 + 1], bb = bounce[i * 3 + 2];
-    A[i * 4] = Eu[i * 3] + r * 0.45; A[i * 4 + 1] = Eu[i * 3 + 1] + gg * 0.45; A[i * 4 + 2] = Eu[i * 3 + 2] + bb * 0.45;
+    // luminance hierarchy: shop interiors glow, corridors sit back
+    const si = g.space[i], sty = si >= 0 && L.spaces[si] ? L.spaces[si].style : null;
+    const sg = (sty && SPACE_GAIN[sty]) || 1;
+    A[i * 4] = (Eu[i * 3] + r * 0.34) * sg; A[i * 4 + 1] = (Eu[i * 3 + 1] + gg * 0.34) * sg; A[i * 4 + 2] = (Eu[i * 3 + 2] + bb * 0.34) * sg;
     A[i * 4 + 3] = sky[i];
-    B[i * 4] = Es[i * 3] + r * 0.7; B[i * 4 + 1] = Es[i * 3 + 1] + gg * 0.7; B[i * 4 + 2] = Es[i * 3 + 2] + bb * 0.7;
-    // ceiling: bounce from the floor + a little direct uplight from signs/lamps
-    B[i * 4 + 3] = 1.0 * (0.2126 * r + 0.7152 * gg + 0.0722 * bb) + 0.15 * (0.2126 * Es[i * 3] + 0.7152 * Es[i * 3 + 1] + 0.0722 * Es[i * 3 + 2]);
+    B[i * 4] = (Es[i * 3] + r * 0.55) * sg; B[i * 4 + 1] = (Es[i * 3 + 1] + gg * 0.55) * sg; B[i * 4 + 2] = (Es[i * 3 + 2] + bb * 0.55) * sg;
+    // ceiling: light bounced up from the floor (a lit mall ceiling reads ~50% of the
+    // floor's luminance, white not khaki) + a little direct uplight from signs/lamps
+    B[i * 4 + 3] = sg * (1.9 * (0.2126 * r + 0.7152 * gg + 0.0722 * bb) + 0.3 * (0.2126 * Es[i * 3] + 0.7152 * Es[i * 3 + 1] + 0.0722 * Es[i * 3 + 2]));
     C[i * 4] = Math.round(Math.min(1, dist[i] / 4) * 255);
     C[i * 4 + 1] = open[i] ? 255 : 0;
     C[i * 4 + 2] = Math.round(occB[i] * 255);

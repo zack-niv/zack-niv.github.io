@@ -19,9 +19,9 @@ import { params } from './params.js';
 // specLights: real specular fixtures in the light-field shader; envSize: PMREM size
 export const QUALITY = {
   low:    { pixelRatio: 0.75, shadows: false, post: false, bloom: false, ssao: false, ssr: false, fxaa: false, msaa: 0, crowdMax: 500,  drawDist: 90,  anisotropy: 1,  specLights: 2, envSize: 64,  shadowMap: 0,    drsMin: 0.6, vignette: 0.3, grain: 0, ca: 0, maxPR: 1.5 },
-  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1100, drawDist: 140, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.015, ca: 0, maxPR: 1.5 },
-  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  fxaa: true,  msaa: 0, crowdMax: 1800, drawDist: 200, anisotropy: 8,  specLights: 8, envSize: 128, shadowMap: 2048, drsMin: 0.6, vignette: 0.35, grain: 0.02, ca: 0.006, maxPR: 1.25 },
-  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, anisotropy: 16, specLights: 8, envSize: 256, shadowMap: 4096, drsMin: 0.7, vignette: 0.35, grain: 0.02, ca: 0.006, maxPR: 2 },
+  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1100, drawDist: 140, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.01, ca: 0, maxPR: 1.5 },
+  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false,  msaa: 0, crowdMax: 1800, drawDist: 200, anisotropy: 8,  specLights: 8, envSize: 128, shadowMap: 2048, drsMin: 0.75, vignette: 0.35, grain: 0.012, ca: 0.003, maxPR: 1.25 },
+  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, anisotropy: 16, specLights: 8, envSize: 256, shadowMap: 4096, drsMin: 0.8, vignette: 0.35, grain: 0.012, ca: 0.003, maxPR: 2 },
 };
 export const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 

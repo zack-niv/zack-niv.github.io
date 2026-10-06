@@ -15,7 +15,7 @@
 //
 // ctx.architecture exposes (see notes/architecture.md):
 //   columns, fascia, adFrames, serviceBeams, platformColumns, exitCanopies,
-//   hangPoints, isClear(level, x, z, r), stats
+//   hangPoints, wallItems (hose cabinets, doors, lockers... {level,type,x,z,nx,nz,w}), isClear(level, x, z, r), stats
 // =============================================================================
 import * as THREE from 'three';
 import { Kit, CHUNK } from './arch/kit.js';
@@ -54,6 +54,7 @@ export class Architecture {
     step('ceilings', () => buildCeilings(K));
     step('ramps', () => { this.ramps = new Ramps(K); this.ramps.build(); this.exitCanopies = this.ramps.exitCanopies || []; });
     this.hangPoints = K.hangPoints || [];
+    this.wallItems = K.wallItems || [];
     step('portals', () => { this.stats.portals = buildPortals(K); });
     step('walls', () => { this.stats.wallKit = wallKit(K); });
     step('wear', () => { this.stats.wearDecals = wearKit(K); });

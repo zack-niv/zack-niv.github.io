@@ -14,20 +14,20 @@ export const PLACES = [
   { id: 'sennichimae', zone: 'sennichimae', en: 'Sennichimae Line', ja: '千日前線 なんば駅' },
   { id: 'sen_plat', space: 's_platform', en: 'Sennichimae Line platform', ja: '千日前線 ホーム' },
   { id: 'nambawalk', zone: 'nambawalk', en: 'NAMBAWALK', ja: 'なんばウォーク' },
-  { id: 'walk_court', space: 'walk_court', en: 'Crysta fountain court', ja: 'クリスタ広場' },
-  { id: 'depachika', space: 'taka_b1', en: 'Takashimaya depachika', ja: '高島屋 デパ地下' },
+  { id: 'walk_court', wonder: true, space: 'walk_court', en: 'Crysta fountain court', ja: 'クリスタ広場' },
+  { id: 'depachika', wonder: true, space: 'taka_b1', en: 'Takashimaya depachika', ja: '高島屋 デパ地下' },
   { id: 'taka_1f', space: 'taka_1f', en: 'Takashimaya cosmetics hall', ja: '高島屋 1階' },
   { id: 'passage', zone: 'link', en: 'The long underground passage', ja: 'なんば地下街' },
   { id: 'city', zone: 'city', en: 'Namba CITY', ja: 'なんばCITY' },
-  { id: 'city_court', space: 'city_b1_court', en: 'Namba CITY central court', ja: 'なんばCITY 中央広場' },
+  { id: 'city_court', wonder: true, space: 'city_b1_court', en: 'Namba CITY central court', ja: 'なんばCITY 中央広場' },
   { id: 'city_dining', space: 'city_b1_dining', en: 'Namba CITY dining street', ja: 'なんばCITY 飲食街' },
-  { id: 'parks', zone: 'parks', en: 'Namba Parks', ja: 'なんばパークス' },
-  { id: 'canyon', space: 'parks_canyon', en: 'Namba Parks Canyon', ja: 'なんばパークス キャニオン' },
-  { id: 'stage', space: 'parks_stage', en: 'Parks amphitheatre', ja: 'パークスステージ' },
-  { id: 'bridge', space: 'parks_bridge_*F', en: 'Bridge over the canyon', ja: 'キャニオンブリッジ' },
-  { id: 'gardens', zone: 'parksGarden', en: 'Parks Garden terraces', ja: 'パークスガーデン' },
+  { id: 'parks', wonder: true, zone: 'parks', en: 'Namba Parks', ja: 'なんばパークス' },
+  { id: 'canyon', wonder: true, space: 'parks_canyon', en: 'Namba Parks Canyon', ja: 'なんばパークス キャニオン' },
+  { id: 'stage', wonder: true, space: 'parks_stage', en: 'Parks amphitheatre', ja: 'パークスステージ' },
+  { id: 'bridge', wonder: true, space: 'parks_bridge_*F', en: 'Bridge over the canyon', ja: 'キャニオンブリッジ' },
+  { id: 'gardens', wonder: true, zone: 'parksGarden', en: 'Parks Garden terraces', ja: 'パークスガーデン' },
   { id: 'deck', space: 'parks_5f_deck*', en: 'The timber boardwalk', ja: 'ウッドデッキ' },
-  { id: 'summit', space: 'garden_8F', en: 'Parks Garden summit', ja: 'パークスガーデン 屋上' },
+  { id: 'summit', wonder: true, space: 'garden_8F', en: 'Parks Garden summit', ja: 'パークスガーデン 屋上' },
   { id: 'dining_floors', space: 'parks_*F_dining', en: 'Parks restaurant floors', ja: 'パークス レストランフロア' },
   { id: 'skywalk', space: 'parks_*F_out', en: 'Sky corridor', ja: 'スカイコリドー' },
   { id: 'plaza', zone: 'plaza', en: 'Namba Plaza, outside', ja: 'なんば広場' },
@@ -91,7 +91,7 @@ export class Journal {
       if (pl.match && sid) hit = pl.match(sid);
       else if (pl.zone) hit = zone === pl.zone && (!!sid || !!p.zone);
       else if (pl.point) hit = b.level === pl.point.level && Math.hypot(b.x - pl.point.x, b.z - pl.point.z) < pl.r;
-      if (hit) this.discover(pl.id, pl.en, pl.ja, { silent: pl.silent });
+      if (hit) this.discover(pl.id, pl.en, pl.ja, { silent: pl.silent || !pl.wonder });
     }
   }
   get places() { return [...this.found.values()]; }

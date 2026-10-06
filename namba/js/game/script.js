@@ -6,13 +6,13 @@
 export const QUESTS = {
   coffee:  { text: 'Find a great coffee', textJa: '美味しいコーヒーを探す', detail: 'Not chain stuff, Aya says.' },
   tempura: { text: 'Find tempura for lunch', textJa: 'お昼は天ぷら', detail: 'Somewhere people queue for.' },
-  subway:  { text: 'Midosuji Line to Shin-Osaka', textJa: '御堂筋線で新大阪へ', detail: 'Shinkansen leaves Shin-Osaka at 15:10.' },
+  subway:  { text: 'Midosuji Line to Shin-Osaka', textJa: '御堂筋線で新大阪へ', detail: 'Shinkansen leaves Shin-Osaka at 16:10.' },
 };
 
 // Opening texts (sent in order, with delays in real seconds)
 export const INTRO = [
   [2.2, 'Landed?? Welcome to Osaka!!'],
-  [4.2, 'Ok, today\'s mission, very serious:\n1. a GOOD coffee (not chain stuff)\n2. tempura for lunch\n3. Midosuji Line to Shin-Osaka for the 15:10 Shinkansen'],
+  [4.2, 'Ok, today\'s mission, very serious:\n1. a GOOD coffee (not chain stuff)\n2. tempura for lunch\n3. Midosuji Line to Shin-Osaka for the 16:10 Shinkansen'],
   [4.0, 'Namba station is basically a city. You will get lost. That\'s the fun part'],
 ];
 
@@ -32,13 +32,16 @@ export const HINTS = {
   ],
 };
 
+// The walk is long and the clock is quick (1 game minute = 10 real seconds), so
+// the Shinkansen is the 16:10 and the nudges are gentle and well spaced.
+export const SHINKANSEN = { first: 16 * 60 + 10, next: 16 * 60 + 40, leaveBy: 15 * 60 + 40 };
 export const TIMED = [
   // [minutes since midnight, condition key, text]
   [12 * 60 + 20, 'tempura', 'It\'s lunch o\'clock. Did you find the tempura?? The good places get a line around now'],
-  [14 * 60, 'subway', 'Reminder!! Shinkansen 15:10 from Shin-Osaka. Leave Namba by 14:40 and you\'re totally fine'],
-  [14 * 60 + 40, 'subway', 'Ok now-ish would be a good time to find that red line 😅'],
-  [15 * 60 + 10, 'subway', 'Missed it? Lol. There\'s another one at 15:40, I already checked. You\'ll be fine. Japan has a lot of trains'],
-  [16 * 60 + 30, 'subway', 'Honestly just move to Namba at this point'],
+  [14 * 60 + 30, 'subway', 'Reminder!! Shinkansen 16:10 from Shin-Osaka. Leave Namba by 15:40 and you\'re totally fine'],
+  [15 * 60 + 30, 'subway', 'Ok now-ish would be a good time to find that red line 😅'],
+  [16 * 60 + 10, 'subway', 'Missed it? Lol. There\'s another one at 16:40, I already checked. You\'ll be fine. Japan has a lot of trains'],
+  [17 * 60 + 30, 'subway', 'Honestly just move to Namba at this point'],
 ];
 
 export const REACTIONS = {

@@ -177,8 +177,10 @@ export function buildTrackEnv(ctx, cfgs) {
         const s1 = Math.min(shedEnd, s + step);
         const b = bAt((s + s1) / 2);
         const a = T.P(s, roofY, lo), bb = T.P(s1, roofY, lo), c = T.P(s1, roofY, hi), d = T.P(s, roofY, hi);
-        b.quad('ceiling_metal', a, d, c, bb);
+        b.quad('arch_vault', a, d, c, bb);
         b.quad('roof_deck', a, bb, c, d);
+        // continuous cool-white LED / skylight band over the train (Nankai Namba's bright shed)
+        for (let q = s + 1; q < s1 - 1.5; q += 4) T.box(b, 'transit_lamp_cool', q + 1.5, roofY - 0.04, centre, 3.0, 0.05, 0.5);
       }
       // contact + messenger wires over the track centre
       for (let s = r0 + 1; s < v1; s += step) {

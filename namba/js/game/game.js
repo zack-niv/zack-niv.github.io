@@ -13,7 +13,7 @@ import { Journal } from './journal.js';
 import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js';
 import { Title } from '../ui/title.js';
 import * as V from './vignettes.js';
-import { QUESTS, INTRO, HINTS, TIMED, REACTIONS, ENDING } from './script.js';
+import { QUESTS, INTRO, HINTS, TIMED, REACTIONS, ENDING, SHINKANSEN } from './script.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -135,20 +135,29 @@ export class Game {
     this.after(1.0, () => this.hud?.chapter(sp
       ? { ja: '南海なんば駅', en: 'Nankai Namba Station', sub: `Platform 4 · ${ctx.clock.hhmm} · off the rapi:t from Kansai Airport` }
       : { ja: 'なんば', en: 'Namba, Osaka', sub: ctx.clock.hhmm }, 6.5));
-    let t = 3.2;
+    let t = 6.0;
     INTRO.forEach(([dt, text], i) => {
       t += i === 0 ? 0 : dt;
       this.after(t, () => this.message(text));
     });
     t += 2.5;
-    ['coffee', 'tempura', 'subway'].forEach((id, i) => this.after(t + i * 1.6, () => this.setQuest(id, 'active')));
+    ['coffee', 'tempura', 'subway'].forEach((id, i) => this.after(t + i * 0.8, () => this.setQuest(id, 'active', null, true)));
     this.after(t + 7, () => this.hud?.caption({ en: 'Okay. Coffee first. Everything else after coffee.', kind: 'thought', duration: 3.6 }));
+  }
+  // glide the view toward a direction (vignettes: the counter, the fryer) — the world stays live
+  lookDir(dx, dz, pitch = -0.2, rate = 2.2) { this._look = { yaw: Math.atan2(-dx, -dz), pitch, rate }; }
+  clearLook() { this._look = null; }
+  _stepLook(dt) {
+    const L = this._look, p = this.ctx.player; if (!L || !p) return;
+    let d = L.yaw - p.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+    const k = Math.min(1, dt * L.rate);
+    p.yaw += d * k; p.pitch += (L.pitch - p.pitch) * k;
   }
   after(sec, fn) { this._timers.push({ t: sec, fn }); }
 
   // ---------------------------------------------------------------------------
   // Quests & messages
-  setQuest(id, state, detail) {
+  setQuest(id, state, detail, silent) {
     const q = this.quests[id]; if (!q) return;
     const prev = q.state;
     q.state = state;
@@ -156,7 +165,7 @@ export class Game {
     if (state === 'done') q.doneAt = this.ctx.clock.hhmm;
     this._lastProgress = this.ctx.clock.minutes;
     this.ctx.events.emit('quest:update', { id, state, text: q.text, textJa: q.textJa, detail: q.detail });
-    if (prev !== state && !this.quiet) {
+    if (prev !== state && !this.quiet && !silent) {
       if (state === 'active') this.hud?.toast({ kind: 'quest', title: 'New goal', en: q.text, ja: q.textJa, duration: 5.5 });
       if (state === 'done') { this.hud?.toast({ kind: 'done', title: 'Done', en: q.text, ja: q.textJa, duration: 6 }); this.ctx.audio?.play?.('bell'); }
     }
@@ -279,7 +288,7 @@ export class Game {
     this.hud?.prompt(null);
     this.ctx.events.emit('vignette:open', { kind });
     try { await fn(); } catch (e) { console.error('[vignette]', kind, e); this.hud?.fade(0, 300); }
-    this.busy = false; this._syncFrozen();
+    this.busy = false; this.clearLook(); this._syncFrozen();
     this.ctx.events.emit('vignette:close', { kind });
   }
 
@@ -470,6 +479,7 @@ export class Game {
     const b = this.ctx.player.body;
     if (this.ic.balance < MIN_FARE) return this._refuse(tap, 'balance');
     this.paidArea = gt.line;
+    this._tapInLine = gt.line; this._tapInAt = this.ctx.clock.minutes;
     this._flaps(tap, true);
     this.hud?.ic({ balance: this.ic.balance, ok: true, reason: gt.ja });
     this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, x: b.x, z: b.z, level: b.level });
@@ -491,8 +501,19 @@ export class Game {
       this.hud?.caption({ en: 'The gate swallows your rapi:t ticket with a satisfied little whirr.', kind: 'thought', duration: 3.4 });
       return;
     }
-    this.hud?.ic({ balance: this.ic.balance, ok: true, reason: gt.ja });
-    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, exit: true, x: b.x, z: b.z, level: b.level });
+    // leaving a metro gate you tapped into: the minimum fare comes off (the card
+    // never goes negative: the machine is gentle about it)
+    let fare = 0;
+    if ((gt.line === 'midosuji' || gt.line === 'sennichimae') && this._tapInLine === gt.line) {
+      fare = Math.min(MIN_FARE, this.ic.balance);
+      this.ic.balance -= fare;
+      this._tapInLine = null;
+      this.journal.fares = (this.journal.fares || 0) + fare;
+      if (fare) this.hud?.caption({ en: 'Tapped in, tapped straight out. The minimum fare, for the privilege of looking at a platform.', kind: 'thought', duration: 3.8 });
+    }
+    this.ctx.audio?.play?.('gate_ok');
+    this.hud?.ic({ balance: this.ic.balance, ok: true, fare, reason: gt.ja });
+    this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare, exit: true, x: b.x, z: b.z, level: b.level });
   }
 
   // ---------------------------------------------------------------------------
@@ -554,20 +575,26 @@ export class Game {
     const { ctx, hud } = this;
     this._pa('ドアが閉まります。ご注意ください。', 'The doors are closing. Please stand clear.', 3);
     await sleep(1800);
+    hud.ride(true);
     await hud.fade(1, 1800);
     hud.fadeText(`<div class="h-fade-kicker">御堂筋線 · 天王寺・なかもず方面</div><div class="h-fade-big">次は、大国町</div><div class="h-fade-small">The next station is Daikokuchō.</div>`);
     await sleep(3400);
     hud.fadeText(`<div class="h-fade-small">…Daikokuchō is <i>south</i>.<br>Shin-Osaka is very much <i>north</i>.</div>`);
     await sleep(3200);
+    const fare = Math.min(MIN_FARE, this.ic.balance);
+    this.ic.balance -= fare; this._tapInLine = null;
     hud.fadeText(`<div class="h-fade-small">You get off, cross the platform with enormous dignity,<br>and ride one stop back.</div><div class="h-fade-clock">${ctx.clock.hhmm} → ${hhmm(ctx.clock.minutes + 6)} · six minutes you'll never get back</div>`);
     ctx.clock.minutes += 6; ctx.clock.update(0);
     this.journal.wrongTurns++;
     this.journal.discover('daikokucho', 'Daikokuchō (by accident)', '大国町');
     await sleep(3600);
-    ctx.teleport && ctx.teleport({ level: 'B2', x: -113.5, z: -128, yaw: -Math.PI / 2, pitch: 0 });
+    // back on the Namba island platform, but on the track-1 side: the other train is across the platform
+    ctx.teleport && ctx.teleport({ level: 'B2', x: -120.6, z: -128, yaw: -Math.PI / 2, pitch: 0 });
     this.paidArea = 'midosuji';
     hud.fadeText('');
+    hud.ride(false);
     await hud.fade(0, 1400);
+    hud.ic({ balance: this.ic.balance, fare, ok: true, reason: '御堂筋線 · 精算' });
     hud.caption({ en: 'Okay. The other side, then.', kind: 'thought', duration: 3 });
     this.message(REACTIONS.wrongWay, 'Aya', 5);
   }
@@ -607,13 +634,17 @@ export class Game {
     const boardAt = ctx.clock.minutes;
     this._pa('ドアが閉まります。ご注意ください。', 'The doors are closing. Please stand clear.', 3.2);
     await sleep(2200);
+    hud.ride(true);
     await hud.fade(1, 2600);
     hud.fadeText(`<div class="h-fade-kicker">御堂筋線 · 梅田・新大阪方面</div><div class="h-fade-big">次は、心斎橋</div><div class="h-fade-small">The next station is Shinsaibashi.</div>`);
     await sleep(3600);
+    hud.fadeText(`<div class="h-fade-small"><i>Above you, Namba carries on without you.<br>It will be fine. It always is.</i></div>`);
+    await sleep(3000);
     hud.fadeText('');
     if (this.quests.subway.state !== 'done') this.setQuest('subway', 'done', `Midosuji Line, track 2, ${hhmm(boardAt)}. Next stop Shinsaibashi, then Umeda, then Shin-Osaka.`);
     if (!this.finished) this.message(REACTIONS.boarded, 'Aya', 2);
     this.finished = true;
+    hud.ride(false);
     this._showEndCard(boardAt);
   }
   _summary(boardAt) {
@@ -621,8 +652,8 @@ export class Game {
     const mins = Math.max(0, Math.round(boardAt - (j.startMinutes ?? boardAt)));
     const arrive = boardAt + 15 + 8;
     let shinkansen;
-    if (arrive <= 15 * 60 + 10) shinkansen = { en: 'You\'ll make the 15:10 with time for a bento.', ja: '15:10の新幹線に余裕で間に合う' };
-    else if (arrive <= 15 * 60 + 40) shinkansen = { en: 'The 15:40 it is. You\'ll be fine.', ja: '15:40の新幹線で大丈夫' };
+    if (arrive <= SHINKANSEN.first) shinkansen = { en: 'You\'ll make the 16:10 with time for a bento.', ja: '16:10の新幹線に余裕で間に合う' };
+    else if (arrive <= SHINKANSEN.next) shinkansen = { en: 'The 16:40 it is. You\'ll be fine.', ja: '16:40の新幹線で大丈夫' };
     else shinkansen = { en: 'There is always another Shinkansen.', ja: '新幹線はまた来る' };
     const fare = FARE_SHIN_OSAKA;
     const short = this.ic.balance < fare;
@@ -707,6 +738,7 @@ export class Game {
     if (this.titleUp) { this.title.update(dt); return; }
     if (!this.started || !ctx.player) return;
     this._menuInput();
+    if (!this.paused) this._stepLook(dt);
     if (!this.paused) {
       // timers (real seconds, pause-aware)
       for (let i = this._timers.length - 1; i >= 0; i--) {
@@ -745,13 +777,16 @@ export class Game {
   // soft time pressure & hints, by game clock
   _timeBased() {
     const m = this.ctx.clock.minutes;
+    // a clock jump (a meal, a queue) can make several nudges due at once: only the
+    // latest still-relevant one is sent, the rest are dropped rather than burst out
+    let send = null;
     while (this._timed < TIMED.length && TIMED[this._timed][0] <= m) {
       const [t, cond, text] = TIMED[this._timed++];
       if (this.journal.startMinutes != null && t < this.journal.startMinutes) continue;
       if (this.quests[cond] && this.quests[cond].state === 'done') continue;
-      if (this.busy) { this.message(text, 'Aya', 8); continue; }
-      this.message(text);
+      send = text;
     }
+    if (send) { if (this.busy) this.message(send, 'Aya', 8); else this.message(send); }
     if (this._lastProgress != null && m - this._lastProgress > 40 && !this.busy) {
       this._lastProgress = m;
       for (const id of ['coffee', 'tempura', 'subway']) {

@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { BIT } from './looks.js';
 
 export const BONE = { PELVIS: 0, TORSO: 1, HEAD: 2, UARM_L: 3, FARM_L: 4, UARM_R: 5, FARM_R: 6, THIGH_L: 7, SHIN_L: 8, THIGH_R: 9, SHIN_R: 10, GROUND: 11 };
-export const REG = { SKIN: 0, HAIR: 1, TOP: 2, INNER: 3, BOTTOM: 4, SHOES: 5, ACC: 6, ACC2: 7, DARK: 8, WHITE: 9, METAL: 10, LEGWEAR: 11, EYE: 12 };
+export const REG = { SKIN: 0, HAIR: 1, TOP: 2, INNER: 3, BOTTOM: 4, SHOES: 5, ACC: 6, ACC2: 7, DARK: 8, WHITE: 9, METAL: 10, LEGWEAR: 11, EYE: 12, SCREEN: 13 };
 
 const ALWAYS = [0, 0], hair = (v) => [1, v], has = (b) => [2, b], not = (b) => [3, b];
 
@@ -98,6 +98,40 @@ class GB {
     face([0, 1, 0], [C(-1, 1, -1), C(-1, 1, 1), C(1, 1, 1), C(1, 1, -1)]);
     face([0, -1, 0], [C(-1, -1, 1), C(-1, -1, -1), C(1, -1, -1), C(1, -1, 1)]);
   }
+  // rounded box (superellipsoid), optional rotation about X around a pivot like box()
+  sup(c, h, bone, region, sel, { p = 4, su = 12, sv = 7, rx = 0, pivot = null, taper = 1 } = {}) {
+    const part = [bone, region, sel[0], sel[1]];
+    const P = pivot || c, e = 2 / p, e2 = 2 - e;
+    const cx = Math.cos(rx), sx = Math.sin(rx);
+    const sg = (v, k) => Math.sign(v) * Math.pow(Math.abs(v), k);
+    const grid = [];
+    for (let j = 0; j <= sv; j++) {
+      const ph = -Math.PI / 2 + (j / sv) * Math.PI, cp = Math.cos(ph), sp = Math.sin(ph);
+      const row = [];
+      for (let i = 0; i <= su; i++) {
+        const th = (i / su) * Math.PI * 2, ct = Math.cos(th), st = Math.sin(th);
+        const tp = sp > 0 ? taper : 1;
+        let X = c[0] + h[0] * tp * sg(cp, e) * sg(ct, e), Y = c[1] + h[1] * sg(sp, e), Z = c[2] + h[2] * tp * sg(cp, e) * sg(st, e);
+        let nx = sg(cp, e2) * sg(ct, e2) / h[0], ny = sg(sp, e2) / h[1], nz = sg(cp, e2) * sg(st, e2) / h[2];
+        const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+        let y0 = Y - P[1], z0 = Z - P[2];
+        const Yr = y0 * cx - z0 * sx + P[1], Zr = y0 * sx + z0 * cx + P[2];
+        const nyr = ny * cx - nz * sx, nzr = ny * sx + nz * cx;
+        row.push([X, Yr, Zr, nx, nyr, nzr]);
+      }
+      grid.push(row);
+    }
+    for (let j = 0; j < sv; j++) for (let i = 0; i < su; i++) {
+      const a = grid[j][i], b = grid[j][i + 1], cc = grid[j + 1][i + 1], d = grid[j + 1][i];
+      if (j > 0) { this.v(...a, part); this.v(...cc, part); this.v(...b, part); }
+      if (j < sv - 1) { this.v(...a, part); this.v(...d, part); this.v(...cc, part); }
+    }
+  }
+  // accessory body: rounded where there is budget, plain box otherwise
+  acc(lod, c, h, bone, region, sel, o = {}) {
+    if (lod >= 2) return this.box(c, h, bone, region, sel, o);
+    return this.sup(c, h, bone, region, sel, { p: o.p || 4, su: lod === 0 ? 10 : 6, sv: lod === 0 ? 6 : 3, rx: o.rx || 0, pivot: o.pivot || null, taper: o.taper || 1 });
+  }
   // thin quad facing -z (front) at depth z
   panel(x0, x1, y0, y1, z, bone, region, sel, { topX0 = x0, topX1 = x1, nz = -1 } = {}) {
     const part = [bone, region, sel[0], sel[1]];
@@ -122,23 +156,30 @@ function hairDeform(style) {
   const C = HEAD_C, R = [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12];
   return (dx, dy, dz) => {
     const front = -dz; // 1 at the face
-    const faceZone = front > 0.25 && dy < 0.32 && Math.abs(dx) < 0.85;
+    const faceZone = front > 0.25 && dy < 0.32 && Math.abs(dx) < 0.66;
+    const sp = Math.hypot(dx, dz) || 1e-3, fr = -dz / sp; // fr: 1 at the face, -1 at the nape
     let thr;
-    if (style === 0 || style === 3) thr = front > 0 ? 0.3 * front + 0.05 * (1 - front) - 0.15 * (1 - front) : -0.1 + 0.42 * front; // short
-    else if (style === 4) thr = 0.15 + 0.25 * Math.max(0, front);
-    else thr = 0.34; // bob/long: hairline at forehead, rest falls
+    if (style === 4) thr = (fr >= 0 ? -0.05 + 0.55 * Math.pow(fr, 1.5) : -0.05 + 0.3 * fr) + 0.08;
+    else thr = (fr >= 0 ? -0.12 + 0.64 * Math.pow(fr, 1.5) : -0.12 + 0.33 * fr) + 0.045 * Math.sin(dx * 13);
+    if (style === 1 || style === 2) thr = 0.34;
     const x = C[0] + dx * R[0], y = C[1] + dy * R[1], z = C[2] + dz * R[2];
     if (style === 0 || style === 3 || style === 4) {
       if (dy >= thr) return [x, y, z];
-      return null;
+      // clamp onto the hairline rim (a clean edge instead of collapsed, jagged triangles)
+      const k = Math.sqrt(Math.max(0, 1 - thr * thr)) / Math.sqrt(Math.max(1e-3, 1 - dy * dy));
+      return [C[0] + dx * R[0] * k, C[1] + thr * R[1], C[2] + dz * R[2] * k];
     }
     // bob (1) / long (2)
-    if (faceZone || (front > 0.55 && dy < 0.34)) return null;
+    if (faceZone || (front > 0.55 && dy < 0.34)) {
+      if (dy >= 0.34) return [x, y, z];
+      const k = Math.sqrt(1 - 0.34 * 0.34) / Math.sqrt(Math.max(1e-3, 1 - dy * dy));
+      return [C[0] + dx * R[0] * k, C[1] + 0.34 * R[1], C[2] + dz * R[2] * k];
+    }
     if (dy >= 0.15) return [x, y, z];
     const len = style === 1 ? 0.14 : 0.33;
     const t = (0.15 - dy) / 1.15; // 0..1 downwards
     const yy = C[1] + 0.15 * R[1] - t * (0.15 * R[1] + len + (style === 2 && dz > 0 ? 0.02 : 0));
-    const spread = style === 2 ? 1.0 + 0.1 * t : 1.0 + 0.06 * t;
+    const spread = (style === 2 ? 1.0 + 0.16 * Math.sin(Math.min(1, t * 1.6) * 2.4) : 1.0 + 0.1 * Math.sin(Math.min(1, t * 1.8) * 2.2)) + 0.012 * Math.sin(dx * 11 + t * 7);
     const zz = C[2] + dz * R[2] * spread + (style === 2 ? 0.02 * t : 0);
     return [C[0] + dx * R[0] * spread, yy, front > 0 ? Math.min(zz, C[2] - 0.0) : zz];
   };
@@ -159,11 +200,15 @@ export function buildHuman(lod = 0) {
     // bare/tights legs under skirts
     g.lathe([[0.075, x, 0.005, 0.042, 0.045], [0.32, x, 0.005, 0.05, 0.055], [0.52, x, 0, 0.055, 0.06]], segL, shin, R.LEGWEAR, has(BIT.SKIRT));
     if (lod < 2) g.lathe([[0.5, x, 0, 0.058, 0.062], [0.8, x, 0, 0.07, 0.074]], segL, thigh, R.LEGWEAR, has(BIT.SKIRT));
+    // knee cap hides the seam when the leg bends
+    if (lod < 2) g.ellipsoid([x, 0.5, 0], [0.068, 0.06, 0.07], lod === 0 ? 10 : 6, lod === 0 ? 7 : 4, shin, R.BOTTOM, not(BIT.SKIRT));
+    if (lod < 2) g.ellipsoid([x, 0.5, 0], [0.058, 0.06, 0.06], lod === 0 ? 10 : 6, lod === 0 ? 7 : 4, shin, R.LEGWEAR, has(BIT.SKIRT));
     // shoes
     if (lod === 0) {
       g.ellipsoid([x, 0.043, -0.045], [0.047, 0.043, 0.125], 12, 8, shin, R.SHOES, ALWAYS, (dx, dy, dz, p) => [p[0], Math.max(0.004, p[1]), p[2]]);
-      g.box([x, 0.0055, -0.05], [0.049, 0.0055, 0.13], shin, R.WHITE, ALWAYS, { taper: 0.95 }); // sole
-    } else g.box([x, 0.04, -0.035], [0.05, 0.04, 0.13], shin, R.SHOES, ALWAYS, { taper: 0.9 });
+      g.ellipsoid([x, 0.009, -0.047], [0.039, 0.011, 0.118], 10, 4, shin, R.WHITE, ALWAYS, (dx, dy, dz, p) => [p[0], Math.max(0.0, p[1]), p[2]]); // sole
+    } else if (lod === 1) g.ellipsoid([x, 0.043, -0.045], [0.047, 0.043, 0.125], 6, 4, shin, R.SHOES, ALWAYS, (dx, dy, dz, p) => [p[0], Math.max(0.004, p[1]), p[2]]);
+    else g.box([x, 0.04, -0.035], [0.05, 0.04, 0.13], shin, R.SHOES, ALWAYS, { taper: 0.9 });
   }
   // ---- pelvis / skirt / coat --------------------------------------------
   g.lathe([[0.84, 0, 0, 0.165, 0.11], [0.98, 0, 0, 0.165, 0.112]], segT, B.PELVIS, R.BOTTOM, ALWAYS, { capBot: true });
@@ -188,7 +233,7 @@ export function buildHuman(lod = 0) {
     g.lathe([[0.955, 0, 0, 0.1655, 0.1125], [0.985, 0, 0, 0.1655, 0.1125]], 20, B.PELVIS, R.DARK, not(BIT.SKIRT)); // belt
   }
   // ---- head --------------------------------------------------------------
-  const hu = lod === 0 ? 20 : lod === 1 ? 8 : 4, hv = lod === 0 ? 15 : lod === 1 ? 6 : 3;
+  const hu = lod === 0 ? 18 : lod === 1 ? 8 : 4, hv = lod === 0 ? 13 : lod === 1 ? 6 : 3;
   // head: slightly narrower jaw and a chin, flatter face plane
   const headDeform = (dx, dy, dz, p) => {
     const t = Math.max(0, -dy - 0.15) / 0.85; // 0 above the cheek line .. 1 at the chin
@@ -199,12 +244,12 @@ export function buildHuman(lod = 0) {
   if (lod === 0) {
     // ears, nose (eyes, brows and mouth are painted in the fragment shader)
     for (const s_ of [-1, 1]) g.ellipsoid([0.082 * s_, 1.612, 0.006], [0.009, 0.024, 0.016], 8, 6, B.HEAD, R.SKIN, ALWAYS);
-    g.ellipsoid([0, 1.595, -0.097], [0.0095, 0.021, 0.014], 8, 6, B.HEAD, R.SKIN, ALWAYS, (dx, dy, dz, p) => [p[0] * (1 + 0.5 * Math.max(0, -dy)), p[1], p[2] - 0.003 * Math.max(0, -dy)]);
+    g.ellipsoid([0, 1.598, -0.093], [0.0075, 0.016, 0.011], 8, 6, B.HEAD, R.SKIN, ALWAYS, (dx, dy, dz, p) => [p[0] * (1 + 0.5 * Math.max(0, -dy)), p[1], p[2] - 0.003 * Math.max(0, -dy)]);
     // mask (white), glasses (dark frame)
     g.ellipsoid([0, 1.578, -0.03], [0.083, 0.045, 0.075], 8, 4, B.HEAD, R.WHITE, has(BIT.MASK), (dx, dy, dz) => (dz < -0.15 ? [dx * 0.083, 1.578 + dy * 0.045, -0.03 + dz * 0.075] : null));
     g.box([0, 1.629, -0.094], [0.06, 0.0045, 0.004], B.HEAD, R.DARK, has(BIT.GLASSES));
     // hair styles
-    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 16, 12, B.HEAD, R.HAIR, hair(st), hairDeform(st));
+    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 13, 9, B.HEAD, R.HAIR, hair(st), hairDeform(st));
     g.ellipsoid([0, 1.69, 0.085], [0.04, 0.04, 0.035], 6, 4, B.HEAD, R.HAIR, hair(3));
     // cap
     g.lathe([[1.66, 0, 0.0, 0.094, 0.104], [1.72, 0, 0.0, 0.088, 0.098], [1.735, 0, 0, 0.05, 0.06]], 10, B.HEAD, R.ACC2, has(BIT.CAP), { capTop: true });
@@ -221,6 +266,8 @@ export function buildHuman(lod = 0) {
     const sx = 0.198 * side;
     g.lathe([[1.13, sx + 0.017 * side, 0, 0.044, 0.046], [1.3, sx + 0.008 * side, 0, 0.05, 0.052], [1.42, sx, 0, 0.055, 0.058]], segL, ua, R.TOP, ALWAYS, { capTop: lod === 2 });
     g.lathe([[0.875, sx + 0.025 * side, 0, 0.033, 0.035], [1.0, sx + 0.021 * side, 0, 0.038, 0.04], [1.14, sx + 0.017 * side, 0, 0.043, 0.045]], segL, fa, R.TOP, ALWAYS);
+    // shoulder cap closes the joint between torso and sleeve
+    if (lod < 2) g.ellipsoid([sx - 0.004 * side, 1.392, 0], [0.057, 0.058, 0.058], lod === 0 ? 10 : 6, lod === 0 ? 8 : 4, ua, R.TOP, ALWAYS);
     // hand
     if (lod === 0) {
       g.ellipsoid([sx + 0.026 * side, 0.82, -0.004], [0.024, 0.06, 0.036], 10, 7, fa, R.SKIN, ALWAYS);
@@ -232,23 +279,23 @@ export function buildHuman(lod = 0) {
   // ---- accessories ---------------------------------------------------------
   const hx = 0.198 + 0.026; // hand x
   // briefcase (right hand)
-  g.box([hx, 0.6, 0], [0.04, 0.14, 0.19], B.FARM_R, R.ACC, has(BIT.BRIEFCASE));
+  g.acc(lod, [hx, 0.6, 0], [0.04, 0.14, 0.19], B.FARM_R, R.ACC, has(BIT.BRIEFCASE), { p: 6 });
   if (lod === 0) g.box([hx, 0.76, 0], [0.012, 0.02, 0.05], B.FARM_R, R.DARK, has(BIT.BRIEFCASE));
   // backpack
-  g.box([0, 1.17, 0.19], [0.15, 0.21, 0.08], B.TORSO, R.ACC, has(BIT.BACKPACK), { taper: 0.9 });
+  g.acc(lod, [0, 1.17, 0.19], [0.15, 0.21, 0.08], B.TORSO, R.ACC, has(BIT.BACKPACK), { taper: 0.9, p: 3 });
   if (lod === 0) for (const s of [-1, 1]) g.box([0.1 * s, 1.3, -0.005], [0.022, 0.15, 0.125], B.TORSO, R.ACC, has(BIT.BACKPACK));
   // shoulder bag (left hip) + strap
-  g.box([-0.23, 0.98, 0.02], [0.045, 0.1, 0.13], B.TORSO, R.ACC, has(BIT.SHOULDERBAG));
+  g.acc(lod, [-0.23, 0.98, 0.02], [0.045, 0.1, 0.13], B.TORSO, R.ACC, has(BIT.SHOULDERBAG), { p: 3 });
   if (lod === 0) { g.panel(-0.2, -0.17, 1.06, 1.43, -0.123, B.TORSO, R.ACC, has(BIT.SHOULDERBAG), { topX0: 0.08, topX1: 0.11 }); g.panel(-0.2, -0.17, 1.06, 1.43, 0.123, B.TORSO, R.ACC, has(BIT.SHOULDERBAG), { topX0: 0.08, topX1: 0.11, nz: 1 }); }
   // tote (left hand)
-  g.box([-hx, 0.65, 0], [0.05, 0.16, 0.16], B.FARM_L, R.ACC, has(BIT.TOTE), { taper: 1.1 });
+  g.acc(lod, [-hx, 0.65, 0], [0.05, 0.16, 0.16], B.FARM_L, R.ACC, has(BIT.TOTE), { taper: 1.1, p: 3 });
   // shopping bags (left hand; second one in right)
-  g.box([-hx - 0.01, 0.6, 0], [0.06, 0.16, 0.14], B.FARM_L, R.ACC2, has(BIT.SHOPBAG));
-  if (lod < 2) g.box([hx + 0.01, 0.62, 0], [0.055, 0.14, 0.12], B.FARM_R, R.ACC2, has(BIT.SHOPBAG2));
+  g.acc(lod, [-hx - 0.01, 0.6, 0], [0.06, 0.16, 0.14], B.FARM_L, R.ACC2, has(BIT.SHOPBAG), { p: 6 });
+  if (lod < 2) g.acc(lod, [hx + 0.01, 0.62, 0], [0.055, 0.14, 0.12], B.FARM_R, R.ACC2, has(BIT.SHOPBAG2), { p: 6 });
   // rolling suitcase: on the ground behind-left, tilted towards the left hand
   {
     const piv = [-0.27, 0.0, 0.62];
-    g.box([-0.27, 0.32, 0.62], [0.19, 0.29, 0.12], B.GROUND, R.ACC2, has(BIT.SUITCASE), { rx: -0.42, pivot: piv });
+    g.acc(lod, [-0.27, 0.32, 0.62], [0.19, 0.29, 0.12], B.GROUND, R.ACC2, has(BIT.SUITCASE), { rx: -0.42, pivot: piv, p: 5 });
     if (lod < 2) {
       g.box([-0.27, 0.78, 0.62], [0.11, 0.18, 0.012], B.GROUND, R.DARK, has(BIT.SUITCASE), { rx: -0.42, pivot: piv });
       for (const s of [-1, 1]) g.box([-0.27 + 0.14 * s, 0.03, 0.62], [0.02, 0.03, 0.03], B.GROUND, R.DARK, has(BIT.SUITCASE));
@@ -257,17 +304,33 @@ export function buildHuman(lod = 0) {
   if (lod === 0) {
     // phone (right hand): lies across the palm, screen up at rest, so a raised forearm tilts it to the face
     g.box([hx - 0.01, 0.8, -0.05], [0.036, 0.0055, 0.074], B.FARM_R, R.DARK, has(BIT.PHONE));
-    g.box([hx - 0.01, 0.806, -0.05], [0.031, 0.0012, 0.066], B.FARM_R, R.WHITE, has(BIT.PHONE));
+    g.box([hx - 0.01, 0.806, -0.05], [0.031, 0.0012, 0.066], B.FARM_R, R.SCREEN, has(BIT.PHONE));
     // takeaway cup (right hand)
     g.lathe([[0.78, hx, -0.04, 0.03, 0.03], [0.9, hx, -0.04, 0.036, 0.036]], 7, B.FARM_R, R.WHITE, has(BIT.CUP), { capTop: true });
     // umbrella (closed, right hand)
     g.lathe([[0.02, hx + 0.005, -0.02, 0.012, 0.012], [0.25, hx + 0.005, -0.02, 0.035, 0.035], [0.78, hx + 0.005, -0.02, 0.012, 0.012]], 6, B.FARM_R, R.ACC, has(BIT.UMBRELLA));
   }
-  // cleaner's cart, pushed in front
+  // cleaner's trolley, pushed in front: chassis, wheels, frame, bin, bin bag, mop
   if (lod < 2) {
-    g.box([0, 0.5, -0.78], [0.26, 0.38, 0.22], B.GROUND, R.METAL, has(BIT.CART));
-    g.box([0, 0.62, -0.78], [0.2, 0.22, 0.17], B.GROUND, R.ACC, has(BIT.CART));
-    g.box([0, 0.9, -0.52], [0.24, 0.015, 0.015], B.GROUND, R.DARK, has(BIT.CART));
+    const C = has(BIT.CART), G = B.GROUND, cz = -0.8;
+    g.box([0, 0.11, cz], [0.25, 0.012, 0.21], G, R.METAL, C);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      g.box([0.235 * sx, 0.44, cz + 0.2 * sz], [0.009, 0.33, 0.009], G, R.METAL, C);
+      if (lod === 0) g.lathe([[0.0, 0.235 * sx, cz + 0.2 * sz, 0.04, 0.04], [0.08, 0.235 * sx, cz + 0.2 * sz, 0.04, 0.04]], 8, G, R.DARK, C, { capTop: true });
+    }
+    g.box([0, 0.77, cz + 0.2], [0.245, 0.01, 0.01], G, R.METAL, C);
+    g.box([0, 0.77, cz - 0.2], [0.245, 0.01, 0.01], G, R.METAL, C);
+    for (const sx of [-1, 1]) g.box([0.235 * sx, 0.77, cz], [0.009, 0.009, 0.21], G, R.METAL, C);
+    g.box([0, 0.97, -0.54], [0.25, 0.012, 0.012], G, R.METAL, C); // push bar
+    for (const sx of [-1, 1]) g.box([0.235 * sx, 0.58, -0.6], [0.009, 0.4, 0.009], G, R.METAL, C, { rx: -0.14, pivot: [0.235 * sx, 0.11, cz + 0.2] });
+    // yellow bin and its lid
+    g.lathe([[0.125, -0.1, cz - 0.02, 0.13, 0.13], [0.56, -0.1, cz - 0.02, 0.165, 0.165]], lod === 0 ? 12 : 7, G, R.ACC, C, { capBot: true });
+    g.lathe([[0.56, -0.1, cz - 0.02, 0.17, 0.17], [0.59, -0.1, cz - 0.02, 0.15, 0.15]], lod === 0 ? 12 : 7, G, R.DARK, C, { capTop: true });
+    // hanging black bag on a hoop at the side
+    g.ellipsoid([0.15, 0.6, cz - 0.02], [0.1, 0.17, 0.12], lod === 0 ? 9 : 6, lod === 0 ? 6 : 4, G, R.DARK, C);
+    // mop: handle + head
+    g.box([0.2, 0.82, cz - 0.17], [0.007, 0.5, 0.007], G, R.METAL, C, { rx: 0.12, pivot: [0.2, 0.3, cz - 0.17] });
+    g.ellipsoid([0.2, 1.3, cz - 0.07], [0.07, 0.05, 0.04], lod === 0 ? 8 : 5, lod === 0 ? 5 : 3, G, R.WHITE, C);
   }
   return g.geometry();
 }

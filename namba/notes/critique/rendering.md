@@ -56,7 +56,7 @@ The batches and harness caveats are listed in `architecture.md`.
 ### 5. Crowd "speckle": chromatic aberration and film grain on a 1-pixel dither pattern
 * **What:** people in many shots are covered in purple or magenta speckle and look half-transparent: `a/nankai_2f.png`, `b/city_b1.png` (the left woman shows the shutter through her body), `b/plaza.png` and `b/pose_1F_-70_-192_180_8.png` (bright magenta in daylight), `a/start.png` (red/purple legs).
 * **Cause, part 1:** the crowd fade is a screen-space interleaved-gradient discard (`humanMat.js` `FRAG_COLOR`). After any teleport or density refill, people fade in at 1.6/s, and the 8-frame harness (dt capped at 0.05 s, so 0.4 s of sim) catches them at about 0.6 opacity.
-* **Cause, part 2:** the composite then applies **chromatic aberration (`uCA` 0.006)**. CA splits R and B by a few pixels across a pattern that alternates every pixel, which manufactures magenta/green fringes inside the bodies. The grain (0.02) adds to it.
+* **Cause, part 2:** dynamic resolution at 0.6 bilinear-upscales the 1-pixel pattern into blotches. The composite then applies **chromatic aberration (`uCA` 0.006)**. CA splits R and B by a few pixels across a pattern that alternates every pixel, which manufactures magenta/green fringes inside the bodies. The grain (0.02) adds to it.
 * **Evidence:** see the experiment shots `d/x_mido_full.png` and `d/x_mido_noCA_noGrain.png`, and "Experiment results" below.
 * **Fix:**
   1. Fade people with *alpha-to-coverage* when MSAA is on. Otherwise use a dither that is temporally stable per instance (seeded by instance id, 4×4 Bayer, pattern scaled to 2 px) and clamp fade-in to people **outside the view frustum or beyond 25 m**. Nobody should materialise in front of the player (that's a Crowd rule; see `crowd-visual.md`).
@@ -110,7 +110,9 @@ The batches and harness caveats are listed in `architecture.md`.
 * The vignette is subtle and natural.
 
 ## Experiment results (crowd speckle)
-*Will be filled in when `d/x_mido_*.png` lands (see the bottom of `crowd-visual.md`).*
+At `midosuji` after 40 frames with DRS pinned at 1.0 (`d/x_mido_full.png`), people are clean. Turning off CA and grain (`d/x_mido_noCA_noGrain.png`), and also AO and SSR (`d/x_mido_noAO_noSSR.png`), changes almost nothing at full opacity. So the speckle comes from the **crowd fade dither**, amplified by **DRS upscaling at 0.6** and coloured by **CA**. Post on its own is innocent on opaque surfaces, but CA should still go (see #5).
+
+Side finding: the image at DRS 1.0 is dramatically crisper than every 0.6 harness shot. DRS is costing more perceived quality than any effect is adding, which supports fixing #9 (TAA-lite plus a higher `drsMin`).
 
 ## Performance red flags
 | view | calls | tris | SwiftShader ms/frame (relative only) |

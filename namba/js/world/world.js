@@ -370,11 +370,14 @@ export class World {
   move(body, dx, dz, r = 0.3) {
     const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / (r * 0.8)));
     let changed = false;
+    const px0 = body.x, pz0 = body.z;
     for (let k = 0; k < steps; k++) {
       body.x += dx / steps; body.z += dz / steps;
       this._resolve(body, r);
       changed = this._updateState(body) || changed;
     }
+    // safety net: a degenerate resolve must never fling a body out of the world
+    if (!Number.isFinite(body.x) || !Number.isFinite(body.z) || Math.abs(body.x - px0) > 50 || Math.abs(body.z - pz0) > 50) { body.x = px0; body.z = pz0; }
     this._updateY(body);
     return changed;
   }

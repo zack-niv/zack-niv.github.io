@@ -109,6 +109,7 @@ const KITS = {
 export function wallKit(K) {
   const { world, L } = K;
   const stats = { items: 0, lockers: 0 };
+  K.wallItems = [];
   const near = (lv, x, z, rad, list, fn) => { for (const o of list) if (o.level === lv && Math.hypot(fn(o)[0] - x, fn(o)[1] - z) < rad) return true; return false; };
   const rampsNear = (lv, x, z, r) => L.ramps.some(rp => (rp.lower === lv || rp.upper === lv) && x > rp.rect[0] - r && x < rp.rect[2] + r && z > rp.rect[1] - r && z < rp.rect[3] + r);
   const gateNear = (lv, x, z) => L.gates.some(g => g.level === lv && Math.abs((g.axis === 'x' ? z : x) - g.at) < 3.5);
@@ -214,6 +215,7 @@ export function wallKit(K) {
           vquad(bt, 'arch_kit', x + nx * 0.06, z + nz * 0.06, nx, nz, 0.84, y0 + 0.33, y0 + 0.87, KIT.VENT);
         }
         stats.items++;
+        K.wallItems.push({ level: lv, type, x, z, nx, nz, w: type === 'locker' ? 2.6 : type === 'door' || type === 'notice' ? 1.06 : 0.9 });
       }
     }
   }

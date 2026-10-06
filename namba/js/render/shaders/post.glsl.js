@@ -141,6 +141,7 @@ uniform vec3 uUpView;     // world up in view space (floor normal)
 uniform vec2 uTexel;
 uniform float uFrame;
 uniform float uMaxDist;
+uniform float uExposure;
 varying vec2 vUv;
 vec2 proj( vec3 p ) { return vec2( p.x * uProj.x / -p.z, p.y * uProj.y / -p.z ) * 0.5 + 0.5; }
 void main() {
@@ -187,11 +188,12 @@ void main() {
   if ( -viewZAt( hit ) > uProj.w * 0.9 ) conf = 0.0;
   float rough = 0.6 * ( 1.0 - refl );
   // cone footprint: blur grows with roughness and distance travelled
-  float k = clamp( rough * 6.0 + rough * hitT * 0.35, 0.0, 3.0 );
+  float k = clamp( rough * 3.5 + rough * hitT * 0.12, 0.0, 3.0 );
   vec3 c0 = texture2D( tScene, hit ).rgb, c1 = texture2D( tMip0, hit ).rgb, c2 = texture2D( tMip1, hit ).rgb, c3 = texture2D( tMip2, hit ).rgb;
   vec3 rc = k < 1.0 ? mix( c0, c1, k ) : k < 2.0 ? mix( c1, c2, k - 1.0 ) : mix( c2, c3, k - 2.0 );
   float w = conf * F * refl * refl;
-  gl_FragColor = vec4( min( rc, vec3( 32.0 ) ) * w, w );
+  // clamp in display units: a ceiling light must reflect as a soft panel, not a blown blob
+  gl_FragColor = vec4( min( rc, vec3( 3.5 / max( uExposure, 1e-3 ) ) ) * w, w );
 }
 `;
 
@@ -208,6 +210,41 @@ void main() {
 }
 `;
 
+// Temporal accumulation for the half-res AO / SSR buffers: reprojects the history
+// with the depth buffer, clamps it to the current 3x3 neighbourhood (so moving
+// things can't ghost) and blends. This is what turns the jittered one-sample
+// noise into smooth, stable AO and crisp reflections.
+export const TEMPORAL = /* glsl */`
+${DEPTH}
+uniform sampler2D tCur;
+uniform sampler2D tHist;
+uniform vec2 uTexel;       // 1 / buffer size
+uniform mat4 uCamWorld;    // current camera matrixWorld
+uniform mat4 uPrevVP;      // previous projection * view
+uniform float uBlend;
+uniform float uKeepG;      // 1: keep current .g (AO stores depth there)
+varying vec2 vUv;
+void main() {
+  vec4 c = texture2D( tCur, vUv );
+  vec4 mn = c, mx = c;
+  for ( int y = -1; y <= 1; y ++ ) for ( int x = -1; x <= 1; x ++ ) {
+    if ( x == 0 && y == 0 ) continue;
+    vec4 s = texture2D( tCur, vUv + vec2( x, y ) * uTexel );
+    mn = min( mn, s ); mx = max( mx, s );
+  }
+  float vz = viewZAt( vUv );
+  vec3 pv = viewPosAt( vUv, vz );
+  vec4 pc = uPrevVP * ( uCamWorld * vec4( pv, 1.0 ) );
+  vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
+  float a = uBlend;
+  if ( pc.w <= 0.0 || puv.x < 0.0 || puv.y < 0.0 || puv.x > 1.0 || puv.y > 1.0 ) a = 0.0;
+  vec4 h = clamp( texture2D( tHist, puv ), mn, mx );
+  vec4 o = mix( c, h, a );
+  if ( uKeepG > 0.5 ) o.g = c.g;
+  gl_FragColor = o;
+}
+`;
+
 // Final composite: AO, SSR, bloom, exposure, grade, tonemap, vignette, CA, grain → LDR (sRGB)
 export const COMPOSITE = /* glsl */`
 uniform sampler2D tScene;
@@ -221,6 +258,7 @@ uniform float uSSR;
 uniform vec3 uLift, uGamma, uGain;
 uniform float uSat, uContrast;
 uniform float uVignette, uGrain, uCA, uTime;
+uniform float uHalo, uHaloT;
 uniform float uFlash;
 uniform int uTonemap;
 varying vec2 vUv;
@@ -279,7 +317,9 @@ void main() {
   // mild lateral chromatic aberration towards the edges
   vec3 col;
   if ( uCA > 0.0 ) {
-    vec2 o = dc * r2 * uCA;
+    // lens-edge only: nothing happens inside r = 0.6 of the screen radius
+    float edge = smoothstep( 0.36, 0.7, r2 * 4.0 );
+    vec2 o = dc * edge * uCA;
     col = vec3( texture2D( tScene, uv - o ).r, texture2D( tScene, uv ).g, texture2D( tScene, uv + o ).b );
   } else col = texture2D( tScene, uv ).rgb;
 #ifdef USE_AO
@@ -292,6 +332,10 @@ void main() {
 #ifdef USE_BLOOM
   vec3 bl = texture2D( tBloom, uv ).rgb;
   col = mix( col, bl, uBloom );
+  // halo: only energy that is still bright (in display units) after blurring
+  vec3 hb = bl * uExposure;
+  vec3 halo = max( hb - uHaloT, 0.0 ) / max( uExposure, 1e-4 );
+  col += halo * uHalo;
 #endif
   col *= uExposure;
   col += uFlash;
@@ -312,8 +356,64 @@ void main() {
   vec3 o = srgb( m );
   // film grain (luminance-weighted, in display space)
   float gn = hash( uv * 1000.0 + fract( uTime ) * 61.0 ) - 0.5;
-  o += gn * uGrain * ( 1.0 - o * 0.6 );
+  float glum = lum( o );
+  o += gn * uGrain * ( 1.0 - smoothstep( 0.55, 1.0, glum ) ) * ( 0.4 + 0.6 * ( 1.0 - glum ) );
   gl_FragColor = vec4( o, lum( m ) );
+}
+`;
+
+// Temporal anti-aliasing on the display-referred composite: reprojects the
+// history with depth, clamps it to the current 3x3 neighbourhood, and lowers the
+// history weight with motion. The camera is jittered (Halton 2,3) by post.js.
+export const TAA = /* glsl */`
+${DEPTH}
+uniform sampler2D tCur;
+uniform sampler2D tHist;
+uniform vec2 uTexel;
+uniform mat4 uCamWorld;
+uniform mat4 uPrevVP;
+uniform float uBlend;
+varying vec2 vUv;
+void main() {
+  vec3 c = texture2D( tCur, vUv ).rgb;
+  vec3 mn = c, mx = c, avg = c;
+  for ( int y = -1; y <= 1; y ++ ) for ( int x = -1; x <= 1; x ++ ) {
+    if ( x == 0 && y == 0 ) continue;
+    vec3 s = texture2D( tCur, vUv + vec2( x, y ) * uTexel ).rgb;
+    mn = min( mn, s ); mx = max( mx, s ); avg += s;
+  }
+  avg /= 9.0;
+  // slightly shrink the box towards the mean: less ghosting on thin bright detail
+  vec3 mid = 0.5 * ( mn + mx ), ext = 0.5 * ( mx - mn ) * 1.15 + 0.004;
+  float vz = viewZAt( vUv );
+  vec3 pv = viewPosAt( vUv, vz );
+  vec4 pc = uPrevVP * ( uCamWorld * vec4( pv, 1.0 ) );
+  vec2 puv = pc.xy / pc.w * 0.5 + 0.5;
+  float a = uBlend;
+  if ( pc.w <= 0.0 || puv.x < 0.0 || puv.y < 0.0 || puv.x > 1.0 || puv.y > 1.0 ) a = 0.0;
+  vec3 h = texture2D( tHist, puv ).rgb;
+  h = clamp( h, mid - ext, mid + ext );
+  float motion = length( ( puv - vUv ) / uTexel );
+  a *= 1.0 - 0.55 * clamp( motion / 6.0, 0.0, 1.0 );
+  gl_FragColor = vec4( mix( c, h, a ), 1.0 );
+}
+`;
+
+// Contrast-adaptive sharpen (5 taps) while writing to the canvas
+export const SHARPEN = /* glsl */`
+uniform sampler2D tSrc;
+uniform vec2 uTexel;
+uniform float uSharp;
+varying vec2 vUv;
+void main() {
+  vec3 c = texture2D( tSrc, vUv ).rgb;
+  vec3 n = texture2D( tSrc, vUv + vec2( 0, uTexel.y ) ).rgb, s = texture2D( tSrc, vUv - vec2( 0, uTexel.y ) ).rgb;
+  vec3 e = texture2D( tSrc, vUv + vec2( uTexel.x, 0 ) ).rgb, w = texture2D( tSrc, vUv - vec2( uTexel.x, 0 ) ).rgb;
+  vec3 mn = min( c, min( min( n, s ), min( e, w ) ) ), mx = max( c, max( max( n, s ), max( e, w ) ) );
+  vec3 amp = sqrt( clamp( min( mn, 1.0 - mx ) / max( mx, vec3( 1e-3 ) ), 0.0, 1.0 ) );
+  vec3 wgt = -amp * mix( 0.125, 0.2, uSharp );
+  vec3 o = ( c + ( n + s + e + w ) * wgt ) / ( 1.0 + 4.0 * wgt );
+  gl_FragColor = vec4( clamp( o, 0.0, 1.0 ), 1.0 );
 }
 `;
 

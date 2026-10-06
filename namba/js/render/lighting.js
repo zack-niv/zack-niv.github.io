@@ -38,8 +38,8 @@ const FOG = {
   metro: { c: [0.55, 0.6, 0.6], d: 0.0085 }, passage: { c: [0.55, 0.58, 0.58], d: 0.009 },
   arcade: { c: [0.62, 0.58, 0.52], d: 0.0075 }, department: { c: [0.65, 0.6, 0.55], d: 0.007 },
   mall: { c: [0.62, 0.55, 0.46], d: 0.0072 }, terminal: { c: [0.6, 0.62, 0.64], d: 0.006 },
-  dining: { c: [0.4, 0.32, 0.26], d: 0.009 }, street: { c: [0.75, 0.8, 0.86], d: 0.0042 },
-  parks: { c: [0.78, 0.84, 0.9], d: 0.0036 }, garden: { c: [0.78, 0.84, 0.9], d: 0.0034 },
+  dining: { c: [0.4, 0.32, 0.26], d: 0.009 }, street: { c: [0.72, 0.8, 0.9], d: 0.0021 },
+  parks: { c: [0.74, 0.83, 0.93], d: 0.0017 }, garden: { c: [0.74, 0.83, 0.93], d: 0.0016 },
 };
 
 export class Lighting {
@@ -140,7 +140,7 @@ export class Lighting {
     const L = world.layout;
     const snap = {
       grids: {}, edges: world.edges, obstacles: world.obstacles,
-      spaces: L.spaces.map(s => ({ outdoor: !!s.outdoor, outdoorish: !!s.outdoorish, rect: s.rect || null })),
+      spaces: L.spaces.map(s => ({ outdoor: !!s.outdoor, outdoorish: !!s.outdoorish, rect: s.rect || null, style: s.style || null })),
       ramps: L.ramps.map(r => ({ lower: r.lower, upper: r.upper, rect: r.rect, axis: r.axis, up: r.up })),
     };
     for (const lv in world.grids) { const g = world.grids[lv]; snap.grids[lv] = { x0: g.x0, z0: g.z0, w: g.w, h: g.h, type: g.type, space: g.space }; }
@@ -259,8 +259,9 @@ export class Lighting {
     }
   }
 
-  // outdoor chunks cast sun shadows
+  // outdoor chunks cast sun shadows (only those near the shadow window — see _updateCasters)
   _markShadowCasters() {
+    this.casters = [];
     if (!this.sun.castShadow) return;
     const { engine, world } = this.ctx;
     for (const lv of LEVEL_ORDER) {
@@ -275,8 +276,25 @@ export class Lighting {
           const si = g.spaceAt(ch.x + dx, ch.z + dz);
           if (si >= 0 && world.layout.spaces[si].outdoor) { out = true; break; }
         }
-        if (out) { grp.userData.nbOutdoor = true; grp.traverse(o => { if (o.isMesh && !o.material.transparent) o.castShadow = true; }); }
+        if (out) {
+          grp.userData.nbOutdoor = true;
+          const meshes = [];
+          grp.traverse(o => { if (o.isMesh && !o.material.transparent) meshes.push(o); });
+          this.casters.push({ grp, meshes, x: ch.x, z: ch.z, r: ch.r, on: false });
+        }
       }
+    }
+    this._casterT = 0;
+  }
+  // restrict the shadow caster set to chunks that can reach the shadow window
+  _updateCasters(px, pz) {
+    if (!this.casters) return;
+    const R = this.sun.shadow.camera.right + 70;
+    for (const c of this.casters) {
+      const want = Math.hypot(c.x - px, c.z - pz) - c.r < R;
+      if (want === c.on) continue;
+      c.on = want;
+      for (const m of c.meshes) m.castShadow = want;
     }
   }
 
@@ -420,9 +438,10 @@ export class Lighting {
         const sx = Math.round(b.x / ts) * ts, sz = Math.round(b.z / ts) * ts;
         tgt.set(sx, b.y, sz);
         sun.position.set(sx + dir.x * 120, b.y + dir.y * 120, sz + dir.z * 120);
+        this._updateCasters(b.x, b.z);
         sun.shadow.needsUpdate = true;
         this._shPos = { x: b.x, z: b.z, y: b.y };
-        this._shTimer = 0.25;
+        this._shTimer = 4;
       }
     } else {
       tgt.set(b.x, b.y, b.z); sun.position.set(b.x + dir.x * 120, b.y + dir.y * 120, b.z + dir.z * 120);

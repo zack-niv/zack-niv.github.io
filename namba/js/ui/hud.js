@@ -60,6 +60,16 @@ export class Hud {
       this.caption(Object.assign({}, c, { en: c.en != null ? c.en : (c.ja ? '' : c.text), speaker: c.speaker === 'PA' ? '' : c.speaker, kind: pa ? 'announce' : (c.kind || 'say'), distant: !!c.distant }));
     });
     ev.on('toast', (t) => t && this.toast(t));
+    // shop staff call out as you pass: a quiet, distant subtitle (cooldown so a shopping street isn't a wall of text)
+    ev.on('crowd:callout', (c) => {
+      if (this.quiet || !c || !c.ja || !subsOn()) return;
+      const p = this.ctx.player && this.ctx.player.body;
+      if (!p || c.level !== p.level || Math.hypot(c.x - p.x, c.z - p.z) > 9) return;
+      const now = performance.now();
+      if (this._calloutT && now - this._calloutT < 14000) return;
+      this._calloutT = now;
+      this.caption({ ja: c.ja, en: c.en || '', kind: 'say', distant: true, duration: 2.2 });
+    });
     ev.on('phone:message', (m) => {
       if (this.ctx.phone && this.ctx.phone.handlesMessages) return;
       this.notify(m);
@@ -167,6 +177,10 @@ export class Hud {
     f.style.opacity = String(alpha);
     return new Promise(r => setTimeout(r, ms + 30));
   }
+  // veil: dim + soften the live world instead of cutting to black (a coffee brews, the line shuffles forward)
+  veil(on) { this.el.fade.classList.toggle('veil', !!on); }
+  // ride: black with tunnel lights streaking past the window band
+  ride(on) { this.el.fade.classList.toggle('ride', !!on); }
   fadeText(html) { this.el.fade.innerHTML = html ? `<div class="h-fade-text">${html}</div>` : ''; }
 
   update() {}

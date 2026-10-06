@@ -52,6 +52,7 @@ export class Visibility {
   }
 
   init() {
+    const t0 = performance.now();
     const { engine, world } = this.ctx;
     this._maskLevels = {};
     this.openings = {};
@@ -75,6 +76,7 @@ export class Visibility {
     this.drsEnabled = !params.test || params.has('drs');
     this.autoQuality = !engine.qualityForced && !params.test;
     this.ctx.events.on && this.ctx.events.on('player:teleport', () => { this._fanKey.level = ''; this._tele = true; });
+    console.log(`[render] visibility init ${(performance.now() - t0).toFixed(0)} ms, ${this._nChunks} chunks`);
   }
 
   _collect() {

@@ -86,7 +86,7 @@ float nbAO = 1.0;
     vec4 A = texture2D( nbA, uv );
     vec4 B = texture2D( nbB, uv );
     vec3 sideCol = B.rgb;
-    vec3 downCol = B.a * ( sideCol + 1e-4 ) / ( nbLum( sideCol ) + 1e-4 );
+    vec3 downCol = B.a * mix( vec3( 1.0 ), ( sideCol + 1e-4 ) / ( nbLum( sideCol ) + 1e-4 ), 0.45 );
     nbE = ( up * A.rgb + sd * sideCol + dn * downCol ) * nbParams.y;
     float sky = A.a;
     nbE += sky * ( nbSky * ( up + 0.5 * sd + 0.06 * dn ) + nbSky * nbGround * ( dn * 0.9 + sd * 0.5 ) );
@@ -158,7 +158,14 @@ const SUNMASK_REPL = 'getDirectionalLightInfo( directionalLight, directLight );\
 // opaque output alpha = 1 - floor reflectivity (read by the SSR pass)
 const ALPHA = /* glsl */`
 #if defined( OPAQUE ) && defined( STANDARD ) && defined( NB_REFLECT )
-  gl_FragColor.a = 1.0 - nbReflect * smoothstep( 0.82, 0.97, nbWN.y ) * clamp( 1.0 - material.roughness / 0.6, 0.0, 1.0 );
+  {
+    // stable (texture-averaged) roughness: per-texel roughness noise would make the SSR blur flicker
+    float nbR = roughness;
+    #ifdef USE_ROUGHNESSMAP
+      nbR *= textureLod( roughnessMap, vRoughnessMapUv, 4.0 ).g;
+    #endif
+    gl_FragColor.a = 1.0 - nbReflect * smoothstep( 0.82, 0.97, nbWN.y ) * clamp( 1.0 - nbR / 0.6, 0.0, 1.0 );
+  }
 #endif
 `;
 
@@ -190,6 +197,18 @@ function patch(material, shader) {
   shader.fragmentShader = fs;
 }
 
+// Guard for builder hooks that read `objectNormal` / `transformed` before three's
+// chunk declares it (a shader compile error would delete the material's geometry).
+function fixVertex(shader) {
+  let vs = shader.vertexShader;
+  const decl = vs.indexOf('#include <beginnormal_vertex>');
+  if (decl < 0) return;
+  const first = vs.indexOf('objectNormal');
+  if (first < 0 || first > decl) return;
+  const head = vs.slice(0, decl).replace(/\bobjectNormal\b/g, 'normal');
+  shader.vertexShader = head + vs.slice(decl);
+}
+
 let installed = false;
 export function installMaterialHook() {
   if (installed) return; installed = true;
@@ -203,7 +222,10 @@ export function installMaterialHook() {
     try {
       try { patch(this, shader); } catch (e) { console.error('[render] material patch failed', e); }
       const u = userHooks.get(this);
-      if (u) u.call(this, shader, renderer);
+      if (u) {
+        u.call(this, shader, renderer);
+        try { fixVertex(shader); } catch (e) { /* leave as is */ }
+      }
     } finally { this.__nbInHook = false; }
   }
   Object.defineProperty(P, 'onBeforeCompile', {
@@ -214,6 +236,6 @@ export function installMaterialHook() {
   P.customProgramCacheKey = function () {
     const u = userHooks.get(this);
     const r = this.userData && this.userData.nbReflect != null ? this.userData.nbReflect : 1;
-    return 'nb2|' + (this.userData && this.userData.nbUnlit ? 'u' : '') + (isHDRBasic(this) ? 'h' : '') + r + '|' + (u ? u.toString() : '');
+    return 'nb3|' + (u ? (this.name || '') : '') + '|' + (this.userData && this.userData.nbUnlit ? 'u' : '') + (isHDRBasic(this) ? 'h' : '') + r + '|' + (u ? u.toString() : '');
   };
 }

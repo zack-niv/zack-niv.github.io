@@ -151,7 +151,7 @@ export class Materials {
     D('light_pendant', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.75, 7) }));
     D('esc_skirt_light', () => new THREE.MeshBasicMaterial({ color: HDR(0.85, 0.93, 1.0, 3) }));
     D('arch_daylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.91, 1.0, 2.2) }));
-    D('arch_adbox', () => new THREE.MeshBasicMaterial({ color: HDR(0.96, 0.97, 1.0, 2.6) }));
+    D('arch_adbox', () => new THREE.MeshBasicMaterial({ color: HDR(0.62, 0.64, 0.68, 1.4) }));
     D('arch_vault', P('ceil_linear', { color: 0xe9ecf0 }));
     // architecture detail kit atlas (hose cabinets, AED, exit signs, doors, lockers, diffusers, ...)
     const kitTex = () => this.texture('arch_kit', () => {

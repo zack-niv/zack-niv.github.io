@@ -107,6 +107,7 @@ export class Director {
   // ---------------------------------------------------------------------------
   // agents
   makeAgent(kind, o = {}) {
+    if (kind === 'family') kind = 'shopper'; // families are built by makeGroup
     const S = this.sim, r = this.r;
     const a = S.spawn();
     const P = PERSON[kind] || PERSON.shopper;
@@ -173,8 +174,8 @@ export class Director {
     let w;
     switch (trip) {
       case 'transfer': case 'transit': case 'through':
-        w = { commuter: 0.32 + 0.55 * commute, tourist: 0.14 + (airport ? 0.2 : 0), student: 0.05 + 0.3 * school, shopper: 0.18, elderly: 0.08 }; break;
-      case 'lunch': w = { commuter: 0.5, shopper: 0.25, tourist: 0.15, elderly: 0.08, student: 0.03 }; break;
+        w = { commuter: 0.32 + 0.55 * commute, tourist: 0.14 + (airport ? 0.2 : 0), student: 0.05 + 0.3 * school, shopper: 0.18, elderly: 0.12, family: 0.05 }; break;
+      case 'lunch': w = { commuter: 0.45, shopper: 0.25, tourist: 0.15, elderly: 0.12, student: 0.03, family: 0.06 }; break;
       case 'coffee': w = { commuter: 0.35, shopper: 0.35, tourist: 0.2, elderly: 0.05 }; break;
       case 'shop': w = { shopper: 0.62, tourist: 0.2, student: 0.04 + 0.2 * school, elderly: 0.07, family: 0.07 }; break;
       case 'parks': w = { tourist: 0.3, shopper: 0.3, elderly: 0.2, family: 0.18 }; break;
@@ -314,14 +315,24 @@ export class Director {
   spawnFromPortal() {
     const tw = this._tripWeights(false);
     let trip = pickW(tw, this.r);
-    const p = this.pickPortal(null);
-    if (!p) return;
+    let p = this.pickPortal(null);
+    // nobody steps in through a doorway the player is looking at from close by
+    for (let k = 0; k < 4 && p && this._seenNear(p.level, p.x, p.z, 30); k++) p = this.pickPortal(null);
+    if (!p || this._seenNear(p.level, p.x, p.z, 30)) return;
     if (trip === 'meet') { this._spawnMeet(p); return; }
     const a = this._create(trip, { portal: p });
     this.sim.setPos(a, p.level, p.x + (this.r() - 0.5) * 1.5, p.z + (this.r() - 0.5) * 1.5);
     if (a.followers) for (const f of a.followers) this.placeFollower(a, f);
     this.B.begin(a, this.plan(trip, a, { portal: p }));
     this.counts.walking++;
+  }
+  _seenNear(level, x, z, r) {
+    const V = this.sim.viewer; if (!V.has || V.level !== level) return false;
+    const dx = x - V.x, dz = z - V.z, d = Math.hypot(dx, dz);
+    if (d > r) return false;
+    if (d < 1.5) return true;
+    if ((dx * -Math.sin(V.yaw || 0) + dz * -Math.cos(V.yaw || 0)) / d < -0.1) return false;
+    return this.sim.world.visible(level, V.x, V.z, x, z);
   }
   _spawnMeet(p) {
     const P = this.P;
@@ -389,8 +400,8 @@ export class Director {
     if (a.followers) for (const f of a.followers) this.placeFollower(a, f);
     const legs = [{ t: 'to', x: x + nx * 1.6, z: z + nz * 1.6, r: 0.6 }, ...this.plan(trip === 'exit' ? 'exit' : trip, a, { line: T.line })];
     this.B.begin(a, legs);
-    a.fadeDir = 1; a.fade = 0.2;
-    if (a.followers) for (const f of a.followers) { f.fadeDir = 1; f.fade = 0.2; }
+    a.fadeDir = 1; a.fade = 1; // steps out of the carriage: no fade
+    if (a.followers) for (const f of a.followers) { f.fadeDir = 1; f.fade = 1; }
   }
   onTrainDepart(ev) {
     const T = ev && ev.track && this.P.trackById[ev.track];
@@ -438,7 +449,9 @@ export class Director {
       const v = list[Math.floor(this.r() * list.length)];
       const dx = nav.x[v] - V.x, dz = nav.z[v] - V.z, d = Math.hypot(dx, dz);
       if (d < rMin || d > rMax) continue;
-      if (hidden && (dx * fx + dz * fz) / d > -0.1 && d < 70 && S.world.visible(V.level, V.x, V.z, nav.x[v], nav.z[v])) continue;
+      // never spawn / relocate where the player can see it: inside 30 m always, inside 70 m unless the caller allows
+      const lim = hidden ? 70 : 30;
+      if ((dx * fx + dz * fz) / d > -0.1 && d < lim && S.world.visible(V.level, V.x, V.z, nav.x[v], nav.z[v])) continue;
       return v;
     }
     return -1;
@@ -465,17 +478,18 @@ export class Director {
     const S = this.sim, V = S.viewer;
     this._dkT -= dt;
     if (this._dkT > 0 || !V.has) return;
-    this._dkT = 0.5;
+    if (this.burst > 0) { this.burst = 0; this._burstLeft = 30; } // teleport: refill spread over ~30 frames
+    const burst = this._burstLeft > 0;
+    if (burst) this._burstLeft--;
+    this._dkT = burst ? 0 : 0.5;
     const tgt = this.target();
     const want = tgt * this.nearShare;
     let near = 0;
     const A = S.agents;
     for (let i = 0; i < A.length; i++) { const a = A[i]; if (a.alive && a.level === V.level) { const dx = a.x - V.x, dz = a.z - V.z; if (dx * dx + dz * dz < 100 * 100) near++; } }
     this.counts.near = near;
-    if (near >= want) { this.burst = 0; return; }
-    const burst = this.burst > 0;
-    let moves = Math.min(burst ? 160 : 14, Math.ceil((want - near) / 1.6));
-    this.burst = 0;
+    if (near >= want) { this._burstLeft = 0; return; }
+    let moves = Math.min(burst ? 12 : 14, Math.ceil((want - near) / 1.6));
     let guard = A.length;
     while (moves > 0 && guard-- > 0) {
       this._dkIdx = (this._dkIdx + 1) % A.length;
@@ -498,12 +512,13 @@ export class Director {
     const lunch = gauss(h, 12.4, 0.85);
     // staff
     let staff = 0;
-    const maxStaff = Math.round(tgt * 0.09);
-    const posts = P.posts.slice().sort((a, b) => (a.kind === 'staff_station' ? -1 : 0) - (b.kind === 'staff_station' ? -1 : 0));
+    const maxStaff = Math.round(tgt * 0.1);
+    const rank = (p) => p.kind === 'staff_station' ? 0 : p.real && p.hall ? 1 : p.real ? 2 : 3;
+    const posts = P.posts.slice().sort((a, b) => rank(a) - rank(b));
     for (const post of posts) {
       if (staff >= maxStaff) break;
       if (post.biz && !P.bizOpen(post.biz, m)) continue;
-      const a = this.makeAgent(post.kind, { look: { female: r() < 0.5, cap: post.biz && post.biz.restaurant && r() < 0.4 } });
+      const a = this.makeAgent(post.kind, { look: { female: r() < 0.5, cap: post.cap || (post.biz && post.biz.restaurant && r() < 0.4), apron: post.apron } });
       S.setPos(a, post.level, post.x, post.z);
       this.B.begin(a, [{ t: 'post', level: post.level, x: post.x, z: post.z, yaw: post.yaw, kind: post.kind }]);
       staff++;

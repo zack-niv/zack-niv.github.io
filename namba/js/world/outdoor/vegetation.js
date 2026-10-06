@@ -254,9 +254,9 @@ export class Vegetation {
       if (sp) {
         const near = buildTree(sp, 100 + kind.length * 7, false), far = buildTree(sp, 100 + kind.length * 7, true);
         variants.push({ lod: 'near', b: new Bucket(near.leaves, leaf, list.length, `veg:${kind}:leaf`, true), t: new Bucket(near.trunk, trunk, list.length, `veg:${kind}:trunk`, true) });
-        variants.push({ lod: 'far', b: new Bucket(far.leaves, leaf, list.length, `veg:${kind}:far`, true) });
+        variants.push({ lod: 'far', b: new Bucket(far.leaves, leaf, list.length, `veg:${kind}:far`, false) });
       } else if (pl) {
-        variants.push({ lod: 'near', b: new Bucket(buildPlant(pl, 900 + kind.length * 13), leaf, list.length, `veg:${kind}`, kind !== 'grass' && kind !== 'flower') });
+        variants.push({ lod: 'near', b: new Bucket(buildPlant(pl, 900 + kind.length * 13), leaf, list.length, `veg:${kind}`, false) });
       }
       for (const v of variants) { this.parent.add(v.b.mesh); if (v.t) this.parent.add(v.t.mesh); }
       this.models.set(kind, { sp, pl, list, variants });
@@ -265,7 +265,7 @@ export class Vegetation {
   // repartition instances by distance (cheap; every ~0.25 s or after a jump)
   _refresh(cam) {
     for (const [kind, M] of this.models) {
-      const nearR = M.sp ? 90 * this.rangeMul : M.pl.range * this.rangeMul;
+      const nearR = M.sp ? 70 * this.rangeMul : M.pl.range * 0.7 * this.rangeMul;
       const farR = M.sp ? 700 : nearR;
       const near = M.variants[0], far = M.variants[1];
       let nn = 0, nf = 0;
@@ -283,9 +283,8 @@ export class Vegetation {
           nf++;
         }
       }
-      nm.count = nn; nm.instanceMatrix.needsUpdate = true; nm.instanceColor.needsUpdate = true;
-      if (tm) { tm.count = nn; tm.instanceMatrix.needsUpdate = true; tm.instanceColor.needsUpdate = true; }
-      if (fm) { fm.count = nf; fm.instanceMatrix.needsUpdate = true; fm.instanceColor.needsUpdate = true; }
+      const up = (mesh, n) => { mesh.count = n; for (const a of [mesh.instanceMatrix, mesh.instanceColor]) { a.clearUpdateRanges(); if (n) a.addUpdateRange(0, n * a.itemSize); a.needsUpdate = n > 0; } };
+      up(nm, nn); if (tm) up(tm, nn); if (fm) up(fm, nf);
     }
   }
   update(dt, cam, advanceWind = true) {

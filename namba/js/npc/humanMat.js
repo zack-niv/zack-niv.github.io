@@ -19,9 +19,12 @@ attribute vec4 iPos; attribute vec4 iPose; attribute vec4 iHead; attribute vec4 
 attribute vec4 iLook; attribute vec4 iColA; attribute vec4 iColB;
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying float vDitherOff;
 varying vec3 vFaceP;
 varying float vFaceK;
 varying vec3 vHairCol;
+varying float vReg;
+varying vec3 vLoc;
 vec3 crowdUnpack(float v) {
   float r = floor(v / 65536.0);
   float g = floor((v - r * 65536.0) / 256.0);
@@ -46,6 +49,7 @@ const VERT_BODY = /* glsl */`
     if (grp == 1) show = ((flags >> 13) & 7) == val;
     else if (grp == 2) show = ((flags >> val) & 1) == 1;
     else if (grp == 3) show = ((flags >> val) & 1) == 0;
+    vReg = float(reg); vLoc = position;
     vFaceK = 0.0; vFaceP = vec3(0.0);
     if (bone == 2 && reg == 0 && position.y > 1.525) { vFaceK = 1.0; vFaceP = position - vec3(0.0, 1.615, -0.005); }
     vHairCol = crowdUnpack(iColA.w);
@@ -61,7 +65,18 @@ const VERT_BODY = /* glsl */`
       th = mix(th, 1.45, sit); knee = mix(knee, 1.48, sit);
       vec3 hip = vec3(left ? -0.09 : 0.09, 0.92, 0.0);
       vec3 kn = vec3(hip.x, 0.5, 0.0);
-      if (bone == 8 || bone == 10) { mat3 K = crX(-knee); crowdP = kn + K * (crowdP - kn); objectNormal = K * objectNormal; }
+      if (bone == 8 || bone == 10) {
+        // foot roll: shoes stay flat through stance (heel strike -> flat -> toe-off), relaxed in swing
+        bool shoe = reg == 5 || (reg == 9 && position.y < 0.03);
+        if (shoe) {
+          float stance = 1.0 - smoothstep(-0.2, 0.3, sg * c1);
+          float toeOff = smoothstep(0.55, 1.0, -sg * s1) * stance * amt * 0.5;
+          vec3 ank = vec3(hip.x, 0.075, 0.0);
+          mat3 F = crX(-(th - knee) * stance * 0.85 * (1.0 - sit) - toeOff);
+          crowdP = ank + F * (crowdP - ank); objectNormal = F * objectNormal;
+        }
+        mat3 K = crX(-knee); crowdP = kn + K * (crowdP - kn); objectNormal = K * objectNormal;
+      }
       mat3 T = crX(th); crowdP = hip + T * (crowdP - hip); objectNormal = T * objectNormal;
     }
     // ---- arms ----
@@ -83,7 +98,7 @@ const VERT_BODY = /* glsl */`
     if (bone == 2) {
       vec3 nk = vec3(0.0, 1.5, 0.0);
       if (kid) crowdP = nk + (crowdP - nk) * 1.28;
-      mat3 H = crY(iHead.y) * crX(-iHead.x);
+      mat3 H = crY(iHead.y - amt * 0.06 * s1) * crX(-iHead.x + amt * 0.02 * cos(2.0 * ph));
       crowdP = nk + H * (crowdP - nk); objectNormal = H * objectNormal;
     }
     // ---- torso (carries arms, head, back accessories) ----
@@ -94,6 +109,10 @@ const VERT_BODY = /* glsl */`
       crowdP = sp + Tz * (crowdP - sp); objectNormal = Tz * objectNormal;
     }
     // ---- pelvis: bob, sway, idle weight shift, sitting ----
+    if (bone == 0 || (bone >= 7 && bone <= 10)) { // pelvis counter-rotates against the shoulders and drops on the swing side
+      mat3 Pv = crY(-amt * 0.05 * s1) * crZ(amt * 0.03 * s1);
+      vec3 pc = vec3(0.0, 0.95, 0.0); crowdP = pc + Pv * (crowdP - pc); objectNormal = Pv * objectNormal;
+    }
     if (bone != 11) {
       float idle = 1.0 - clamp(amt * 2.0, 0.0, 1.0);
       crowdP.y += amt * 0.026 * cos(2.0 * ph) - sit * 0.445;
@@ -124,15 +143,21 @@ const VERT_BODY = /* glsl */`
     else col = vec3(0.004);
     vCrowdCol = col;
     vCrowdFade = iLook.w;
+    vDitherOff = fract(iColA.x * 0.000131 + iColB.x * 0.000097 + iColA.w * 0.000071 + iLook.x * 13.7);
   }
 `;
 
 const FRAG_HEAD = /* glsl */`
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying float vDitherOff;
 varying vec3 vFaceP;
 varying float vFaceK;
 varying vec3 vHairCol;
+varying float vReg;
+varying vec3 vLoc;
+float crD2(vec2 a) { a = floor(a); return fract(a.x * 0.5 + a.y * a.y * 0.75); }
+float crBayer(vec2 a) { return crD2(a * 0.5) * 0.25 + crD2(a); }
 float crSoft(float d, float w) { return 1.0 - smoothstep(1.0 - w, 1.0 + w, d); }
 `;
 // procedural face painted in head space (no UVs): eyes, brows, nose, mouth, blush
@@ -145,19 +170,22 @@ const FACE = /* glsl */`
     float fw = max(fwidth(fx), fwidth(fy)) * 1.4 + 0.0006;
     // soft cheek blush and eye-socket shade
     c = mix(c, c * vec3(1.18, 0.82, 0.8), 0.28 * crSoft(length(vec2(fx - 0.05, fy + 0.02)) / 0.026, 1.0));
-    vec2 e = vec2((fx - 0.031) / 0.0135, (fy - 0.014) / 0.0072);
+    vec2 e = vec2((fx - 0.032) / 0.0175, (fy - 0.013) / 0.0092);
     float ee = length(e);
     c *= 1.0 - 0.16 * (1.0 - smoothstep(1.0, 2.4, ee));
-    float aaE = fw / 0.0072 + 0.04;
+    float aaE = fw / 0.0092 + 0.05;
     float scl = crSoft(ee, aaE);
-    float ir = crSoft(length(vec2(fx - 0.0305, fy - 0.0138)) / 0.0068, fw / 0.0068 + 0.05);
-    float lid = (1.0 - smoothstep(0.0, 0.0034, abs(fy - 0.014 - 0.0072 * sqrt(max(0.0, 1.0 - e.x * e.x)))) ) * step(ee, 1.25) * step(0.2, 1.0 - e.x * e.x);
-    c = mix(c, vec3(0.52, 0.47, 0.44), scl);
-    c = mix(c, vec3(0.018, 0.012, 0.01), ir);
+    float ir = crSoft(length(vec2(fx - 0.0318, fy - 0.0132)) / 0.0088, fw / 0.0088 + 0.05);
+    float hl = crSoft(length(vec2(fx - 0.0292, fy - 0.0165)) / 0.0026, fw / 0.0026 + 0.05);
+    float lid = (1.0 - smoothstep(0.0, 0.0038, abs(fy - 0.013 - 0.0092 * sqrt(max(0.0, 1.0 - e.x * e.x))))) * step(ee, 1.3) * step(0.15, 1.0 - e.x * e.x);
+    c = mix(c, vec3(0.62, 0.58, 0.55), scl);
+    c = mix(c, vec3(0.05, 0.03, 0.02), ir);
+    c = mix(c, vec3(0.012, 0.008, 0.006), crSoft(length(vec2(fx - 0.0318, fy - 0.0132)) / 0.0045, fw / 0.0045 + 0.05) * ir);
+    c = mix(c, vec3(0.9), hl * 0.85 * ir);
     c = mix(c, vec3(0.012, 0.009, 0.008), clamp(lid, 0.0, 1.0) * 0.85);
     // eyebrows
     float bx = (fx - 0.032) / 0.021;
-    float byc = 0.0395 + 0.006 * (1.0 - bx * bx) - 0.003 * bx;
+    float byc = 0.0335 + 0.005 * (1.0 - bx * bx) - 0.003 * bx;
     float br = (1.0 - smoothstep(0.0022, 0.0042 + fw, abs(fy - byc))) * (1.0 - smoothstep(0.85, 1.05, abs(bx)));
     c = mix(c, vHairCol * 0.7 + 0.004, br * 0.9);
     // nose: shadow under the tip, nostrils, faint bridge shade
@@ -175,12 +203,55 @@ const FACE = /* glsl */`
     diffuseColor.rgb = c;
   }
 `;
+
+const PATTERNS = /* glsl */`
+  float crRough = 0.82;
+  {
+    vec3 L = vLoc;
+    float pxm = fwidth(L.x) + fwidth(L.y) + fwidth(L.z);
+    float ang = atan(L.x, L.z + 0.002);
+    float lumC = dot(vCrowdCol, vec3(0.2126, 0.7152, 0.0722));
+    if (vReg > 1.5 && vReg < 4.5) {
+      float k = vReg > 3.5 ? floor(fract(vDitherOff * 3.7 + 0.31) * 8.0) : floor(vDitherOff * 8.0);
+      float m = 1.0;
+      if (k < 1.5) { // rib knit (or fine twill on dark cloth)
+        float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.0055);
+        m = 1.0 + (lumC < 0.05 ? 0.1 : 0.2) * a * (sin(ang * 230.0) * 0.5 + 0.1 * sin(L.y * 520.0)); crRough = 0.92;
+      } else if (k < 2.5) { // pinstripe: faint on dark suits, bolder on shirts
+        float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.012);
+        float line = smoothstep(0.9, 0.97, sin(ang * 78.0));
+        m = 1.0 + (lumC < 0.05 ? 1.1 : 0.22) * a * line; crRough = 0.7;
+      } else if (k < 3.5) { // gingham
+        float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.016);
+        float s1 = step(0.0, sin(ang * 55.0)), s2 = step(0.0, sin(L.y * 62.0));
+        m = 1.0 + a * (lumC < 0.05 ? 0.5 : 0.16) * (s1 + s2 - 1.0); crRough = 0.8;
+      } else if (k < 4.5) { // denim twill
+        float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.003);
+        m = 1.0 + 0.1 * a * sin(L.y * 620.0 + ang * 380.0); crRough = 0.78;
+      } else if (k < 5.5) { // quilted puffer baffles
+        float row = L.y * 34.0;
+        float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.03);
+        m = 1.0 - 0.2 * a * (1.0 - abs(sin(row * 3.14159))); crRough = 0.4;
+      } else { crRough = 0.85; }
+      diffuseColor.rgb *= m;
+    } else if (vReg > 0.5 && vReg < 1.5) { // hair: strands and a soft gloss ring
+      float a = 1.0 - smoothstep(0.35, 0.8, pxm / 0.004);
+      float st = sin(ang * 90.0 + L.y * 16.0) * 0.5 + 0.5;
+      float gloss = exp(-pow((L.y - 1.652) / 0.02, 2.0)) * smoothstep(-0.2, 0.4, abs(ang) - 0.2);
+      diffuseColor.rgb *= 0.78 + 0.34 * mix(0.5, st, a);
+      diffuseColor.rgb += vHairCol * gloss * 0.25 + vec3(0.012, 0.011, 0.01) * gloss;
+      crRough = 0.55;
+    } else if (vReg > 4.5 && vReg < 5.5) { crRough = 0.42; }
+  }
+`;
 const FRAG_COLOR = /* glsl */`
   diffuseColor.rgb *= vCrowdCol;
+  ${PATTERNS}
   ${FACE}
   if (vCrowdFade < 0.999) {
-    float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    if (ign > vCrowdFade) discard;
+    // temporally stable 4x4 Bayer at 2x pixel scale, rotated per instance (no shimmer, no colour noise after post)
+    float thr = fract(crBayer(floor(gl_FragCoord.xy * 0.5)) + vDitherOff) * 0.94 + 0.03;
+    if (thr > vCrowdFade) discard;
   }
 `;
 
@@ -190,7 +261,10 @@ export function makeHumanMaterial() {
     sh.vertexShader = VERT_HEAD + sh.vertexShader
       .replace('#include <beginnormal_vertex>', VERT_BODY)
       .replace('#include <begin_vertex>', 'vec3 transformed = crowdP;');
-    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR);
+    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader
+      .replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = crRough;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  if (vReg > 12.5) totalEmissiveRadiance += vec3(0.45, 0.7, 1.1) * 1.5;');
   };
   m.customProgramCacheKey = () => 'namba_crowd_human_v2';
   m.name = 'crowd_human';
