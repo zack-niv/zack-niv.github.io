@@ -360,3 +360,13 @@
 .ms-l-hint { display: block; font-size: 10px; color: #8e8e93; margin: 3px 6px 0; } .ms-l-hint kbd { font: 700 9.5px Inter, sans-serif; border: 1px solid #c7c7cc; border-radius: 4px; padding: 0 4px; }
 @keyframes ldLinkPulse { 50% { box-shadow: 0 4px 22px rgba(255,138,31,.45), inset 0 0 0 1.5px rgba(255,176,46,.8); } }
 .ms-b:has(.ms-link) { max-width: 88%; }
+
+.mp-gpswarn { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); z-index: 6; white-space: nowrap; background: #fff4d6; color: #7a4b00; font: 600 11.5px Inter, sans-serif; padding: 5px 12px 5px 10px; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.2); }
+.mp-gpswarn::before { content: '⚠'; margin-right: 6px; }
+.mp-banner:not([hidden]) ~ .mp-gpswarn { display: none; }
+.mp-compass-cal { position: absolute; left: 14px; right: 14px; bottom: 150px; z-index: 12; display: flex; align-items: center; gap: 12px; background: rgba(32,33,36,.94); color: #fff; padding: 12px 14px; border-radius: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.4); animation: phDrop .35s cubic-bezier(.2,.9,.3,1.2); }
+.mp-compass-cal b { display: block; font-size: 13.5px; } .mp-compass-cal small { font-size: 11.5px; opacity: .75; }
+.mp-cc-8 { flex: 0 0 44px; height: 44px; position: relative; }
+.mp-cc-8::before { content: '∞'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 38px; color: #8ab4f8; }
+.mp-cc-8 i { position: absolute; left: 0; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0; border-radius: 50%; background: #fff; animation: ccMove 2.2s ease-in-out infinite; }
+@keyframes ccMove { 0% { left: 2px; } 25% { left: 17px; transform: translateY(-9px); } 50% { left: 31px; } 75% { left: 17px; transform: translateY(9px); } 100% { left: 2px; } }

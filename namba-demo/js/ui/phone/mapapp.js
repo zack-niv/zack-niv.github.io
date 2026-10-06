@@ -69,6 +69,8 @@ export class MapApp {
         <div class="mp-sugg" hidden></div>
       </div>
       <div class="mp-banner" hidden></div>
+      <div class="mp-gpswarn" hidden></div>
+      <div class="mp-compass-cal" hidden><div class="mp-cc-8"><i></i></div><div><b>Compass needs calibration</b><small>Move your phone in a figure 8</small></div></div>
       <div class="mp-floorchip"></div>
       <div class="mp-ctrls">
         <div class="mp-floors"></div>
@@ -85,6 +87,7 @@ export class MapApp {
     this.banner = r.querySelector('.mp-banner');
     this.floorsEl = r.querySelector('.mp-floors');
     this.floorChip = r.querySelector('.mp-floorchip');
+    this.warnEl = r.querySelector('.mp-gpswarn'); this.calEl = r.querySelector('.mp-compass-cal');
     this.compassBtn = r.querySelector('.mp-compass');
     this.scaleEl = r.querySelector('.mp-scale');
     const clr = r.querySelector('.mp-clear');
@@ -230,6 +233,7 @@ export class MapApp {
     if (this._lastMe !== p.level) { this._lastMe = p.level; this._renderFloors(); this._onBelievedFloor(); }
     // route upkeep
     if (this.route) this._routeTick(dt);
+    this._nag(dt);
     if (!visible) return;
     this._t = (this._t || 0) + dt;
     this._draw();
@@ -684,7 +688,7 @@ export class MapApp {
       body = `<img class="mp-photo" src="${placeArt(b)}" alt="">
         <div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
         <div class="mp-pc-meta"><span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> <span class="mp-dim">(${b.reviews.toLocaleString('en')})</span> · ${esc(CATEGORIES[b.cat].en)} · ¥${'¥'.repeat(1 + (b.rating > 4.3 ? 1 : 0))}</div>
-        <div class="mp-pc-meta">${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-fl">${LEVELS[b.level].label}</span> · ${fmtDist(crow)}</div>
+        <div class="mp-pc-meta">${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-fl">${LEVELS[b.level].label}</span> · ${fmtDist(crow)} · 🚶 ${Math.max(1, Math.round(crow / 1.4 / 60))} min</div>
         <div class="mp-pc-meta">${st}</div>${floorNote}
         <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button><button>⇪ Share</button></div>
         ${b.blurb ? `<p class="mp-blurb">${esc(b.blurb)}</p>` : ''}
@@ -760,7 +764,7 @@ export class MapApp {
     R.level = p.level;
     R.recalc = 0;
     R.offCount = 0;
-    if (!first) this._flashBanner('Recalculating…');
+    if (!first) { this._flashBanner('Recalculating…'); if (this.phone._stats) this.phone._stats.reroutes++; }
     if (R.leg && R.leg.level !== this.view.level) { this.view.level = R.leg.level; this._renderFloors(); }
     this.follow = true;
     this._routeSheet();
@@ -776,8 +780,7 @@ export class MapApp {
       return;
     }
     const leg = R.leg, legs = R.legs;
-    const minutes = Math.max(1, Math.round(R.total / 1.3 / 60 * (this.ctx.clock.scale || 1)));   // game minutes (the clock runs faster than feet)
-    const eta = hm(this.ctx.clock.minutes + minutes);
+    const minutes = Math.max(1, Math.round(R.total / 1.4 / 60));   // real walking minutes, as any maps app would say
     let step, sub = '';
     if (legs.length > 1 && leg.ramp >= 0) {
       const r = LAYOUT.ramps[leg.ramp];
@@ -797,11 +800,11 @@ export class MapApp {
         else steps.push(`<li>Walk ${fmtDist(lg.len)} to <b>${esc(t.en)}</b></li>`);
       }
     });
-    if (legs.length > 1) steps.push(`<li class="mp-dim">Indoor directions continue when you arrive on ${LEVELS[(() => { const r = LAYOUT.ramps[leg.ramp]; return leg.dir > 0 ? r.upper : r.lower; })()].label}.</li>`);
+    if (legs.length > 1) steps.push(`<li class="mp-dim">Directions for the remaining floors will appear once we detect you on ${LEVELS[(() => { const r = LAYOUT.ramps[leg.ramp]; return leg.dir > 0 ? r.upper : r.lower; })()].label}. <i>(We’re not sure when that is.)</i></li>`);
     this._setSheet('route', `<button class="mp-x">×</button><div class="mp-pc">
-      <div class="mp-rt-h"><b>${minutes} min</b> <span class="mp-dim">(${fmtDist(R.total)}) · arrive ${eta}</span></div>
+      <div class="mp-rt-h"><b>${minutes} min</b> <span class="mp-dim">(${fmtDist(R.total)})</span></div>
       <div class="mp-pc-meta">to <b>${esc(t.en)}</b> · <span class="mp-fl">${LEVELS[t.level].label}</span></div>
-      ${t.level !== R.level ? `<div class="mp-note">Route on this floor only · destination is on ${LEVELS[t.level].label}</div>` : ''}
+      ${t.level !== R.level ? `<div class="mp-note">Showing this floor only · destination is on ${LEVELS[t.level].label} · straight-line distance ${fmtDist(this._crow(t))}</div>` : ''}
       <ol class="mp-steps">${steps.join('')}</ol>
       <div class="mp-dim mp-fine">Walking time does not include crowds, gates or queues. Indoor positioning may be inaccurate.</div>
       <div class="mp-actions"><button class="mp-end">End</button></div></div>`);
@@ -842,6 +845,27 @@ export class MapApp {
       if (best > 18) { R.offCount += dt; if (R.offCount > 3) this._computeRoute(false); }
       else R.offCount = 0;
     }
+  }
+
+  // the little indignities of every maps app indoors
+  _nag(dt) {
+    const p = this.pos, bad = p.mode === 'gps' && p.acc > 9;
+    this._warnT = (this._warnT || 0) - dt;
+    if (this._warnT <= 0) {
+      this._warnT = 0.5;
+      const txt = p.noService ? 'No service · showing the saved map' : p.acc > 16 ? 'GPS signal lost · move to an open area' : 'GPS signal weak';
+      if (this.warnEl.textContent !== txt) this.warnEl.textContent = txt;
+      this.warnEl.hidden = !bad || !this.phone.isOpen || !this.banner.hidden;
+    }
+    // figure-8 compass prompt: underground, every ~70 s, for 5 s
+    this._calT = (this._calT == null ? 40 + Math.random() * 15 : this._calT) - dt;
+    if (this._calT <= 0) {
+      if (bad && p.env !== 'outdoor' && this.phone.isOpen && this.phone.app === 'maps') {
+        this.calEl.hidden = false; this._calShow = 5; this._calT = 70 + Math.random() * 25;
+        if (this.phone._stats) this.phone._stats.compassPrompts++;
+      } else this._calT = 5;
+    }
+    if (this._calShow > 0) { this._calShow -= dt; if (this._calShow <= 0 || p.mode !== 'gps') this.calEl.hidden = true; }
   }
 
   // called by the phone every few frames when the sheet shows live data

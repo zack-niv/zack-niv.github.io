@@ -21,13 +21,13 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
     { k: 'Time', cap: ['lost, searching', 'to get there'], b: b.seconds, a: a && a.seconds, fmt: (v) => `${mmss(v)}<small>min</small>` },
     { k: 'Walked', cap: ['before it clicked', 'straight to the door'], b: b.meters, a: a && a.meters, fmt: (v) => `${metres(v)}<small>m</small>` },
     { k: 'Position error', cap: ['mean, by the phone', 'mean, by the phone'], b: b.err, a: a && a.err, fmt: (v) => `${err(v)}<small>m</small>` },
-    { k: 'Wrong floor', cap: ['phone thought you were elsewhere', 'never'], b: b.wrongFloorS, a: a && a.wrongFloorS, fmt: (v) => `${Math.round(v)}<small>s</small>` },
+    { k: 'Wrong floor', cap: ['phone put you on the wrong floor', (v) => (v < 1 ? 'right floor, every time' : 'corrected in a heartbeat')], b: b.wrongFloorS, a: a && a.wrongFloorS, fmt: (v) => `${Math.round(v)}<small>s</small>` },
   ];
   const cell = (r, side) => {
     const v = side === 'b' ? r.b : r.a;
     if (v == null || !isFinite(v)) return `<div class="e-v ${side}"><b class="e-none">—</b></div>`;
     const max = Math.max(r.b || 0, r.a || 0, 1e-6);
-    return `<div class="e-v ${side}"><b>${r.fmt(v)}</b><i class="e-bar"><u style="--w:${bar(v, max)}"></u></i><span>${esc(side === 'b' ? r.cap[0] : r.cap[1])}</span></div>`;
+    return `<div class="e-v ${side}"><b>${r.fmt(v)}</b><i class="e-bar"><u style="--w:${bar(v, max)}"></u></i><span>${esc(typeof r.cap[side === 'b' ? 0 : 1] === 'function' ? r.cap[side === 'b' ? 0 : 1](v) : r.cap[side === 'b' ? 0 : 1])}</span></div>`;
   };
   const el = document.createElement('div');
   el.className = 'g-end';

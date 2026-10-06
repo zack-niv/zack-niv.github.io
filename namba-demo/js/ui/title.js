@@ -74,6 +74,7 @@ export class Title {
     if (!this.built) this.build();
     this.el.hidden = false;
     this.visible = true;
+    if (this.ctx.ui && this.ctx.ui.phone) this.ctx.ui.phone.style.visibility = 'hidden';   // no "Q Phone" chip under the title
     this.el.classList.remove('leaving');
     requestAnimationFrame(() => this.el.classList.add('on'));
     this.t = 0;
@@ -87,6 +88,7 @@ export class Title {
   begin() {
     if (!this.visible) return;
     this.visible = false;
+    if (this.ctx.ui && this.ctx.ui.phone) this.ctx.ui.phone.style.visibility = '';
     try { this.ctx.audio?.resume?.(); } catch (e) { /* ignore */ }
     try { this.ctx.input.requestLock(); } catch (e) { /* ignore */ }
     this.el.classList.add('leaving');

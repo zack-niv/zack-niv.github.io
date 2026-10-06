@@ -481,7 +481,7 @@ export class Stack3D {
     this.camera.lookAt(c.tx, c.ty, c.tz);
     // shift the picture centre into the free band between header and sheet
     const H = this._h, W = this._w, shift = (this.bandTop - this.bandBottom) / 2;
-    this.camera.setViewOffset(W, H, 0, shift, W, H);
+    this.camera.setViewOffset(W, H, 0, -shift, W, H);
     this.camera.updateMatrixWorld();
     // level emphasis
     const cur = this.curLevel;

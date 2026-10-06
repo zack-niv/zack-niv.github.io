@@ -429,7 +429,7 @@
 .h-fade.block { visibility: visible; }
 
 /* ---------- controls hint & Aya's name tag ------------------------------------ */
-.h-hint { position: absolute; left: 50%; bottom: 7vh; transform: translate(-50%, 8px); opacity: 0; display: flex; gap: 26px; padding: 11px 20px; border-radius: 999px; background: rgba(10, 11, 14, .5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .07); transition: opacity .9s ease, transform 1.1s var(--g-ease); visibility: hidden; white-space: nowrap; }
+.h-hint { position: absolute; left: 50%; bottom: 22vh; transform: translate(-50%, 8px); opacity: 0; display: flex; gap: 26px; padding: 11px 20px; border-radius: 999px; background: rgba(10, 11, 14, .5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .07); transition: opacity .9s ease, transform 1.1s var(--g-ease); visibility: hidden; white-space: nowrap; }
 .h-hint.on { opacity: 1; transform: translate(-50%, 0); visibility: visible; }
 .h-hint span { display: inline-flex; align-items: center; gap: 4px; font: 500 12.5px/1 var(--g-sans); color: var(--g-dim); }
 .h-hint i { font-style: normal; margin-left: 6px; color: var(--g-ink); }
