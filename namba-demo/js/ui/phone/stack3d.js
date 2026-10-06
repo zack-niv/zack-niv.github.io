@@ -91,7 +91,7 @@ export class Stack3D {
     this.az = 215 * Math.PI / 180; this.el = 40 * Math.PI / 180; this.zoomMul = 1; this.userDrag = false;
     this.cur = { tx: 0, ty: 0, tz: 0, dist: 900 };
     this.goal = { tx: 0, ty: 0, tz: 0, dist: 900 };
-    this.time = 0;
+    this.time = 0; this.intro = 0;
     this.bandTop = 92; this.bandBottom = 210;          // px reserved for UI chrome (top / bottom)
     this.route = null;
     this.player = { x: 0, y: 0, z: 0, heading: 0, level: '3F' };
@@ -414,6 +414,7 @@ export class Stack3D {
     c.addEventListener('dblclick', () => this.recenter());
   }
   _cssScale() { const r = this.canvas.getBoundingClientRect(); return r.width / (this.canvas.clientWidth || r.width) || 1; }
+  startIntro() { this.intro = 1; this._snapCam = true; }
   recenter() { this.az = 215 * Math.PI / 180; this.el = (this.mode === 'follow' ? 46 : 40) * Math.PI / 180; this.zoomMul = 1; this.userDrag = false; this._snapCam = true; }
   setMode(m) { this.mode = m; this.zoomMul = 1; this.userDrag = false; this.el = (m === 'follow' ? 46 : 40) * Math.PI / 180; }
 
@@ -430,8 +431,10 @@ export class Stack3D {
 
   // ------------------------------------------------------------- per frame ---
   _basis() {
-    const ce = Math.cos(this.el), se = Math.sin(this.el);
-    const dirx = Math.sin(this.az) * ce, dirz = Math.cos(this.az) * ce, diry = se;     // target -> camera
+    const ie = this.intro > 0 ? this.intro * this.intro * (3 - 2 * this.intro) : 0;
+    const az = this.az + ie * 1.1, el = this.el + ie * 0.35;
+    const ce = Math.cos(el), se = Math.sin(el);
+    const dirx = Math.sin(az) * ce, dirz = Math.cos(az) * ce, diry = se;     // target -> camera
     const f = new THREE.Vector3(-dirx, -diry, -dirz);
     const r = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
     const u = new THREE.Vector3().crossVectors(r, f).normalize();
@@ -471,13 +474,15 @@ export class Stack3D {
   update(dt) {
     if (!this.ready) return;
     this.time += dt;
+    if (this.intro > 0) this.intro = Math.max(0, this.intro - dt / 2.4);
     this.resize();
     this._frame();
     const k = this._snapCam ? 1 : 1 - Math.exp(-dt / 0.22); this._snapCam = false;
     const c = this.cur, g = this.goal;
     c.tx += (g.tx - c.tx) * k; c.ty += (g.ty - c.ty) * k; c.tz += (g.tz - c.tz) * k; c.dist += (g.dist - c.dist) * k;
     const B = this._basis();
-    this.camera.position.set(c.tx + B.dir.x * c.dist, c.ty + B.dir.y * c.dist, c.tz + B.dir.z * c.dist);
+    const iz = 1 + (this.intro > 0 ? this.intro * this.intro * 0.9 : 0), cd = c.dist * iz;
+    this.camera.position.set(c.tx + B.dir.x * cd, c.ty + B.dir.y * cd, c.tz + B.dir.z * cd);
     this.camera.lookAt(c.tx, c.ty, c.tz);
     // shift the picture centre into the free band between header and sheet
     const H = this._h, W = this._w, shift = (this.bandTop - this.bandBottom) / 2;

@@ -79,6 +79,13 @@ export class Visibility {
     console.log(`[render] visibility init ${(performance.now() - t0).toFixed(0)} ms, ${this._nChunks} chunks`);
   }
 
+  // start a notch below full resolution on the heavy tiers: the governor ramps back up within a few
+  // seconds on a strong GPU, and a weak one never sees a stuttering first minute
+  onStart() {
+    const { engine } = this.ctx;
+    if (this.drsEnabled && (engine.qualityName === 'high' || engine.qualityName === 'ultra') && engine.quality.post) engine.setDRS(0.88);
+  }
+
   _collect() {
     const { engine } = this.ctx;
     const old = this._recs || new Map();
@@ -127,8 +134,10 @@ export class Visibility {
     set.add(b.level);
     if (i > 0) set.add(LEVEL_ORDER[i - 1]);
     if (i < LEVEL_ORDER.length - 1) set.add(LEVEL_ORDER[i + 1]);
-    if (i > 1) set.add(LEVEL_ORDER[i - 2]);
-    if (i < LEVEL_ORDER.length - 2) set.add(LEVEL_ORDER[i + 2]);
+    // own level +-1 only; +-2 only when a void / ramp to that level is near the camera (an atrium
+    // looking two floors down), and every level above ground outdoors (see below)
+    const O = this._near;
+    if (O && !outdoorish) for (let k = 0; k < O.length; k += 3) if (O[k + 2] === 2) { for (const d of [-2, 2]) { const j = LEVEL_ORDER.indexOf(this._nearLv[k / 3]); if (j === i + d) set.add(LEVEL_ORDER[j]); } }
     if (outdoorish) for (const lv of LEVEL_ORDER) if (LEVELS[lv].y >= 0) set.add(lv);
     return set;
   }
@@ -150,7 +159,8 @@ export class Visibility {
     const parks = zone === 'parks' || zone === 'parksGarden' || (outdoor && LEVELS[own].y >= 6);
     const vis = this._linkedLevels(b, parks);
     this.visibleLevels = vis;
-    const dd = engine.quality.drawDist;
+    // indoors the exp2 fog already swallows everything beyond ~130 m: draw less of it
+    const dd = engine.quality.drawDist * (outdoor || parks ? 1 : 0.8);
     const st = this.stats; st.total = 0; st.shown = 0; st.level = 0; st.dist = 0; st.frustum = 0; st.occluded = 0; st.opening = 0;
     const cull = this.enabled;
     // camera frustum
@@ -166,11 +176,12 @@ export class Visibility {
       // nearby openings (own + neighbouring levels)
       const O = this._near || (this._near = []);
       O.length = 0;
+      const NL = this._nearLv || (this._nearLv = []); NL.length = 0;
       for (let j = Math.max(0, ownI - 2); j <= Math.min(LEVEL_ORDER.length - 1, ownI + 2); j++) {
         const pts = this.openings[LEVEL_ORDER[j]]; if (!pts) continue;
         for (let k = 0; k < pts.length; k += 2) {
           const dx = pts[k] - cp.x, dz = pts[k + 1] - cp.z;
-          if (dx * dx + dz * dz < 75 * 75) O.push(pts[k], pts[k + 1], Math.abs(j - ownI));
+          if (dx * dx + dz * dz < 75 * 75) { O.push(pts[k], pts[k + 1], Math.abs(j - ownI)); NL.push(LEVEL_ORDER[j]); }
         }
       }
       // per-chunk occlusion

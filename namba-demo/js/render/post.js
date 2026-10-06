@@ -64,18 +64,29 @@ export class Post {
     engine.renderFn = (dt) => this.render(dt);
     engine.onResize.push(() => this._resize());
     if (this.ctx.events && this.ctx.events.on) this.ctx.events.on('player:teleport', () => { this.cutNext = true; });
-    // warm the shader programs in the background (KHR_parallel_shader_compile) so
-    // the first frames don't hitch; skipped in the headless test harness.
-    if (!params.test) {
-      try {
-        const prev = r.getRenderTarget();
-        r.setRenderTarget(this.sceneRT);
-        const pr = r.compileAsync(engine.scene, engine.camera);
-        r.setRenderTarget(prev);
-        if (pr && pr.catch) pr.catch(() => {});
-      } catch (e) { /* optional */ }
-    }
+    // shader warm-up is staged by js/main.js → render/precompile.js (parallel compile under the loading screen)
     console.log(`[render] post init ${(performance.now() - t0).toFixed(0)} ms`);
+  }
+
+  // Kick off compilation of every post program (parallel, non-blocking). Each material is
+  // prepared against the kind of target it will really draw into (the program key depends on it).
+  precompile() {
+    if (!this.enabled || !this.quad) return [];
+    const r = this.ctx.engine.renderer, prev = r.getRenderTarget(), quad = this.quad, q = this.q;
+    const H = this.down[0], screen = null;
+    const list = [[this.mDown, H], [this.mUp, this.up[0]], [this.mComp, (q.taa || q.fxaa) ? this.ldrRT : screen]];
+    if (q.ssao) list.push([this.mAO, this.aoRT], [this.mAOBlur, this.aoRT2], [this.mTAO, this.aoH[0]]);
+    if (q.ssr) list.push([this.mSSR, this.ssrRT], [this.mSSRBlur, this.ssrRT2], [this.mTSSR, this.ssrH[0]]);
+    if (q.taa) list.push([this.mTAA, this.taaH[0]], [this.mSharp, screen]); else if (q.fxaa) list.push([this.mFXAA, screen]);
+    const out = [], keep = quad.material;
+    try {
+      for (const [m, t] of list) {
+        quad.material = m; r.setRenderTarget(t);
+        out.push(r.compileAsync(this.qscene, this.qcam).catch(() => {}));
+      }
+    } catch (e) { console.warn('[render] post precompile failed', e); }
+    quad.material = keep; r.setRenderTarget(prev);
+    return out;
   }
 
   _mat(frag, uniforms, defines) {
@@ -125,7 +136,7 @@ export class Post {
       uExposure: { value: 1 }, uBloom: { value: 0.05 }, uAO: { value: 0.65 }, uSSR: { value: 1.0 },
       uLift: { value: new THREE.Vector3() }, uGamma: { value: new THREE.Vector3(1, 1, 1) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
       uSat: { value: 1 }, uContrast: { value: 1 }, uVignette: { value: q.vignette != null ? q.vignette : 0.35 }, uGrain: { value: q.grain != null ? q.grain : 0.022 },
-      uCA: { value: q.ca != null ? q.ca : 0.003 }, uTime: { value: 0 }, uFlash: { value: 0 }, uHalo: { value: 0.16 }, uHaloT: { value: 1.1 },
+      uCA: { value: q.ca != null ? q.ca : 0.003 }, uTime: { value: 0 }, uFlash: { value: 0 }, uHalo: { value: 0.16 }, uHaloT: { value: 1.1 }, uVib: { value: 0.35 }, uClarity: { value: q.bloom ? 0.22 : 0 },
       uTonemap: { value: TONEMAP[params.get('tonemap')] != null ? TONEMAP[params.get('tonemap')] : 0 },
     }, defs);
     this.mFXAA = this._mat(FXAA, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });

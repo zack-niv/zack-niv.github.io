@@ -14,6 +14,9 @@ import { CELL } from '../world.js';
 import { LEVELS, LEVEL_ORDER } from '../layout.js';
 
 export const CHUNK = 48;
+// Namba Parks (z >= 212, every floor from 2F up) is merged into ONE chunk per level: from the canyon, the
+// gardens and the dining floors dozens of 48 m chunk x material meshes were visible at once (700+ draw calls).
+export const PARKS_MERGE = { z0: 212, yMin: 6, x: 49, z: 300, r: 132 };
 
 // light colours (sRGB hex) by mood — colour temperature approximations
 export const KELVIN = {
@@ -39,7 +42,7 @@ export class Kit {
     this.ceilFns = {};    // space id -> (x, z) => absolute ceiling height (vaults, roofs)
   }
   B(lv, x, z) {
-    const k = `${lv}|${Math.floor(x / CHUNK)}|${Math.floor(z / CHUNK)}`;
+    const k = z >= PARKS_MERGE.z0 && LEVELS[lv].y >= PARKS_MERGE.yMin ? `${lv}|P|P` : `${lv}|${Math.floor(x / CHUNK)}|${Math.floor(z / CHUNK)}`;
     let b = this.batches.get(k);
     if (!b) this.batches.set(k, b = new GeoBatch());
     return b;

@@ -187,7 +187,9 @@ function patch(material, shader) {
   if (!fs.includes('#include <lights_fragment_begin>') || !fs.includes('#include <lights_fragment_maps>')) return;
   Object.assign(shader.uniforms, U);
   const refl = material.userData && material.userData.nbReflect != null ? material.userData.nbReflect : 1;
-  const defs = refl > 0 && material.isMeshStandardMaterial ? `#define NB_REFLECT 1\nconst float nbReflect = ${refl.toFixed(3)};\n` : '';
+  // nbReflect is a per-material uniform (not a baked constant) so every reflectivity value shares one program
+  let defs = '';
+  if (material.isMeshStandardMaterial) { shader.uniforms.nbReflect = { value: refl }; defs = '#define NB_REFLECT 1\nuniform float nbReflect;\n'; }
   fs = fs.replace('#include <common>', '#include <common>\n' + PARS + defs);
   // expand lights_fragment_begin so the directional loop can be masked
   const begin = THREE.ShaderChunk.lights_fragment_begin.replace(SUNMASK_FIND, SUNMASK_REPL);
@@ -235,7 +237,6 @@ export function installMaterialHook() {
   });
   P.customProgramCacheKey = function () {
     const u = userHooks.get(this);
-    const r = this.userData && this.userData.nbReflect != null ? this.userData.nbReflect : 1;
-    return 'nb3|' + (u ? (this.name || '') : '') + '|' + (this.userData && this.userData.nbUnlit ? 'u' : '') + (isHDRBasic(this) ? 'h' : '') + r + '|' + (u ? u.toString() : '');
+    return 'nb4|' + (u ? (this.name || '') : '') + '|' + (this.userData && this.userData.nbUnlit ? 'u' : '') + (isHDRBasic(this) ? 'h' : '') + '|' + (u ? u.toString() : '');
   };
 }

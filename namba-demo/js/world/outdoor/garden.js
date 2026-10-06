@@ -139,12 +139,24 @@ export function buildGardens(ctx, parks) {
     // ---- marching squares: soil fill + kerbs ---------------------------------
     const ys = y + 0.42, yk = y + 0.48;
     const lerpP = (ax, az, va, bx, bz, vb) => { const t = va / (va - vb); return [ax + (bx - ax) * t, az + (bz - az) * t]; };
-    for (let j = 0; j < NZ - 1; j++) for (let i = 0; i < NX - 1; i++) {
+    // fully-inside cells are merged into one quad per horizontal run (the soil mesh was 70k+ triangles)
+    const soilRun = (j, i0, i1) => {
+      const xa = x0 + i0 * S, xb = x0 + i1 * S, za = z0 + j * S, zb = za + S;
+      const A = [xa, za], B = [xb, za], C = [xb, zb], Dd = [xa, zb];
+      const T = (p) => [p[0] / 3, p[1] / 3];
+      soil.tri([A[0], ys, A[1]], [C[0], ys, C[1]], [B[0], ys, B[1]], [0, 1, 0], [T(A), T(C), T(B)]);
+      soil.tri([A[0], ys, A[1]], [Dd[0], ys, Dd[1]], [C[0], ys, C[1]], [0, 1, 0], [T(A), T(Dd), T(C)]);
+    };
+    for (let j = 0; j < NZ - 1; j++) {
+      let run = -1;
+      for (let i = 0; i < NX - 1; i++) {
       const xa = x0 + i * S, za = z0 + j * S, xb = xa + S, zb = za + S;
       const v = [D[j * NX + i], D[j * NX + i + 1], D[(j + 1) * NX + i + 1], D[(j + 1) * NX + i]]; // (xa,za) (xb,za) (xb,zb) (xa,zb)
       const P = [[xa, za], [xb, za], [xb, zb], [xa, zb]];
       const inside = v.map(q => q > 0);
       const nIn = inside.filter(Boolean).length;
+      if (nIn === 4) { if (run < 0) run = i; if (i < NX - 2) continue; }
+      if (run >= 0) { soilRun(j, run, nIn === 4 ? i + 1 : i); run = -1; if (nIn === 4) continue; }
       if (nIn === 0) continue;
       // polygon of the inside part (walk the square's edges)
       const poly = [], cut = [];
@@ -172,6 +184,7 @@ export function buildGardens(ctx, parks) {
         const ia = [p[0] - ox * 0.2, yk, p[2] - oz * 0.2], ib = [q[0] - ox * 0.2, yk, q[2] - oz * 0.2];
         kerb.quadAuto([p[0], yk, p[2]], [q[0], yk, q[2]], ib, ia, null, c);
       }
+    }
     }
     // collision: cells well inside beds
     for (let cz = z0; cz < z1; cz++) {

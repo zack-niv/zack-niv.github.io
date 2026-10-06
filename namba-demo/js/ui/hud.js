@@ -67,7 +67,7 @@ export class Hud {
       const p = this.ctx.player && this.ctx.player.body;
       if (!p || c.level !== p.level || Math.hypot(c.x - p.x, c.z - p.z) > 9) return;
       const now = performance.now();
-      if (this._calloutT && now - this._calloutT < 14000) return;
+      if (this._calloutT && now - this._calloutT < 26000) return;
       this._calloutT = now;
       this.caption({ ja: c.ja, en: c.en || '', kind: 'say', distant: true, duration: 2.2 });
     });

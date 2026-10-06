@@ -181,7 +181,9 @@ export class Shops {
       group.name = 'shop:' + S.slot.id;
       group.userData.chunk = { level: rec.level, x: S.cx, z: S.cz, r: Math.hypot(S.W, S.D) / 2 + 1 };
       for (const m of gb.build(ctx.materials, { name: 'shop' })) { m.receiveShadow = false; group.add(m); }
-      group.visible = false;
+      // visible straight away when in range (the 0.2 s distance pass would otherwise leave it empty for a few frames)
+      { const b = ctx.player && ctx.player.body, cam = b ? { x: b.x, y: (b.y || 0) + 1.6, z: b.z } : ctx.engine.camera.position, far = ctx.engine.qualityName === 'low' ? 30 : 46;
+        const dx = rec.cx - cam.x, dy = (rec.y - cam.y) * 3, dz = rec.cz - cam.z; group.visible = dx * dx + dy * dy + dz * dz < far * far; }
       ctx.engine.levelRoot(rec.level).add(group);
       rec.group = group;
     } catch (e) { S.replay = false; console.error('[shops] interior', S.slot.id, e); ctx.errors.push(`shops: interior ${S.slot.id}: ${e.message}`); rec.intBusy = true; }

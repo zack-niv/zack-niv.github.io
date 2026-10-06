@@ -18,7 +18,7 @@
 //   hangPoints, wallItems (hose cabinets, doors, lockers... {level,type,x,z,nx,nz,w}), isClear(level, x, z, r), stats
 // =============================================================================
 import * as THREE from 'three';
-import { Kit, CHUNK } from './arch/kit.js';
+import { Kit, CHUNK, PARKS_MERGE } from './arch/kit.js';
 import { STYLE, styleOf } from './arch/styles.js';
 import { buildSurfaces } from './arch/surfaces.js';
 import { buildCeilings } from './arch/ceilings.js';
@@ -65,7 +65,7 @@ export class Architecture {
         const [lv, cx, cz] = k.split('|');
         const grp = new THREE.Group();
         grp.name = `arch:${k}`;
-        grp.userData.chunk = { level: lv, x: (+cx + 0.5) * CHUNK, z: (+cz + 0.5) * CHUNK, r: CHUNK * 0.75 };
+        grp.userData.chunk = cx === 'P' ? { level: lv, x: PARKS_MERGE.x, z: PARKS_MERGE.z, r: PARKS_MERGE.r } : { level: lv, x: (+cx + 0.5) * CHUNK, z: (+cz + 0.5) * CHUNK, r: CHUNK * 0.75 };
         for (const m of b.build(ctx.materials, { name: 'arch' })) { grp.add(m); meshes++; }
         ctx.engine.levelRoot(lv).add(grp);
       }

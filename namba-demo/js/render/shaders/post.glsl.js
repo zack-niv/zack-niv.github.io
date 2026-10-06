@@ -188,24 +188,26 @@ void main() {
   if ( -viewZAt( hit ) > uProj.w * 0.9 ) conf = 0.0;
   float rough = 0.6 * ( 1.0 - refl );
   // cone footprint: blur grows with roughness and distance travelled
-  float k = clamp( rough * 3.5 + rough * hitT * 0.12, 0.0, 3.0 );
+  float k = clamp( rough * 2.6 + rough * hitT * 0.06, 0.0, 3.0 );
   vec3 c0 = texture2D( tScene, hit ).rgb, c1 = texture2D( tMip0, hit ).rgb, c2 = texture2D( tMip1, hit ).rgb, c3 = texture2D( tMip2, hit ).rgb;
   vec3 rc = k < 1.0 ? mix( c0, c1, k ) : k < 2.0 ? mix( c1, c2, k - 1.0 ) : mix( c2, c3, k - 2.0 );
-  float w = conf * F * refl * refl;
-  // clamp in display units: a ceiling light must reflect as a soft panel, not a blown blob
-  gl_FragColor = vec4( min( rc, vec3( 3.5 / max( uExposure, 1e-3 ) ) ) * w, w );
+  // polished stone shows a recognisable, low-energy image of the fixture (4-8% at normal incidence,
+  // more at grazing angles): weight by Fresnel and gloss, and clamp in display units so a ceiling light
+  // reads as a soft panel rectangle, not a blown oval
+  float w = conf * F * refl * refl * ( 0.55 + 0.45 * refl );
+  gl_FragColor = vec4( min( rc, vec3( 1.8 / max( uExposure, 1e-3 ) ) ) * w, w );
 }
 `;
 
-// separable 9-tap blur of the (premultiplied) SSR buffer
+// separable 5-tap blur of the (premultiplied) SSR buffer (taps at +-1.2 texel: noise is mostly
+// gone after temporal accumulation; a wider kernel is what smeared the reflections)
 export const SSRBLUR = /* glsl */`
 uniform sampler2D tSrc;
 uniform vec2 uDir; // texel step
 varying vec2 vUv;
 void main() {
-  vec4 c = texture2D( tSrc, vUv ) * 0.227027;
-  c += ( texture2D( tSrc, vUv + uDir * 1.3846 ) + texture2D( tSrc, vUv - uDir * 1.3846 ) ) * 0.316216;
-  c += ( texture2D( tSrc, vUv + uDir * 3.2308 ) + texture2D( tSrc, vUv - uDir * 3.2308 ) ) * 0.070270;
+  vec4 c = texture2D( tSrc, vUv ) * 0.4;
+  c += ( texture2D( tSrc, vUv + uDir * 1.2 ) + texture2D( tSrc, vUv - uDir * 1.2 ) ) * 0.3;
   gl_FragColor = c;
 }
 `;
@@ -259,6 +261,7 @@ uniform vec3 uLift, uGamma, uGain;
 uniform float uSat, uContrast;
 uniform float uVignette, uGrain, uCA, uTime;
 uniform float uHalo, uHaloT;
+uniform float uVib, uClarity;
 uniform float uFlash;
 uniform int uTonemap;
 varying vec2 vUv;
@@ -331,6 +334,9 @@ void main() {
 #endif
 #ifdef USE_BLOOM
   vec3 bl = texture2D( tBloom, uv ).rgb;
+  // local contrast ("clarity"): push each pixel away from its blurred neighbourhood, so surfaces
+  // separate from each other instead of sitting in one flat grey-beige wash
+  col *= mix( 1.0, clamp( lum( col ) / max( lum( bl ), 1e-3 ), 0.6, 1.7 ), uClarity );
   col = mix( col, bl, uBloom );
   // halo: only energy that is still bright (in display units) after blurring
   vec3 hb = bl * uExposure;
@@ -343,7 +349,9 @@ void main() {
   col *= uGain;
   col = max( col + uLift * 0.02, 0.0 );
   float l = lum( col );
-  col = max( l + uSat * ( col - l ), 0.0 );
+  // vibrance: lift the muted colours (line colours, signage) more than the already-saturated ones
+  float cs = ( max( col.r, max( col.g, col.b ) ) - min( col.r, min( col.g, col.b ) ) ) / max( max( col.r, max( col.g, col.b ) ), 1e-3 );
+  col = max( l + uSat * ( 1.0 + uVib * ( 1.0 - cs ) ) * ( col - l ), 0.0 );
   // contrast around mid grey in log space
   col = 0.18 * pow( col / 0.18 + 1e-6, vec3( uContrast ) );
   vec3 m;

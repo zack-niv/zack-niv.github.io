@@ -20,6 +20,8 @@ import { params } from './core/params.js';
 import { World } from './world/world.js';
 import { Nav } from './world/nav.js';
 import { LAYOUT } from './world/layout.js';
+import { Loader } from './core/loader.js';
+import { precompileVisible, precompileRest } from './render/precompile.js';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
@@ -44,10 +46,23 @@ const SYSTEMS = [
   ['post',         './render/post.js',        'Post',         'live'],
 ];
 
-const ldBar = document.querySelector('#loading .ld-bar i');
-const ldMsg = document.querySelector('#loading .ld-msg');
-const progress = (p, msg) => { if (ldBar) ldBar.style.width = `${Math.round(p * 100)}%`; if (msg && ldMsg) ldMsg.textContent = msg; };
+// Fetch every system's module graph in parallel right away (no evaluation): the sequential
+// `await import()` below would otherwise pay one network round trip per dependency level per system.
+try {
+  for (const [, path] of SYSTEMS) {
+    const l = document.createElement('link');
+    l.rel = 'modulepreload'; l.href = new URL(path, import.meta.url).href;
+    document.head.appendChild(l);
+  }
+} catch (e) { /* optional */ }
+
+const loader = new Loader(document.getElementById('loading'));
+const progress = (key, frac, msg) => loader.stage(key, frac, msg);
 const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+// touch-only device (phone/tablet): polite "best on a computer" card, load continues behind it
+const touchOnly = !params.test && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+let touchAck = Promise.resolve();
+try { if (touchOnly && sessionStorage.getItem('namba.touchOK') !== '1') touchAck = loader.touchGate(); } catch (e) { if (touchOnly) touchAck = loader.touchGate(); }
 
 async function boot() {
   const canvas = document.getElementById('view');
@@ -60,17 +75,20 @@ async function boot() {
     ui: { root: document.getElementById('ui'), hud: document.getElementById('hud'), phone: document.getElementById('phone-root'), overlay: document.getElementById('overlay'), title: document.getElementById('title') },
   };
   window.__namba = ctx;
-  progress(0.02, 'Surveying the underground…');
+  progress('survey', 0.1);
   await frame();
   ctx.world = new World();
+  progress('survey', 1);
+  ctx.loadTimes = {};
 
-  const total = SYSTEMS.length + 2;
-  let step = 1;
   const load = async ([name, path, exp]) => {
-    progress(step++ / total, `Building ${name}…`);
+    progress(name, 0);
+    const tf = performance.now();
     await frame();
+    const tl = performance.now(), waited = tl - tf;
     try {
       const mod = await import(path);
+      const tImp = performance.now() - tl;
       const Cls = mod[exp] || mod.default;
       if (!Cls) throw new Error(`${path} has no export ${exp}`);
       const sys = new Cls(ctx);
@@ -78,24 +96,29 @@ async function boot() {
       const t0 = performance.now();
       if (sys.init) await sys.init();
       ctx.systems.push({ name, sys });
-      console.log(`[load] ${name} ${(performance.now() - t0).toFixed(0)}ms (at ${(performance.now() / 1000).toFixed(1)}s)`);
+      console.log(`[load] ${name} init ${(performance.now() - t0).toFixed(0)}ms, import ${tImp.toFixed(0)}ms, frame-wait ${waited.toFixed(0)}ms (at ${(performance.now() / 1000).toFixed(1)}s)`);
     } catch (e) {
       console.error(`[system ${name}] failed`, e);
       ctx.errors.push(`${name}: ${e.message}`);
     }
+    ctx.loadTimes[name] = Math.round(performance.now() - tl);
+    loader.finish(name);
   };
   for (const s of SYSTEMS.filter(s => s[3] === 'build')) await load(s);
   // post-build passes (lighting bakes, batching, etc.)
+  progress('bake', 0);
+  await frame();
   for (const { name, sys } of ctx.systems) if (sys.afterBuild) {
     try { await sys.afterBuild(); } catch (e) { console.error(`[system ${name}] afterBuild failed`, e); ctx.errors.push(`${name}.afterBuild: ${e.message}`); }
   }
-  progress(step++ / total, 'Mapping every passage…');
+  loader.finish('bake');
+  progress('nav', 0);
   await frame();
   // finalise collision with obstacles registered by builders, then nav
   for (const lv in ctx.world.grids) ctx.world._buildHash(lv);
   ctx.nav = new Nav(ctx.world);
+  loader.finish('nav');
   for (const s of SYSTEMS.filter(s => s[3] === 'live')) await load(s);
-  progress(1, 'Welcome to Namba');
   if (params.debug) setupDebug(ctx);
 
   ctx.start = () => {
@@ -117,10 +140,25 @@ async function boot() {
     events.emit('player:teleport', { level: b.level });
     return true;
   };
+  // ---- shaders + first frame (under the loading screen) -----------------------
+  // Compile the programs the spawn view needs in parallel (no main-thread stall), then draw one
+  // frame behind the loader so texture uploads / shadow map happen before anyone is watching.
+  progress('compile', 0);
+  await frame();
+  try {
+    if (ctx.visibility) ctx.visibility.update(1 / 60);
+    await precompileVisible(ctx, (f) => progress('compile', f), params.test ? 20000 : 12000);
+    progress('compile', 0.97, 'Drawing the first frame…');
+    await frame();
+    engine.render(1 / 60);
+  } catch (e) { console.warn('[render] precompile/first frame failed', e); }
+  await touchAck;
   ctx.ready = true;
   events.emit('game:ready', {});
-  document.getElementById('loading').classList.add('done');
+  loader.done();
+  console.log(`[load] ready in ${(performance.now() / 1000).toFixed(1)}s`);
   if (params.skip || !ctx.game) ctx.start();
+  if (!params.test) precompileRest(ctx);
   if (!ctx.game) canvas.addEventListener('click', () => ctx.input.requestLock());
 
   // ---- main loop -------------------------------------------------------------

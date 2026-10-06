@@ -11,12 +11,13 @@ import { POSE, MODE } from './sim.js';
 import { BIT } from './looks.js';
 
 const LOD_CAP = [180, 500, 1200];
+const FADE_CAP = [48, 96, 192]; // alpha-blended set for agents that are fading in / out
 
 export class CrowdRenderer {
   constructor(ctx, sim) {
     this.ctx = ctx; this.sim = sim;
     this.stats = { lod: [0, 0, 0], blobs: 0, ms: 0 };
-    this.nearD = 18; this.midD = 60;
+    this.nearD = 12; this.midD = 44;
   }
   init() {
     const scene = this.ctx.engine.scene;
@@ -43,6 +44,28 @@ export class CrowdRenderer {
       mesh.name = 'crowd_lod' + l;
       this.group.add(mesh);
       this.lods.push({ g, mesh, attrs, cap, n: 0, tris: base.getAttribute('position').count / 3 });
+    }
+    // alpha-blended twins of the three LODs: agents with fade < 1 are drawn here (true transparency, no dither)
+    this.matFade = makeHumanMaterial(true);
+    this.fadeLods = [];
+    for (let l = 0; l < 3; l++) {
+      const base = this.lods[l].g;
+      const g = new THREE.InstancedBufferGeometry();
+      for (const k of ['position', 'normal', 'aPart']) g.setAttribute(k, base.getAttribute(k));
+      const cap = FADE_CAP[l];
+      const attrs = {};
+      for (const name of INSTANCE_ATTRS) {
+        const at = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
+        at.setUsage(THREE.DynamicDrawUsage);
+        g.setAttribute(name, at); attrs[name] = at;
+      }
+      g.instanceCount = 0;
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+      const mesh = new THREE.Mesh(g, this.matFade);
+      mesh.frustumCulled = false; mesh.castShadow = false; mesh.receiveShadow = true; mesh.renderOrder = 2;
+      mesh.name = 'crowd_fade' + l; mesh.visible = false;
+      this.group.add(mesh);
+      this.fadeLods.push({ g, mesh, attrs, cap, n: 0 });
     }
     // blob shadows
     const bg = new THREE.InstancedBufferGeometry();
@@ -103,6 +126,7 @@ export class CrowdRenderer {
     const n0 = this.nearD * this.nearD, n1 = this.midD * this.midD;
     const L = this.lods;
     L[0].n = L[1].n = L[2].n = 0;
+    const FL = this.fadeLods; FL[0].n = FL[1].n = FL[2].n = 0;
     let nb = 0;
     const BA = this.blobA.array, BB = this.blobB.array;
     this._frame = (this._frame || 0) + 1;
@@ -115,10 +139,12 @@ export class CrowdRenderer {
     for (let k = 0; k < list.length; k++) {
       const a = list[k];
       let l = a._d2 < n0 ? 0 : a._d2 < n1 ? 1 : 2;
-      while (l < 3 && L[l].n >= L[l].cap) l++;
+      let set = a.fade < 0.999 ? FL : L;
+      while (l < 3 && set[l].n >= set[l].cap) l++;
+      if (l > 2 && set === FL) { set = L; l = a._d2 < n0 ? 0 : a._d2 < n1 ? 1 : 2; while (l < 3 && L[l].n >= L[l].cap) l++; }
       if (l > 2) break;
       this._pose(a, dt);
-      this._write(L[l], L[l].n++, a);
+      this._write(set[l], set[l].n++, a);
       if (nb < this.blobCap && a._d2 < 70 * 70) {
         const o = nb * 4;
         const h = a.look ? a.look.h : 1;
@@ -147,14 +173,18 @@ export class CrowdRenderer {
         }
       }
     }
+    for (const lod of FL) {
+      lod.g.instanceCount = lod.n; lod.mesh.visible = lod.n > 0;
+      if (lod.n) for (const name of INSTANCE_ATTRS) { const at = lod.attrs[name]; if (at.clearUpdateRanges) { at.clearUpdateRanges(); at.addUpdateRange(0, lod.n * 4); } at.needsUpdate = true; }
+    }
     for (const lod of L) {
       lod.g.instanceCount = lod.n;
       if (lod.n) for (const name of INSTANCE_ATTRS) { const at = lod.attrs[name]; if (at.clearUpdateRanges) { at.clearUpdateRanges(); at.addUpdateRange(0, lod.n * 4); } at.needsUpdate = true; }
     }
     this.blobMesh.geometry.instanceCount = nb;
     if (nb) for (const at of [this.blobA, this.blobB]) { if (at.clearUpdateRanges) { at.clearUpdateRanges(); at.addUpdateRange(0, nb * 4); } at.needsUpdate = true; }
-    this.stats.lod[0] = L[0].n; this.stats.lod[1] = L[1].n; this.stats.lod[2] = L[2].n; this.stats.blobs = nb;
-    this.stats.tris = L[0].n * L[0].tris + L[1].n * L[1].tris + L[2].n * L[2].tris;
+    this.stats.lod[0] = L[0].n + FL[0].n; this.stats.lod[1] = L[1].n + FL[1].n; this.stats.lod[2] = L[2].n + FL[2].n; this.stats.blobs = nb;
+    this.stats.tris = (L[0].n + FL[0].n) * L[0].tris + (L[1].n + FL[1].n) * L[1].tris + (L[2].n + FL[2].n) * L[2].tris;
     this.stats.ms = performance.now() - t0;
   }
 

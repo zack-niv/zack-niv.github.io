@@ -1,11 +1,12 @@
 // Game clock: time of day drives crowd density, light, shop hours, trains.
-// One real second = `scale` game seconds (default 6: an in-game hour = 10 min).
+// One real second = `scale` game seconds (demo: 1.2, close to real time so
+// walking never feels punished by the clock).
 import { params } from './params.js';
 export class Clock {
   constructor(events) {
     this.events = events;
-    this.scale = 6;
-    let start = 10 * 60 + 42; // 10:42, just off the airport train
+    this.scale = 1.2;
+    let start = 11 * 60 + 20; // 11:20, just off the airport train, lunch ahead
     if (params.time) { const [h, m] = params.time.split(':').map(Number); start = h * 60 + (m || 0); }
     this.minutes = start;      // minutes since midnight (float)
     this._lastWhole = Math.floor(start);

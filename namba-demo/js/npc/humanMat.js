@@ -248,15 +248,21 @@ const FRAG_COLOR = /* glsl */`
   diffuseColor.rgb *= vCrowdCol;
   ${PATTERNS}
   ${FACE}
+  #ifdef CROWD_BLEND
+    // fading agents are drawn in their own alpha-blended instanced draw: a real cross-fade, no dither speckle
+    diffuseColor.a *= clamp(vCrowdFade, 0.0, 1.0);
+  #else
   if (vCrowdFade < 0.999) {
-    // temporally stable 4x4 Bayer at 2x pixel scale, rotated per instance (no shimmer, no colour noise after post)
+    // fallback (only if the blended set is full): temporally stable 4x4 Bayer at 2x pixel scale
     float thr = fract(crBayer(floor(gl_FragCoord.xy * 0.5)) + vDitherOff) * 0.94 + 0.03;
     if (thr > vCrowdFade) discard;
   }
+  #endif
 `;
 
-export function makeHumanMaterial() {
+export function makeHumanMaterial(blend = false) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, metalness: 0.0, envMapIntensity: 0.6 });
+  if (blend) { m.transparent = true; m.depthWrite = true; m.defines = { CROWD_BLEND: 1 }; }
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = VERT_HEAD + sh.vertexShader
       .replace('#include <beginnormal_vertex>', VERT_BODY)
@@ -266,8 +272,8 @@ export function makeHumanMaterial() {
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = crRough;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  if (vReg > 12.5) totalEmissiveRadiance += vec3(0.45, 0.7, 1.1) * 1.5;');
   };
-  m.customProgramCacheKey = () => 'namba_crowd_human_v2';
-  m.name = 'crowd_human';
+  m.customProgramCacheKey = () => blend ? 'namba_crowd_human_v3_blend' : 'namba_crowd_human_v3';
+  m.name = blend ? 'crowd_human_fade' : 'crowd_human';
   return m;
 }
 

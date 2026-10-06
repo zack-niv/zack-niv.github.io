@@ -19,31 +19,36 @@ import { params } from './params.js';
 // specLights: real specular fixtures in the light-field shader; envSize: PMREM size
 export const QUALITY = {
   low:    { pixelRatio: 0.75, shadows: false, post: false, bloom: false, ssao: false, ssr: false, fxaa: false, msaa: 0, crowdMax: 500,  drawDist: 90,  anisotropy: 1,  specLights: 2, envSize: 64,  shadowMap: 0,    drsMin: 0.6, vignette: 0.3, grain: 0, ca: 0, maxPR: 1.5 },
-  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1100, drawDist: 140, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.01, ca: 0, maxPR: 1.5 },
-  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false,  msaa: 0, crowdMax: 1800, drawDist: 200, anisotropy: 8,  specLights: 8, envSize: 128, shadowMap: 2048, drsMin: 0.75, vignette: 0.35, grain: 0.012, ca: 0.003, maxPR: 1.25 },
-  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, anisotropy: 16, specLights: 8, envSize: 256, shadowMap: 4096, drsMin: 0.8, vignette: 0.35, grain: 0.012, ca: 0.003, maxPR: 2 },
+  medium: { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: false, ssr: false, fxaa: true,  msaa: 0, crowdMax: 1000, drawDist: 130, anisotropy: 4,  specLights: 4, envSize: 128, shadowMap: 1024, drsMin: 0.6, vignette: 0.32, grain: 0.006, ca: 0, maxPR: 1.5 },
+  // high = medium + half-res SSAO/SSR + TAA/CAS. Tuned to hold 60 fps on a mid laptop GPU with dynamic resolution (0.7..1.0).
+  high:   { pixelRatio: 1.0,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false,  msaa: 0, crowdMax: 1500, drawDist: 160, anisotropy: 8,  specLights: 6, envSize: 128, shadowMap: 1536, drsMin: 0.7, vignette: 0.33, grain: 0.006, ca: 0, maxPR: 1.25 },
+  ultra:  { pixelRatio: 1.5,  shadows: true,  post: true,  bloom: true,  ssao: true,  ssr: true,  taa: true, fxaa: false, msaa: 4, crowdMax: 2600, drawDist: 260, anisotropy: 16, specLights: 8, envSize: 256, shadowMap: 4096, drsMin: 0.8, vignette: 0.35, grain: 0.006, ca: 0, maxPR: 2 },
 };
 export const QUALITY_ORDER = ['low', 'medium', 'high', 'ultra'];
 
 // Pick a starting tier from cheap device hints; the benchmark in
-// render/visibility steps further down if needed.
-function detectTier(canvas) {
+// render/visibility steps further down if needed. Conservative on purpose: an
+// unknown or integrated GPU gets `medium` (shadows + bloom + FXAA, no SSR/SSAO),
+// and only a clearly strong GPU gets `high`.
+export function detectTier() {
   if (matchMedia('(pointer: coarse)').matches) return 'low';
-  let name = '', gpu = '';
+  let gpu = '';
   try {
     const gl = document.createElement('canvas').getContext('webgl2');
     const ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
     gpu = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : '';
     gl && gl.getExtension('WEBGL_lose_context') && gl.getExtension('WEBGL_lose_context').loseContext();
   } catch (e) { /* fall through */ }
-  name = 'high';
   const cores = navigator.hardwareConcurrency || 4, mem = navigator.deviceMemory || 8;
-  if (/swiftshader|llvmpipe|software|mali|adreno|powervr|videocore/i.test(gpu)) name = 'low';
-  else if (/intel/i.test(gpu) && !/\barc\b/i.test(gpu)) name = /hd graphics [2-5]\d\d\b/i.test(gpu) ? 'low' : 'medium';
-  else if (/apple/i.test(gpu) && cores <= 4) name = 'medium';
-  if (cores <= 2 || mem <= 2) name = 'low';
-  else if ((cores <= 4 || mem <= 4) && name === 'high') name = 'medium';
-  return name;
+  if (/swiftshader|llvmpipe|softpipe|software|basic render|mali|adreno|powervr|videocore|mesa.*(llvm|soft)/i.test(gpu)) return 'low';
+  if (cores <= 2 || mem <= 2) return 'low';
+  const strong =
+    /nvidia.*\b(rtx|gtx ?(20|30|40|50)\d\d|quadro (rtx|t\d)|titan)/i.test(gpu) ||
+    /(radeon|amd).*\b(rx ?(5[5-9]|6|7|9)\d{2,3}|pro w[5-9]|vega 6[4-9]|rdna)/i.test(gpu) ||
+    /apple.*\bm\d\b/i.test(gpu) && cores >= 8 ||
+    /intel.*\barc\b/i.test(gpu);
+  if (strong && cores >= 6) return 'high';
+  return 'medium';
 }
 
 export class Engine {
@@ -51,7 +56,7 @@ export class Engine {
     this.canvas = canvas;
     let qName = params.quality;
     this.qualityForced = !!(qName && QUALITY[qName]);
-    if (!this.qualityForced) qName = detectTier(canvas);
+    if (!this.qualityForced) qName = detectTier();
     this.qualityName = QUALITY[qName] ? qName : 'high';
     this.quality = { ...QUALITY[this.qualityName] };
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance', stencil: false, preserveDrawingBuffer: params.test });

@@ -51,7 +51,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
           <div class="e-col-h a"><i></i><b>After</b><small>Lodestone</small></div>
         </div>
         ${rows.map(r => `<div class="e-row"><div class="e-k">${esc(r.k)}</div>${cell(r, 'b')}${a ? cell(r, 'a') : `<div class="e-v a"><b class="e-none">—</b></div>`}</div>`).join('')}
-        ${a ? '' : '<p class="e-foot">You never needed it. Lucky you. Next time, install it before you get lost.</p>'}
+        ${a ? '' : '<p class="e-foot">Lodestone was waiting in your messages the whole time.</p>'}
       </section>
     </div>`;
   (ctx.ui.overlay || document.body).appendChild(el);

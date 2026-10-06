@@ -229,7 +229,7 @@ export class LodestoneApp {
     this._revealed = false; this._cardT = 3.2; this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this._shownLevel = ph.pos.level;
     this.setMode('overview');
-    if (this.stack) { this.stack.cur.dist = 2600; this.stack.az = 260 * Math.PI / 180; this.stack.recenter(); this.stack._snapCam = false; this.stack.az = 260 * Math.PI / 180; }
+    if (this.stack) { this.stack.recenter(); this.stack.startIntro(); }
     this._showCard(`You’re on ${lvl(ph.pos.level)}`, `${this._zoneName()} · ±1 m`, true);
     ph.app !== 'lodestone' && ph.isOpen && ph._showApp('lodestone');
     this.ctx.events.emit('phone:upgrade', { stage: 'ready' });

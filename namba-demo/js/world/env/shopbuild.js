@@ -530,7 +530,13 @@ export function shelfRun(S, P, o) {
     if (na !== 0) P.ta(reg, Math.min(p.d, q.d), Math.max(p.d, q.d), y0, y1, p.a, na > 0 ? 1 : -1, col);
     else P.tq(reg, Math.min(p.a, q.a), Math.max(p.a, q.a), y0, y1, p.d, nd > 0 ? 1 : -1, col);
   };
-  if (back) box('env_matte', 0, len, 0, h, 0, 0.03, frame);
+  if (back) {
+    // the face against the wall is never seen from inside, but IS coplanar with the architecture wall (z-fights
+    // when the wall is seen from the corridor), so leave it out
+    const bf = na > 0 ? 'w' : na < 0 ? 'e' : nd > 0 ? 'n' : 's';
+    const p = L(0, 0), q = L(len, 0.03);
+    P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), 0, h, Math.min(p.d, q.d), Math.max(p.d, q.d), frame, 'nsewtb'.replace(bf, ''));
+  }
   box('env_matte', 0, len, 0, base, 0.03, depth, mix(frame, [0, 0, 0], 0.4));
   // uprights
   const segs = Math.max(1, Math.round(len / 1.2));

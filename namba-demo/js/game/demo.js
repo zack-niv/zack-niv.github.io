@@ -79,8 +79,8 @@ export class Demo {
     INTRO.forEach(([at, text]) => game.after(at, () => game.message(text)));
     const lastAt = INTRO[INTRO.length - 1][0];
     game.after(lastAt + 1.6, () => game.setQuest('tempura', 'active', null, true));
-    game.after(Math.max(tt + 1.5, 5.5), () => hud?.hint('keys', 9));
-    game.after(lastAt + 2.4, () => hud?.hint('phone', 8));
+    game.after(Math.max(tt + 3, 7.5), () => hud?.hint('keys', 9));
+    game.after(lastAt + 6.5, () => hud?.hint('phone', 8));
     this.nudges = NUDGES.map(([at, text]) => ({ at, text, sent: false }));
   }
 
