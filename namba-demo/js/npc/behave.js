@@ -63,7 +63,7 @@ export class Behave {
         if (!L.en.ready) { a.mode = MODE.STAND; a.waitField = true; if (a.fadeDir === 0 && a.fade <= 0) { /* stays hidden */ } return; }
         a.waitField = false;
         S.setField(a, L.en, L.arrive || 1.2);
-        if (a.nearStart) { a.nearStart = false; a.ffFrac = 0; if (!this.director.placeNear(a, false, 3, 90)) a.ffFrac = 0.5; }
+        if (a.nearStart) { a.nearStart = false; a.ffFrac = 0; if (!this.director.placeNear(a, false, 3, 60)) a.ffFrac = 0.5; }
         if (a.ffFrac > 0) this._fastForward(a);
         if (a.fadeDir === 0) this._reveal(a);
         a.hesT = 8 + this.r() * 30;

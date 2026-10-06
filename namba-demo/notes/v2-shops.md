@@ -108,3 +108,9 @@ Unsure / for the lead:
 * signage.js untouched (136 px/m faces were fine); `render/textures/library.js` untouched.
 * A few categories keep their old templates (fashion, drugstore, gacha, cosmetics, zakka...): they looked believable
   in the software renders; bookstore only got a register/clerk.
+
+## Final status
+* `node tools/loadprobe.mjs`: READY 13.3 s, no system errors (only the sandbox's Google Fonts cert error). In-game shots: zero
+  console errors, `ctx.errors` empty.
+* Before/after shots: `notes/v2-shots/shops/before|after`, poster contact sheet `notes/v2-shots/shops/posters-sheet.png`.
+  (`before/column_ad_zfight_BUG.png` is the z-fighting column ad found during the work, captured before the fix.)

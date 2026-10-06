@@ -49,7 +49,7 @@ export class Director {
     // shop subsets so fields stay few: busy shops per zone + every restaurant/café
     this._shopPools();
     this._coreFields();
-    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.6;
+    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.45;
     this._publicNodes();
   }
   get minutes() { return this.sim.clock ? this.sim.clock.minutes : 12 * 60; }
@@ -454,7 +454,7 @@ export class Director {
   // ---------------------------------------------------------------------------
   // Density follows the player: far-away walkers nobody can see are moved
   // (mid-trip, same destination) onto public nodes around the player, out of
-  // view, and faded in. Keeps ~nearShare of the population within ~100 m.
+  // view, and faded in. Keeps ~nearShare of the population within ~70 m (v2: denser where the player is).
   _publicNodes() {
     const S = this.sim, nav = S.nav, W = S.world, L = W.layout;
     this.pub = {};
@@ -517,10 +517,10 @@ export class Director {
     const want = tgt * this.nearShare;
     let near = 0;
     const A = S.agents;
-    for (let i = 0; i < A.length; i++) { const a = A[i]; if (a.alive && a.level === V.level) { const dx = a.x - V.x, dz = a.z - V.z; if (dx * dx + dz * dz < 100 * 100) near++; } }
+    for (let i = 0; i < A.length; i++) { const a = A[i]; if (a.alive && a.level === V.level) { const dx = a.x - V.x, dz = a.z - V.z; if (dx * dx + dz * dz < 70 * 70) near++; } }
     this.counts.near = near;
     if (near >= want) { this._burstLeft = 0; return; }
-    let moves = Math.min(burst ? 12 : 14, Math.ceil((want - near) / 1.6));
+    let moves = Math.min(burst ? 24 : 14, Math.ceil((want - near) / 1.6));
     let guard = A.length;
     while (moves > 0 && guard-- > 0) {
       this._dkIdx = (this._dkIdx + 1) % A.length;
@@ -529,7 +529,7 @@ export class Director {
       const L = a.legs && a.legs[a.leg]; if (!L || L.t !== 'go') continue;
       if (a.level === V.level && Math.hypot(a.x - V.x, a.z - V.z) < 220) continue;
       const fa = a.fade;
-      if (this.placeNear(a, !burst, burst ? 4 : 12)) { a.fade = 0; a.fadeDir = 1; moves -= 1 + (a.followers ? a.followers.length : 0); this.counts.moved = (this.counts.moved || 0) + 1; }
+      if (this.placeNear(a, !burst, burst ? 4 : 12, burst ? 45 : 68)) { a.fade = 0; a.fadeDir = 1; moves -= 1 + (a.followers ? a.followers.length : 0); this.counts.moved = (this.counts.moved || 0) + 1; }
       else { a.fade = fa; moves--; }
     }
   }
