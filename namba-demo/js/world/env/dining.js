@@ -113,7 +113,7 @@ export function diningInterior(S, c) {
     if (cat === 'yakiniku') { P.cyl('env_metal', ta, 0.74, 0.8, j + 1.0, 0.2, [0.15, 0.15, 0.15]); P.cyl('env_glow', ta, 0.8, 0.805, j + 1.0, 0.15, [2.2, 0.7, 0.2]); P.cyl('env_metal', ta, 1.55, ceil, j + 1.0, 0.07, [0.6, 0.6, 0.62]); P.cyl('env_metal', ta, 1.45, 1.6, j + 1.0, 0.22, [0.7, 0.7, 0.72]); }
     else if (cat === 'okonomiyaki') P.box('env_metal', ta - 0.28, ta + 0.28, 0.74, 0.76, j + 0.55, j + 1.45, [0.1, 0.1, 0.1], 'nsewt');
     else if (lanternTxt) { const lr = R.lantern(lanternTxt, '#c8231d'); P.geo(lr.atlas.mat(lr), protoUV('lantern', lr), ta, ceil - 0.95, j + 1.0, 0, [0.28, 0.4, 0.28]); }
-    else globeLamp(P, ta, j + 1.0, 1.85, ceil, 0.12);
+    else globeLamp(P, ta, j + 1.0, 2.1, ceil, 0.12);
     cells.mark(side > 0 ? W - 3 : 0, side > 0 ? W - 1 : 2, j, j + 1);
   }
   // tanzaku menu strips + a beer poster above the booths

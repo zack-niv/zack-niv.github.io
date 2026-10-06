@@ -224,7 +224,7 @@ export function cafeInterior(S, c) {
         S.spot('seat', bc(0.5), cd, bface, 0);
         if (r() < 0.55) cup(P, ta + (r() - 0.5) * 0.1, 0.74, cd + (r() - 0.5) * 0.1);
       }
-      if (r() < 0.5) globeLamp(P, ta, j + 1.0, 1.85, ceil, 0.12);
+      if (r() < 0.5) globeLamp(P, ta, j + 1.0, 2.1, ceil, 0.12);
       mark(bside > 0 ? W - 3 : 0, bside > 0 ? W - 1 : 2, j - 0, j + 1);
     }
     // slat panel + a pair of posters above the banquette
@@ -265,7 +265,7 @@ export function cafeInterior(S, c) {
         cushion(P, sx - 0.8, dB - 0.62, 0.52, 0.2, fab[2]); cushion(P, sx + 0.85, dB - 0.62, 0.52, -0.25, fab[1]);
         for (const dx of [-0.9, 0, 0.9]) S.spot('seat', sx + dx * 0.9 + (dx === 0 ? 0 : 0), dB - 0.5, 0, -1);
         S.spot('seat', sx, dB - 2.5, 0, 1);
-        pendant(P, sx, dB - 1.5, 1.85, ceil, [0.76, 0.5, 0.2], 0.22);
+        pendant(P, sx, dB - 1.5, 2.0, ceil, [0.76, 0.5, 0.2], 0.22);
         { const pa = bside > 0 ? lc0 - 0.4 : lc0 + 3.4; if (S.solid(pa - 0.28, pa + 0.28, dB - 0.9, dB - 0.35, { pocket: 2 })) plantPot(P, pa, dB - 0.6, 0.42, 1.1, plantSeed, POTS[plantSeed % 4], GREENS[plantSeed % 4]); }
         mark(lc0 - 1, lc0 + 3, dB - 4, dB);
       }
@@ -277,7 +277,7 @@ export function cafeInterior(S, c) {
       sofa(P, lc0 + 1, dB - 0.5, 0, -1, 1.7, fab[0]);
       S.spot('seat', lc0 + 0.5, dB - 0.5, 0, -1); S.spot('seat', lc0 + 1.5, dB - 0.5, 0, -1);
       cushion(P, lc0 + 0.55, dB - 0.62, 0.52, 0.2, fab[2]);
-      pendant(P, lc0 + 1, dB - 1.2, 1.85, ceil, [0.76, 0.5, 0.2], 0.2);
+      pendant(P, lc0 + 1, dB - 1.2, 2.0, ceil, [0.76, 0.5, 0.2], 0.2);
       mark(lc0, lc0 + 1, dB - 2, dB);
     }
   }
@@ -334,7 +334,7 @@ export function cafeInterior(S, c) {
     if (r() < 0.25) glass(P, ta + 0.12, 0.74, td - 0.1);
     if (r() < 0.2) laptop(P, ta, 0.74, td, r() * 0.8 - 0.4);
     if (r() < 0.2) book(P, ta, 0.74, td, r() * 3, [0.25, 0.35, 0.5]);
-    if (r() < 0.55) globeLamp(P, ta, td, 1.8 + r() * 0.2, ceil, 0.12 + r() * 0.03);
+    if (r() < 0.55) globeLamp(P, ta, td, 2.05 + r() * 0.15, ceil, 0.12 + r() * 0.03);
     mark(fi0 - 1, fi1 + 1, fj0, fj1);
     return true;
   };
@@ -355,7 +355,7 @@ export function cafeInterior(S, c) {
       }
       for (let k = 0; k < 4; k++) if (r() < 0.6) cup(P, ci + 0.4 + k * 0.7, 0.78, cj + 0.3 + (k % 2) * 0.4);
       P.cyl('env_matte', ci + 1.5, 0.78, 0.84, cj + 0.5, 0.12, [0.8, 0.76, 0.7]); P.geo('env_matte', 'plant', ci + 1.5, 0.84, cj + 0.5, 0.4, [0.3, 0.3, 0.3], GREENS[1]);
-      for (let k = 0; k < 3; k++) globeLamp(P, ci + 0.5 + k * 1.0, cj + 0.5, 1.75, ceil, 0.13);
+      for (let k = 0; k < 3; k++) globeLamp(P, ci + 0.5 + k * 1.0, cj + 0.5, 2.05, ceil, 0.13);
       mark(ci - 1, ci + 3, cj - 2, cj + 2);
     }
   }

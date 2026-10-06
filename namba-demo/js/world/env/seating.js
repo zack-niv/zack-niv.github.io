@@ -49,7 +49,7 @@ export function tableSet(S, P, cells, i, j, o = {}) {
     if (r() < 0.6) cup(P, ta - 0.08, 0.74, td - 0.06, [0.95, 0.95, 0.93]);
     if (r() < 0.3) glass(P, ta + 0.12, 0.74, td + 0.08);
   }
-  if (o.lamp && r() < o.lamp) globeLamp(P, ta, td, 1.8 + r() * 0.2, S.ceil, 0.12);
+  if (o.lamp && r() < o.lamp) globeLamp(P, ta, td, 2.05 + r() * 0.15, S.ceil, 0.12);
   cells.mark(fi0 - (alongD ? 0 : 1), fi1 + (alongD ? 0 : 1), fj0 - (alongD ? 1 : 0), fj1 + (alongD ? 1 : 0));
   return true;
 }
