@@ -379,7 +379,7 @@ export class Stack3D {
         g.fillStyle = '#ffd27a'; g.font = '700 30px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(m.text, w / 2, h / 2 + 2);
       });
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false }));
-      s.position.set(m.x, m.y * this.K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(0.5, 0);
+      s.position.set(m.x, m.y * this.K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(m.via ? 0.05 : 0.5, 0);   // the canyon chip sits to the right of its point, clear of the escalator chip
       this.markGroup.add(s);
     }
     // route samples for the plate fade (16 points evenly along the path)
@@ -559,7 +559,8 @@ export class Stack3D {
       this._lblV.copy(this.destLabel.position).project(this.camera);
       const lw = this.destLabel.userData.px[0], sx = (this._lblV.x * 0.5 + 0.5) * W, m = 6;
       let off = 0;                                   // px the chip must move right (+) / left (-)
-      if (isFinite(sx)) { if (sx - lw / 2 < m) off = m - (sx - lw / 2); else if (sx + lw / 2 > W - m) off = (W - m) - (sx + lw / 2); }
+      const rMax = W - this.bandRight - m;           // the floor ladder lives in the right band
+      if (isFinite(sx)) { if (sx - lw / 2 < m) off = m - (sx - lw / 2); else if (sx + lw / 2 > rMax) off = rMax - (sx + lw / 2); }
       this.destLabel.center.x = 0.5 - off / lw;
     }
     for (const lv in this.levels) { const s = this.levels[lv].label; spx(s, s.userData.px[0], s.userData.px[1]); }

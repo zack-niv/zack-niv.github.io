@@ -282,6 +282,7 @@ export class Demo {
     const aya = this._pickAya();
     if (aya) {
       this._aya = aya; this._wave = 3.6;
+      this._clearSight(aya);
       this._lookAtAya(2.4);
       this._showMarker(true);
     } else {
@@ -337,6 +338,22 @@ export class Demo {
       L.colB = [0xeed2bd, 0xf4f4f1, 0xc8283c, 0xc8283c];      // fair skin, white inner, RED tote
       a.look = L; a.flags = f; a._aya = true;
     } catch (e) { /* cosmetic only */ }
+  }
+  // Anyone standing right on the line between the player's eyes and Aya fades out (the queue shuffles into the
+  // restaurant): she must be seen, not guessed at behind a stranger's back. At most two people, only those in front of her.
+  _clearSight(aya) {
+    safe(() => {
+      const sim = this.ctx.crowd && this.ctx.crowd.sim, b = this.ctx.player.body; if (!sim) return;
+      const dx = aya.x - b.x, dz = aya.z - b.z, L = Math.hypot(dx, dz); if (L < 0.8) return;
+      const ux = dx / L, uz = dz / L, hits = [];
+      sim.near(aya.level, b.x + dx * 0.5, b.z + dz * 0.5, L * 0.5 + 1, (a) => {
+        if (!a || a === aya || !a.alive || a.ramp >= 0) return;
+        const t = (a.x - b.x) * ux + (a.z - b.z) * uz;
+        if (t < 0.3 || t > L - 0.25) return;                         // behind the player, or behind/beside her
+        if (Math.abs((a.x - b.x) * uz - (a.z - b.z) * ux) < 0.5) hits.push(a);
+      });
+      for (const a of hits.slice(0, 2)) { a.fadeDir = -1; if (a.followers) for (const f of a.followers) f.fadeDir = -1; }
+    });
   }
   _lookAtAya(rate) {
     const a = this._aya, body = this.ctx.player.body; if (!a) return;
