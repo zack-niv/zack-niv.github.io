@@ -46,7 +46,6 @@ function asphaltTexture(ctx) {
     return t;
   });
 }
-function pavingTexture(ctx) { return ctx.materials.texture('out_street_paving', () => { const T = ctx.materials.texture('out_street_paving_src', () => null); return T; }); }
 
 // ---- small geometry helpers -------------------------------------------------------
 function boxAcc(acc, cx, cy, cz, sx, sy, sz, col, uvScale = 0) {
@@ -101,6 +100,7 @@ export async function buildStreets(ctx, ex) {
   const lampGlow = defineStd('out_lamp_glow', () => new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.88, 0.65).multiplyScalar(2) }));
 
   // ---- roads ---------------------------------------------------------------------
+  const BOXG = new THREE.BoxGeometry(1, 1, 1);
   const road = new MeshAcc(), walk = new MeshAcc(), marks = new MeshAcc(), kerb = new MeshAcc(), soil = new MeshAcc(), steel = new MeshAcc(), pole = new MeshAcc();
   const D = lin(0x9a9a9a), D2 = lin(0xb0b0b0);
   const WHITE = [0.85, 0.85, 0.82], YEL = [0.9, 0.62, 0.05];
@@ -252,7 +252,6 @@ export async function buildStreets(ctx, ex) {
       hedgeRuns.push({ x: cx, z: cz, len, tx, tz });
     }
   }
-  const BOXG = new THREE.BoxGeometry(1, 1, 1);
   timings.roadsEdges = Math.round(performance.now() - t0); t0 = performance.now();
 
   // ---- ground plane (the city floor between blocks) ------------------------------------
@@ -315,7 +314,6 @@ export async function buildStreets(ctx, ex) {
     if (z > SEN.z0 - 8 && z < SEN.z1 + 8) continue;
     veg.add('shrub', xc + R.range(-1.4, 1.4), 0.0, z, R.range(0.45, 0.7), R.range(0, 6), [0.8, 0.95, 0.75]);
   }
-  veg.build();
   timings.planting = Math.round(performance.now() - t0); t0 = performance.now();
 
   // ---- Namba Plaza furniture (inside walkable space: registered obstacles) ------------------
@@ -324,8 +322,6 @@ export async function buildStreets(ctx, ex) {
     boxAcc(plazaAcc, cx, 0.3, cz, hx * 2, 0.6, hz * 2, D);
     flat(plazaSoil, cx - hx + 0.1, cz - hz + 0.1, cx + hx - 0.1, cz + hz - 0.1, 0.58, [1, 1, 1], 1 / 3);
     world.addBox('1F', cx, cz, hx, hz, 0);
-    const n = Math.round(hx * hz * 2.2);
-    for (let i = 0; i < n; i++) veg.add2 ? 0 : 0;
   };
   const plazaBeds = [];
   for (const [cx, cz, hx, hz] of [[-86, -195.5, 3, 1.1], [-72, -195.5, 3, 1.1], [-58, -195.5, 3, 1.1], [-46, -190.5, 1.2, 3.4], [-90, -188.5, 1.2, 1.8]]) { planter(cx, cz, hx, hz); plazaBeds.push([cx, cz, hx, hz]); }
@@ -343,7 +339,6 @@ export async function buildStreets(ctx, ex) {
     for (let i = 0; i < Math.round(hx * hz * 2.6); i++) veg.add(R.pick(['shrub', 'azalea', 'flower', 'grass']), cx + R.range(-hx + 0.3, hx - 0.3), 0.58, cz + R.range(-hz + 0.3, hz - 0.3), R.range(0.7, 1.1), R.range(0, 6));
   }
   veg.add('keyaki', -86, 0.58, -195.5, 0.8, 1.2); veg.add('sakura', -58, 0.58, -195.5, 0.7, 3.1); veg.add('kusu', -46, 0.58, -192, 0.55, 2.0);
-  // (the plaza vegetation additions above come after veg.build(): rebuild the instanced models)
   veg.build();
 
   // ---- signals, lamps, poles ---------------------------------------------------------------------------
