@@ -850,15 +850,16 @@ const BUILD = {
       const cx = it.x + nx * (off + 0.012), cz = it.z + nz * (off + 0.012);
       // Frame rot: d axis = (sin rot, cos rot) = -n  => local -d faces outward
       const PF = new Painter(P.gb, new Frame(cx, f.oy, cz, Math.atan2(-nx, -nz)));
-      PF.tq(reg, -w / 2, w / 2, y0, y1, 0, -1);
+      // (the poster used to sit exactly on the frame box's front face: z-fighting = the 'broken' column ads)
       PF.box('env_metal', -w / 2 - 0.03, w / 2 + 0.03, y0 - 0.03, y1 + 0.03, 0.0, 0.035, steel);
+      PF.tq(reg, -w / 2, w / 2, y0, y1, -0.006, -1);
     }
   },
   platad(S, P, R, it) {
     const reg = R.ad(it.ad, 1 + (it.seed % 2), false);
     // 16:9 artwork fitted inside the frame (never stretched); the paper margin either side is plain backing
     const h = it.h - 0.04, w = Math.min(it.w - 0.04, h * 16 / 9), hh = w * 9 / 16;
-    P.qd('env_matte', -it.w / 2 + 0.02, it.w / 2 - 0.02, it.yc - it.h / 2 + 0.02, it.yc + it.h / 2 - 0.02, -0.01, -1, [0.9, 0.9, 0.88]);
+    P.qd('env_matte', -it.w / 2 + 0.02, it.w / 2 - 0.02, it.yc - it.h / 2 + 0.02, it.yc + it.h / 2 - 0.02, -0.004, -1, [0.9, 0.9, 0.88]);
     P.tq(reg, -w / 2, w / 2, it.yc - hh / 2, it.yc + hh / 2, -0.012, -1);
   },
   fountain(S, P, R, it) { buildFountain(S, P, R, it); },

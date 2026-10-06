@@ -30,7 +30,7 @@ const PERSON = {
 const LINE_BASE = { nankai: 70, midosuji: 55, sennichimae: 28 };
 // v2: fewer, better placed people. The demo population is ~27% of v1's (≈360 at lunch on 'high'),
 // and half of it is kept within ~100 m of the player.
-const DEMO_POP = 0.27;
+const DEMO_POP = 0.36;
 
 export class Director {
   constructor(sim, behave, ctx) {
@@ -49,7 +49,7 @@ export class Director {
     // shop subsets so fields stay few: busy shops per zone + every restaurant/café
     this._shopPools();
     this._coreFields();
-    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.5;
+    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.6;
     this._publicNodes();
   }
   get minutes() { return this.sim.clock ? this.sim.clock.minutes : 12 * 60; }

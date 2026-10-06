@@ -252,6 +252,10 @@ export class CrowdRenderer {
     a._sc = lk.h * 1.7 / a._rig.height;
     const kid = (lk.flags >> BIT.KID) & 1;
     a._wsc = kid ? 0.92 : Math.max(0.88, Math.min(1.14, 1 + (lk.build - (lk.female ? 0.93 : 1.02)) * 0.8));
+    // clothes must never read as bare skin: a top / bottom too close to the skin tone gets a darker shade
+    a._colA = lk.colA.slice(); a._colB = lk.colB.slice();
+    const skin = lk.colB[0];
+    for (const k of [0, 1]) if (colDist(a._colA[k], skin) < 70) a._colA[k] = shade(a._colA[k], 0.55);
     if (a._slot && a._slot.variant !== a._v) this._release(a);
   }
 
@@ -333,8 +337,9 @@ export class CrowdRenderer {
     p[o] = this._frameOf(rig, a._ac, a._at);
     if (a._ap) { p[o + 1] = this._frameOf(rig, a._ap, a._apt); p[o + 2] = 1 - a._aw; } else { p[o + 1] = p[o]; p[o + 2] = 0; }
     p[o + 3] = a._sc;
-    p = at.iColA.array; p[o] = lk.colA[0]; p[o + 1] = lk.colA[1]; p[o + 2] = lk.colA[2]; p[o + 3] = lk.colA[3];
-    p = at.iColB.array; p[o] = lk.colB[0]; p[o + 1] = lk.colB[1]; p[o + 2] = lk.colB[2]; p[o + 3] = lk.colB[3];
+    const cA = a._colA, cB = a._colB;
+    p = at.iColA.array; p[o] = cA[0]; p[o + 1] = cA[1]; p[o + 2] = cA[2]; p[o + 3] = cA[3];
+    p = at.iColB.array; p[o] = cB[0]; p[o + 1] = cB[1]; p[o + 2] = cB[2]; p[o + 3] = cB[3];
     p = at.iMisc.array; p[o] = a.fade; p[o + 1] = (a.flags | a.dyn) & 0xffffff; p[o + 2] = a._wsc; p[o + 3] = 0;
   }
 
@@ -345,8 +350,8 @@ export class CrowdRenderer {
     root.rotation.set(0, a.yaw + Math.PI, 0);
     root.scale.set(a._sc * a._wsc, a._sc, a._sc * a._wsc);
     const U = s.U;
-    U.crColA.value.set(lk.colA[0], lk.colA[1], lk.colA[2], lk.colA[3]);
-    U.crColB.value.set(lk.colB[0], lk.colB[1], lk.colB[2], lk.colB[3]);
+    U.crColA.value.set(a._colA[0], a._colA[1], a._colA[2], a._colA[3]);
+    U.crColB.value.set(a._colB[0], a._colB[1], a._colB[2], a._colB[3]);
     const alpha = Math.min(a.fade, s.alpha);
     U.crMisc.value.set(alpha, (a.flags | a.dyn) & 0xffffff, 1, 0);
     s.mesh.material = alpha < 0.999 ? s.matF : s.matO;
@@ -387,4 +392,13 @@ export class CrowdRenderer {
     this.group.parent && this.group.parent.remove(this.group);
     for (const v of this.variants) for (const set of [v.far[1], v.far[2], v.fade[1], v.fade[2]]) { set.g.dispose(); set.mesh.material.dispose(); }
   }
+}
+
+function colDist(a, b) {
+  const dr = ((a >> 16) & 255) - ((b >> 16) & 255), dg = ((a >> 8) & 255) - ((b >> 8) & 255), db = (a & 255) - (b & 255);
+  return Math.sqrt(dr * dr * 0.3 + dg * dg * 0.59 + db * db * 0.11) * 1.7;
+}
+function shade(c, k) {
+  const r = Math.round(((c >> 16) & 255) * k), g = Math.round(((c >> 8) & 255) * k), b = Math.round((c & 255) * k);
+  return (r << 16) | (g << 8) | b;
 }

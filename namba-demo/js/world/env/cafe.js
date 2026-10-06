@@ -118,7 +118,7 @@ export function cafeInterior(S, c) {
     boards.forEach((reg, k) => {
       if (bd + bws[k] > d1 - 0.1) return;
       P.box('env_wood', side > 0 ? W - 0.05 : 0, side > 0 ? W : 0.05, my0 - 0.03, my1 + 0.03, bd - 0.03, bd + bws[k] + 0.03, wood2, 'nsewt');
-      P.ta(reg, bd, bd + bws[k], my0, my1, side > 0 ? W - 0.052 : 0.052, face);
+      P.ta(reg, bd, bd + bws[k], my0, my1, side > 0 ? W - 0.058 : 0.058, face);
       bd += bws[k] + 0.12;
     });
     // counter body (customer side), stone top, toe kick

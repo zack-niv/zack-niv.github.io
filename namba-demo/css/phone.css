@@ -375,7 +375,7 @@
   box-shadow: 0 0 0 1px rgba(255,255,255,.04);
 }
 .ph-wrap[data-pose="glance"] .ph-isl, .ph-wrap[data-pose="down"] .ph-isl {
-  left: 7px; right: 7px; top: 7px; height: 88px; border-radius: 34px; pointer-events: auto; cursor: pointer;
+  left: 7px; right: 7px; top: 6px; height: 84px; border-radius: 32px; pointer-events: auto; cursor: pointer;
   box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 10px 30px rgba(0,0,0,.35);
 }
 .ph-isl .gl { position: absolute; inset: 0; display: flex; align-items: center; gap: 13px; padding: 0 16px 0 17px; opacity: 0; transition: opacity .18s; }

@@ -235,7 +235,7 @@ function front(S, c) {
       if (show && p1 - p0 >= 0.9 && dt > 2.2) {
         const reg = R.poster(kind, true), pc = (p0 + p1) / 2;
         P.box('env_metal', pc - 0.4, pc + 0.4, 0.82, 1.98, -0.075, -0.05, [0.35, 0.36, 0.38]);
-        P.tq(reg, pc - 0.37, pc + 0.37, 0.85, 1.95, -0.076, -1);
+        P.tq(reg, pc - 0.37, pc + 0.37, 0.85, 1.95, -0.082, -1);
       }
     }
   }
@@ -247,7 +247,7 @@ function front(S, c) {
   if (sw > maxW) { sw = maxW; sh = sw * reg.h / reg.w; }
   const a0 = (W - sw) / 2, y0 = dt + (bandTop - dt - sh) / 2;
   P.box(lit ? 'env_glow' : 'env_matte', a0 - 0.02, a0 + sw + 0.02, y0 - 0.02, y0 + sh + 0.02, -0.12, -0.066, lit ? bg.map(v => v * GLOW * 0.92) : mix(bg, [0, 0, 0], 0.2));
-  P.tq(reg, a0, a0 + sw, y0, y0 + sh, -0.122, -1);
+  P.tq(reg, a0, a0 + sw, y0, y0 + sh, -0.127, -1);
   if (c.stripes) { // conbini stripes under the sign
     P.qd('env_glow', 0, W, dt + 0.02, dt + 0.07, -0.126, -1, K(st.fg, GLOW));
     P.qd('env_glow', 0, W, dt + 0.07, dt + 0.11, -0.126, -1, K(st.accent, GLOW));
