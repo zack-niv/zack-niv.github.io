@@ -145,6 +145,14 @@ export function cafeInterior(S, c) {
     for (let k = 0; k < 4; k++) P.cyl('env_gloss', cu(1.5), 1.04 + k * 0.045, 1.04 + k * 0.045 + 0.1, d1 - 0.45, 0.04, [0.96, 0.96, 0.94], 'cyl6');
     const toy = d1 - 1.1 - (r() < 0.5 ? 0.3 : 0);
     if (toy > dOrd + 0.9) { P.cyl('env_matte', cu(1.6), 1.04, 1.1, toy, 0.2, [0.9, 0.9, 0.88]); foodItem(S, P, 'cake', cu(1.6), 1.1, toy, 0.1); P.cyl('env_glass_case', cu(1.6), 1.1, 1.3, toy, 0.19, WHITE, 'cylOpen'); }
+    // hanging ORDER placard over the register (faces the customers)
+    {
+      const [pa] = ab(1.6, 1.6), pf = side > 0 ? -1 : 1;
+      P.box('env_metal', pa - 0.006, pa + 0.006, 1.98, ceil, dOrd - 0.4, dOrd - 0.388, [0.2, 0.2, 0.2], 'nsewt');
+      P.box('env_metal', pa - 0.006, pa + 0.006, 1.98, ceil, dOrd + 0.388, dOrd + 0.4, [0.2, 0.2, 0.2], 'nsewt');
+      P.box('env_wood', pa - 0.02, pa + 0.02, 1.8, 1.99, dOrd - 0.46, dOrd + 0.46, wood2, 'nsewt');
+      P.ta(R.litLabel('ご注文はこちら  ORDER HERE', '#2f4f3a', '#f4efe2', 320, 60), dOrd - 0.42, dOrd + 0.42, 1.83, 1.96, pa + (side > 0 ? -0.021 : 0.021), pf);
+    }
     // pendants over the counter
     for (let d = d0 + 0.7; d < d1; d += 1.5) pendant(P, cu(1.6), d, 2.0 + r() * 0.12, ceil, [0.14, 0.14, 0.15], 0.17);
     // contract + crowd
