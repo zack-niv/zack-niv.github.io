@@ -105,7 +105,7 @@ export class Stack3D {
   init() {
     if (this.ready) return;
     const t0 = performance.now();
-    const R = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !this.low, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: false });
+    const R = this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: !this.low, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: !!(this.ctx.params && this.ctx.params.test) });
     R.setClearColor(0x050810, 1);
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(36, 1, 4, 5000);
@@ -478,11 +478,14 @@ export class Stack3D {
   update(dt) {
     if (!this.ready) return;
     this.time += dt;
-    if (this.intro > 0) this.intro = Math.max(0, this.intro - dt / 2.4);
     this.resize();
+    if (!this._w || !this._h) return;       // canvas not laid out (view hidden): never feed NaN to the camera
+    if (this.intro > 0) this.intro = Math.max(0, this.intro - dt / 2.4);
     this._frame();
     const k = this._snapCam ? 1 : 1 - Math.exp(-dt / 0.22); this._snapCam = false;
     const c = this.cur, g = this.goal;
+    if (!isFinite(g.tx + g.ty + g.tz + g.dist)) return;
+    if (!isFinite(c.tx + c.ty + c.tz + c.dist)) { c.tx = g.tx; c.ty = g.ty; c.tz = g.tz; c.dist = g.dist; }
     c.tx += (g.tx - c.tx) * k; c.ty += (g.ty - c.ty) * k; c.tz += (g.tz - c.tz) * k; c.dist += (g.dist - c.dist) * k;
     const B = this._basis();
     const iz = 1 + (this.intro > 0 ? this.intro * this.intro * 0.9 : 0), cd = c.dist * iz;
@@ -531,5 +534,5 @@ export class Stack3D {
 
   render() { if (this.ready) this.renderer.render(this.scene, this.camera); }
   // pre-compile shaders / upload buffers behind the install bar
-  warm() { if (!this.ready) return; const t = performance.now(); this.update(0.016); this.render(); this.timing.firstRender = performance.now() - t; }
+  warm() { if (!this.ready) return; const t = performance.now(); try { this.renderer.compile(this.scene, this.camera); } catch (e) { /* ignore */ } this.timing.compile = performance.now() - t; }
 }
