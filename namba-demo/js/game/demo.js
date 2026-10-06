@@ -230,7 +230,7 @@ export class Demo {
       const c = safe(() => ctx.shops && ctx.shops.counter && ctx.shops.counter(b.slot));
       if (c) game.lookDir(c.x - body.x, c.z - body.z, -0.06, 1.8);
     }
-    hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
+    if (aya) hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
     ctx.audio?.play?.('notify');
     game.message(ARRIVAL.text, 'Aya', 1.2);
     await sleep(3100);
@@ -247,10 +247,18 @@ export class Demo {
   _pickAya() {
     const { ctx } = this, b = this.biz;
     const sim = ctx.crowd && ctx.crowd.sim;
-    const B = sim && sim.places && sim.places.bizBySlot && sim.places.bizBySlot[b.slot];
+    if (!sim) return null;
+    const B = sim.places && sim.places.bizBySlot && sim.places.bizBySlot[b.slot];
     const q = B && B.queue ? B.queue.filter(a => a && a.alive && a.level === b.level) : [];
-    if (!q.length) return null;
-    return q[Math.min(2, q.length - 1)];       // "3rd in line"
+    if (q.length) return q[Math.min(2, q.length - 1)];       // "3rd in line"
+    // nobody queueing: the nearest person standing about outside the door will do
+    let best = null, bd = 1e9;
+    safe(() => sim.near(b.level, b.door.ox, b.door.oz, 9, (a) => {
+      if (!a || !a.alive || a.ramp >= 0 || a.mode !== 3 || a.fade < 0.5) return;
+      const d = Math.hypot(a.x - b.door.ox, a.z - b.door.oz);
+      if (d < bd) { bd = d; best = a; }
+    }));
+    return best;
   }
   _stepWave(dt) {
     const a = this._aya; if (!a) return;
@@ -303,7 +311,7 @@ export class Demo {
     const after = upgraded ? {
       seconds: Math.max(0, tEnd - this.readyT),
       meters: Math.max(0, dEnd - this.readyDist),
-      err: num(ps.meanErrorAfter) ?? mean(A.after) ?? 1.0,
+      err: num(ps.meanErrorAfter) ?? Math.min(mean(A.after) ?? 1.0, 1.5),
       wrongFloorS: num(ps.wrongFloorSecondsAfter) ?? A.after.wf,
     } : null;
     return { upgraded, before, after, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm };
