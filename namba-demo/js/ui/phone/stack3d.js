@@ -379,7 +379,7 @@ export class Stack3D {
         g.fillStyle = '#ffd27a'; g.font = '700 30px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(m.text, w / 2, h / 2 + 2);
       });
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false }));
-      s.position.set(m.x, m.y * this.K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(m.via ? 0.05 : 0.5, 0);   // the canyon chip sits to the right of its point, clear of the escalator chip
+      s.position.set(m.x, m.y * this.K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(m.via ? 0.05 : 0.5, m.via ? -0.7 : 0);   // the canyon chip sits to the right of its point, clear of the escalator chip
       this.markGroup.add(s);
     }
     // route samples for the plate fade (16 points evenly along the path)

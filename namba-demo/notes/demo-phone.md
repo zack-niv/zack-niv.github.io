@@ -46,3 +46,4 @@
 - Full-page headless screenshots with the peek card (backdrop-filter over WebGL) crash SwiftShader: element screenshots only.
 - Parks 6F top-down arrival view is zoomed in (route length 0) -- intended, but the label sits close to the pin.
 - Mobile/touch: orbit and pinch implemented but not tested on a device.
+- Evidence (scratchpad `fix-phone/`): `via.mjs` (Node: sheet/steps from 14 positions, all finite), `canyon1.mjs` (real canyon -> 6F path), `run.mjs`/`run2.mjs` (browser: sheet text with `body.ramp = 22`, bridge, canyon, back at the bridge; shots `03b_escalator_ride`, `05b_bridge`, `06_bridge_steps`). Not re-screenshotted after the last tweaks: the calibration strip padding (measured 3 px overflow at the worst values, then tightened by ~20 px) and the lifted "Canyon" chip in the 3D stack (it was partly under the "▲ 6F" chip in `05b_bridge`).
