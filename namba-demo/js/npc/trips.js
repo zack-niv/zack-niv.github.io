@@ -30,7 +30,7 @@ const PERSON = {
 const LINE_BASE = { nankai: 70, midosuji: 55, sennichimae: 28 };
 // v2: fewer, better placed people. The demo population is ~27% of v1's (≈360 at lunch on 'high'),
 // and half of it is kept within ~100 m of the player.
-const DEMO_POP = 0.36;
+const DEMO_POP = 0.44;   // critic: 0.36 left the Nankai gates and Namba CITY 2F empty at lunch on medium; +22 % (sim ~2 ms, near skinned count unchanged)
 
 export class Director {
   constructor(sim, behave, ctx) {
