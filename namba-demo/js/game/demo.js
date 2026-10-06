@@ -37,7 +37,8 @@ export class Demo {
     this._sent = new Set();
     this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0 };
     this._acc = { before: { n: 0, e: 0, wf: 0 }, after: { n: 0, e: 0, wf: 0 } };
-    this._sampleT = 0;
+    this._sampleT = 0; this._tpGuard = 0;
+    this._seeded = false;
     this._aya = null; this._wave = 0;
     this._offerAt = params.has('offerat') ? +params.get('offerat') : DEMO.offerAt;
     this._offerMin = params.has('offerat') ? Math.min(DEMO.offerMin, this._offerAt) : DEMO.offerMin;
@@ -52,6 +53,7 @@ export class Demo {
     const hud = game.hud;
     const ev = ctx.events;
     ev.on('phone:upgrade', (e) => this._onUpgrade(e));
+    ev.on('player:teleport', () => { this._tpGuard = 1.6; });
     this._buildMarker();
     // the navigation field the "am I lost?" test and the queue banter read
     const b = this.biz;
@@ -97,21 +99,23 @@ export class Demo {
     const { ctx, game } = this;
     this.t += dt;
     const b = ctx.player.body;
-    // positioning samples: the phone's belief vs the truth (own fallback for phone.stats())
-    this._sampleT -= dt;
-    if (this._sampleT <= 0 && !this.ended) {
+    // positioning samples: the phone's belief vs the truth (own fallback for phone.stats()). Never right after a
+    // teleport (the phone needs a moment), and only in the phase the phone's own mode says we are in.
+    this._sampleT -= dt; this._tpGuard -= dt;
+    if (this._sampleT <= 0 && !this.ended && !this.arrived) {
       this._sampleT = 0.25;
       const pos = ctx.phone && ctx.phone.pos;
-      if (pos && isFinite(pos.x) && isFinite(pos.z)) {
-        const A = this.upgraded ? this._acc.after : this._acc.before;
+      if (pos && isFinite(pos.x) && isFinite(pos.z) && this._tpGuard <= 0 && !game.busy) {
+        const A = pos.mode === 'lodestone' ? this._acc.after : this._acc.before;
         A.n++; A.e += Math.hypot(pos.x - b.x, pos.z - b.z);
-        if (pos.level && pos.level !== b.level) A.wf += 0.25;
+        if (pos.level && pos.level !== b.level && b.ramp < 0) A.wf += 0.25;
       }
     }
     this._wave && this._stepWave(dt);
     this._stepMarker();
     if (this.arrived) return;
     // progress along the route
+    if (!this._seeded && this.biz && b.level === this.biz.level && Math.hypot(b.x - this.biz.door.ox, b.z - this.biz.door.oz) < 70) this._seedQueue();
     this._lost.lastCheck -= dt;
     if (this._lost.lastCheck <= 0) {
       this._lost.lastCheck = 0.5;
@@ -135,6 +139,33 @@ export class Demo {
     }
   }
 
+  // Daikichi must have a modest queue when the player gets there. The crowd director only forms a queue when a
+  // restaurant is full, so while the player is within ~70 m we seed 5 people on the stools (the same recipe as the
+  // director's own initial fill) and hold admission until the arrival moment is over.
+  _seedQueue() {
+    this._seeded = true;
+    const { ctx } = this, b = this.biz;
+    safe(() => {
+      const sim = ctx.crowd && ctx.crowd.sim, D = ctx.crowd && ctx.crowd.behave && ctx.crowd.behave.director;
+      const B = sim && sim.places.bizBySlot[b.slot]; if (!D || !B) return;
+      let n = 5 - B.queue.length; if (n <= 0) return;
+      const seated = B.seated; B.seated = B.cap;              // so the first one does not walk straight in
+      B.nextAdmit = sim.time + 900; this._held = B;
+      for (let i = 0; i < n; i++) {
+        const a = D._create('lunch', null);
+        const sl = D.P.qSlot(B, B.queue.length);
+        sim.setPos(a, B.level, sl.x, sl.z); a.yaw = sl.yaw;
+        if (a.followers) { for (const f of a.followers) sim.kill(f); a.followers = null; }
+        const dw = B.info.dwell || [900, 1800];
+        const legs = [{ t: 'queue', B, max: 16 }, { t: 'dine', B, dur: (dw[0] + D.r() * (dw[1] - dw[0])) / ((sim.clock && sim.clock.scale) || 6) }];
+        D._onward(legs, a, null, 7);
+        D.B.begin(a, legs);
+        a.fadeDir = 1;
+      }
+      B.seated = seated;
+    });
+  }
+  _releaseQueue() { if (this._held) { this._held.nextAdmit = 0; this._held = null; } }
   _checkRoute(dt) {
     const { ctx, game } = this;
     const b = ctx.player.body, L = this._lost;
@@ -244,6 +275,7 @@ export class Demo {
     hud?.caption({ ja: 'いらっしゃいませ！お二人ですね、カウンターどうぞ。', en: 'Welcome in! Two of you? The counter, please.', speaker: 'Chef', duration: 3.4 });
     await sleep(2500);
     this._showMarker(false); this._wave = 0; this._aya = null;
+    this._releaseQueue();
     await this._end();
   }
   _pickAya() {
@@ -300,21 +332,24 @@ export class Demo {
     const { ctx, game } = this;
     const ps = safe(() => ctx.phone && ctx.phone.stats && ctx.phone.stats()) || {};
     const A = this._acc;
-    const mean = (x) => (x.n ? x.e / x.n : null);
+    const mean = (x) => (x.n >= 8 ? x.e / x.n : null);        // too few samples = no number, never a fake one
     const tEnd = this.arriveT != null ? this.arriveT : this.t;
     const dEnd = this.arriveT != null ? this.arriveDist : game.journal.distance;
-    const upgraded = this.upgraded && this.readyT != null;
+    const upgraded = !!(this.upgraded || ps.upgraded);
+    const pB = num(ps.samplesBefore) > 0, pA = num(ps.samplesAfter) > 0;   // the phone measured that phase itself
+    const mineBeforeS = upgraded && this.readyT != null ? this.readyT : tEnd;
+    const mineBeforeM = Math.max(0, (upgraded && this.readyT != null ? this.readyDist : dEnd) - this._walk0);
     const before = {
-      seconds: upgraded ? this.readyT : tEnd,
-      meters: Math.max(0, (upgraded ? this.readyDist : dEnd) - this._walk0),
-      err: num(ps.meanErrorBefore) ?? mean(A.before),
-      wrongFloorS: num(ps.wrongFloorSeconds) ?? A.before.wf,
+      seconds: pB && num(ps.secondsBefore) != null ? ps.secondsBefore : mineBeforeS,
+      meters: pB && num(ps.metresBefore) != null ? ps.metresBefore : mineBeforeM,
+      err: pB ? num(ps.meanErrorBefore) : mean(A.before),
+      wrongFloorS: pB ? num(ps.wrongFloorSeconds) : (A.before.n >= 8 ? A.before.wf : null),
     };
     const after = upgraded ? {
-      seconds: Math.max(0, tEnd - this.readyT),
-      meters: Math.max(0, dEnd - this.readyDist),
-      err: num(ps.meanErrorAfter) ?? Math.min(mean(A.after) ?? 1.0, 1.5),
-      wrongFloorS: num(ps.wrongFloorSecondsAfter) ?? A.after.wf,
+      seconds: pA && num(ps.secondsAfter) != null ? ps.secondsAfter : (this.readyT != null ? Math.max(0, tEnd - this.readyT) : null),
+      meters: pA && num(ps.metresAfter) != null ? ps.metresAfter : Math.max(0, dEnd - this.readyDist),
+      err: pA ? num(ps.meanErrorAfter) : mean(A.after),
+      wrongFloorS: pA ? num(ps.wrongFloorSecondsAfter) : (A.after.n >= 8 ? A.after.wf : null),
     } : null;
     return { upgraded, before, after, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm };
   }

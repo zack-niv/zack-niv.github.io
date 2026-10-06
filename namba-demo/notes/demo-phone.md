@@ -7,9 +7,13 @@
 - `positioningMode` — `'gps'` | `'lodestone'`. Flips to `'lodestone'` at the START of stage `ready` (the dot snaps to the truth from then on, in Maps too).
 - `upgradeStage` — `'none'|'offer'|'installing'|'calibrating'|'ready'`.
 - Events: `phone:upgrade {stage:'offer'|'installing'|'calibrating'|'ready'}`; `lodestone:arrive {id}` and `phone:arrive {id:'b:parks_6Fdw03', source:'lodestone'}` when the player's TRUE position is at Daikichi's door (the game still owns `demo:arrive`; the phone listens to it and freezes the stats).
-- `stats()` →
-  `{ mode, meanErrorBefore, meanErrorAfter (null until measured), maxErrorBefore/After, wrongFloorSeconds (before), wrongFloorSecondsAfter, secondsBefore/After, minutesBefore/After (real minutes), gameMinutesBefore/After (game clock minutes), metresBefore/After, samplesBefore/After, reroutes, floorFlips, compassPrompts, upgraded, stage, finished, series:[[t, errM, wrongFloor, phase(0|1)]…] }`
-  Error = distance between where the phone *believes* you are and the truth, sampled once a second (only while `ctx.started` and not paused). Phase flips at `ready`.
+- `stats()` → exact fields (all numbers unless noted):
+  `mode` ('gps'|'lodestone'), `stage`, `upgraded` (bool), `finished` (bool, frozen on `demo:arrive`),
+  `meanErrorBefore`, `meanErrorAfter` (null until at least one 'after' sample), `maxErrorBefore`, `maxErrorAfter` — metres, horizontal distance between the position the phone DISPLAYS (the GPS belief before; the Lodestone position, ±0.35 m wobble, after) and the player's true position, sampled once per second;
+  `wrongFloorSeconds` (= `wrongFloorSecondsBefore`), `wrongFloorSecondsAfter`;
+  `secondsBefore`/`secondsAfter` (= `timeBefore`/`timeAfter`, real seconds), `minutesBefore`/`minutesAfter` (real minutes), `gameMinutesBefore`/`gameMinutesAfter` (game-clock minutes);
+  `metresBefore`, `metresAfter` (walked), `samplesBefore`/`samplesAfter`, `reroutes`, `floorFlips`, `compassPrompts`, `series: [[t, errM, wrongFloor 0|1, phase 0|1], …]` (1 Hz, for a chart).
+  Samples are NOT taken while `ctx.paused`/game paused, for ~2 s after `player:teleport` (or any single-frame jump > 2.5 m, which also is not counted as walking), or during the ~1.4 s snap to the truth when Lodestone turns on. The game agent's `demo.js` reads `meanErrorBefore/After`, `wrongFloorSeconds`, `wrongFloorSecondsAfter`, which exist as named.
 - Default destination = Tempura Daikichi (`parks_6Fdw03`); Lodestone navigates to its door node automatically.
 
 ## What changed in the "before" phone

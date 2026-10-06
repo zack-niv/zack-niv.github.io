@@ -105,6 +105,7 @@ export class Positioning {
     }
     const E = this._env(b);
     this.env = E.env;
+    if (!this._seeded) { this._seeded = true; this.ex = gauss(R) * E.sigma * 0.7; this.ez = gauss(R) * E.sigma * 0.7; }   // the error does not start at zero
     if (this.mode === 'lodestone') { this._updateLodestone(dt, b, p, E); this._signal(E, dt); return; }
     // --- error random walk (OU process, tau ~ 25 s) ---------------------------
     const tau = 25;

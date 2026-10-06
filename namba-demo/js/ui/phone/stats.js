@@ -21,6 +21,9 @@ export class PhoneStats {
     this.series = [];         // [t, err, wrongFloor(0|1), phase(0|1)] once a second
     this._acc = 0; this._lx = null; this._lz = null; this._lastBelieved = null;
     this._t = 0;
+    this._skip = 0;
+    // a teleport (test harness, cutscene, vignette) is not a positioning error: drop ~2 s of samples around it
+    this.ctx.events.on('player:teleport', () => { this._skip = 2.0; this._lx = null; });
     this.ctx.events.on('demo:arrive', () => { this.frozen = true; this.arrivedAt = this._t; });
   }
 
@@ -36,14 +39,16 @@ export class PhoneStats {
     const b = p.body;
     if (this._lx != null) {
       const d = Math.hypot(b.x - this._lx, b.z - this._lz);
-      if (d < 2.5) ph.dist += d;           // ignore teleports
+      if (d < 2.5) ph.dist += d; else this._skip = 2.0;           // a jump of > 2.5 m in one frame is a teleport
     }
     this._lx = b.x; this._lz = b.z;
     const pos = this.phone.pos;
     if (this._lastBelieved !== pos.level) { if (this._lastBelieved != null && this.phase === 'before') this.floorFlips++; this._lastBelieved = pos.level; }
+    if (this._skip > 0) this._skip -= dt;
     this._acc += dt;
     if (this._acc >= 1) {
       this._acc -= 1;
+      if (this._skip > 0 || pos._lsSnap > 0 || ph.skipSample) return;   // teleport / the one-off snap to the truth
       const err = Math.hypot(pos.x - b.x, pos.z - b.z);
       const wrong = b.ramp < 0 && pos.level !== b.level ? 1 : 0;
       ph.sumErr += err; ph.n++; ph.maxErr = Math.max(ph.maxErr, err);
@@ -57,6 +62,7 @@ export class PhoneStats {
     const mean = (P) => P.n ? P.sumErr / P.n : 0;
     return {
       mode: this.phone.pos.mode,
+      timeBefore: Math.round(B.t), timeAfter: Math.round(A.t), wrongFloorSecondsBefore: B.wrongFloor,
       meanErrorBefore: +mean(B).toFixed(2), meanErrorAfter: A.n ? +mean(A).toFixed(2) : null,
       maxErrorBefore: +B.maxErr.toFixed(1), maxErrorAfter: +A.maxErr.toFixed(1),
       wrongFloorSeconds: B.wrongFloor, wrongFloorSecondsAfter: A.wrongFloor,
