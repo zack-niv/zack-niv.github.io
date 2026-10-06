@@ -75,6 +75,12 @@ export class Demo {
       game.after(DEMO.introHold, () => { game.intro = false; game.clearLook(); game._syncFrozen(); });
       tt = DEMO.introHold;
     }
+    // the terminal PA ("Namba, Namba. This is the last stop."): transit speaks it and the HUD captions it;
+    // if nothing arrived by 1.8 s (no transit announcement, no audio), caption it ourselves
+    let heard = false;
+    const hear = (a) => { if (a && (a.start || a.kind === 'arrive' || a.kind === 'platform' || a.speaker === 'PA' || a.distant)) heard = true; };
+    ev.on('announce', hear); ev.on('caption', hear);
+    game.after(1.8, () => { if (!heard && !game.paused) hud?.caption({ ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', en: 'Namba, Namba. This is the last stop. Please take all your belongings with you.', kind: 'announce', duration: 6 }); });
     // Aya's texts
     INTRO.forEach(([at, text]) => game.after(at, () => game.message(text)));
     const lastAt = INTRO[INTRO.length - 1][0];

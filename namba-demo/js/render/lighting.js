@@ -42,6 +42,8 @@ const FOG = {
   parks: { c: [0.74, 0.83, 0.93], d: 0.0017 }, garden: { c: [0.74, 0.83, 0.93], d: 0.0016 },
 };
 
+const NO_CAST = /^(light_|nb_fixture|inlay_|tactile|arch_wear|ao_strip|arch_exit|arch_kit|esc_comb|esc_skirt|.*(decal|_glow|_sign|sign_))/i;
+
 export class Lighting {
   constructor(ctx) {
     this.ctx = ctx; this.lights = []; this.probes = [];
@@ -75,7 +77,7 @@ export class Lighting {
       Object.assign(s.camera, { left: -R, right: R, top: R, bottom: -R, near: 1, far: 260 });
       s.camera.updateProjectionMatrix();
       s.bias = -0.0004; s.normalBias = 0.04; s.radius = 2;
-      s.autoUpdate = false;
+      s.autoUpdate = false; s.needsUpdate = true; // allocate the map on the first render
     }
     engine.scene.add(sun); engine.scene.add(sun.target);
     // fog (haze hides the draw distance; tinted per mood)
@@ -279,7 +281,16 @@ export class Lighting {
         if (out) {
           grp.userData.nbOutdoor = true;
           const meshes = [];
-          grp.traverse(o => { if (o.isMesh && !o.material.transparent) meshes.push(o); });
+          // only structure casts sun shadows: fixtures, inlays, decals, glow sprites and tiny meshes would
+          // just add draw calls to the shadow pass
+          grp.traverse(o => {
+            if (!o.isMesh || o.material.transparent || Array.isArray(o.material)) { if (o.isMesh && Array.isArray(o.material)) meshes.push(o); return; }
+            const m = o.material;
+            if (m.isMeshBasicMaterial || (m.userData && m.userData.nbUnlit) || NO_CAST.test(m.name || '')) return;
+            const g = o.geometry; if (g && !g.boundingSphere) g.computeBoundingSphere();
+            if (!o.isInstancedMesh && g && g.boundingSphere && g.boundingSphere.radius < 0.9) return;
+            meshes.push(o);
+          });
           this.casters.push({ grp, meshes, x: ch.x, z: ch.z, r: ch.r, on: false });
         }
       }

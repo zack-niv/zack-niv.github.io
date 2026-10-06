@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js';
 import { CELL } from '../../world/world.js';
 
-const K = 3.6;                     // vertical explode factor (world y × K)
+const K0 = 5;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)
 const ZC = {                       // zone tints for plate tops
   nankai: [1.0, 0.62, 0.24], city: [0.30, 0.66, 1.0], parks: [0.28, 0.86, 0.60], parksGarden: [0.22, 0.80, 0.45], nambawalk: [0.95, 0.80, 0.34],
@@ -32,7 +32,7 @@ void main(){ vCol = aCol; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz
 const PLATE_FS = `
 precision highp float;
 varying vec4 vCol; varying vec3 vW;
-uniform float uGain, uAlpha, uTime, uSweep; uniform vec3 uPlayer;
+uniform float uGain, uAlpha, uTime, uSweep, uNPts, uFadeMin; uniform vec3 uPlayer; uniform vec2 uPts[16];
 void main(){
   vec3 c = vCol.rgb * uGain; float a = vCol.a * uAlpha;
   float d = distance(vW.xz, uPlayer.xz);
@@ -41,7 +41,23 @@ void main(){
   float glow = exp(-d * d / 900.0) * uSweep;
   c += vec3(0.25, 0.75, 1.0) * (wave * 0.9 + glow * 0.35);
   a += wave * 0.30 + glow * 0.16;
-  gl_FragColor = vec4(c, clamp(a, 0.0, 1.0));
+  float dm = 1e9;
+  for (int i = 0; i < 16; i++) { if (float(i) < uNPts) dm = min(dm, distance(vW.xz, uPts[i])); }
+  float fade = max(1.0 - smoothstep(60.0, 170.0, dm), uFadeMin);
+  gl_FragColor = vec4(c, clamp(a * fade, 0.0, 1.0));
+}`;
+
+const LINE_VS = `
+attribute vec3 aC; varying vec3 vC; varying vec3 vW;
+void main(){ vC = aC; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+const LINE_FS = `
+precision highp float;
+varying vec3 vC; varying vec3 vW; uniform float uOpacity, uNPts, uFadeMin; uniform vec2 uPts[16];
+void main(){
+  float dm = 1e9;
+  for (int i = 0; i < 16; i++) { if (float(i) < uNPts) dm = min(dm, distance(vW.xz, uPts[i])); }
+  float fade = max(1.0 - smoothstep(60.0, 170.0, dm), uFadeMin);
+  gl_FragColor = vec4(vC, uOpacity * fade);
 }`;
 
 const RIB_VS = `
@@ -88,11 +104,12 @@ export class Stack3D {
     this.ctx = ctx; this.canvas = canvas; this.low = low;
     this.ready = false;
     this.mode = 'overview';
-    this.az = 215 * Math.PI / 180; this.el = 40 * Math.PI / 180; this.zoomMul = 1; this.userDrag = false;
+    this.az = 215 * Math.PI / 180; this.el = 32 * Math.PI / 180; this.zoomMul = 1; this.userDrag = false;
     this.cur = { tx: 0, ty: 0, tz: 0, dist: 900 };
     this.goal = { tx: 0, ty: 0, tz: 0, dist: 900 };
-    this.time = 0; this.intro = 0;
-    this.bandTop = 92; this.bandBottom = 210;          // px reserved for UI chrome (top / bottom)
+    this.fadeN = { value: 0 }; this.fadePts = { value: Array.from({ length: 16 }, () => new THREE.Vector2()) };
+    this.K = K0; this.time = 0; this.intro = 0;
+    this.bandTop = 92; this.bandBottom = 210; this.bandRight = 46;          // px reserved for UI chrome (top / bottom)
     this.route = null;
     this.player = { x: 0, y: 0, z: 0, heading: 0, level: '3F' };
     this.dest = null;
@@ -220,7 +237,7 @@ export class Stack3D {
       geo.setIndex(idx);
       const mat = new THREE.ShaderMaterial({
         vertexShader: PLATE_VS, fragmentShader: PLATE_FS, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide,
-        uniforms: { uGain: { value: 1 }, uAlpha: { value: 1 }, uTime: { value: 0 }, uSweep: { value: 0 }, uPlayer: { value: new THREE.Vector3() } },
+        uniforms: { uGain: { value: 1 }, uAlpha: { value: 1 }, uTime: { value: 0 }, uSweep: { value: 0 }, uPlayer: { value: new THREE.Vector3() }, uNPts: this.fadeN, uFadeMin: { value: 1 }, uPts: this.fadePts },
       });
       const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false;
       const li = LEVEL_ORDER.indexOf(lv);
@@ -235,10 +252,13 @@ export class Stack3D {
       }
       const lg = new THREE.BufferGeometry();
       lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
-      lg.setAttribute('color', new THREE.Float32BufferAttribute(lc, 3));
-      const lmat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.5, depthWrite: false, depthTest: false });
+      lg.setAttribute('aC', new THREE.Float32BufferAttribute(lc, 3));
+      const lmat = new THREE.ShaderMaterial({
+        vertexShader: LINE_VS, fragmentShader: LINE_FS, transparent: true, depthWrite: false, depthTest: false,
+        uniforms: { uOpacity: { value: 0.5 }, uNPts: this.fadeN, uFadeMin: { value: 1 }, uPts: this.fadePts },
+      });
       const lines = new THREE.LineSegments(lg, lmat); lines.frustumCulled = false; lines.renderOrder = 11 + li * 3;
-      const grp = new THREE.Group(); grp.position.y = LEVELS[lv].y * K;
+      const grp = new THREE.Group(); grp.position.y = LEVELS[lv].y * this.K;
       grp.add(mesh, lines);
       this.scene.add(grp);
       const bx0 = g.x0, bx1 = g.x0 + w, bz0 = g.z0, bz1 = g.z0 + h;
@@ -246,9 +266,9 @@ export class Stack3D {
       let tx0 = 1e9, tx1 = -1e9, tz0 = 1e9, tz1 = -1e9;
       for (let cz = 0; cz < h; cz++) for (let cx = 0; cx < w; cx++) if (solid[cz * w + cx]) { if (cx < tx0) tx0 = cx; if (cx > tx1) tx1 = cx; if (cz < tz0) tz0 = cz; if (cz > tz1) tz1 = cz; }
       const bounds = [g.x0 + tx0, g.z0 + tz0, g.x0 + tx1 + 1, g.z0 + tz1 + 1];
-      this.levels[lv] = { group: grp, mat, lmat, y: LEVELS[lv].y * K, bounds, gain: 1, alpha: 1, tgain: 1, talpha: 1, tline: 0.5, line: 0.5, sweep: 0 };
+      this.levels[lv] = { group: grp, mat, lmat, y: LEVELS[lv].y * this.K, bounds, gain: 1, alpha: 1, tgain: 1, talpha: 1, tline: 0.5, line: 0.5, sweep: 0 };
       minX = Math.min(minX, bounds[0]); maxX = Math.max(maxX, bounds[2]); minZ = Math.min(minZ, bounds[1]); maxZ = Math.max(maxZ, bounds[3]);
-      minY = Math.min(minY, LEVELS[lv].y * K); maxY = Math.max(maxY, LEVELS[lv].y * K);
+      minY = Math.min(minY, LEVELS[lv].y * this.K); maxY = Math.max(maxY, LEVELS[lv].y * this.K);
       // floor label (sprite, constant screen size)
       const label = lv === 'B1' ? 'B1' : lv === 'B2' ? 'B2' : lv;
       const tex = texCanvas(128, 64, (g2, W2, H2) => {
@@ -329,7 +349,7 @@ export class Stack3D {
     for (const m of this.ribMeshes) { this.scene.remove(m); m.geometry.dispose(); }
     this.ribMeshes = [];
     for (const m of this.markGroup.children.slice()) { this.markGroup.remove(m); m.material.map && m.material.map.dispose(); m.material.dispose(); }
-    if (!r || !r.ok) { this.routeLevels = new Set(); return; }
+    if (!r || !r.ok) { this.routeLevels = new Set(); this.fadeN.value = 0; return; }
     const P = r.pts; const n = P.length;
     // build a screen-space ribbon: 2 verts per point
     const pos = new Float32Array(n * 2 * 3), pv = new Float32Array(n * 2 * 3), nx = new Float32Array(n * 2 * 3), side = new Float32Array(n * 2), u = new Float32Array(n * 2);
@@ -337,9 +357,9 @@ export class Stack3D {
       const a = P[Math.max(0, i - 1)], b = P[i], c = P[Math.min(n - 1, i + 1)];
       for (let s = 0; s < 2; s++) {
         const o = (i * 2 + s) * 3;
-        pos[o] = b[0]; pos[o + 1] = b[1] * K + 1.2; pos[o + 2] = b[2];
-        pv[o] = a[0]; pv[o + 1] = a[1] * K + 1.2; pv[o + 2] = a[2];
-        nx[o] = c[0]; nx[o + 1] = c[1] * K + 1.2; nx[o + 2] = c[2];
+        pos[o] = b[0]; pos[o + 1] = b[1] * this.K + 1.2; pos[o + 2] = b[2];
+        pv[o] = a[0]; pv[o + 1] = a[1] * this.K + 1.2; pv[o + 2] = a[2];
+        nx[o] = c[0]; nx[o + 1] = c[1] * this.K + 1.2; nx[o + 2] = c[2];
         side[i * 2 + s] = s ? 1 : -1; u[i * 2 + s] = b[3];
       }
     }
@@ -359,22 +379,25 @@ export class Stack3D {
         g.fillStyle = '#ffd27a'; g.font = '700 30px Inter, system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(m.text, w / 2, h / 2 + 2);
       });
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false }));
-      s.position.set(m.x, m.y * K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(0.5, 0);
+      s.position.set(m.x, m.y * this.K + 5, m.z); s.renderOrder = 78; s.userData.px = [84, 34]; s.center.set(0.5, 0);
       this.markGroup.add(s);
     }
+    // route samples for the plate fade (16 points evenly along the path)
+    for (let i = 0; i < 16; i++) { const q = P[Math.min(n - 1, Math.round(i / 15 * (n - 1)))]; this.fadePts.value[i].set(q[0], q[2]); }
+    this.fadeN.value = 16;
     this.routeLevels = new Set(r.legs.map(l => l.level));
     for (const l of r.legs) if (l.ramp >= 0) { const rr = LAYOUT.ramps[l.ramp]; this.routeLevels.add(rr.lower); this.routeLevels.add(rr.upper); }
     this.ribCore.uniforms.uTotal.value = this.ribGlow.uniforms.uTotal.value = r.total;
     // fit points (subsampled)
     this.fitPts = []; const step = Math.max(1, Math.floor(n / 40));
-    for (let i = 0; i < n; i += step) this.fitPts.push([P[i][0], P[i][1] * K, P[i][2]]);
-    const L = P[n - 1]; this.fitPts.push([L[0], L[1] * K, L[2]]);
+    for (let i = 0; i < n; i += step) this.fitPts.push([P[i][0], P[i][1] * this.K, P[i][2]]);
+    const L = P[n - 1]; this.fitPts.push([L[0], L[1] * this.K, L[2]]);
   }
 
   setDestination(d) {
     this.dest = d;
     if (!d) { this.pin.visible = this.destBeam.visible = this.destRing.visible = false; return; }
-    const y = LEVELS[d.level].y * K + 1.2;
+    const y = LEVELS[d.level].y * this.K + 1.2;
     this.pin.position.set(d.x, y, d.z); this.destBeam.position.set(d.x, y, d.z); this.destRing.position.set(d.x, y + 0.3, d.z);
     this.pin.visible = this.destBeam.visible = this.destRing.visible = true;
     // name chip
@@ -392,9 +415,15 @@ export class Stack3D {
 
   setPlayer(x, z, level, heading, y) {
     const p = this.player; p.x = x; p.z = z; p.level = level; p.heading = heading;
-    p.y = (y != null ? y : LEVELS[level].y) * K;
+    p.y = (y != null ? y : LEVELS[level].y) * this.K;
   }
 
+  setExplode(k) {
+    this.K = k;
+    for (const lv in this.levels) { const L = this.levels[lv]; L.y = LEVELS[lv].y * k; L.group.position.y = L.y; }
+    const r = this.route, d = this.dest; if (r) this.setRoute(r); if (d) this.setDestination(d);
+    this._snapCam = true;
+  }
   setLevels(current) {
     this.curLevel = current;
   }
@@ -416,8 +445,8 @@ export class Stack3D {
   }
   _cssScale() { const r = this.canvas.getBoundingClientRect(); return r.width / (this.canvas.clientWidth || r.width) || 1; }
   startIntro() { this.intro = 1; this._snapCam = true; }
-  recenter() { this.az = 215 * Math.PI / 180; this.el = (this.mode === 'follow' ? 46 : 40) * Math.PI / 180; this.zoomMul = 1; this.userDrag = false; this._snapCam = true; }
-  setMode(m) { this.mode = m; this.zoomMul = 1; this.userDrag = false; this.el = (m === 'follow' ? 46 : 40) * Math.PI / 180; }
+  recenter() { this.az = 215 * Math.PI / 180; this.el = (this.mode === 'follow' ? 46 : 32) * Math.PI / 180; this.zoomMul = 1; this.userDrag = false; this._snapCam = true; }
+  setMode(m) { this.mode = m; this.zoomMul = 1; this.userDrag = false; this.el = (m === 'follow' ? 46 : 32) * Math.PI / 180; }
 
   resize(force) {
     const c = this.canvas, W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
@@ -446,7 +475,7 @@ export class Stack3D {
     const W = this._w, H = this._h, B = this._basis();
     const bandH = Math.max(120, H - this.bandTop - this.bandBottom);
     const tanV = Math.tan(this.camera.fov * Math.PI / 360) * bandH / H;
-    const tanH = Math.tan(this.camera.fov * Math.PI / 360) * (W / H);
+    const tanH = Math.tan(this.camera.fov * Math.PI / 360) * ((W - this.bandRight) / H);
     const pl = this.player;
     let pts;
     if (this.mode === 'follow') {
@@ -456,7 +485,7 @@ export class Stack3D {
     } else {
       pts = (this.fitPts && this.fitPts.length ? this.fitPts : []).concat([[pl.x, pl.y, pl.z]]);
       if (this.dest) {
-        const dy = LEVELS[this.dest.level].y * K, pm = bandH / (2 * Math.max(60, this.cur.dist) * tanV);
+        const dy = LEVELS[this.dest.level].y * this.K, pm = bandH / (2 * Math.max(60, this.cur.dist) * tanV);
         const up = 95 / pm; pts.push([this.dest.x, dy, this.dest.z], [this.dest.x + B.u.x * up, dy + B.u.y * up, this.dest.z + B.u.z * up]);
       }
       if (pts.length < 2) { const e = this.extent; pts = [[e.minX, e.minY, e.minZ], [e.maxX, e.maxY, e.maxZ]]; }
@@ -493,7 +522,7 @@ export class Stack3D {
     this.camera.lookAt(c.tx, c.ty, c.tz);
     // shift the picture centre into the free band between header and sheet
     const H = this._h, W = this._w, shift = (this.bandTop - this.bandBottom) / 2;
-    this.camera.setViewOffset(W, H, 0, -shift, W, H);
+    this.camera.setViewOffset(W, H, this.bandRight / 2, -shift, W, H);
     this.camera.updateMatrixWorld();
     // level emphasis
     const cur = this.curLevel;
@@ -504,7 +533,7 @@ export class Stack3D {
       const e = 1 - Math.exp(-dt / 0.25);
       L.gain += (L.tgain - L.gain) * e; L.alpha += (L.talpha - L.alpha) * e; L.line += (L.tline - L.line) * e; L.sweep += (L.tsweep - L.sweep) * e;
       const u = L.mat.uniforms; u.uGain.value = L.gain; u.uAlpha.value = L.alpha; u.uTime.value = this.time; u.uSweep.value = L.sweep; u.uPlayer.value.set(this.player.x, 0, this.player.z);
-      L.lmat.opacity = L.line;
+      L.lmat.uniforms.uOpacity.value = L.line; L.mat.uniforms.uFadeMin.value = L.lmat.uniforms.uFadeMin.value = (this.fadeN.value ? (isCur ? 0.5 : onRoute ? 0.10 : 0.04) : 1);
       L.labelMat.opacity = isCur ? 1 : onRoute ? 0.85 : 0.5;
     }
     // constant-screen-size sprites & world-scale helpers
@@ -521,7 +550,7 @@ export class Stack3D {
     this.wedge.position.set(pl.x, pl.y + 0.55, pl.z); this.wedge.rotation.y = pl.heading; this.wedge.scale.setScalar(wr);
     this.beam.position.set(pl.x, pl.y, pl.z); this.beam.scale.y = 1;
     if (this.dest) {
-      const dy = LEVELS[this.dest.level].y * K + 1.2;
+      const dy = LEVELS[this.dest.level].y * this.K + 1.2;
       spx(this.pin, 34, 42);
       const dph = (this.time * 0.7 + 0.5) % 1; spx(this.destRing, 24 + dph * 50, 24 + dph * 50); this.destRing.material.opacity = (1 - dph) * 0.9;
       this.destLabel.position.set(this.dest.x, dy + 1 + 42 / pxPerM, this.dest.z); spx(this.destLabel, this.destLabel.userData.px[0], this.destLabel.userData.px[1]);
