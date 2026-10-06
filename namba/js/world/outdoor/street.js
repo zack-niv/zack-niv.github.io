@@ -78,6 +78,7 @@ function flatHoles(acc, x0, z0, x1, z1, y, holes, col, scale = 1 / 6) {
 }
 const inPit = (x, z, m = 0.6) => PITS.some(p => x > p[0] - m && x < p[2] + m && z > p[1] - m && z < p[3] + m);
 
+const _cam = new THREE.Vector3();
 export async function buildStreets(ctx, ex) {
   const { world, materials: M, engine } = ctx;
   const L = world.layout;
@@ -451,6 +452,7 @@ export async function buildStreets(ctx, ex) {
   return {
     update(dt) {
       traffic.update(dt);
+      veg.update(dt, ctx.camera.getWorldPosition(_cam), false);
       updateStorefronts(ctx, ex.daylight.night);
       const S = ex._signalLamps;
       const st = traffic.signal.A + traffic.signal.B;

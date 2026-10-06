@@ -41,7 +41,7 @@ const G = 1.5;   // lit atlas multiplier (matches shops)
 // art: probability of a wall poster/screen per 3.2 m; free: free-standing spacing (m) or 0
 const PROFILE = {
   metro_platform:   { dens: 0.55, kinds: { bench: 4, vend: 2, bin: 1 }, art: 0, free: 16 },
-  metro_concourse:  { dens: 0.5, kinds: { vend: 4, bench: 1, atm: 1.2, plant: 0.6, gacha: 1, bin: 1 }, art: 0.6, free: 22 },
+  metro_concourse:  { dens: 0.5, kinds: { vend: 4, bench: 1, atm: 1.2, plant: 0.6, gacha: 1, bin: 1 }, art: 0.6, free: 16 },
   arcade:           { dens: 0.4, kinds: { vend: 3, bench: 1, plant: 1, gacha: 1.2, bin: 1 }, art: 0.7, free: 0 },
   arcade_court:     { dens: 0.5, kinds: { bench: 2, plant: 2, vend: 1, gacha: 1, bin: 1 }, art: 0.5, free: 0 },
   passage:          { dens: 0.5, kinds: { vend: 3, bench: 1.5, plant: 1, gacha: 1.2, atm: 0.8, bin: 1 }, art: 0.7, free: 0 },
@@ -49,8 +49,8 @@ const PROFILE = {
   city_mall:        { dens: 0.4, kinds: { vend: 2, bench: 1, plant: 1.5, bin: 1, atm: 0.6 }, art: 0.5, free: 34 },
   city_court:       { dens: 0.55, kinds: { bench: 2, plant: 2, vend: 1.5, gacha: 1, bin: 1 }, art: 0.6, free: 14 },
   dining_street:    { dens: 0.35, kinds: { vend: 2, bench: 1, plant: 1, bin: 1 }, art: 0.4, free: 0 },
-  terminal_hall:    { dens: 0.55, kinds: { vend: 3, bench: 2, atm: 1.2, plant: 1, bin: 2, gacha: 0.6 }, art: 0.7, free: 16 },
-  terminal_concourse: { dens: 0.5, kinds: { vend: 3, bench: 1.5, atm: 1, plant: 1, bin: 2 }, art: 0.7, free: 18 },
+  terminal_hall:    { dens: 0.55, kinds: { vend: 3, bench: 2, atm: 1.2, plant: 1, bin: 2, gacha: 0.6 }, art: 0.7, free: 12 },
+  terminal_concourse: { dens: 0.5, kinds: { vend: 3, bench: 1.5, atm: 1, plant: 1, bin: 2 }, art: 0.7, free: 12 },
   terminal_platform: { dens: 0, kinds: {}, art: 0, free: 20 },
   parks_indoor:     { dens: 0.4, kinds: { plant: 3, bench: 2, vend: 1, bin: 1 }, art: 0.3, free: 0 },
   parks_dining:     { dens: 0.4, kinds: { plant: 3, bench: 2, vend: 1, bin: 1 }, art: 0.3, free: 0 },

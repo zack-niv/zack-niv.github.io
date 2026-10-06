@@ -81,17 +81,31 @@ export function cityMaterial() {
 }
 
 // regions where generic city blocks must not go (complex, avenues, near streets)
+const COMPLEX = [-104, -202, 126, 392];
+// volumes of the complex that are not walkable cells but are solid (Parks tower, terraces, hotels, stores)
+const KEEPOUT = [[54, 146, 108, 204], [18, 200, 124, 392], [-98, -187, 24, -38], [-62, -134, 42, -38], [-31, -42, 32, 192], [-52, -130, -12, -94], [-26, 200, 26, 392], [-82, -202, -80, 392]];
 const EXCL = [
-  [-104, -202, 126, 392],      // the complex
   [-156, -2000, -102, 2000],   // Midosuji avenue + sidewalks
   [-2000, -256, 2000, -200],   // Sennichimae-dori
   [-170, -300, 280, -256],     // north-side street facades (street.js)
   [16, -202, 260, -150],       // south-side street facades (street.js)
-  [-104, -202, 30, -40],       // Takashimaya / Nankai block
   [-30, 392, 140, 410],        // road south of Parks
   [122, 140, 140, 400],        // road east of Parks
 ];
+let WORLD = null;
+function occupied(x0, z0, x1, z1) {
+  const m = 3;
+  for (const lv of ['1F', '2F', '3F', '4F', '5F', '6F', '7F', '8F']) {
+    const g = WORLD.grids[lv]; if (!g) continue;
+    for (let z = z0 - m; z <= z1 + m; z += 2) for (let x = x0 - m; x <= x1 + m; x += 2) { const i = g.cellOf(x, z); if (i >= 0 && g.type[i] !== 0) return true; }
+  }
+  return false;
+}
 function excluded(x0, z0, x1, z1) {
+  if (WORLD && x1 > COMPLEX[0] && x0 < COMPLEX[2] && z1 > COMPLEX[1] && z0 < COMPLEX[3]) {
+    for (const [a, b, c, d] of KEEPOUT) if (x1 > a - 2 && x0 < c + 2 && z1 > b - 2 && z0 < d + 2) return true;
+    if (occupied(x0, z0, x1, z1)) return true;
+  }
   for (const [a, b, c, d] of EXCL) if (x1 > a && x0 < c && z1 > b && z0 < d) return true;
   // viaduct corridor
   for (let z = Math.max(112, z0 - 2); z <= z1 + 2; z += 8) { const cx = viaductAt(z); if (x1 > cx - 15 && x0 < cx + 15 && z1 > 112) return true; }
@@ -99,6 +113,7 @@ function excluded(x0, z0, x1, z1) {
 }
 
 export function buildSkyline(ctx, ex) {
+  WORLD = ctx.world;
   const root = new THREE.Group(); root.name = 'skyline';
   ex.root.add(root);
   const R = rng(9001);
@@ -125,6 +140,7 @@ export function buildSkyline(ctx, ex) {
       // a little lower east (Nipponbashi) & taller north (Shinsaibashi / Midosuji)
       if (cx > 200) h *= 0.8;
       if (cz < -400) h *= 1.15;
+      if (cx > COMPLEX[0] && cx < COMPLEX[2] && cz > COMPLEX[1] && cz < COMPLEX[3]) h = Math.min(h, 34);
       const shrink = h > 80 ? 0.75 : 1;
       const w = (lx1 - lx0) * shrink, d = (lz1 - lz0) * shrink;
       const kind = h > 80 ? (R.chance(0.6) ? 2 : 1) : R.chance(0.35) ? 3 : 1;

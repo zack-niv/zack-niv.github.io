@@ -35,3 +35,11 @@ Owner files: `js/game/*`, `js/ui/hud.js`, `js/ui/title.js`, `css/game.css`, UI m
 - **Wayfinding**: phone reads `ctx.game.quests`; my events above.
 
 ## Log
+
+### Round 2
+- Pause menu gained a **Journal** tab (places discovered with the time, distance/floors/wrong turns/coffees, meals).
+- Reachability (Node, `scratchpad/game2/reach.mjs`): every featured shop door (Wakakusa, Rondo, Mocca, Daikichi, Tenmaru, Kitsune), Midosuji south gate and the Midosuji platform are reachable by nav from the `start` spawn (409-580 m of walking).
+- E2E proof harness: `scratchpad/game2/e2e.mjs` (acquireSlot; teleports, presses E, drives menus, asserts quest states, screenshots every vignette).
+
+## Known issues / open
+(see below, updated as work proceeds)

@@ -92,12 +92,19 @@ export const TEX = {
   } },
   // terrazzo with marble/granite aggregate and zinc divider strips (Nankai halls, courts)
   terrazzo: { size: [2.4, 2.4], res: 'hi', make: N => {
+    // Real terrazzo floor: fine 2-8 mm chips (sparser 8-12 mm second layer), mostly off-white /
+    // light grey / warm beige, ~5 % charcoal, <2 % muted red. Base ~0.82, soft reflections.
     const chip = new Int16Array(N * N).fill(-1), edge = new Float32Array(N * N);
     const k = N / 1024;
-    scatterChips(N, Math.round(14000 * k * k), 1.2 * k, 4.5 * k, 51, (i, c, d) => { chip[i] = c % 6; edge[i] = d; });
-    scatterChips(N, Math.round(700 * k * k), 5 * k, 13 * k, 52, (i, c, d) => { chip[i] = 6 + (c % 5); edge[i] = d; });
-    const pal = [[0.95, 0.94, 0.91], [0.58, 0.58, 0.59], [0.16, 0.16, 0.17], [0.62, 0.38, 0.28], [0.84, 0.74, 0.58], [0.47, 0.52, 0.48],
-      [0.93, 0.92, 0.89], [0.26, 0.26, 0.28], [0.72, 0.62, 0.5], [0.85, 0.85, 0.84], [0.55, 0.32, 0.24]];
+    const pal = [
+      [0.93, 0.92, 0.89], [0.90, 0.89, 0.86], [0.78, 0.78, 0.77], [0.68, 0.68, 0.68], [0.86, 0.80, 0.70], [0.80, 0.73, 0.62], // light bulk
+      [0.30, 0.30, 0.31],                                                                                                       // charcoal
+      [0.60, 0.40, 0.34],                                                                                                       // muted red
+    ];
+    // weighted pick: indices 0-5 ~ 91 %, charcoal 7 %, red 2 %
+    const pick = (c) => { const u = hash3(c, 9, 77); return u < 0.91 ? ((u / 0.91 * 6) | 0) : u < 0.98 ? 6 : 7; };
+    scatterChips(N, Math.round(26000 * k * k), 0.9 * k, 2.6 * k, 51, (i, c, d) => { chip[i] = pick(c); edge[i] = d; });
+    scatterChips(N, Math.round(1500 * k * k), 3 * k, 5 * k, 52, (i, c, d) => { chip[i] = pick(c + 5000); edge[i] = d; });
     const F = fbm(N, 6, 5, 53);
     const strip = N / 2;
     return build(N, (x, y, o) => {
@@ -106,31 +113,33 @@ export const TEX = {
       const i = y * N + x, c = chip[i];
       const f = at(F, N, x, y);
       if (c >= 0) {
-        const p = pal[c], s = 1 - edge[i] * 0.08;
-        o.r = p[0] * s; o.g = p[1] * s; o.b = p[2] * s; o.rough = 0.1; o.h = 0.52;
+        const p = pal[c], s = 1 - edge[i] * 0.06;
+        o.r = p[0] * s; o.g = p[1] * s; o.b = p[2] * s; o.rough = 0.26; o.h = 0.52;
       } else {
-        const m = 0.8 + (f - 0.5) * 0.06;
-        o.r = m; o.g = m * 0.985; o.b = m * 0.955; o.rough = 0.16 + f * 0.06; o.h = 0.5;
+        const m = 0.82 + (f - 0.5) * 0.06;
+        o.r = m; o.g = m * 0.985; o.b = m * 0.95; o.rough = 0.3 + f * 0.05; o.h = 0.5;
       }
-    }, { normal: 1 });
+    }, { normal: 0.6 });
   } },
-  // polished white marble slabs 1.2×0.6 m, staggered, with grey veining
+  // polished white marble slabs 1.2x0.6 m, staggered, soft wide low-contrast veining
   marble: { size: [2.4, 2.4], res: 'hi', make: N => {
-    const W = fbm(N, 3, 6, 61), G = fbm(N, 24, 3, 62);
+    const W = fbm(N, 3, 6, 61), G = fbm(N, 24, 3, 62), V = fbm(N, 5, 4, 63);
     const tw = N / 2, th = N / 4;
     return build(N, (x, y, o) => {
       const t = tileAt(x, y, tw, th, 0.5, N, N);
       const h0 = hash3(t.tx, t.ty, 61), h1 = hash3(t.tx, t.ty, 62);
       if (t.d < 0.9) { o.r = 0.7; o.g = 0.69; o.b = 0.67; o.h = 0; o.rough = 0.5; return; }
-      const w = at(W, N, x + Math.floor(h1 * N), y + Math.floor(h0 * N));
+      const ox = Math.floor(h1 * N), oy = Math.floor(h0 * N);
+      const w = at(W, N, x + ox, y + oy), w2 = at(V, N, x + oy, y + ox);
       const a = h0 > 0.5 ? 1 : -1;
-      const s = Math.abs(Math.sin(TAU * (x / N * 1 + a * y / N * 2) + w * 9 + h0 * 20));
-      const v = Math.pow(1 - s, 40) * 0.38 + Math.pow(1 - s, 8) * 0.07;
-      const cloud = (w - 0.5) * 0.05 + (at(G, N, x, y) - 0.5) * 0.015;
-      const c = 0.93 + cloud + (h1 - 0.5) * 0.03;
-      o.r = clamp(c - v * 0.95); o.g = clamp(c * 0.99 - v * 0.95); o.b = clamp(c * 0.97 - v * 0.9);
-      o.h = 0.5 + Math.min(1, t.d / 2) * 0.4; o.rough = 0.05 + v * 0.1 + at(G, N, x, y) * 0.03;
-    }, { normal: 1.2 });
+      // vein field: sinuous bands warped by two noise fields (direction field), wide + soft
+      const s = Math.abs(Math.sin(TAU * (x / N * 1 + a * y / N * 1.5) + w * 14 + w2 * 6 + h0 * 20));
+      const v = Math.pow(1 - s, 9) * 0.09 + Math.pow(1 - s, 3) * 0.025;
+      const cloud = (w - 0.5) * 0.07 + (w2 - 0.5) * 0.04 + (at(G, N, x, y) - 0.5) * 0.015;
+      const c = 0.9 + cloud + (h1 - 0.5) * 0.06;
+      o.r = clamp(c - v * 0.9); o.g = clamp(c * 0.99 - v * 0.9); o.b = clamp(c * 0.965 - v * 0.8);
+      o.h = 0.5 + Math.min(1, t.d / 2) * 0.4; o.rough = 0.1 + v * 0.3 + at(G, N, x, y) * 0.04;
+    }, { normal: 0.8 });
   } },
   // dark polished granite (borders, bands, dining street)
   granite_dark: { size: [1.2, 1.2], res: 'mid', make: N => tiles(N, { cols: 2, base: [0.22, 0.22, 0.235], grout: [0.12, 0.12, 0.12], groutW: 0.9, tone: 0.05, mottle: 0.12, speckle: 0.22, speckDark: 0.35, rough: 0.12, roughVar: 0.04, seed: 71 }) },

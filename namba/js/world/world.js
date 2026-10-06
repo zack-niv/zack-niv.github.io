@@ -393,10 +393,16 @@ export class World {
         let qx = body.x - px, qz = body.z - pz;
         const d2 = qx * qx + qz * qz;
         if (d2 < r * r) {
-          const d = Math.sqrt(d2) || 1e-6;
-          if (d2 < 1e-12) { qx = -ez; qz = ex; }
-          const push = (r - d) / (d || 1);
-          body.x += qx * push; body.z += qz * push;
+          let d = Math.sqrt(d2);
+          if (d2 < 1e-10) {
+            // exactly on the segment: push out along its normal (never divide by ~0)
+            const el = Math.sqrt(l2) || 1;
+            qx = -ez / el; qz = ex / el; d = 1;
+            body.x += qx * r; body.z += qz * r;
+          } else {
+            const push = (r - d) / d;
+            body.x += qx * push; body.z += qz * push;
+          }
           moved = true;
         }
       };

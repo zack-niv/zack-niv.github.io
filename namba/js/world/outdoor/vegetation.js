@@ -288,8 +288,8 @@ export class Vegetation {
       if (fm) { fm.count = nf; fm.instanceMatrix.needsUpdate = true; fm.instanceColor.needsUpdate = true; }
     }
   }
-  update(dt, cam) {
-    WIND.uTime.value += dt;
+  update(dt, cam, advanceWind = true) {
+    if (advanceWind) WIND.uTime.value += dt;
     this._t += dt;
     const moved = !this._last || Math.abs(cam.x - this._last.x) + Math.abs(cam.z - this._last.z) + Math.abs(cam.y - this._last.y) > 6;
     if (this._t > 0.5 || moved) { this._t = 0; this._refresh(cam); this._last = cam.clone(); }

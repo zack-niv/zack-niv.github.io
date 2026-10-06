@@ -49,5 +49,22 @@ Shared environment object: `envFor(ctx)` (exported from shops.js) creates `ctx._
 * `ctx.props.items`, `ctx.props.list(kind)`, `ctx.props.wallItems` (posters/screens hung on walls:
   `{kind, level, x, z, nx, nz, a, y0, y1}`; wayfinding may avoid them), `ctx.props.fountain`
 
+## Perf measurements (node harness, `tools`-free: shops+props fully built, 1400 random walk-cell views, frustum-culled by mesh)
+| | before (round 1, eager) | now |
+|---|---|---|
+| env triangles in a view (avg / p95 / max) | n/a (2.08 M whole-scene reported) | 16 k / 56 k / 111 k |
+| env draw calls in a view (avg / p95 / max) | n/a | 48 / 134 / 196 |
+| atlas pages | 15 | 7 (sign 4 incl. props, print 3) |
+| lights declared by env | 943 | ~800 (<= 2 per shop + 1 per vending bank/ATM/gacha/totem) |
+| logic pass at init | | ~0.4 s shops + 0.2 s props (headless node) |
+
 ## Log
-(see bottom of file; updated as work proceeds)
+### Round 2
+* Lazy build finished and split into three work kinds (see "Lazy build"): chunk fronts out to 190 m (cheap),
+  per-shop interiors within 62 m (released beyond 125 m so memory stays bounded), halls within 110 m.
+  Atlas regions are now LAZY objects: they only paint on first read, so far fronts / null painters cost no canvas work.
+* Removed `Atlas.touch()` calls (it re-uploaded every 16 MB page after each build tick).
+* `props.js` written from scratch (it was a stub): see Public API.
+* Shop interiors: brand-tinted wainscot + rail + cove band, wall posters/banners (`dressWalls`).
+* `ctx.shops.seats(slotId)`, `ctx.props.seats` for the crowd.
+* Sign lights now carry `dir` (face the corridor).

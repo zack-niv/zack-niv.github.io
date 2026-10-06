@@ -43,6 +43,7 @@ export function regions(env) {
     tanzaku(cat) { const it = (MENU[cat] || MENU.izakaya).concat(MENU.izakaya).slice(0, 10); return print.add(`tanz|${cat}`, 40 * it.length, 280, (g, w, h) => D.drawTanzaku(g, w, h, it)); },
     banner(lines, bg, fg) { return print.add(`banner|${lines.join('/')}|${bg}`, 384, 96, (g, w, h) => D.drawBanner(g, w, h, lines, bg, fg)); },
     vbanner(text, bg, fg) { return print.add(`vban|${text}|${bg}`, 64, 300, (g, w, h) => { g.fillStyle = bg; g.fillRect(0, 0, w, h); g.fillStyle = fg; D.vText(g, text, w / 2, h * 0.06, h * 0.94, w * 0.7, 900); }); },
+    poster(kind, portrait = true) { return print.add(`poster|${kind}|${portrait}`, portrait ? 200 : 352, portrait ? 300 : 198, (g, w, h) => D.drawAd(g, w, h, kind, 7)); },
     ad(kind, seed, portrait = true) { return sign.add(`ad|${kind}|${portrait}`, portrait ? 200 : 352, portrait ? 300 : 198, (g, w, h) => D.drawAd(g, w, h, kind, seed)); },
     label(text, bg, fg, w = 256, h = 48, fam) { return print.add(`label|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800, fam); }); },
     litLabel(text, bg, fg, w = 256, h = 48) { return sign.add(`llabel|${text}|${bg}|${fg}|${w}`, w, h, (g, ww, hh) => { g.fillStyle = bg; g.fillRect(0, 0, ww, hh); g.fillStyle = fg; D.fitText(g, text, ww / 2, hh / 2, ww * 0.9, hh * 0.62, 800); }); },
@@ -89,9 +90,53 @@ export function buildShop(S, R) {
   front(S, c);
   const fn = INTERIOR[c.group] || INTERIOR.retail;
   fn(S, c);
+  dressWalls(S, c);
   // shop light for the lighting system (aggregated)
   const lc = LIGHT[c.light] || LIGHT.neutral;
   if (c.group !== 'closed') S.light(S.W / 2, S.ceil - 0.3, Math.min(S.D / 2, 6), lc, 1.0, Math.max(S.W, Math.min(S.D, 14)) * 0.8, 'panel');
+}
+
+// posters / banners on the interior walls (above the shelf line), so no wall stays bare.
+// Deterministic and independent of the logic-pass answers (replay-safe).
+const POSTER_KINDS = {
+  fashion: ['autumn', 'cosme', 'halloween'], shoes: ['autumn', 'concert'], accessory: ['cosme', 'autumn'], cosme: ['cosme', 'cosme', 'autumn'],
+  drug: ['cosme', 'drink', 'autumn'], conbini: ['drink', 'ramenfair', 'autumn', 'beer'], books: ['movie', 'museum', 'expo'], zakka: ['autumn', 'travel'],
+  gacha: ['movie', 'halloween'], service: ['phone', 'travel', 'concert'], florist: ['autumn'], cafe: ['autumn', 'travel'], kissa: ['museum', 'concert'], stand: ['autumn'],
+  bakery: ['autumn'], sweets: ['autumn', 'halloween'], takoyaki: ['ramenfair'], rcounter: ['ramenfair', 'beer'], rtable: ['beer', 'ramenfair'], sushi: ['travel'],
+};
+function dressWalls(S, c) {
+  const P = S.inner, R = S.R, r = S.r;
+  const kinds = POSTER_KINDS[c.group];
+  if (!kinds || c.group === 'closed') return;
+  const dm = S.D > 16 ? 14 : S.D, W = S.W;
+  const retailShelves = ['drug', 'conbini', 'books', 'zakka', 'service'].includes(c.group);
+  const y0 = retailShelves ? 2.12 : 1.15, y1 = retailShelves ? Math.min(2.95, S.ceil - 0.42) : Math.min(2.4, S.ceil - 0.5);
+  const port = !retailShelves;
+  const ph = y1 - y0;
+  if (ph < 0.45) return;
+  const pw = port ? Math.min(0.9, ph * 0.667) : Math.min(1.6, ph * 1.78);
+  let k = 0;
+  for (const side of [0, 1]) {
+    let d = 1.3 + r() * 1.2;
+    while (d + pw < dm - 1.2) {
+      const kind = kinds[Math.floor(r() * kinds.length)];
+      const keep = r() < 0.72;
+      if (keep) {
+        const reg = R.poster(kind, port);
+        P.ta(reg, d, d + pw, y0, y1, side ? W - 0.03 : 0.03, side ? -1 : 1);
+        k++;
+      }
+      d += pw + 1.4 + r() * 1.8;
+    }
+  }
+  // back wall banner
+  if (S.D <= 16 && W >= 4) {
+    const kind = kinds[Math.floor(r() * kinds.length)];
+    const reg = R.poster(kind, false), bw = Math.min(W - 1.4, 2.4), bh = bw * reg.h / reg.w;
+    const show = r() < 0.8;
+    if (show && y0 + bh < S.ceil - 0.3) P.tq(reg, (W - bw) / 2, (W + bw) / 2, y0, y0 + bh, S.D - 0.03, -1);
+  }
+  void k;
 }
 
 // floor / walls / ceiling lights (always visible: part of the front batch)
@@ -104,6 +149,21 @@ function finish(S, c) {
   P.qd('env_matte', 0, W, 0, h, Dp - 0.015, -1, wc);
   P.qa('env_matte', 0, Dp, 0, h, 0.015, 1, mix(wc, [0, 0, 0], 0.06));
   P.qa('env_matte', 0, Dp, 0, h, W - 0.015, -1, mix(wc, [0, 0, 0], 0.06));
+  // wainscot (brand-tinted lower wall + rail) and a brand cove band under the ceiling
+  if (c.group !== 'closed') {
+    const br = K(S.st.bg), tint = mix(wc, br, 0.3), rail = mix(br, [0, 0, 0], 0.35);
+    const wy = c.group === 'kissa' || c.group === 'rtable' || c.group === 'rcounter' || c.group === 'sushi' ? 1.1 : 0.9;
+    P.qd('env_matte', 0, W, 0.08, wy, Dp - 0.025, -1, tint);
+    P.qa('env_matte', 0, Dp, 0.08, wy, 0.025, 1, tint);
+    P.qa('env_matte', 0, Dp, 0.08, wy, W - 0.025, -1, tint);
+    P.box('env_matte', 0, W, wy, wy + 0.04, Dp - 0.05, Dp - 0.015, rail);
+    P.box('env_matte', 0.015, 0.05, wy, wy + 0.04, 0, Dp, rail);
+    P.box('env_matte', W - 0.05, W - 0.015, wy, wy + 0.04, 0, Dp, rail);
+    const cy = h - 0.28;
+    P.qd('env_matte', 0, W, cy, cy + 0.12, Dp - 0.026, -1, br);
+    P.qa('env_matte', 0, Dp, cy, cy + 0.12, 0.026, 1, br);
+    P.qa('env_matte', 0, Dp, cy, cy + 0.12, W - 0.026, -1, br);
+  }
   // skirting
   P.qd('env_matte', 0, W, 0, 0.08, Dp - 0.02, -1, [0.15, 0.15, 0.15]);
   if (c.group === 'closed') return;
