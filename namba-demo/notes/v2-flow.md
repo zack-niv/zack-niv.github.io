@@ -69,4 +69,28 @@ New `js/game/order.js`; `Interactions` (`js/game/interact.js`) gets two hooks (`
 * none blocking. See "unsure" below.
 
 ## Status
-* [x] item 1 code  * [x] item 9  * [x] item 7  * [ ] screenshots / load probe (see bottom)
+* [x] item 1  * [x] item 9  * [x] item 7  * [x] screenshots  * [x] load probe
+
+## Verified (headless, SwiftShader; machine was heavily loaded so frame timings are meaningless)
+* `node tools/loadprobe.mjs`: READY 12.4 s, `errs []` (35 s with `&nocrowd` while the box was busy). Console: only the sandbox's
+  `net::ERR_CERT_AUTHORITY_INVALID` (Google Fonts), nothing from the game; `ctx.errors` empty in every run.
+* Item 1: `notes/v2-shots/flow/before/*` (`?oldpit` reproduces v1: bookstore with shelves visible through the Nankai pit,
+  `nk_t4_north`, `nk_t4_down`, `nk_t4_far`) vs `after/*` (solid ballast bed from the platform edge to the far wall, same angles).
+  `?oldpit` is a test-only flag in `transit/env.js`. The Midosuji/Sennichimae shots (`mid_t1_far`, `sen_t1`) look at the screen
+  doors/trains, so they prove little; there is nothing below B2 there, the pit floor is there for correctness.
+* Item 9: `walk/walk1..4.png` show the four cards (Look & move, Interact, Your phone, Follow the signs). Click and X skip were exercised
+  (the click path advanced 1->2->3->4); the X path is a keydown handler (verified by dispatching the event; a `page.keyboard.press`
+  hung the harness once, unrelated to the game).
+* Item 7: at Pine Tree Coffee (`city_2nw16`, `ctx.counters` has 134 entries): standing on the order spot facing the staff gives
+  prompt "Order a coffee ☕" (`order/order1_prompt.png`), E gives the toast "Ordered · ☕ latte — Pine Tree Coffee", ICOCA chip -¥580,
+  cup icon bottom-left (`order/order2_b.png`), `game.orders` filled, `demo:order {slotId:'city_2nw16'}` emitted, facing away: no prompt.
+  The caption lines of the exchange were not caught in a screenshot (they are real-time timed and the headless frames are seconds
+  long), the same `hud.caption` API as everywhere else is used.
+
+## What I am unsure about
+* The captions of the order exchange (JA greeting, "One latte, please.", "Certainly") were not visually confirmed, see above.
+* Walkthrough timing (5.2 s start, 4 s per card) is a guess; a human will tell. It overlaps Aya's first text and the chapter card
+  (chapter bottom-left, cards top-left, phone strip bottom-right), no overlap seen in the screenshots.
+* The ICOCA chip says "運賃 Fare" for a coffee (existing HUD label).
+* "Say hi" for shops/restaurants was only code-reviewed, not exercised in a browser.
+* Metro pit floors are not visible in any screenshot (PSD glass/trains); the Nankai fix is the one that matters.
