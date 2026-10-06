@@ -92,7 +92,41 @@ checks ja-then-en order, volumes and that no two utterances overlap.
 
 ## Verified (headless, results in the summary below)
 
-RESULTS_PLACEHOLDER
+Headless Chromium (swiftshader, `?test&quality=low`), zero audio errors (the only console error is the unrelated
+`net::ERR_CERT_AUTHORITY_INVALID` for an external resource that every page in this sandbox logs).
+
+Zone / bed targets via `audio.debug()` after teleporting (target gains; `loading` = still being synthesized by the worker):
+
+| Teleport | zone.space -> mood / area | bed targets | platform leak |
+|---|---|---|---|
+| `start` | nk_plat_2 -> nkplatform / platform | hvac_big .12, aux .10, tunnel .14, cityfar .16 | 0 |
+| `nankai_gate` | nankai_3f_concourse -> terminal / gate hall | hvac_big .28 + tunnel/aux bleed | .49 |
+| `nankai_2f` | nankai_2f -> terminal | hvac_big .28 | .02 |
+| `midosuji` | m_platform -> platform | tunnel .50, aux .07, hvac_tile .14 | 0 |
+| B1 above the platform | m_paid -> metro / gate hall | hvac_tile .28, tunnel .068, aux .01 | .20 |
+| `walk` | walk_main -> arcade / NAMBAWALK | hvac_arcade .30 | 0 |
+| `city_b1` | city_b1_main -> mall / Namba CITY | hvac_mall .26, bgm .11 | 0 |
+| `canyon` | parks_canyon -> canyon | cityfar .38, leaves .34, water .12, traffic .07, tunnel .05 | 0 |
+| 6F dining hall / restaurant room | parks_6F_dining / parks_6Fdw01 -> dining | kitchen .20, sizzle .15, fry .10, hvac_mall .08 | 0 |
+
+Train audibility (`debug().trains[].hear`): on the Midosuji platform 1.0 for its tracks and 0 for every Nankai track;
+directly above 0.2; NAMBAWALK 0; Nankai start platform 1.0 for its own tracks, 0.38 for the neighbouring platform's.
+
+Cross-fade (NAMBAWALK -> platform teleport, 0.25 s steps): arcade/platform weights 1/0, .78/.22, .61/.39, .47/.53, .37/.63,
+.29/.71 (clamped dt, ~1 s time constant), tunnel target .11 -> .36 while hvac_arcade falls .23 -> .09.
+
+PA with a stubbed speechSynthesis (fake ja-JP + en-US voices), `announce` events:
+
+| Case | paVolume | Spoken |
+|---|---|---|
+| Nankai platform, approach | 1.0 | ja-JP (v0.8), then en-US (v0.8) |
+| same, only an en voice | 1.0 | en-US only |
+| same, no voices | 1.0 | nothing (chime + caption) |
+| Midosuji platform | 1.0 | ja, en |
+| concourse directly above | 0.2 | ja, en at v0.16 |
+| NAMBAWALK | 0 | nothing (dropped) |
+| burst: approach + arrive + escalator at once | - | approach ja/en, arrive ja/en, escalator ja/en (v0.64); `overlap` never true |
+
 
 ## Requests / notes for other owners
 * **Flow (HUD)**: `hud.paAudible(payload)` decides which PA lines get captioned. For `announce` events it should defer

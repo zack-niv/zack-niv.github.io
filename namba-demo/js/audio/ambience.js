@@ -298,8 +298,8 @@ export class Ambience {
         T.dine = 7 + this.rand() * 12;
         if (this.rand() < 0.6 && this.sys.announcer) {
           const txt = DINING_CALLS[Math.floor(this.rand() * DINING_CALLS.length)];
-          const p = at(4, 11, -0.1);
-          this.sys.announcer.say({ kind: 'shop', parts: [{ lang: 'ja', text: txt }], pos: p, ref: 3, gain: 0.5, cooldown: 12, maxAge: 3, caption: false });
+          const p = at(3, 9, -0.1);
+          this.sys.announcer.say({ kind: 'shop', parts: [{ lang: 'ja', text: txt }], pos: p, ref: 3, gain: 0.8, cooldown: 12, maxAge: 3, caption: false });
         } else this.mixer.play('ui:cup', { bus: 'ambience', pos: at(3, 9, -0.4), gain: 0.5, send: 0.3, ref: 2, hrtf: true, rate: 0.9 + this.rand() * 0.2, wait: true, prio: 6 });
       }
     }
