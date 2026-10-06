@@ -24,6 +24,8 @@ export class CounterStaff {
     this.crowd = crowd; this.ctx = crowd.ctx; this.sim = crowd.sim;
     this.list = [];            // our counter records
     this._src = null; this._srcN = -1; this._t = 0;
+    // a teleport is a cut: staff around the new spot appear at once
+    this.ctx.events && this.ctx.events.on('player:teleport', () => { this._t = 0; this._cut = true; });
     this.ctx.events && this.ctx.events.on('demo:order', (e) => { const C = e && this.bySlot && this.bySlot[e.slotId]; if (C) C.served = true; });
     this._scan();
   }
@@ -89,8 +91,9 @@ export class CounterStaff {
       }
       if (!open || d > NEAR) continue;
       C.agent = this._spawn(C, D);
-      if (C.agent) n++;
+      if (C.agent) { n++; if (this._cut || d > 25) { C.agent.fade = 1; C.agent.fadeDir = 1; } }
     }
+    this._cut = false;
     D.extra = n;
   }
 

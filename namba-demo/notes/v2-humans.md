@@ -37,12 +37,16 @@ Idle_Neutral, Wave, Interact. `humans_m.glb` 1.86 MB + `humans_f.glb` 1.72 MB = 
 * **Fallback:** if the GLBs fail (or `?v1crowd`), the v1 procedural renderer (`render_v1.js`) is used; if only
   one gender loads it stands in for both. The game never runs without people.
 
-Draw calls (high): ≤ 32 near + ≤ 16 far + ≤ 16 fade (only non-empty ones are drawn) + 1 blob draw.
+Draw calls (high): ≤ 32 near + ≤ 16 far + ≤ 16 fade (only non-empty ones are drawn) + 1 blob draw. Measured in the
+headless runs: renderer CPU 0.5–4 ms/frame on the overloaded SwiftShader box (real machines: well under 1 ms),
+crowd triangles 17–130 k in typical views (full mesh ≈ 6–10 k tris near, 2–3 k / 0.7–1.1 k far LODs). Library build
+at load (procedural clips + bone textures + accessories): 0.3–1.2 s headless for both rigs.
 
 ## Item 8 — behaviour
 
-* **Fewer, better placed:** demo population ×0.27 (≈ 300–360 at lunch on `high`), half of it kept within ~100 m of
-  the player; train surges and platform waiters scaled to match; a train empties over ~15 s.
+* **Fewer, better placed:** demo population ×0.36 of v1 (≈ 400 at lunch on `high`, 265 on `medium`; v1 had ~1330),
+  45 % of it kept within ~70 m of the player (v1: 32 % within 100 m), so the route stays alive with a third of the
+  people; train surges and platform waiters scaled to match; a train empties over ~15 s (`trips.js DEMO_POP`).
 * **Spread placement:** no two people are placed within ~1.2 m (initial fill, mid-trip fast-forward, relocation
   around the player) — `Director.free / claim`.
 * **Escalators keep LEFT** (`sim.js ESC_STAND_SIDE = -1`: standers left, walkers pass right); stairs keep left;
@@ -66,8 +70,10 @@ Draw calls (high): ≤ 32 near + ≤ 16 far + ≤ 16 fade (only non-empty ones a
 * **Window shopping:** new `window` leg — people stand at shop windows (frontage, not the doorway, glass in
   front), look around, tourists take photos; part of shopping trips and of the initial fill.
 * Cafés: seated customers use the real seats (`ctx.shops.seats`, v1).
-* Metrics (Node, `scratch clump.mjs`, player walking back and forth, 15 s): standing clumps away from queues
-  nankai_gate 4.5 → 0.8, at escalator mouths 19 → 0; city_2f 2.0 → 0.5; nobody within 0.5 m of the player.
+* Metrics (Node sim, player walking back and forth for 15 s; "clump" = someone not queueing/seated/at a post standing
+  with ≥ 2 others within 1.2 m): Nankai 3F gate area — clumps at escalator mouths 19 → 0–1, elsewhere 4.5 → ~1;
+  Namba CITY 2F 2.0 → ~0.5–2 (what remains are ticket-gate lines and people yielding to the player); no sample
+  ever had anyone within 0.5 m of the player (min 1.2 m).
 
 ## Item 7 — staff at counters (`js/npc/counters.js`)
 
