@@ -39,6 +39,8 @@ export class Announcer {
     }
     this.duck = 1;
   }
+  cancelSpeech() { if (this.speech) try { this.speech.cancel(); } catch (e) { /* */ } if (this.cur && this.cur.utter) { this.cur.utter = null; this.cur.forceFormant = true; } }
+  pauseSpeech(on) { if (this.speech) try { on ? this.speech.pause() : this.speech.resume(); } catch (e) { /* */ } }
   get hasJaVoice() { return !!(this.speech && this.voices.ja); }
 
   // item: { kind, prio?, parts:[{lang, text}], chime?: 'pa'|'esc'|null, pos?:{x,y,z}, level?, gain?, caption?:bool,

@@ -37,6 +37,8 @@ export const SOUNDS = {
   gacha: ['fx:gacha', 0.6, 'sfx'], grinder: ['fx:grinder', 0.5, 'sfx'], steam: ['fx:steam', 0.5, 'sfx'], rustle: ['ui:rustle', 0.4, 'sfx'],
   pa_chime: ['chime:pa', 0.5, 'voice'],
 };
+const BARK_EXCUSE = ['すみません', 'あ、すみません', 'すいません', 'しつれいします', 'ごめんなさい'];
+const BARK_CALLOUT = ['いらっしゃいませー', 'いらっしゃいませ、どうぞー', 'いらっしゃいませー、こんにちはー', 'ただいま、おせき、ごあんないできます'];
 const STEP_N = 8; // footstep variants per surface
 const SURF = { tile: 'tile', stone: 'stone', wood: 'wood', metal: 'metal', paving: 'paving', grass: 'grass', carpet: 'soft', gravel: 'gravel', soft: 'soft' };
 
@@ -45,7 +47,10 @@ export class Audio {
     this.ctx = ctx;
     this.enabled = !params.noaudio && typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
     this.ac = null; this.mixer = null; this.bank = null;
-    this.useSpeech = true; this.allowSpeech = true;
+    // station PA defaults to the formant PA voice (reverb, horn EQ, position); SpeechSynthesis is an opt-in
+    // accessibility setting (settings 'speech') because it cannot be routed into Web Audio
+    this.useSpeech = false; this.allowSpeech = true;
+    this._lastTap = { t: -9, x: 0, z: 0 }; this._gateRecent = []; this._barkT = {}; this._lastPlay = {};
     this.L = null;
     this.muted = false;
     this._vols = this._loadVolumes();
@@ -67,10 +72,15 @@ export class Audio {
     ev.on('player:step', (e) => this._step(e));
     ev.on('player:land', (e) => this._land(e));
     ev.on('player:bump', (e) => this._bump(e));
+    ev.on('crowd:excuse', (e) => this._bark(e, 'excuse'));
+    ev.on('crowd:callout', (e) => this._bark(e, 'callout'));
+    ev.on('gate:pass', (e) => this._gatePass(e));
+    ev.on('crowd:gate', (e) => { if (!(this.ctx.transit && typeof this.ctx.transit.gatePass === 'function')) this._gatePass(e); });
+    ev.on('player:zone', (e) => this._zoneChange(e));
     ev.on('phone:open', () => this.play('phone_open'));
     ev.on('phone:close', () => this.play('phone_close'));
     ev.on('phone:message', () => this.play('notify'));
-    ev.on('ic:tap', (e) => this.play(!e || e.ok === false ? 'gate_fail' : (e.balance != null && e.balance < 300 ? 'gate_low' : 'gate_ok'), e && e.x != null ? { pos: { x: e.x, z: e.z, level: e.level } } : {}));
+    ev.on('ic:tap', (e) => { this._lastTap = { t: this.ac ? this.ac.currentTime : 0, x: e && e.x, z: e && e.z }; this.play(!e || e.ok === false ? 'gate_fail' : (e.balance != null && e.balance < 300 ? 'gate_low' : 'gate_ok'), e && e.x != null ? { pos: { x: e.x, z: e.z, level: e.level } } : {}); });
     ev.on('discover', () => this.play('discover'));
     ev.on('game:pause', () => this._pause(true));
     ev.on('game:resume', () => this._pause(false));
@@ -78,11 +88,11 @@ export class Audio {
       if (!e) return;
       if (e.key === 'volume') this.setVolume('master', e.value);
       else if (['music', 'sfx', 'voice', 'ambience', 'master'].includes(e.key)) this.setVolume(e.key, e.value);
-      else if (e.key === 'speech') this.useSpeech = !!e.value;
+      else if (e.key === 'speech') { this.useSpeech = !!e.value; if (!e.value && this.announcer) this.announcer.cancelSpeech(); }
     });
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', () => {
       if (!this.ac || this.ac.state === 'closed') return;
-      if (document.hidden) this.ac.suspend().catch(() => {}); else if (this._wantRunning) this.ac.resume().catch(() => {});
+      if (document.hidden) { this.announcer && this.announcer.cancelSpeech(); this.ac.suspend().catch(() => {}); } else if (this._wantRunning) this.ac.resume().catch(() => {});
     });
     // the settings volume, if the game exposes one
     const s = this.ctx.settings;
@@ -195,9 +205,18 @@ export class Audio {
     this._stepI = i;
     const name = `fs:${surf}:sneaker:${i}`;
     const inten = e.intensity != null ? e.intensity : Math.min(1.5, (e.speed || 1.4) / 1.5);
-    const g = (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
+    const g = 0.8 * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
     const L = this.L;
     const outdoor = L && L.outdoorish;
+    // polished floors: the occasional rubber squeak, likelier on turns
+    if ((surf === 'tile' || surf === 'stone') && this.L) {
+      const cam = this.ctx.camera || (this.ctx.engine && this.ctx.engine.camera);
+      let yaw = this._yaw0 || 0;
+      if (cam && cam.matrixWorld) { const m = cam.matrixWorld.elements; yaw = Math.atan2(-m[8], -m[10]); }
+      let dy = Math.abs(yaw - (this._yaw0 ?? yaw)); if (dy > Math.PI) dy = 2 * Math.PI - dy;
+      this._yaw0 = yaw;
+      if (this._rnd() < (dy > 0.25 ? 0.45 : 0.04)) this.mixer.play(`fs:squeak:${Math.floor(this._rnd() * 6)}`, { bus: 'sfx', gain: 0.22 + 0.12 * this._rnd(), rate: 0.9 + this._rnd() * 0.3, pan: (e.foot ? 0.1 : -0.1), send: 0.3, when: this.ac.currentTime + 0.03 + this._rnd() * 0.04, prio: 3 });
+    }
     this.mixer.play(name, { bus: 'sfx', gain: g, rate: 0.95 + Math.random() * 0.1 - (inten > 1.1 ? 0.03 : 0), pan: (e.foot ? 0.07 : -0.07), send: outdoor ? 0.12 : 0.32, prio: 0, lp: surf === 'soft' ? 3500 : undefined });
   }
   _land(e) {
@@ -213,10 +232,65 @@ export class Audio {
     if (e.kind === 'person') this.mixer.play('ui:rustle', { bus: 'sfx', gain: 0.25 + 0.2 * sp, pan: (Math.random() - 0.5) * 0.6, send: 0.2 });
     else this.mixer.play(`fs:soft:sneaker:${Math.floor(Math.random() * STEP_N)}`, { bus: 'sfx', gain: 0.25 * sp, rate: 0.7, send: 0.25 });
   }
+  // ---- crowd voices: "sumimasen" when someone needs you to move, shop staff "irasshaimase" ----------------
+  _bark(e, kind) {
+    if (!this.mixer || !e || this.muted) return;
+    const L = this.L, now = this.ac.currentTime;
+    if (!L || e.level !== L.level) return;
+    const d = Math.hypot(e.x - L.x, e.z - L.z);
+    const maxD = kind === 'excuse' ? 6 : 14;
+    if (d > maxD) return;
+    if (now - (this._barkT[kind] || -9) < (kind === 'excuse' ? 1.2 : 1.8)) return;
+    this._barkT[kind] = now;
+    const female = kind === 'callout' ? this._rnd() < 0.65 : !!e.female;
+    const g = female ? 'f' : 'm';
+    const list = kind === 'excuse' ? BARK_EXCUSE : BARK_CALLOUT;
+    const i = Math.floor(this._rnd() * list.length), seed = 21 + Math.floor(this._rnd() * 3);
+    const name = `bark:ja:${g}:${seed}:${list[i]}`;
+    const y = e.y != null ? e.y : (LEVELS[e.level] ? LEVELS[e.level].y + 1.55 : L.y + 1.5);
+    const o = { bus: 'voice', pos: { x: e.x, y, z: e.z }, gain: kind === 'excuse' ? 0.75 : 0.55, ref: kind === 'excuse' ? 1.2 : 2.2, rolloff: 1.1, hrtf: true, send: 0.3, rate: 0.96 + this._rnd() * 0.1, wait: true, prio: 2, when: kind === 'callout' ? now + this._rnd() * 0.5 : undefined };
+    if (L.level === e.level && this.ctx.world) { try { if (!this.ctx.world.visible(L.level, L.x, L.z, e.x, e.z)) { o.lp = 900; o.gain *= 0.5; } } catch (er) { /* */ } }
+    this.mixer.play(name, o);
+    if (kind === 'excuse' && d < 3) this.ctx.events.emit('caption', { text: e.en || 'Excuse me', en: e.en || 'Excuse me', ja: e.ja || 'すみません', kind: 'say', speaker: 'Stranger', duration: 1.8 });
+  }
+  _rnd() { this._rs = ((this._rs || 987654321) * 1664525 + 1013904223) >>> 0; return this._rs / 4294967296; }
+
+  // ---- NPC ticket-gate beeps: the constant pi… pi-pi… pi of a Japanese gate line --------------------------
+  _gatePass(e) {
+    if (!this.mixer || !e || this.muted || e.x == null) return;
+    const L = this.L, now = this.ac.currentTime;
+    if (!L || e.level !== L.level) return;
+    const d = Math.hypot(e.x - L.x, e.z - L.z);
+    if (d > 40) return;
+    // the player's own tap is already voiced by ic:tap
+    if (now - this._lastTap.t < 0.5 && Math.hypot(e.x - (this._lastTap.x ?? 1e9), e.z - (this._lastTap.z ?? 1e9)) < 3.5) return;
+    const rec = this._gateRecent; while (rec.length && now - rec[0] > 0.6) rec.shift();
+    if (rec.length >= 6) return; rec.push(now);
+    this._gateN = (this._gateN || 0) + 1;
+    const r = this._rnd();
+    const name = e.ok === false || r < 0.01 ? 'gate_fail' : this._gateN % 25 === 0 ? 'gate_low' : 'gate_ok';
+    this.play(name, { pos: { x: e.x, z: e.z, level: e.level, y: L.y + 1.0 }, gain: 0.55 * (0.8 + this._rnd() * 0.25), rate: 0.97 + this._rnd() * 0.06, ref: 2.5, send: 0.3 });
+  }
+
+  // ---- indoor <-> outdoor: the air opens up (wind gust + brighter, drier) ----------------------------------
+  _zoneChange(e) {
+    if (!this.mixer || !e) return;
+    const L = this.L; if (!L) return;
+    const out = !!L.outdoorish;
+    if (out === !!this._wasOutdoor) return;
+    this._wasOutdoor = out;
+    const m = this.mixer, t = this.ac.currentTime;
+    if (out) {
+      // stepping out into the open: a gust of air, the room's reverb drops away and slowly returns
+      this.mixer.play('bed:gust', { bus: 'ambience', gain: 0.55, send: 0.05, prio: 2, wait: true });
+      const v = m.verbOut.gain; v.cancelScheduledValues(t); v.setValueAtTime(v.value, t); v.linearRampToValueAtTime(0.35, t + 0.8); v.linearRampToValueAtTime(1, t + 3.5);
+    }
+  }
   _pause(on) {
     if (!this.mixer) return;
     const t = this.ac.currentTime;
     this.mixer.master.gain.setTargetAtTime(on ? 0.35 * this._vols.master ** 2 : 0.9 * this._vols.master ** 2, t, 0.15);
+    if (this.announcer) this.announcer.pauseSpeech(on);
   }
 
   // ---- public API --------------------------------------------------------------------
@@ -224,6 +298,10 @@ export class Audio {
     if (!this.mixer || this.muted) return null;
     const def = SOUNDS[name];
     const recipe = def ? def[0] : name; // allow raw recipe names too
+    // two systems may ask for the same blip in the same frame (phone:message + phone_buzz): play it once
+    const nowT = this.ac.currentTime, lp = this._lastPlay[recipe];
+    if (lp != null && nowT - lp < 0.12 && !opts.pos) return null;
+    this._lastPlay[recipe] = nowT;
     const o = { bus: def ? def[2] : 'sfx', gain: (def ? def[1] : 0.5) * (opts.gain ?? 1), rate: opts.rate, pan: opts.pan, send: opts.send ?? 0.25, prio: 0, ...(def && def[3] || {}) };
     if (opts.pos) {
       const y = opts.pos.y != null ? opts.pos.y : (opts.pos.level && LEVELS[opts.pos.level] ? LEVELS[opts.pos.level].y + 1.2 : (this.L ? this.L.y + 1.2 : 0));

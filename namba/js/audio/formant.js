@@ -95,7 +95,7 @@ const VOW = {
 const BW = [90, 110, 170, 250];
 
 // segment plan → per-sample control tracks, then synthesize
-export function formantVoice(sr, text, { lang = 'ja', seed = 1, f0 = 215, rate = 1, gender = 'f', pa = true, breath = 0.05 } = {}) {
+export function formantVoice(sr, text, { lang = 'ja', seed = 1, f0 = 228, rate = 1, gender = 'f', pa = true, breath = 0.05 } = {}) {
   const r = rng(seed);
   const units = lang === 'ja' ? jaToMora(text) : enToSyl(text);
   const male = gender === 'm';
@@ -105,24 +105,30 @@ export function formantVoice(sr, text, { lang = 'ja', seed = 1, f0 = 215, rate =
   // build segments: {dur, voiced, amp, form:[4], noise:{type}, f0mul}
   const segs = [];
   const push = (s) => segs.push(s);
-  let phraseStart = true, accentDown = false, phrasePos = 0;
+  // Pitch (semitones around the base): Japanese accent phrases start low, climb over the first
+  // two morae, drift down (declination), step down after a lexical accent, and fall at the phrase end;
+  // each following phrase starts a little lower; a sentence end resets. English: stress peaks + final fall.
+  let phraseStart = true, phrasePos = 0, phraseIdx = 0, accentAt = -1, newPhrase = true;
+  const ST = (x) => Math.pow(2, x / 12);
   units.forEach((u, idx) => {
-    if (u.pause) { push({ dur: u.pause / rate, voiced: 0, amp: 0, form: null }); phraseStart = true; accentDown = false; phrasePos = 0; return; }
+    if (u.pause) { push({ dur: u.pause / rate, voiced: 0, amp: 0, form: null }); phraseStart = true; phrasePos = 0; newPhrase = true; phraseIdx = u.pause >= 0.4 ? 0 : phraseIdx + 1; return; }
     if (u.gem) { push({ dur: mora * 0.9, voiced: 0, amp: 0, form: null }); return; }
     const vf = VOW[u.v] || VOW.N;
-    // pitch: rise after the phrase's first mora, occasional accent downstep, declination
-    let pm = 1;
-    if (lang === 'ja') {
-      if (phraseStart) pm = 0.9; else pm = accentDown ? 0.86 : 1.12;
-      if (!accentDown && phrasePos > 2 && r() < 0.16) accentDown = true;
-      pm *= Math.max(0.78, 1 - phrasePos * 0.012);
-    } else {
-      pm = u.stress ? 1.18 : 0.95;
-      pm *= Math.max(0.8, 1 - phrasePos * 0.015);
-    }
-    phraseStart = false; phrasePos++;
+    if (newPhrase) { newPhrase = false; accentAt = r() < 0.25 ? -1 : 3 + Math.floor(r() * 4); }
     const nextPause = !units[idx + 1] || units[idx + 1].pause;
-    if (nextPause) pm *= lang === 'ja' ? 0.92 : 0.82;
+    let st = 0;
+    if (lang === 'ja') {
+      st = phrasePos < 3 ? -2.2 + phrasePos * 2.4 : 2.6 - 0.32 * (phrasePos - 3);
+      if (accentAt >= 0 && phrasePos > accentAt) st -= 3.6;
+      st -= Math.min(3.5, phraseIdx * 0.9);
+      if (nextPause) st -= 3.2;
+    } else {
+      st = (u.stress ? 2.4 : -0.4) - Math.min(4, phrasePos * 0.28) - Math.min(3, phraseIdx * 0.7);
+      if (nextPause) st -= 3.5;
+    }
+    const pm = ST(st);
+    phraseStart = false; phrasePos++;
+    if (nextPause && lang === 'ja' && !u.long && u.v) u.long = 1.5; // phrase-final lengthening
     const c = u.c || '';
     let cdur = 0;
     // consonant
@@ -186,7 +192,7 @@ export function formantVoice(sr, text, { lang = 'ja', seed = 1, f0 = 215, rate =
     const tAmp = s.voiced ? s.amp : 0, tN = s.noise ? s.amp : (s.voiced ? 0 : 0);
     amp += (tAmp - amp) * 0.35; nAmp += (tN - nAmp) * 0.5;
     voiced += ((s.voiced || 0) - voiced) * 0.4;
-    f0m += ((s.f0mul || f0m) - f0m) * 0.12;
+    f0m += ((s.f0mul || f0m) - f0m) * 0.045; // ~30 ms portamento between morae
     nasal += ((s.nasal || 0) - nasal) * 0.3;
     curNoise = s.noise || curNoise;
     for (let i = 0; i < 4; i++) setRes(res[i], F[i] * (i === 0 && nasal > 0.5 ? 0.9 : 1), BW[i] * (1 + nasal * (i ? 0.8 : 0.3)));
@@ -249,7 +255,7 @@ export function paChain(out, sr, r = rng(5)) {
     v = pk2.tick(pk.tick(hp2.tick(hp.tick(v))));
     v = Math.tanh(v * 2.2) / Math.tanh(2.2);
     v = lp2.tick(lp.tick(v));
-    out[i] = v + Math.sin(TAU * 120 * i / sr) * 0.002 + (r() - 0.5) * 0.002;
+    out[i] = v; // pauses are true silence (no line hum / noise floor)
   }
   return out;
 }
@@ -279,8 +285,10 @@ export function walla(sr, seconds, voices = 18, seed = 7) {
     }
   }
   // distant/diffuse: soften highs, remove rumble
-  const lp = new Biquad('lowpass', 2400, 0.6, 0, sr), hp = new Biquad('highpass', 160, 0.7, 0, sr);
-  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < n; i++) { const y = lp.tick(hp.tick(out[i])); if (pass) out[i] = y; }
+  // (hard-floored concourses are bright: keep the consonant region 1-5 kHz alive, lift it, drop the rumble)
+  const lp = new Biquad('lowpass', 6200, 0.6, 0, sr), hp = new Biquad('highpass', 330, 0.8, 0, sr), hp3 = new Biquad('highpass', 250, 0.7, 0, sr);
+  const pk = new Biquad('peaking', 2600, 0.8, 10, sr), pk2 = new Biquad('peaking', 4300, 0.9, 8, sr);
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < n; i++) { const y = pk2.tick(pk.tick(lp.tick(hp3.tick(hp.tick(out[i]))))); if (pass) out[i] = y; }
   normalize(out, 0.7);
   return out;
 }

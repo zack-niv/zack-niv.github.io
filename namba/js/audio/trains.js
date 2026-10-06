@@ -78,11 +78,13 @@ export class Trains {
   _ensureEms(s) {
     if (s.ems) return s.ems;
     const p = { x: 0, y: s.g.y, z: 0 };
-    const roll = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 6, rolloff: 0.9, send: 0.55, lp: 600 });
-    const motor = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 5, rolloff: 0.9, send: 0.5, lp: 6000 });
-    const fx = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 4, rolloff: 1, send: 0.5 });
+    // distance law is applied explicitly (see _render: level = dist × occlusion × PSD) so the dry path and the
+    // reverb send fall away together; the panner only supplies direction (rolloff 0)
+    const roll = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 6, rolloff: 0, send: 0.55, lp: 600 });
+    const motor = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 5, rolloff: 0, send: 0.5, lp: 6000 });
+    const fx = this.mixer.emitter({ bus: 'sfx', pos: p, ref: 4, rolloff: 0, send: 0.5 });
     const wind = this.mixer.emitter({ bus: 'ambience', pos: p, ref: 8, rolloff: 0.8, send: 0.6, lp: 200 });
-    roll.fade(0, 0.01); motor.fade(1, 0.01); fx.fade(1, 0.01); wind.fade(0, 0.01);
+    roll.fade(0, 0.01); motor.fade(0, 0.01); fx.fade(0, 0.01); wind.fade(0, 0.01);
     s.ems = { roll, motor, fx, wind };
     this.prefetch();
     return s.ems;
@@ -97,6 +99,28 @@ export class Trains {
     const L = this.sys.L; if (!L || !tr) return false;
     const z = LAYOUT.spaces.find(s => s.id === tr.platform);
     return L.zone === (z && z.zone) && Math.abs(LEVELS[L.level].y - LEVELS[tr.level].y) <= 7;
+  }
+  // where the listener stands relative to a train's platform: 1 on it (or anywhere in an open Nankai shed), less elsewhere on the level
+  _occ(s, L) {
+    const tr = s.tr;
+    if (s.plat === undefined) s.plat = LAYOUT.spaces.find(sp => sp.id === tr.platform) || null;
+    const pz = s.plat && s.plat.zone;
+    if (L.space && L.space.id === tr.platform) return 1;
+    if (L.level !== s.g.level) return 1; // handled by _hears
+    if (pz && L.zone === pz) return s.g.terminal ? 1 : 0.65;
+    return 0.4;
+  }
+  // platform screen doors: closed -> the train in the tunnel is muffled; they open with the train doors
+  _psd(s, now) {
+    if (s.psdAt === undefined || now - s.psdAt > 0.2) {
+      s.psdAt = now; let v = 1;
+      try {
+        const t = this.ctx.transit, info = t && t.trackInfo && t.trackInfo(s.tr.id);
+        if (info && info.psd) { const st = t.trackState(s.tr.id); v = st && st.psdOpen != null ? Math.max(0.5, Math.min(1, 0.5 + 0.5 * st.psdOpen)) : 1; }
+      } catch (e) { v = 1; }
+      s.psdV = v;
+    }
+    return s.psdV;
   }
   _say(item) { if (this.sys.announcer) this.sys.announcer.say(item); }
   _fx(s, name, gain, delay = 0, bus = 'sfx', at = null) {
@@ -311,13 +335,22 @@ export class Trains {
     const dist = Math.hypot(pos.x - L.x, pos.z - L.z);
     const inTunnel = (a1 < g.lo - 3 || a0 > g.hi + 3) && !g.terminal ? 1 : 0;
     const open = Math.max(0, Math.min(1, 1 - (dist - 12) / 90)) * (inTunnel ? 0.45 : 1);
+    // explicit level: distance law x where you stand (platform / elsewhere on the level) x platform screen
+    // doors (closed doors mute a train that is still in the tunnel) x the tunnel itself
+    const d3 = Math.max(1, Math.hypot(dist, pos.y - (L.y + 1.6)));
+    const dl = 1 / (1 + Math.pow(d3 / 16, 1.4));
+    const occ = this._occ(s, L), psd0 = this._psd(s, now), tun = inTunnel ? 0.6 : 1;
+    const psd = 1 - (1 - psd0) * (inTunnel ? 1 : 0.4); // the glass only really hides a train that is still in the tunnel
+    const lvl = dl * occ * psd * tun * hear;
+    const lpK = occ * (0.45 + 0.55 * psd) * (hear < 1 ? 0.3 : 1);
     if (sp > 0.01 && !s.ems.roll.src) { const b = this.bank.peek('tr:roll'); if (b) s.ems.roll.setLoop(b); }
-    s.ems.roll.fade(2.8 * Math.pow(sp, 1.1) * hear, 0.25);
+    s.ems.roll.fade(2.6 * Math.pow(sp, 1.1) * lvl, 0.25);
     s.ems.roll.setRate(0.65 + 0.45 * sp, 0.25);
-    s.ems.roll.setLP((hear < 1 ? 250 : 220 + 3200 * sp * open), 0.2);
-    s.ems.motor.setLP(hear < 1 ? 400 : 700 + 5300 * open, 0.3);
-    s.ems.motor.fade(hear, 0.3);
-    s.ems.fx.setLP(hear < 1 ? 500 : 18000, 0.3);
+    s.ems.roll.setLP(Math.max(120, (hear < 1 ? 250 : 220 + 3200 * sp * open) * (0.35 + 0.65 * lpK)), 0.2);
+    s.ems.motor.setLP(Math.max(250, (hear < 1 ? 400 : 700 + 5300 * open) * (0.3 + 0.7 * lpK)), 0.3);
+    s.ems.motor.fade(lvl, 0.3);
+    s.ems.fx.setLP(hear < 1 || occ < 1 ? 500 + 3000 * lpK : 18000, 0.3);
+    s.ems.fx.fade(lvl, 0.3);
     // tunnel wind push ahead of an arriving subway train
     if (!g.terminal) {
       const mouth = g.dirIn > 0 ? g.lo : g.hi;
@@ -328,7 +361,7 @@ export class Trains {
       if (arriving) { const out = g.dirIn > 0 ? mouth - s.head : s.head - mouth; wg = out > 0 ? Math.max(0, 1 - out / 220) : Math.max(0, 1 + out / 60); }
       if (s.phase === 'departing') { const out = g.dirOut > 0 ? tail - g.hi : g.lo - tail; wg = out > -40 && out < 120 ? 0.5 : 0; }
       if (wg > 0 && !s.ems.wind.src) { const b = this.bank.peek('bed:tunnel'); if (b) s.ems.wind.setLoop(b); }
-      s.ems.wind.fade(wg * 0.75 * hear, 1.2);
+      s.ems.wind.fade(wg * 0.75 * hear * (0.4 + 0.6 * occ) * (0.5 + 0.5 * psd), 1.2);
       s.ems.wind.setLP(160 + wg * 700, 1);
     }
     // rail joints (ta-tan) as bogies pass the listener's projection

@@ -213,6 +213,7 @@ export function buildSurfaces(K) {
     }
   }
   buildSlabEdges(K);
+  buildRoofSlabs(K);
   return { fascia };
 }
 
@@ -289,6 +290,36 @@ function buildSlabEdges(K) {
         face(b, st.fascia === 'wall_dark' ? 'wall_dark' : 'esc_cladding_white', ax, az, bx, bz, yb, y, -dx, -dz, 0);
         // bottom reveal + cove light strip on deep edges
         face(b, 'steel_dark', ax, az, bx, bz, yb, yb + 0.05, -dx, -dz, 0.01);
+      }
+    }
+  }
+}
+
+// Structural roof slab: wherever an indoor walkable cell has *nothing walkable
+// above it* (the street carriageway, sidewalks, light wells) the slab top is
+// drawn just below the upper level's floor line, so nobody ever sees the back
+// of the set from the street. Outdoors paints the finish (road, paving) on top.
+function buildRoofSlabs(K) {
+  const { world, L } = K;
+  for (const lv of Object.keys(world.grids)) {
+    const up = K.above(lv);
+    if (!up || lv === 'B2') continue;
+    const g = world.grids[lv], gu = world.grids[up];
+    const yTop = K.y(up) - 0.15;
+    for (let cz = 0; cz < g.h; cz++) {
+      let run = null;
+      const flush = (cx) => { if (run !== null) { const z0 = g.z0 + cz, x0 = g.x0 + run, x1 = g.x0 + cx; K.B(lv, (x0 + x1) / 2, z0).rectH('arch_slab', x0, z0, x1, z0 + 1, yTop, true); run = null; } };
+      for (let cx = 0; cx <= g.w; cx++) {
+        let ok = false;
+        if (cx < g.w) {
+          const i = cz * g.w + cx;
+          if (g.type[i] === CELL.WALK && !L.spaces[g.space[i]].outdoor) {
+            const t = gu ? gu.typeAt(g.x0 + cx + 0.5, g.z0 + cz + 0.5) : CELL.SOLID;
+            ok = t === CELL.SOLID || t == null;
+          }
+        }
+        if (ok && run === null) run = cx;
+        if (!ok) flush(cx);
       }
     }
   }

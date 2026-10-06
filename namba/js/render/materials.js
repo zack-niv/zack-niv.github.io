@@ -19,6 +19,7 @@
 // GPU texture; only repeat differs).
 import * as THREE from 'three';
 import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js';
+import { kitCanvas, wearCanvas } from './textures/kitatlas.js';
 // (generation runs in ./textures/worker.js; see texSet())
 
 const HDR = (r, g, b, k) => new THREE.Color(r, g, b).multiplyScalar(k);
@@ -63,6 +64,7 @@ export class Materials {
     D('floor_paving_warm', P('paving', { color: 0xf0dcc0 }));
     D('floor_platform', P('platform', {}));
     D('floor_metro', P('tile_grey', { color: 0xf4eee2 }));
+    D('arch_slab', P('concrete', { color: 0x8d8b86, scale: 1.5 }));
     D('floor_concrete', P('concrete', { scale: 1.5, color: 0xd8d6d0 }));
     D('tactile_yellow', P('tactile_line', inlay));
     D('tactile_line', P('tactile_line', inlay));
@@ -99,7 +101,7 @@ export class Materials {
     D('band_grey', band(0x5b5f66));
     // ---- ceilings -----------------------------------------------------------
     D('ceiling_panel', P('ceil_grid', { scale: 1, color: 0xfafafa, normal: 0.6 }));
-    D('ceiling_plaster', () => new THREE.MeshStandardMaterial({ color: 0xeeeeec, roughness: 0.92 }));
+    D('ceiling_plaster', () => new THREE.MeshStandardMaterial({ color: 0xf4f5f6, roughness: 0.9 }));
     D('ceiling_grid', P('ceil_grid', {}));
     D('ceiling_perforated', P('ceil_perf', {}));
     D('ceiling_linear', P('ceil_linear', {}));
@@ -141,6 +143,9 @@ export class Materials {
     D('light_down_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.84, 0.64, 8), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)), alphaMap: this.texture('radial'), alphaTest: 0.35 }));
     D('light_down_neutral', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.95, 0.88, 8), map: this.texture('radial', () => this._canvasTex(radialCanvas(64), false)), alphaMap: this.texture('radial'), alphaTest: 0.35 }));
     D('light_cove_warm', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.8, 0.58, 3.5) }));
+    D('light_cove_green', () => new THREE.MeshBasicMaterial({ color: HDR(0.45, 1.0, 0.55, 3.6) }));
+    D('light_cove_orange', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.6, 0.2, 3.6) }));
+    D('light_cove_blue', () => new THREE.MeshBasicMaterial({ color: HDR(0.35, 0.65, 1.0, 3.6) }));
     D('light_cove_cool', () => new THREE.MeshBasicMaterial({ color: HDR(0.9, 0.95, 1.0, 3.5) }));
     D('light_skylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.92, 1.0, 2.5) }));
     D('light_pendant', () => new THREE.MeshBasicMaterial({ color: HDR(1.0, 0.9, 0.75, 7) }));
@@ -148,6 +153,17 @@ export class Materials {
     D('arch_daylight', () => new THREE.MeshBasicMaterial({ color: HDR(0.86, 0.91, 1.0, 2.2) }));
     D('arch_adbox', () => new THREE.MeshBasicMaterial({ color: HDR(0.96, 0.97, 1.0, 2.6) }));
     D('arch_vault', P('ceil_linear', { color: 0xe9ecf0 }));
+    // architecture detail kit atlas (hose cabinets, AED, exit signs, doors, lockers, diffusers, ...)
+    const kitTex = () => this.texture('arch_kit', () => {
+      const cv = kitCanvas();
+      const t = this._canvasTex(cv, true);
+      try { if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) document.fonts.ready.then(() => { const c2 = kitCanvas(); t.image = c2; t.needsUpdate = true; }); } catch (e) { /* */ }
+      return t;
+    });
+    D('arch_kit', () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.15, map: kitTex() }));
+    D('arch_exit', () => new THREE.MeshBasicMaterial({ color: HDR(1, 1, 1, 1.6), map: kitTex() }));
+    D('arch_wear', () => new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -5,
+      map: this.texture('arch_wear', () => this._canvasTex(wearCanvas(), true)) }));
     // contact shadow / AO strip (transparent gradient, opaque at v=0)
     D('ao_strip', () => new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.32, depthWrite: false, map: this.texture('ao', () => this._canvasTex(aoCanvas(64), false, true)), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -6 }));
     // ---- trackbed -------------------------------------------------------------

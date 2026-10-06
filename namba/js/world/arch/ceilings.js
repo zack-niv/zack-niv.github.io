@@ -16,6 +16,7 @@ import { CELL } from '../world.js';
 import { styleOf } from './styles.js';
 import { KELVIN } from './kit.js';
 import { face } from './surfaces.js';
+import { serviceKit } from './details.js';
 
 // ceiling rect facing down; rot=true rotates the texture 90° (strips along z)
 function ceilRect(b, mat, x0, z0, x1, z1, y, rot) {
@@ -89,7 +90,8 @@ export function buildCeilings(K) {
           // the step face faces into the raised (high) cell
           face(b, 'ceiling_plaster', ax, az, bx, bz, H + r0, H + r1, dx, dz, 0);
           // cove: glowing band tucked behind a lip on the low side
-          face(b, mood === 'mall' || mood === 'arcade' ? 'light_cove_warm' : 'light_cove_cool', ax, az, bx, bz, H + r1 - 0.12, H + r1 - 0.02, dx, dz, 0.02);
+          const cove = sp.id === 'walk_main' ? (ex < 30 ? 'light_cove_green' : ex < 120 ? 'light_cove_orange' : 'light_cove_blue') : mood === 'mall' || mood === 'arcade' ? 'light_cove_warm' : 'light_cove_cool';
+          face(b, cove, ax, az, bx, bz, H + r1 - 0.14, H + r1 - 0.02, dx, dz, 0.02);
         }
       }
     }
@@ -150,24 +152,46 @@ export function buildCeilings(K) {
       }); break;
       case 'arcade': fx(() => {
         if (coffer) {
-          line(midL, 0.14, 'light_line_neutral', H + coffer.rise, 'strip', 1.2);
-          for (const o of [-3.0, 3.0]) if (Math.abs(o) < wide / 2 - 0.6) line(midL + o, 0.1, 'light_line_neutral', H, 'strip', 0.8);
+          line(midL, 0.14, 'light_line_neutral', H + coffer.rise, 'strip', 0.9);
+          for (const o of [-3.0, 3.0]) if (Math.abs(o) < wide / 2 - 0.6) line(midL + o, 0.1, 'light_line_neutral', H, 'strip', 0.6);
         } else line(midL, 0.12, 'light_line_neutral', H, 'strip', 1);
       }); break;
       case 'mall': fx(() => {
         if (wide <= 14) {
           for (const o of [-3.2, 3.2]) if (Math.abs(o) < wide / 2 - 0.5) for (const a of along(2.4, 1.2)) { const [x, z] = at(a, midL + o); downlight(x, z, H, downMat, 0.1, Math.round(a / 2.4) % 2 === 0); }
           if (coffer) line(midL, 0.12, 'light_line_warm', H + coffer.rise, 'strip', 0.6);
+          // continuous edge coves 0.5 m off the shopfronts
+          for (const o of [-(wide / 2 - 0.5), wide / 2 - 0.5]) if (wide >= 8) line(midL + o, 0.1, 'light_line_warm', H, 'strip', 0.45);
         } else for (let x = Math.ceil(bx0 / 2.4) * 2.4 + 1.2; x < bx1; x += 2.4) for (let z = Math.ceil(bz0 / 2.4) * 2.4 + 1.2; z < bz1; z += 2.4) downlight(x, z, H + raise(x, z), downMat, 0.1, (Math.round(x / 2.4) + Math.round(z / 2.4)) % 2 === 0);
       }); break;
       case 'court': fx(() => {
         for (let x = Math.ceil(bx0 / 2.4) * 2.4 + 1.2; x < bx1; x += 2.4) for (let z = Math.ceil(bz0 / 2.4) * 2.4 + 1.2; z < bz1; z += 2.4) {
           const r = raise(x, z);
-          if (r > 0) { if ((Math.round(x / 2.4) + Math.round(z / 2.4)) % 2 === 0) downlight(x, z, H + r, 'light_troffer_warm', 0.45, true, 1.2); }
+          if (r > 0) downlight(x, z, H + r, 'light_troffer_warm', 0.45, true, 1.0);
           else downlight(x, z, H, downMat, 0.1, (Math.round(x / 2.4) + Math.round(z / 2.4)) % 2 === 0);
         }
       }); break;
       case 'downlights': fx(() => {
+        if (mood === 'depachika' && wide > 14) { const n = Math.floor(wide / 7.2); for (const l of lines(n, wide / n)) line(l, 0.2, 'light_line_warm', H, 'strip', 0.55); }
+        // stone-white beams between the columns (grid lines through every column) with a lit cove underside
+        if (st.col && K.columns) {
+          const cs = K.columns.filter(c => c.space === sp.id);
+          const drop = sp.ceil < 3.2 ? 0.28 : 0.42;
+          const seg = (x0, z0, x1, z1) => {
+            const mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+            if (!has(mx, mz)) return;
+            const bb = K.B(lv, mx, mz);
+            const len = Math.hypot(x1 - x0, z1 - z0);
+            if (x0 === x1) { bb.box('wall_panel_white', mx, H - drop / 2, mz, 0.55, drop, len, 0, { faces: 'ewb' }); bb.rectH('light_line_warm', mx - 0.05, z0 + 0.5, mx + 0.05, z1 - 0.5, H - drop - 0.004, false); }
+            else { bb.box('wall_panel_white', mx, H - drop / 2, mz, len, drop, 0.55, 0, { faces: 'nsb' }); bb.rectH('light_line_warm', x0 + 0.5, mz - 0.05, x1 - 0.5, mz + 0.05, H - drop - 0.004, false); }
+          };
+          for (const c of cs) {
+            const nxt = cs.filter(o => o !== c && o.z === c.z && o.x > c.x && o.x - c.x < 11).sort((a, b) => a.x - b.x)[0];
+            if (nxt) seg(c.x + c.hx, c.z, nxt.x - nxt.hx, c.z);
+            const nzt = cs.filter(o => o !== c && o.x === c.x && o.z > c.z && o.z - c.z < 11).sort((a, b) => a.z - b.z)[0];
+            if (nzt) seg(c.x, c.z + c.hz, c.x, nzt.z - nzt.hz);
+          }
+        }
         const p = mood === 'depachika' ? 1.8 : 2.4;
         for (let x = Math.ceil(bx0 / p) * p + p / 2; x < bx1; x += p) for (let z = Math.ceil(bz0 / p) * p + p / 2; z < bz1; z += p) downlight(x, z, H, downMat, mood === 'depachika' ? 0.09 : 0.11, (Math.round(x / p) % 2 === 0) && (Math.round(z / p) % 2 === 0), mood === 'depachika' ? 1.0 : 0.6);
       }); break;
@@ -207,6 +231,7 @@ export function buildCeilings(K) {
       }); break;
       default: break;
     }
+    serviceKit(K, { lv, sp, H, has, raise, bx0, bz0, bx1, bz1 });
   });
   // ---- ceilings over ramp wells on their upper level (indoor) -------------------------
   for (const r of L.ramps) {

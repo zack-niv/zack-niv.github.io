@@ -166,6 +166,9 @@ function finish(S, c) {
   }
   // skirting
   P.qd('env_matte', 0, W, 0, 0.08, Dp - 0.02, -1, [0.15, 0.15, 0.15]);
+  // ceiling plane (Architecture leaves room ceilings to the shops): without it the interior opens to the sky/street
+  const dk = c.group === 'kissa' || c.group === 'rtable' || c.group === 'rcounter' || c.group === 'sushi' || c.group === 'okonomiyaki';
+  P.qh('env_matte', 0.02, W - 0.02, 0.02, Dp - 0.02, S.ceil - 0.006, false, dk ? [0.3, 0.22, 0.17] : [0.9, 0.9, 0.88]);
   if (c.group === 'closed') return;
   // ceiling lights
   const lc = LIGHT[c.light] || LIGHT.neutral;
@@ -550,7 +553,7 @@ export function gondola(S, P, ac, d0, d1, h, kinds, opts = {}) {
 function hangingPOP(S, P, a, d, y) {
   const pr = S.R.pop(Math.floor(S.r() * 8), S.r() < 0.6 ? D.yen(98 + Math.floor(S.r() * 60) * 10) : null);
   P.tq(pr, a - 0.3, a + 0.3, y, y + 0.45, d, -1);
-  P.qd(pr.atlas.mat(pr), a - 0.3, a + 0.3, y, y + 0.45, d + 0.004, 1, WHITE, pr.atlas.uv(pr, true));
+  P.qd(pr.atlas.mat(pr), a - 0.3, a + 0.3, y, y + 0.45, d + 0.004, 1, WHITE, pr.atlas.uv(pr));
   P.box('env_metal', a - 0.004, a + 0.004, y + 0.45, S.ceil, d - 0.002, d + 0.002, [0.4, 0.4, 0.4]);
 }
 
@@ -788,7 +791,7 @@ INTERIOR.fashion = (S, c) => {
   if (r() < 0.35) {
     const br = S.R.banner(r() < 0.5 ? ['SALE', '秋のセール 最大50%OFF'] : ['NEW ARRIVAL', '秋冬コレクション入荷'], r() < 0.6 ? '#c8102e' : '#111111', '#ffffff');
     P.tq(br, W / 2 - 1.2, W / 2 + 1.2, S.doorTop - 0.65, S.doorTop - 0.05, 0.25, -1);
-    P.qd(br.atlas.mat(br), W / 2 - 1.2, W / 2 + 1.2, S.doorTop - 0.65, S.doorTop - 0.05, 0.254, 1, WHITE, br.atlas.uv(br, true));
+    P.qd(br.atlas.mat(br), W / 2 - 1.2, W / 2 + 1.2, S.doorTop - 0.65, S.doorTop - 0.05, 0.254, 1, WHITE, br.atlas.uv(br));
   }
   S.light(W / 2, 2.5, 1.0, [1, 0.95, 0.88], 0.5, 3, 'spot');
 };

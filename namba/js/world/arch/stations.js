@@ -315,6 +315,18 @@ function nankaiConcourseRoof(K) {
       K.light({ level: lv, x, y: tb - 0.5, z, color: KELVIN.terminal, intensity: 2.2, range: 14, kind: 'down' });
     }
   }
+  // continuous LED slots in the perforated vault between the trusses (a lit, light-grey ceiling,
+  // not a black void), each with a trim and its light declaration
+  for (const [za, zb] of [[z0 + 1, mz0 - 0.4], [mz1 + 0.4, z1 - 1]]) {
+    for (let x = x0 + 8; x < x1 - 2; x += 8) {
+      const xs = x + 4 - 4;           // truss lines are at x0 + 4 + 8k: slots sit midway between them
+      const b = K.B(lv, xs, (za + zb) / 2);
+      b.rectH('light_line_neutral', xs - 0.3, za, xs + 0.3, zb, H - 0.01, false);
+      b.box('aluminium', xs - 0.34, H - 0.03, (za + zb) / 2, 0.04, 0.05, zb - za);
+      b.box('aluminium', xs + 0.34, H - 0.03, (za + zb) / 2, 0.04, 0.05, zb - za);
+      for (let z = za; z < zb; z += 8) K.light({ level: lv, x: xs, y: H - 0.1, z: Math.min(zb, z + 4), color: KELVIN.terminal, intensity: 1.3, range: 12, kind: 'strip', len: Math.min(8, zb - z), axis: 'z' });
+    }
+  }
   // transfer beam + fascia where the concourse roof meets the lower shed roof
   const plat = K.L.spaces.find(s => s.style === 'terminal_platform');
   if (plat) {

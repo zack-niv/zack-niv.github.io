@@ -7,7 +7,12 @@
 import { rng, Biquad, softclip, peak, scale } from './dsp.js';
 import { Track, epiano, mallet, pluck, bass, pad, lead, flute, kick, snare, hat, shaker, rim, clap, nm, chord, voice } from './synth.js';
 
-const N = (s) => (typeof s === 'number' ? s : nm(s));
+// TP: transposition (semitones) applied to every pitched note while a section renders, so one
+// composition yields several keys/tempi and a longer A / A' (key-change) form instead of a 15 s loop
+let TP = 0;
+const N = (s) => (typeof s === 'number' ? s : nm(s)) + TP;
+// per-shop variants of the same tune: [transpose, tempo multiplier]
+const VAR = [[0, 1], [-2, 0.94], [3, 1.06]];
 
 // speaker-ish EQ baked into shop loops (they are heard through shop ceiling
 // speakers, then the doorway): cut lows, soften extreme highs, slight mid hump
@@ -29,20 +34,27 @@ function finish(tr, target = 0.7, drive = 1.2) {
   return { channels: [tr.L, tr.R], sampleRate: tr.sr, loop: tr.wrap };
 }
 
-// generic band render: chords per bar + comping/bass/drum pattern callbacks
-function band({ sr, bpm, bars, beatsPerBar = 4, seed = 1, fn, eq = [170, 7500] }) {
-  const spb = 60 / bpm;
-  const tr = new Track(sr, bars * beatsPerBar * spb, true);
-  const r = rng(seed);
-  const at = (beat) => beat * spb;
-  fn({ tr, r, spb, at, sr });
+// generic band render: chords per bar + comping/bass/drum pattern callbacks.
+// Renders A, A' (a whole tone up) and A'' (down a tone), each with its own humanisation seed, so the loop is three times as long;
+// `v` picks a per-shop variant (key + tempo).
+function band({ sr, bpm, bars, beatsPerBar = 4, seed = 1, fn, eq = [170, 7500], v = 0, sections = [0, 2, -2] }) {
+  const [vt, vtempo] = VAR[(v | 0) % VAR.length];
+  const spb = 60 / (bpm * vtempo);
+  const secBeats = bars * beatsPerBar;
+  const tr = new Track(sr, sections.length * secBeats * spb, true);
+  sections.forEach((tp, sec) => {
+    TP = tp + vt;
+    const r = rng(seed + sec * 977);
+    const at = (beat) => (beat + sec * secBeats) * spb;
+    try { fn({ tr, r, spb, at, sr, sec }); } finally { TP = 0; }
+  });
   // shop loops are heard through ceiling speakers and a doorway
   if (eq) shopEQ(tr, eq[0], eq[1]);
   return tr;
 }
 
 // ---- shop loop: J-pop (royal-road progression, bright glock hook) ------------
-export function shopJpop(sr) {
+export function shopJpop(sr, v = 0) {
   const prog = [['F3', 'maj7'], ['G3', '6'], ['E3', 'm7'], ['A3', 'm7'], ['D3', 'm7'], ['E3', 'm7'], ['F3', 'maj7'], ['G3', 'sus4']];
   const mel = [[0.5, 'E5', .5], [1, 'G5', .5], [1.5, 'A5', 1], [2.5, 'C6', .5], [3, 'A5', .5], [3.5, 'G5', .5],
     [4, 'A5', 1], [5, 'G5', .5], [5.5, 'E5', .5], [6, 'D5', 1.5],
@@ -52,7 +64,7 @@ export function shopJpop(sr) {
     [20, 'B5', 1], [21, 'G5', .5], [21.5, 'E5', 1.5],
     [24.5, 'A5', .5], [25, 'C6', .5], [25.5, 'E6', 1], [26.5, 'D6', .5], [27, 'C6', .5], [27.5, 'A5', .5],
     [28, 'B5', 1], [29, 'C6', .5], [29.5, 'D6', 2]];
-  return finish(band({ sr, bpm: 124, bars: 8, seed: 21, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 124, bars: 8, seed: 21, fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 57, 76);
       const b0 = b * 4;
@@ -77,13 +89,13 @@ export function shopJpop(sr) {
 }
 
 // ---- shop loop: city-pop (maj7/9 chords, synth bass, claps, shaker) ----------
-export function shopCitypop(sr) {
+export function shopCitypop(sr, v = 0) {
   const prog = [['D3', 'maj9'], ['C#3', 'm7'], ['B2', 'm7'], ['E3', '9'], ['D3', 'maj9'], ['C#3', 'm7'], ['F#3', 'm7'], ['E3', 'sus4']];
   const mel = [[0, 'F#5', 1], [1, 'A5', .5], [1.5, 'C#6', 1.5], [3.5, 'B5', .5], [4, 'A5', 1], [5, 'G#5', 1], [6, 'E5', 2],
     [8.5, 'D5', .5], [9, 'F#5', .5], [9.5, 'A5', 1], [10.5, 'B5', 1.5], [12, 'G#5', 1], [13, 'B5', 1], [14, 'E6', 2],
     [16, 'F#6', 1], [17, 'E6', .5], [17.5, 'C#6', 1.5], [19.5, 'A5', .5], [20, 'B5', 1.5], [21.5, 'G#5', 2.5],
     [24, 'A5', 1], [25, 'C#6', 1], [26, 'F#5', 1], [27, 'A5', .5], [27.5, 'B5', 4.5]];
-  return finish(band({ sr, bpm: 104, bars: 8, seed: 31, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 104, bars: 8, seed: 31, fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 58, 77), b0 = b * 4;
       for (const [o, d] of [[0, 0.4], [0.75, 0.3], [2.5, 0.4], [3.25, 0.6]])
@@ -99,11 +111,11 @@ export function shopCitypop(sr) {
 }
 
 // ---- shop loop: café bossa (nylon guitar, brush shaker, rim clave, flute) ------
-export function shopBossa(sr) {
+export function shopBossa(sr, v = 0) {
   const prog = [['D3', 'maj7'], ['D3', 'maj7'], ['E3', 'm7'], ['A2', '9'], ['A3', 'm7'], ['D3', '9'], ['G2', 'maj7'], ['C3', '9']];
   const mel = [[0.5, 'F#5', 1.5], [2, 'E5', .5], [2.5, 'F#5', 1], [3.5, 'A5', 2.5], [8, 'G5', 1.5], [9.5, 'F#5', .5], [10, 'E5', 1], [11, 'C#5', 3],
     [16.5, 'E5', 1], [17.5, 'G5', 1], [18.5, 'B5', 1.5], [20, 'A5', 2], [24, 'B5', 1.5], [25.5, 'A5', .5], [26, 'F#5', 1], [27, 'D5', 1], [28, 'E5', 3.5]];
-  return finish(band({ sr, bpm: 132, bars: 8, seed: 41, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 132, bars: 8, seed: 41, fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 55, 72), b0 = b * 4;
       // thumb: root on 1, fifth on 3 (with the classic dotted feel)
@@ -121,7 +133,7 @@ export function shopBossa(sr) {
 }
 
 // ---- drugstore jingle earworm (bouncy, catchy, repeats forever) --------------
-export function shopDrug(sr) {
+export function shopDrug(sr, v = 0) {
   // F major, 144 bpm, 8 bars: hook (2 bars) ×2, answer, tag
   const mel = [[0, 'F5', .5], [.5, 'F5', .5], [1, 'A5', .5], [1.5, 'C6', 1], [2.5, 'A5', .5], [3, 'G5', 1],
     [4, 'Bb5', .5], [4.5, 'Bb5', .5], [5, 'A5', .5], [5.5, 'G5', .5], [6, 'F5', 1.5],
@@ -131,7 +143,7 @@ export function shopDrug(sr) {
     [20, 'A5', .5], [20.5, 'A5', .5], [21, 'G5', .5], [21.5, 'F5', 1], [22.5, 'G5', 1.5],
     [24, 'F5', .5], [24.5, 'A5', .5], [25, 'C6', .5], [25.5, 'F6', 1], [26.5, 'E6', .5], [27, 'F6', 1], [28.5, 'C6', .5], [29, 'F5', 1]];
   const prog = [['F3', 'maj'], ['C3', '7'], ['F3', 'maj'], ['C3', '7'], ['Bb2', 'maj'], ['F3', 'maj'], ['G3', 'm7'], ['C3', '7']];
-  return finish(band({ sr, bpm: 144, bars: 8, seed: 51, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 144, bars: 8, seed: 51, fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 60, 74), b0 = b * 4;
       // oom-pah: bass on beats, chord on offbeats (marimba)
@@ -151,10 +163,10 @@ export function shopDrug(sr) {
 }
 
 // ---- game-centre / 100-yen / electronics: chirpy arps (120 Hz-free, bright) ---
-export function shopGame(sr) {
+export function shopGame(sr, v = 0) {
   const prog = [['A3', 'min'], ['F3', 'maj'], ['G3', 'maj'], ['E3', 'min'], ['A3', 'min'], ['F3', 'maj'], ['G3', 'sus4'], ['G3', 'maj']];
   const hook = ['A5', 'C6', 'E6', 'C6', 'D6', 'B5', 'G5', 'B5'];
-  return finish(band({ sr, bpm: 150, bars: 8, seed: 61, fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 150, bars: 8, seed: 61, fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 64, 79), b0 = b * 4;
       for (let s = 0; s < 16; s++) tr.add(lead(sr, notes[s % notes.length] + (s % 8 >= 4 ? 12 : 0), 0.2 * spb, 0.45, 0.125, 0.6), at(b0 + s * 0.25), 0.12, s % 2 ? 0.4 : -0.4);
@@ -166,10 +178,10 @@ export function shopGame(sr) {
 }
 
 // ---- department-store BGM: soft e-piano + strings, slow ------------------------
-export function bgmDept(sr) {
+export function bgmDept(sr, v = 0) {
   const prog = [['C3', 'maj9'], ['A2', 'm7'], ['D3', 'm7'], ['G2', '9'], ['E3', 'm7'], ['A2', '7'], ['F3', 'maj7'], ['G3', 'sus4']];
   const mel = [[1, 'E5', 1], [2, 'G5', 1], [3, 'D5', 3], [9, 'F5', 1], [10, 'A5', 1], [11, 'C6', 2], [13, 'B5', 3], [17, 'G5', 1], [18, 'B5', 1], [19, 'E5', 3], [25, 'A5', 1], [26, 'C6', 1], [27, 'D6', 2], [29, 'G5', 3]];
-  return finish(band({ sr, bpm: 76, bars: 8, seed: 71, eq: [90, 9000], fn: ({ tr, r, spb, at }) => {
+  return finish(band({ sr, v, bpm: 76, bars: 8, seed: 71, eq: [90, 9000], fn: ({ tr, r, spb, at }) => {
     prog.forEach(([root, q], b) => {
       const rt = N(root), notes = voice(chord(rt, q), 55, 74), b0 = b * 4;
       tr.add(bass(sr, rt - 12 + (rt < 45 ? 12 : 0), 3.8 * spb, 0.5), at(b0), 0.35, 0);
@@ -214,14 +226,14 @@ export function melSennichimae(sr) {
 }
 // Nankai departure melodies (hassha) — two originals, A for odd tracks, B even
 export function melNankaiA(sr) {
-  return melodyRender(sr, { bpm: 132, beats: 17, timbre: 'vibe', seed: 103,
+  return melodyRender(sr, { bpm: 132, beats: 17, timbre: 'musicbox', seed: 103,
     notes: [[0, 'A5', .5], [.5, 'F#5', .5], [1, 'A5', .5], [1.5, 'D6', 1.5], [3, 'C#6', .5], [3.5, 'B5', .5], [4, 'A5', .5], [4.5, 'F#5', .5], [5, 'G5', .5], [5.5, 'B5', .5], [6, 'E6', 1], [7, 'D6', .5], [7.5, 'C#6', 1.5],
       [9, 'B5', .5], [9.5, 'G5', .5], [10, 'B5', .5], [10.5, 'D6', .5], [11, 'E6', .5], [11.5, 'F#6', .5], [12, 'E6', .5], [12.5, 'D6', .5], [13, 'C#6', .5], [13.5, 'A5', .5], [14, 'B5', .5], [14.5, 'C#6', .5], [15, 'D6', 2]],
     chords: [[0, 'D4', 'maj', 3], [3, 'B3', 'm7', 2], [5, 'G3', 'maj7', 2], [7, 'A3', '7', 2], [9, 'G3', 'maj', 2], [11, 'F#3', 'm7', 2], [13, 'A3', 'sus4', 1], [14, 'A3', '7', 1], [15, 'D4', 'add9', 2]],
     bassline: [[0, 'D3', 3], [3, 'B2', 2], [5, 'G2', 2], [7, 'A2', 2], [9, 'G2', 2], [11, 'F#2', 2], [13, 'A2', 2], [15, 'D3', 2]] });
 }
 export function melNankaiB(sr) {
-  return melodyRender(sr, { bpm: 120, beats: 15, timbre: 'glock', seed: 104,
+  return melodyRender(sr, { bpm: 120, beats: 15, timbre: 'vibe', seed: 104,
     notes: [[0, 'F5', .5], [.5, 'Bb5', .5], [1, 'D6', .5], [1.5, 'F6', 1], [2.5, 'Eb6', .5], [3, 'D6', .5], [3.5, 'C6', .5], [4, 'D6', .5], [4.5, 'Bb5', 1.5],
       [6, 'G5', .5], [6.5, 'C6', .5], [7, 'Eb6', .5], [7.5, 'G6', 1], [8.5, 'F6', .5], [9, 'Eb6', .5], [9.5, 'D6', .5], [10, 'C6', .5], [10.5, 'A5', .5], [11, 'C6', .5], [11.5, 'Eb6', .5], [12, 'D6', .5], [12.5, 'F6', .5], [13, 'Bb6', 2]],
     chords: [[0, 'Bb3', 'maj', 3], [3, 'Eb4', 'maj7', 3], [6, 'C4', 'm7', 3], [9, 'F3', '7', 4], [13, 'Bb3', 'add9', 2]],
@@ -238,9 +250,10 @@ export function chimeConbini(sr) {
 }
 // PA attention chime: ascending (start) / descending (end) four-tone
 export function chimePA(sr, down = false) {
-  const tr = new Track(sr, 3.0, false), r = rng(202);
-  const notes = down ? ['C6', 'G5', 'E5', 'C5'] : ['F5', 'A5', 'C6', 'F6'];
-  notes.forEach((n, i) => tr.add(mallet(sr, nm(n), 0.7, 'vibe', 0.9, r), i * 0.32, 0.5, 0));
+  // soft department-store "ding-dong": low-register tubular bell, longer ring, clearly not the metro glock nor the Nankai music-box
+  const tr = new Track(sr, 3.4, false), r = rng(202);
+  const notes = down ? ['G5', 'E5', 'C5', 'G4'] : ['E5', 'C5', 'D5', 'G4'];
+  notes.forEach((n, i) => tr.add(mallet(sr, nm(n), 0.7, 'bell', 0.75, r), i * 0.42, 0.5, 0));
   return finish(tr, 0.6, 1.05);
 }
 // metro door-closing chime (original two-tone repeated)

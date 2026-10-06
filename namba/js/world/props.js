@@ -354,7 +354,10 @@ export class Props {
         while (s < L - 1.6) {
           if (r() > prof.art) { s += 3.2; continue; }
           const screen = r() < 0.2 && L - s > 2.6;
-          const w = screen ? 1.8 : r() < 0.4 ? 1.0 : 1.5;
+          const rk = r();
+          // wall programme: a wall is never empty (hose cabinet, AED, staff door, poster frame, screen)
+          const kind0 = screen ? 'screen' : rk < 0.1 ? 'hose' : rk < 0.16 ? 'aed' : rk < 0.26 ? 'staffdoor' : 'poster';
+          const w = kind0 === 'screen' ? 1.8 : kind0 === 'hose' ? 0.75 : kind0 === 'aed' ? 0.34 : kind0 === 'staffdoor' ? 1.0 : r() < 0.4 ? 1.0 : 1.5;
           const sc = s + w / 2;
           const q = [e.ax + t[0] * sc, e.az + t[1] * sc];
           // stay off shop frontage, doors, ramps, columns; wall cells in front must be free of tall claims
@@ -366,8 +369,10 @@ export class Props {
             else if (this._inRects(this.doors[lv], x, z, -0.3) || this._inRects(this.ramps[lv], x, z)) ok = false;
           }
           if (!ok) { s += 1.2; continue; }
-          const kind = screen ? 'screen' : 'poster';
-          const y0 = screen ? 1.55 : 0.85, y1 = screen ? y0 + w * 0.5625 : y0 + w * (r() < 0.5 ? 1.5 : 1.35);
+          const kind = kind0;
+          const pr = r() < 0.5 ? 1.5 : 1.35;
+          const y0 = { screen: 1.55, hose: 0.55, aed: 1.2, staffdoor: 0.0 }[kind] ?? 0.85;
+          const y1 = { screen: y0 + w * 0.5625, hose: 1.65, aed: 1.55, staffdoor: 2.1 }[kind] ?? y0 + w * pr;
           const it = this._push({ k: kind, level: lv, x: q[0], z: q[1], rot: Math.atan2(-n[0], -n[1]), n, w, y0, y1: Math.min(y1, sp.ceil - 0.5), ad: ads[Math.floor(r() * ads.length)], seed: Math.floor(r() * 1e9), src: Math.floor(r() * 4), zone: sp.zone });
           this.wallItems.push({ kind, level: lv, x: q[0], z: q[1], nx: n[0], nz: n[1], a: w, y0: it.y0, y1: it.y1 });
           // claim a thin strip so the next one keeps a gap
@@ -729,6 +734,24 @@ const BUILD = {
     P.qd(m, -w / 2, w / 2, it.y0, it.y1, -0.093, -1);
     const u = S._unitOf(it); if (u) u.hasScreens = true;
     void h;
+  },
+  hose(S, P, R, it) {
+    const w = it.w;
+    P.box('env_metal', -w / 2, w / 2, it.y0, it.y1, -0.13, 0, [0.82, 0.1, 0.1]);
+    P.tq(R.label('消火栓  FIRE HYDRANT', '#d01c1c', '#ffffff', 192, 48), -w / 2 + 0.06, w / 2 - 0.06, it.y0 + 0.5, it.y0 + 0.5 + (w - 0.12) * 48 / 192, -0.131, -1);
+    P.box('env_matte', -0.04, 0.04, it.y1 - 0.2, it.y1 - 0.12, -0.14, -0.13, [0.95, 0.9, 0.9]);
+    P.box('env_glow', -0.04, 0.04, it.y1 + 0.02, it.y1 + 0.08, -0.12, -0.04, [2.4, 0.2, 0.15]);   // red beacon
+  },
+  aed(S, P, R, it) {
+    P.box('env_matte', -0.17, 0.17, it.y0, it.y1, -0.14, 0, [0.95, 0.96, 0.95]);
+    P.tq(R.litLabel('AED', '#0a8f4a', '#ffffff', 96, 64), -0.15, 0.15, it.y0 + 0.2, it.y0 + 0.2 + 0.3 * 64 / 96, -0.141, -1);
+  },
+  staffdoor(S, P, R, it) {
+    P.box('env_metal', -0.55, 0.55, 0, 2.15, -0.05, 0, [0.5, 0.52, 0.55]);
+    P.box('env_matte', -0.5, 0.5, 0.0, 2.1, -0.075, -0.05, [0.7, 0.72, 0.74]);
+    P.box('env_metal', 0.34, 0.4, 0.95, 1.0, -0.12, -0.075, [0.85, 0.85, 0.86]);   // lever
+    P.box('env_metal', 0.3, 0.44, 1.2, 1.5, -0.08, -0.075, [0.8, 0.8, 0.82]);       // push plate
+    P.tq(R.label('関係者以外立入禁止', '#b01818', '#ffffff', 256, 40), -0.38, 0.38, 1.72, 1.72 + 0.76 * 40 / 256, -0.077, -1);
   },
   poster(S, P, R, it) {
     const w = it.w, port = (it.y1 - it.y0) > w;

@@ -330,7 +330,7 @@ export const TEX = {
       const hx = (x % p) - p / 2 + 0.5, hy = (y % p) - p / 2 + 0.5;
       const hole = !border && Math.hypot(hx, hy) < p * 0.28;
       const c = hole ? 0.38 : 0.86;
-      o.r = c; o.g = c; o.b = c * 1.01; o.h = hole ? 0.3 : 0.6 + Math.min(1, d / 3) * 0.2; o.rough = hole ? 0.9 : 0.42; o.metal = hole ? 0 : 0.35;
+      o.r = c; o.g = c; o.b = c * 1.01; o.h = hole ? 0.3 : 0.6 + Math.min(1, d / 3) * 0.2; o.rough = hole ? 0.9 : 0.5; o.metal = hole ? 0 : 0.15;
     }, { normal: 1.5 });
   } },
   // linear aluminium strip (spandrel) ceiling, strips along u
@@ -341,7 +341,7 @@ export const TEX = {
       const gap = ly < p * 0.14;
       const e = Math.min(ly - p * 0.14, p - ly) / (p * 0.86);
       const c = gap ? 0.08 : 0.84 + Math.sin(e * Math.PI) * 0.04;
-      o.r = c; o.g = c; o.b = gap ? c : c * 1.01; o.h = gap ? 0 : 0.5 + Math.sin(clamp(e) * Math.PI) * 0.4; o.rough = gap ? 0.9 : 0.3; o.metal = gap ? 0 : 0.7;
+      o.r = c; o.g = c; o.b = gap ? c : c * 1.01; o.h = gap ? 0 : 0.5 + Math.sin(clamp(e) * Math.PI) * 0.4; o.rough = gap ? 0.9 : 0.34; o.metal = gap ? 0 : 0.22;
     }, { normal: 3 });
   } },
   // timber slat ceiling (Namba Parks interiors)
@@ -367,7 +367,7 @@ export const TEX = {
       const v = (y / N) * 6 % 1;
       const prof = v < 0.35 ? 1 : v < 0.5 ? 1 - (v - 0.35) / 0.15 : v < 0.85 ? 0 : (v - 0.85) / 0.15;
       const c = 0.52 + prof * 0.06 + (at(F, N, x, y) - 0.5) * 0.04;
-      o.r = c; o.g = c * 1.01; o.b = c * 1.03; o.h = prof; o.rough = 0.55; o.metal = 0.5;
+      o.r = c; o.g = c * 1.01; o.b = c * 1.03; o.h = prof; o.rough = 0.55; o.metal = 0.2;
     }, { normal: 4 });
   } },
 

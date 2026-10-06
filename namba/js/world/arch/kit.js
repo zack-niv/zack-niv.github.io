@@ -20,9 +20,9 @@ export const KELVIN = {
   metro: 0xe8f0ff,     // ~6000 K cool white (Osaka Metro)
   terminal: 0xf3f1ec,  // ~4800 K neutral (Nankai)
   passage: 0xeef2fa,   // ~5500 K
-  mall: 0xffe2c2,      // ~3500 K (Namba CITY, NAMBAWALK courts)
+  mall: 0xffeadb,      // ~3800 K (Namba CITY, NAMBAWALK courts)
   arcade: 0xfff0dc,    // ~4000 K (NAMBAWALK)
-  depachika: 0xffd9ae, // ~3000 K warm & bright
+  depachika: 0xffe3c4, // ~3400 K warm & bright
   parks: 0xffd6a6,     // ~3000 K
   dining: 0xffc890,    // ~2700 K
 };

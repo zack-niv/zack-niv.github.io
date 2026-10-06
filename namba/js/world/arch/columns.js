@@ -60,7 +60,7 @@ export function buildColumns(K) {
     const up = K.above(lv);
     for (let dz = -1.5; dz <= 1.5; dz += 0.5) for (let dx = -1.5; dx <= 1.5; dx += 0.5) {
       const c = K.cell(lv, x + dx, z + dz);
-      if (c.t !== CELL.WALK || !c.sp || c.sp.kind === 'room' || c.sp.outdoor) return true;
+      if (c.t !== CELL.WALK || !c.sp || (c.sp.kind === 'room' && c.sp.style !== 'department') || c.sp.outdoor) return true;
       if (up && K.isHole(up, x + dx, z + dz)) return true;
     }
     return false;
@@ -79,7 +79,7 @@ export function buildColumns(K) {
   };
   // ---- halls: regular grid ----------------------------------------------------------
   for (const sp of L.spaces) {
-    if (!sp.rect || sp.outdoor || sp.kind === 'room') continue;
+    if (!sp.rect || sp.outdoor || (sp.kind === 'room' && sp.style !== 'department')) continue;
     const st = styleOf(sp);
     if (!st.col) continue;
     const [x0, z0, x1, z1] = sp.rect;

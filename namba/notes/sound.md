@@ -82,3 +82,23 @@ fake player) → WAV → numpy/scipy spectrograms. Rig lives in the session scra
   3. Trains: arrival only +2 dB over ambience → roll ×3, distance/tunnel-dependent LP; train
      audible at full level 200 m down the tunnel because reverb sends were pre-panner → sends now
      follow distance (∝ d^-0.8 beyond 2.5×ref). Arrival now −34 dB (tunnel) → −13 dB (platform).
+
+## Round 2 (critique: notes/critique/sound.md)
+Changed (all in js/audio/*):
+* **Crowd voices** (critique 1): `crowd:excuse` / `crowd:callout` → `Audio._bark` plays `bark:ja:<f|m>:<seed>:<kana>` (new recipe: dry formant voice, no PA horn),
+  positional + HRTF, LOS-muffled; excuse also emits a `caption` (speaker 'Stranger'). Ambience adds sparse close-by chatter (`CHAT` list in ambience.js).
+* **NPC gate beeps** (2): `gate:pass` (and `crowd:gate` only when transit has no gatePass) → positional `gate_ok` (±3 % pitch, every 25th `gate_low`, 1 % `gate_fail`),
+  ≤6 per 0.6 s, same level, ≤40 m, skipped when it duplicates the player's `ic:tap`.
+* **PA** (3,4): SpeechSynthesis is now OFF by default (`ctx.audio.useSpeech=false`; `settings:change` key `speech` turns it on). `game:pause` pauses speech, tab hide cancels it.
+  Formant voice: Japanese accent-phrase contour (rise over 2 morae, declination, accent step, phrase-final fall + 1.5× final mora, each phrase lower), 30 ms portamento,
+  no hum/noise floor in pauses. English: stress peaks + final fall.
+* **Walla** (5): brighter (hp 330 Hz, +10 dB @2.6 k, +8 dB @4.3 k, lp 6.2 k; emitter lp 5.6 k): centroid 356 → 1075 Hz.
+* **Shop music** (6): every loop is now A / A' (+2 st) / A'' (−2 st) = 25–48 s, and per-shop variants `mus:<genre>:<0..2>` (key −2/0/+3, tempo 0.94/1/1.06; variant by hash of slot). Music buffers at 24 kHz; unused ones are dropped (`Sources._gcMusic`).
+* **Escalator** (7): loop has step-comb clicks (louder, varied), chain rattle and handrail hiss (centroid 160 → 286 Hz, 1–4 k band present); 4 announcement variants (`ESCALATOR_LINES`) rotate ja/en, caption per new variant.
+* **Footsteps** (8): sneaker crest eased (~5 dB), steps −2 dB, rubber squeak (`fs:squeak:N`) on tile/stone, 45 % on turns (camera yaw change) else 4 %.
+* **Indoor→outdoor** (9): `player:zone` into outdoors plays `bed:gust` and dips the reverb return for ~1 s; garden/canyon beds raised ~4–6 dB.
+* **Chimes** (10): PA attention chime = low-register tubular-bell "ding-dong" (`chime:pa`); Nankai A = music-box, Nankai B = vibraphone; Midosuji glock, Sennichimae marimba.
+* **Bug 5**: `Audio.play` ignores a repeat of the same non-positional recipe within 120 ms (phone:message + phone_buzz).
+* **Trains** (loud at 120 m): train emitters now have panner rolloff 0 and an explicit level = distance law `1/(1+(d/16)^1.4)` × occlusion (`_occ`: on platform 1, same zone 0.65, elsewhere 0.4)
+  × platform-screen-door gate (`ctx.transit.trackInfo/trackState.psdOpen`, only hides a train that is still in the tunnel) × tunnel 0.6, applied to roll/motor/one-shots so the reverb send falls with it.
+* HRTF only above quality `low` (re-evaluated at runtime). `ambience._density` fixed: `crowd.densityNear` is people/m², converted to a head count in the 12 m disc.

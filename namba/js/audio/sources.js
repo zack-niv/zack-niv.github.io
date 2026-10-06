@@ -9,7 +9,7 @@
 // the doorway → muffled.
 // =============================================================================
 import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js';
-import { ESCALATOR, IRASSHAI } from './phrases.js';
+import { ESCALATOR_LINES, IRASSHAI } from './phrases.js';
 
 // category → [music recipe | null, activity kind | null, music gain]
 const CAT = {
@@ -32,6 +32,7 @@ const ACT = {
   cafe:    { recipe: null, gain: 0.5, ref: 2 },
   gacha:   { recipe: null, gain: 0.5, ref: 2 },
 };
+function hashStr(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 const MAX_MUSIC = 6, MAX_ACT = 4, MAX_ESC = 3;
 
 export class Sources {
@@ -54,7 +55,7 @@ export class Sources {
       const y0 = LEVELS[b.level] ? LEVELS[b.level].y : 0;
       const d = b.door, nx = d.nx || 0, nz = d.nz || 0;
       // speaker ~1.2 m inside the doorway, near the ceiling; kitchens deeper
-      if (mus) this.shops.push({ key: 'm:' + b.slot, cls: 'music', b, recipe: mus, gain: mg, level: b.level, x: d.x - nx * 1.2, y: y0 + 2.6, z: d.z - nz * 1.2, ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
+      if (mus) this.shops.push({ key: 'm:' + b.slot, cls: 'music', b, recipe: mus + ':' + (hashStr(String(b.slot)) % 3), gain: mg, level: b.level, x: d.x - nx * 1.2, y: y0 + 2.6, z: d.z - nz * 1.2, ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
       if (act) this.shops.push({ key: 'a:' + b.slot, cls: 'act', act, b, level: b.level, x: d.x - nx * (act === 'conbini' ? 2 : 3), y: y0 + 1.0, z: d.z - nz * (act === 'conbini' ? 2 : 3), ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
     }
     // escalator banks: machinery at both landings
@@ -104,6 +105,8 @@ export class Sources {
     pick(this.shops.filter(s => s.cls === 'music' && open(s)), MAX_MUSIC, 45);
     pick(this.shops.filter(s => s.cls === 'act' && open(s)), MAX_ACT, 30);
     pick(this.escs, MAX_ESC, 30);
+    // long music loops are big: keep only the few not currently playing
+    if (this.bank.cache.size > 12) this._gcMusic(want);
     // retire
     for (const [k, v] of this.live) if (!want.has(k)) { v.em.dispose(0.6); this.live.delete(k); }
     // spawn
@@ -128,6 +131,13 @@ export class Sources {
         this._occlude(this.live.get(k), L, true);
       }
     }
+  }
+
+  _gcMusic(want) {
+    const keep = new Set([...want.values()].map(s => s.recipe).filter(Boolean));
+    const old = [];
+    for (const k of this.bank.cache.keys()) if (k.startsWith('mus:') && !keep.has(k)) old.push(k);
+    for (let i = 0; i < old.length - 3; i++) this.bank.drop(old[i]);
   }
 
   _occlude(v, L, instant = false) {
@@ -210,12 +220,14 @@ export class Sources {
     if (onEsc) { for (const v of this.live.values()) if (v.s.bank === (L.ramp.bank || L.ramp.id)) { best = v; bd = 2; break; } }
     if (!best || bd > 14) return;
     const k = best.s.bank;
-    const st = this.escState.get(k) || { next: 0.8, lang: 'ja', captioned: false };
+    const st = this.escState.get(k) || { next: 0.8, lang: 'ja', captioned: false, v: Math.floor(this.rand() * ESCALATOR_LINES.length) };
     st.next -= dt;
     if (st.next <= 0 && !ann.busyWith('escalator') && (!ann.cur || ann.cur.prio > 3)) {
-      const p = st.lang === 'ja' ? { lang: 'ja', text: ESCALATOR.ja } : { lang: 'en', text: ESCALATOR.en };
-      ann.say({ kind: 'escalator', parts: [p], pos: { x: best.s.x, y: best.s.y + 0.7, z: best.s.z }, gain: 0.5, ref: 2.2, send: 0.35, lp: 5000, positional: true, caption: !st.captioned, chime: st.lang === 'ja' ? 'esc' : null, seed: 7 });
-      st.captioned = true;
+      const E = ESCALATOR_LINES[st.v % ESCALATOR_LINES.length];
+      const p = st.lang === 'ja' ? { lang: 'ja', text: E.ja } : { lang: 'en', text: E.en };
+      ann.say({ kind: 'escalator', parts: [p], pos: { x: best.s.x, y: best.s.y + 0.7, z: best.s.z }, gain: 0.5, ref: 2.2, send: 0.35, lp: 5000, positional: true, caption: st.capV !== st.v, chime: st.lang === 'ja' ? 'esc' : null, seed: 7 });
+      st.captioned = true; st.capV = st.v;
+      if (st.lang === 'en') st.v++; // next time round: a different line
       st.lang = st.lang === 'ja' ? 'en' : 'ja';
       st.next = st.lang === 'en' ? 1.5 : 9 + this.rand() * 4;
       // queue the next part right after this one finishes: next counts from now

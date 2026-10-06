@@ -10,7 +10,7 @@ import { makeHumanMaterial, makeBlobMaterial, INSTANCE_ATTRS } from './humanMat.
 import { POSE, MODE } from './sim.js';
 import { BIT } from './looks.js';
 
-const LOD_CAP = [240, 650, 1200];
+const LOD_CAP = [180, 500, 1200];
 
 export class CrowdRenderer {
   constructor(ctx, sim) {

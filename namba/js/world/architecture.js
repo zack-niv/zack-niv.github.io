@@ -26,6 +26,8 @@ import { buildColumns } from './arch/columns.js';
 import { buildTactile } from './arch/tactile.js';
 import { buildStations } from './arch/stations.js';
 import { Ramps } from './arch/escalators.js';
+import { wallKit, wearKit } from './arch/details.js';
+import { buildPortals } from './arch/portals.js';
 
 export { STYLE, styleOf };
 
@@ -47,11 +49,14 @@ export class Architecture {
     };
     step('stations', () => { const s = buildStations(K); this.adFrames = s.adFrames; this.serviceBeams = s.serviceBeams; this.platformColumns = s.platformColumns; });
     step('tactile', () => { this.stats.tactileSegs = buildTactile(K); });
-    step('columns', () => { this.columns = buildColumns(K); });
+    step('columns', () => { this.columns = K.columns = buildColumns(K); });
     step('surfaces', () => { this.fascia = buildSurfaces(K).fascia; });
     step('ceilings', () => buildCeilings(K));
     step('ramps', () => { this.ramps = new Ramps(K); this.ramps.build(); this.exitCanopies = this.ramps.exitCanopies || []; });
     this.hangPoints = K.hangPoints || [];
+    step('portals', () => { this.stats.portals = buildPortals(K); });
+    step('walls', () => { this.stats.wallKit = wallKit(K); });
+    step('wear', () => { this.stats.wearDecals = wearKit(K); });
     // emit static meshes into chunk groups
     step('emit', () => {
       let meshes = 0;

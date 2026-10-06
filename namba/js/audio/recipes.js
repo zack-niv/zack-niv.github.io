@@ -9,6 +9,7 @@ import * as B from './beds.js';
 import * as T from './trainsfx.js';
 import { impulse } from './ir.js';
 import { formantVoice, walla } from './formant.js';
+import { Biquad, normalize } from './dsp.js';
 
 const mono = (a) => [a];
 
@@ -17,8 +18,9 @@ export function rateFor(name, base) {
   const cap = Math.min(base, 48000);
   const kind = name.split(':')[0];
   if (kind === 'ir') return base;
-  if (kind === 'mus' || kind === 'mel' || kind === 'chime') return Math.min(cap, 32000);
-  if (kind === 'voice') return Math.min(cap, 24000);
+  if (kind === 'mus') return Math.min(cap, 24000); // long loops: speaker EQ cuts >7.5 kHz anyway
+  if (kind === 'mel' || kind === 'chime') return Math.min(cap, 32000);
+  if (kind === 'voice' || kind === 'bark') return Math.min(cap, 24000);
   if (kind === 'bed') { const v = name.split(':')[1]; return v === 'leaves' || v === 'water' || v === 'steps' ? Math.min(cap, 32000) : Math.min(cap, 24000); }
   if (name === 'tr:roll' || name === 'tr:aux') return Math.min(cap, 24000);
   return cap;
@@ -29,7 +31,13 @@ export function synthesize(name, base) {
   const p = name.split(':');
   let ch, loop = false;
   switch (p[0]) {
-    case 'fs': ch = mono(F.footstep(sr, p[1], +p[3] || 0, p[2] || 'sneaker')); break;
+    case 'fs': ch = mono(p[1] === 'squeak' ? F.squeak(sr, +p[2] || 0) : F.footstep(sr, p[1], +p[3] || 0, p[2] || 'sneaker')); break;
+    case 'bark': { // bark:<lang>:<gender>:<seed>:<text> — a person's voice, dry, no PA horn (excuse me / irasshaimase / chatter)
+      const text = p.slice(4).join(':'), male = p[2] === 'm';
+      const v = formantVoice(sr, text, { lang: p[1], gender: p[2], seed: +p[3] || 1, rate: 1.12, pa: false, breath: 0.07, f0: male ? 236 : 216 });
+      new Biquad('highpass', 140, 0.7, 0, sr).run(v); new Biquad('lowpass', 5200, 0.7, 0, sr).run(v); new Biquad('peaking', 2600, 0.9, 4, sr).run(v);
+      ch = mono(normalize(v, 0.6)); break;
+    }
     case 'ui': {
       const fn = { select: F.select, rustle: F.rustle, gate_ok: F.gateOk, gate_low: F.gateLow, gate_fail: F.gateFail, phone_open: F.phoneOpen, phone_close: F.phoneClose, notify: F.notify, order: F.order, pay: F.pay, cup: F.cup, bell: F.counterBell }[p[1]];
       if (!fn) throw new Error('no ui sound ' + p[1]);
@@ -37,7 +45,7 @@ export function synthesize(name, base) {
     }
     case 'mus': {
       const fn = { jpop: M.shopJpop, citypop: M.shopCitypop, bossa: M.shopBossa, drug: M.shopDrug, game: M.shopGame, dept: M.bgmDept }[p[1]];
-      const res = fn(sr); ch = res.channels; loop = true; break;
+      const res = fn(sr, +p[2] || 0); ch = res.channels; loop = true; break;
     }
     case 'mel': { const fn = { midosuji: M.melMidosuji, sennichimae: M.melSennichimae, nankaiA: M.melNankaiA, nankaiB: M.melNankaiB }[p[1]]; ch = fn(sr).channels; break; }
     case 'chime': {
@@ -58,6 +66,7 @@ export function synthesize(name, base) {
       switch (p[1]) {
         case 'hvac': ch = B.hvac(sr, p[2] || 'tile'); break;
         case 'tunnel': ch = B.tunnel(sr); break;
+        case 'gust': ch = mono(F.gust(sr, +p[2] || 0)); loop = false; break;
         case 'traffic': ch = B.traffic(sr); break;
         case 'cityfar': ch = B.cityFar(sr); break;
         case 'leaves': ch = B.leaves(sr); break;

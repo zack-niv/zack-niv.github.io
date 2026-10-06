@@ -184,15 +184,22 @@ export class Hall {
   end() { this.replay = false; const g = this.batches.build(this.env.ctx); this.batches = null; return g; }
   painter(x, z) { return this.replay ? new Painter(this.batches.get(this.level, x, z), this.f) : this.nullP; }
   // all cells walkable, in this space, unblocked (with margin)
-  clear(x0, z0, x1, z1, m = 0) {
+  // allowCols: structural columns may sit inside the footprint (counters wrap around them)
+  clear(x0, z0, x1, z1, m = 0, allowCols = false) {
     if (this.replay) return this.log[this.ri++];
-    const v = this._clear(x0, z0, x1, z1, m); this.log.push(v); return v;
+    const v = this._clear(x0, z0, x1, z1, m, allowCols); this.log.push(v); return v;
   }
-  _clear(x0, z0, x1, z1, m) {
+  _inCol(x, z) {
+    const A = this.env.ctx.architecture;
+    if (!this._cols) this._cols = ((A && A.columns) || []).filter(c => c.level === this.level);
+    for (const c of this._cols) if (Math.abs(x - c.x) < c.hx + 0.75 && Math.abs(z - c.z) < c.hz + 0.75) return true;
+    return false;
+  }
+  _clear(x0, z0, x1, z1, m, allowCols) {
     const g = this.env.world.grids[this.level];
     for (let z = Math.floor(z0 - m); z < Math.ceil(z1 + m); z++) for (let x = Math.floor(x0 - m); x < Math.ceil(x1 + m); x++) {
       const i = g.cellOf(x + 0.5, z + 0.5);
-      if (i < 0 || g.type[i] !== CELL.WALK || g.blocked[i]) return false;
+      if (i < 0 || g.type[i] !== CELL.WALK || (g.blocked[i] && !(allowCols && this._inCol(x + 0.5, z + 0.5)))) return false;
       const s = this.env.world.layout.spaces[g.space[i]];
       if (s !== this.sp) return false;
     }
@@ -234,17 +241,17 @@ export function buildDepachika(env, R, H = new Hall(env, 'taka_b1')) {
   const [X0, Z0, X1, Z1] = H.sp.rect;
   const r = rng(hash('depachika'));
   // main aisles: N-S at the north entry (x ≈ -16), E-W at z ≈ -165
-  const mainX = [-21, -11], mainZ = [-169, -161];
-  const iw = 8, ih = 4.6, gx = 3.2, gz = 3.2;
+  const mainX = [-20, -12], mainZ = [-169, -161];
+  const iw = 8, ih = 4.8, gx = 2.6, gz = 2.7;
   let vi = 0;
   const P0 = H.painter(-30, -166);
   // floor: warm stone aisles + a lighter inlay under islands is done per island
   for (let z = Z0 + 3.2; z + ih <= Z1 - 3; z += ih + gz) {
     for (let x = X0 + 3.2; x + iw <= X1 - 3; x += iw + gx) {
       // keep the main aisles open
-      if (x < mainX[1] && x + iw > mainX[0]) continue;
-      if (z < mainZ[1] && z + ih > mainZ[0]) continue;
-      if (!H.clear(x, z, x + iw, z + ih, 1)) continue;
+      if (x < mainX[1] && x + iw > mainX[0]) { x = mainX[1] + 1.2 - (iw + gx); continue; }   // resume right after the aisle
+      if (z < mainZ[1] && z + ih > mainZ[0]) { z = mainZ[1] + 0.8 - (ih + gz); break; }
+      if (!H.clear(x, z, x + iw, z + ih, 1, true)) continue;
       island(H, R, x, z, x + iw, z + ih, VENDORS[vi++ % VENDORS.length], r);
     }
   }
@@ -255,7 +262,7 @@ export function buildDepachika(env, R, H = new Hall(env, 'taka_b1')) {
   const ban = R.banner(['秋の味覚フェア', 'AUTUMN FOOD FAIR · B1 食料品'], '#7b2d0a', '#ffe9c0');
   for (let z = Z0 + 8; z < Z1 - 6; z += 14) {
     P.tq(ban, -18.5, -13.5, 2.0, 2.6, z, -1);
-    P.qd(ban.atlas.mat(ban), -18.5, -13.5, 2.0, 2.6, z + 0.005, 1, WHITE, ban.atlas.uv(ban, true));
+    P.qd(ban.atlas.mat(ban), -18.5, -13.5, 2.0, 2.6, z + 0.005, 1, WHITE, ban.atlas.uv(ban));
     P.box('env_metal', -18.4, -18.38, 2.6, 3.0, z - 0.01, z + 0.01, [0.6, 0.6, 0.6]);
     P.box('env_metal', -13.62, -13.6, 2.6, 3.0, z - 0.01, z + 0.01, [0.6, 0.6, 0.6]);
   }
@@ -329,7 +336,7 @@ function island(H, R, x0, z0, x1, z1, V, r) {
   const sy = 2.25;
   P.box('env_matte', cx - sw / 2 - 0.05, cx + sw / 2 + 0.05, sy - 0.04, sy + sh + 0.04, cz - 0.06, cz + 0.06, col);
   P.tq(sg, cx - sw / 2, cx + sw / 2, sy, sy + sh, cz - 0.062, -1);
-  P.qd(sg.atlas.mat(sg), cx - sw / 2, cx + sw / 2, sy, sy + sh, cz + 0.062, 1, WHITE, sg.atlas.uv(sg, true));
+  P.qd(sg.atlas.mat(sg), cx - sw / 2, cx + sw / 2, sy, sy + sh, cz + 0.062, 1, WHITE, sg.atlas.uv(sg));
   for (const e of [-1, 1]) P.box('env_metal', cx + e * sw / 2 - 0.01, cx + e * sw / 2 + 0.01, sy + sh, H.sp.ceil, cz - 0.01, cz + 0.01, [0.5, 0.5, 0.5]);
   // canopy light frame over the island
   P.box('env_matte', x0 + 0.2, x1 - 0.2, 2.62, 2.7, z0 + 0.2, z0 + 0.35, col);
@@ -441,7 +448,7 @@ function brandCounter(H, R, x0, z0, x1, z1, [name, bg, fg]) {
   const sg = R.litLabel(name, bg, fg, 384, 64);
   P.box('env_gloss', cx - 1.6, cx + 1.6, 0, 2.7, cz - 0.15, cz + 0.15, B);
   P.tq(sg, cx - 1.4, cx + 1.4, 2.15, 2.15 + 2.8 * 64 / 384, cz - 0.152, -1);
-  P.qd(sg.atlas.mat(sg), cx - 1.4, cx + 1.4, 2.15, 2.15 + 2.8 * 64 / 384, cz + 0.152, 1, WHITE, sg.atlas.uv(sg, true));
+  P.qd(sg.atlas.mat(sg), cx - 1.4, cx + 1.4, 2.15, 2.15 + 2.8 * 64 / 384, cz + 0.152, 1, WHITE, sg.atlas.uv(sg));
   // product shelves on the wall faces (lit)
   for (const side of [-1, 1]) {
     const zf = cz + side * 0.16;

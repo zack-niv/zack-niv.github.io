@@ -147,8 +147,8 @@ function hairDeform(style) {
 export function buildHuman(lod = 0) {
   const g = new GB();
   const B = BONE, R = REG;
-  const segL = lod === 0 ? 8 : lod === 1 ? 5 : 4;
-  const segT = lod === 0 ? 12 : lod === 1 ? 6 : 4;
+  const segL = lod === 0 ? 12 : lod === 1 ? 7 : 4;
+  const segT = lod === 0 ? 20 : lod === 1 ? 10 : 4;
   // ---- legs --------------------------------------------------------------
   for (const side of [-1, 1]) {
     const x = 0.09 * side;
@@ -160,14 +160,19 @@ export function buildHuman(lod = 0) {
     g.lathe([[0.075, x, 0.005, 0.042, 0.045], [0.32, x, 0.005, 0.05, 0.055], [0.52, x, 0, 0.055, 0.06]], segL, shin, R.LEGWEAR, has(BIT.SKIRT));
     if (lod < 2) g.lathe([[0.5, x, 0, 0.058, 0.062], [0.8, x, 0, 0.07, 0.074]], segL, thigh, R.LEGWEAR, has(BIT.SKIRT));
     // shoes
-    g.box([x, 0.04, -0.035], [0.05, 0.04, 0.13], shin, R.SHOES, ALWAYS, { taper: 0.9 });
+    if (lod === 0) {
+      g.ellipsoid([x, 0.043, -0.045], [0.047, 0.043, 0.125], 12, 8, shin, R.SHOES, ALWAYS, (dx, dy, dz, p) => [p[0], Math.max(0.004, p[1]), p[2]]);
+      g.box([x, 0.0055, -0.05], [0.049, 0.0055, 0.13], shin, R.WHITE, ALWAYS, { taper: 0.95 }); // sole
+    } else g.box([x, 0.04, -0.035], [0.05, 0.04, 0.13], shin, R.SHOES, ALWAYS, { taper: 0.9 });
   }
   // ---- pelvis / skirt / coat --------------------------------------------
   g.lathe([[0.84, 0, 0, 0.165, 0.11], [0.98, 0, 0, 0.165, 0.112]], segT, B.PELVIS, R.BOTTOM, ALWAYS, { capBot: true });
   g.lathe([[lod === 2 ? 0.5 : 0.46, 0, 0.01, 0.235, 0.19], [0.7, 0, 0.005, 0.2, 0.15], [0.98, 0, 0, 0.168, 0.115]], segT, B.PELVIS, R.BOTTOM, has(BIT.SKIRT), { capBot: lod === 2 });
   if (lod < 2) g.lathe([[0.5, 0, 0.015, 0.215, 0.17], [0.75, 0, 0.01, 0.19, 0.14], [0.99, 0, 0, 0.172, 0.118]], segT, B.PELVIS, R.TOP, has(BIT.COAT));
   // ---- torso -------------------------------------------------------------
-  const torso = [[0.96, 0, 0, 0.16, 0.108], [1.1, 0, 0, 0.158, 0.106], [1.27, 0, -0.004, 0.18, 0.118], [1.38, 0, 0, 0.192, 0.112], [1.45, 0, 0.005, 0.16, 0.09], [1.485, 0, 0.01, 0.07, 0.06]];
+  const torso = lod === 0
+    ? [[0.96, 0, 0, 0.16, 0.108], [1.03, 0, 0, 0.152, 0.104], [1.1, 0, 0, 0.15, 0.104], [1.19, 0, -0.002, 0.162, 0.112], [1.27, 0, -0.005, 0.18, 0.12], [1.34, 0, -0.003, 0.19, 0.118], [1.395, 0, 0, 0.192, 0.108], [1.435, 0, 0.004, 0.172, 0.094], [1.465, 0, 0.008, 0.12, 0.075], [1.49, 0, 0.01, 0.062, 0.058]]
+    : [[0.96, 0, 0, 0.16, 0.108], [1.1, 0, 0, 0.158, 0.106], [1.27, 0, -0.004, 0.18, 0.118], [1.38, 0, 0, 0.192, 0.112], [1.45, 0, 0.005, 0.16, 0.09], [1.485, 0, 0.01, 0.07, 0.06]];
   g.lathe(lod === 2 ? [torso[0], torso[2], torso[4]] : torso, segT, B.TORSO, R.TOP, ALWAYS, { capTop: lod === 2 });
   if (lod < 2) {
     // open jacket: shirt V + tie
@@ -178,22 +183,28 @@ export function buildHuman(lod = 0) {
   }
   // neck
   g.lathe([[1.46, 0, 0.01, 0.045, 0.045], [1.56, 0, 0.012, 0.042, 0.042]], lod === 0 ? 8 : 4, B.HEAD, R.SKIN, ALWAYS);
-  // ---- head --------------------------------------------------------------
-  const hu = lod === 0 ? 12 : lod === 1 ? 7 : 4, hv = lod === 0 ? 9 : lod === 1 ? 5 : 3;
-  g.ellipsoid(HEAD_C, HEAD_R, hu, hv, B.HEAD, R.SKIN, ALWAYS);
   if (lod === 0) {
-    // eyes, brows
-    for (const s of [-1, 1]) {
-      g.box([0.031 * s, 1.628, -0.088], [0.011, 0.0055, 0.006], B.HEAD, R.EYE, ALWAYS);
-      g.box([0.032 * s, 1.648, -0.085], [0.016, 0.0035, 0.006], B.HEAD, R.HAIR, ALWAYS);
-    }
-    // nose
-    g.box([0, 1.6, -0.095], [0.008, 0.017, 0.01], B.HEAD, R.SKIN, ALWAYS, { taper: 0.6 });
+    g.lathe([[1.5, 0, 0.012, 0.056, 0.056], [1.535, 0, 0.012, 0.052, 0.052]], 14, B.TORSO, R.INNER, has(BIT.JACKET)); // shirt collar
+    g.lathe([[0.955, 0, 0, 0.1655, 0.1125], [0.985, 0, 0, 0.1655, 0.1125]], 20, B.PELVIS, R.DARK, not(BIT.SKIRT)); // belt
+  }
+  // ---- head --------------------------------------------------------------
+  const hu = lod === 0 ? 20 : lod === 1 ? 8 : 4, hv = lod === 0 ? 15 : lod === 1 ? 6 : 3;
+  // head: slightly narrower jaw and a chin, flatter face plane
+  const headDeform = (dx, dy, dz, p) => {
+    const t = Math.max(0, -dy - 0.15) / 0.85; // 0 above the cheek line .. 1 at the chin
+    const sx = 1 - 0.3 * t * t - 0.05 * t, sz = 1 - 0.12 * t;
+    return [HEAD_C[0] + dx * HEAD_R[0] * sx, p[1] + (dy < -0.5 ? 0.004 * (-dy - 0.5) : 0), HEAD_C[2] + dz * HEAD_R[2] * sz + (dz < 0 && dy < -0.5 ? -0.01 * t : 0)];
+  };
+  g.ellipsoid(HEAD_C, HEAD_R, hu, hv, B.HEAD, R.SKIN, ALWAYS, lod < 2 ? headDeform : null);
+  if (lod === 0) {
+    // ears, nose (eyes, brows and mouth are painted in the fragment shader)
+    for (const s_ of [-1, 1]) g.ellipsoid([0.082 * s_, 1.612, 0.006], [0.009, 0.024, 0.016], 8, 6, B.HEAD, R.SKIN, ALWAYS);
+    g.ellipsoid([0, 1.595, -0.097], [0.0095, 0.021, 0.014], 8, 6, B.HEAD, R.SKIN, ALWAYS, (dx, dy, dz, p) => [p[0] * (1 + 0.5 * Math.max(0, -dy)), p[1], p[2] - 0.003 * Math.max(0, -dy)]);
     // mask (white), glasses (dark frame)
     g.ellipsoid([0, 1.578, -0.03], [0.083, 0.045, 0.075], 8, 4, B.HEAD, R.WHITE, has(BIT.MASK), (dx, dy, dz) => (dz < -0.15 ? [dx * 0.083, 1.578 + dy * 0.045, -0.03 + dz * 0.075] : null));
     g.box([0, 1.629, -0.094], [0.06, 0.0045, 0.004], B.HEAD, R.DARK, has(BIT.GLASSES));
     // hair styles
-    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 12, 9, B.HEAD, R.HAIR, hair(st), hairDeform(st));
+    for (const st of [0, 1, 2, 3, 4]) g.ellipsoid(HEAD_C, [HEAD_R[0] * 1.13, HEAD_R[1] * 1.08, HEAD_R[2] * 1.12], 16, 12, B.HEAD, R.HAIR, hair(st), hairDeform(st));
     g.ellipsoid([0, 1.69, 0.085], [0.04, 0.04, 0.035], 6, 4, B.HEAD, R.HAIR, hair(3));
     // cap
     g.lathe([[1.66, 0, 0.0, 0.094, 0.104], [1.72, 0, 0.0, 0.088, 0.098], [1.735, 0, 0, 0.05, 0.06]], 10, B.HEAD, R.ACC2, has(BIT.CAP), { capTop: true });
@@ -211,7 +222,11 @@ export function buildHuman(lod = 0) {
     g.lathe([[1.13, sx + 0.017 * side, 0, 0.044, 0.046], [1.3, sx + 0.008 * side, 0, 0.05, 0.052], [1.42, sx, 0, 0.055, 0.058]], segL, ua, R.TOP, ALWAYS, { capTop: lod === 2 });
     g.lathe([[0.875, sx + 0.025 * side, 0, 0.033, 0.035], [1.0, sx + 0.021 * side, 0, 0.038, 0.04], [1.14, sx + 0.017 * side, 0, 0.043, 0.045]], segL, fa, R.TOP, ALWAYS);
     // hand
-    if (lod === 0) g.ellipsoid([sx + 0.026 * side, 0.82, -0.004], [0.026, 0.06, 0.04], 6, 4, fa, R.SKIN, ALWAYS);
+    if (lod === 0) {
+      g.ellipsoid([sx + 0.026 * side, 0.82, -0.004], [0.024, 0.06, 0.036], 10, 7, fa, R.SKIN, ALWAYS);
+      g.ellipsoid([sx + 0.026 * side - 0.019 * side, 0.835, -0.03], [0.011, 0.034, 0.012], 6, 5, fa, R.SKIN, ALWAYS); // thumb
+      g.lathe([[0.89, sx + 0.024 * side, 0, 0.0365, 0.0385], [0.93, sx + 0.0235 * side, 0, 0.0375, 0.039]], 10, fa, R.INNER, has(BIT.JACKET)); // shirt cuff
+    }
     else g.box([sx + 0.026 * side, 0.825, 0], [0.024, 0.05, 0.035], fa, R.SKIN, ALWAYS);
   }
   // ---- accessories ---------------------------------------------------------

@@ -40,12 +40,14 @@ const MOODS = {
   passage:   { hvac_tile: 0.28, walla: 0.45, cloud: 1.0, steps: 'tile', pa: 'metro' },
   mall:      { hvac_mall: 0.26, bgm: 0.11, walla: 0.5, cloud: 0.9, steps: 'tile', pa: 'mall' },
   parks:     { hvac_mall: 0.22, bgm: 0.09, walla: 0.38, cloud: 0.8, steps: 'stone', pa: 'mall' },
-  canyon:    { cityfar: 0.34, leaves: 0.16, traffic: 0.04, walla: 0.3, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.5 },
-  garden:    { cityfar: 0.2, leaves: 0.28, water: 0.1, walla: 0.12, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
+  canyon:    { cityfar: 0.42, leaves: 0.3, traffic: 0.05, walla: 0.3, cloud: 0.7, steps: 'paving', outdoor: true, birds: 0.7 },
+  garden:    { cityfar: 0.34, leaves: 0.5, water: 0.16, walla: 0.14, cloud: 0.3, steps: 'paving', outdoor: true, birds: 1 },
   shop:      { hvac_mall: 0.12, walla: 0.2, cloud: 0.35, steps: 'tile' },
 };
 // baseline people within ~12 m when the crowd system can't tell us
 const BASE_PEOPLE = { metro: 26, platform: 18, arcade: 30, department: 14, street: 16, terminal: 36, nkplatform: 16, passage: 22, mall: 22, parks: 12, canyon: 14, garden: 5, shop: 4 };
+
+const CHAT = ['そうなんだー', 'ええ、ほんとに', 'まって、まって', 'あっちじゃない', 'おなかすいた', 'ねえ、みて', 'だいじょうぶ', 'うん、うん、そうだね', 'えー、うそー', 'どこだっけ'];
 
 export function moodOf(zone, space, ramp) {
   if (space && space.kind === 'room') return 'shop';
@@ -78,7 +80,7 @@ export class Ambience {
     this.cloud = { next: 0, rate: 0, surface: 'tile' };
     this.mood = null; this.weights = {};
     this.people = 10; this._peopleT = 0;
-    this.timers = { bird: 2, crow: 12, horn: 50, bus: 30, under: 40, pa: 25, suitcase: 15 };
+    this.timers = { chat: 6, bird: 2, crow: 12, horn: 50, bus: 30, under: 40, pa: 25, suitcase: 15 };
     this.suitcases = [];
     this.signals = [];   // crossing signal emitters
     this.rngState = 12345;
@@ -171,10 +173,10 @@ export class Ambience {
     if (!buf) { if (g > 0) this.bank.get('bed:walla', 2); return; }
     this.walla.forEach((wv, i) => {
       if (!wv.em) {
-        wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 2600 });
+        wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 5600 });
         wv.em.setLoop(buf, { offset: i * buf.duration * 0.47, rate: i ? 1.035 : 0.975 });
       }
-      wv.em.fade(g * 0.6, 1.5);
+      wv.em.fade(g * 0.5, 1.5);
       // outdoors the murmur is drier & brighter, indoors wetter
       wv.em.setSend(outdoor > 0.5 ? 0.15 : 0.55, 1);
     });
@@ -252,6 +254,15 @@ export class Ambience {
     const T = this.timers;
     const up = L.y + 1.6;
     const at = (dmin, dmax, h) => { const a = this.rand() * Math.PI * 2, d = dmin + this.rand() * (dmax - dmin); return { x: L.x + Math.cos(a) * d, y: up + h, z: L.z + Math.sin(a) * d }; };
+    // snatches of conversation from people passing a few metres away
+    T.chat -= dt * Math.min(1.6, this.people / 18) * (mood === 'garden' ? 0.25 : 1);
+    if (T.chat <= 0) {
+      T.chat = 5 + this.rand() * 10;
+      if (this.people > 5 && mood !== 'shop') {
+        const g = this.rand() < 0.5 ? 'f' : 'm', txt = CHAT[Math.floor(this.rand() * CHAT.length)];
+        this.mixer.play(`bark:ja:${g}:${31 + Math.floor(this.rand() * 3)}:${txt}`, { bus: 'ambience', pos: at(2.2, 7, -0.1), gain: 0.26, ref: 2, hrtf: true, send: 0.4, rate: 0.95 + this.rand() * 0.1, wait: true, prio: 7 });
+      }
+    }
     // birds (parks outdoor). Mostly bulbuls & sparrows; white-eyes & tits in the trees
     if (birds > 0.05) {
       T.bird -= dt * birds;

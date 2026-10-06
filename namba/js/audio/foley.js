@@ -106,6 +106,8 @@ export function footstep(sr, surface, seed, shoe = 'sneaker') {
   // tame very low end that mostly comes off the thump modes
   const hp = new Biquad('highpass', 70, 0.7, 0, sr);
   hp.run(out);
+  // sneakers: ease the click's crest (~3 dB) so a step is a footfall, not a spike over a quiet bed
+  if (shoe === 'sneaker') { normalize(out, 0.9); softclip(out, 2.2); }
   return normalize(out, 0.9);
 }
 
@@ -349,18 +351,25 @@ export function suitcaseLoop(sr) {
 // combplate ticks at 1.25 Hz, chain roll
 export function escalatorLoop(sr) {
   const r = rng(408);
+  // 6.4 s loop: drive hum, step-comb clicks (one tread every 0.8 s), chain rattle, handrail rubber hiss
   const period = 0.8, reps = 8, n = Math.floor(period * reps * sr), out = new Float32Array(n);
-  const roll = foldLoop(filt(brown(n + Math.floor(0.2 * sr), r), sr, ['lowpass', 420, 0.7]), sr, n, 0.2);
+  const extra = Math.floor(0.2 * sr);
+  const roll = foldLoop(filt(brown(n + extra, r), sr, ['lowpass', 420, 0.7]), sr, n, 0.2);
+  const chain = foldLoop(filt(white(n + extra, r), sr, ['bandpass', 1100, 0.9], ['highpass', 500, 0.7]), sr, n, 0.2);
+  const hiss = foldLoop(filt(white(n + extra, r), sr, ['bandpass', 3100, 0.7], ['highpass', 2000, 0.7]), sr, n, 0.2);
+  const wob = smoothRandom(n, sr, 0.5, r);
   for (let i = 0; i < n; i++) {
     const t = i / sr;
     // phase-continuous: frequencies chosen as multiples of 1/(period*reps)
-    const hum = Math.sin(TAU * 120 * t) * 0.08 + Math.sin(TAU * 180 * t) * 0.05 + Math.sin(TAU * 240 * t) * 0.03 + Math.sin(TAU * 360 * t) * 0.015;
+    const hum = Math.sin(TAU * 120 * t) * 0.07 + Math.sin(TAU * 180 * t) * 0.045 + Math.sin(TAU * 240 * t) * 0.03 + Math.sin(TAU * 360 * t) * 0.015;
     const whine = Math.sin(TAU * 472.5 * t + 0.6 * Math.sin(TAU * 1.25 * t)) * 0.02;
-    out[i] = roll[i] * 0.35 + hum + whine;
+    const links = 0.5 + 0.5 * Math.sin(TAU * 25 * t); // chain links ~25 Hz flutter
+    out[i] = roll[i] * 0.3 + hum + whine + chain[i] * (0.05 + 0.04 * links) + hiss[i] * (0.03 + 0.02 * wob[i]);
   }
   for (let k = 0; k < reps; k++) {
-    const s = Math.floor(k * period * sr);
-    addMode(out, sr, s, 1450 + r() * 100, 0.01, 0.06); addMode(out, sr, s, 380, 0.02, 0.07); addMode(out, sr, s + Math.floor(0.05 * sr), 2600, 0.005, 0.03);
+    const s = Math.floor(k * period * sr), a = 0.8 + 0.4 * r();
+    addMode(out, sr, s, 1450 + r() * 100, 0.012, 0.2 * a); addMode(out, sr, s, 380, 0.025, 0.2 * a); addMode(out, sr, s + Math.floor(0.012 * sr), 2300 + r() * 300, 0.006, 0.12 * a);
+    addMode(out, sr, s + Math.floor(0.05 * sr), 2600, 0.005, 0.07 * a);
   }
   return normalize(out, 0.5);
 }
@@ -387,4 +396,36 @@ export function rustle(sr) {
   for (let i = 0; i < n; i++) { const t = i / n; out[i] = bp.tick(r() * 2 - 1) * Math.sin(Math.PI * t) ** 1.5 * (0.6 + 0.4 * Math.sin(TAU * 13 * t)); }
   addMode(out, sr, Math.floor(0.05 * sr), 140, 0.03, 0.4);
   return normalize(out, 0.4);
+}
+
+
+// ---- rubber squeak on polished floor (stick-slip, 1.4-3 kHz) -------------------------
+export function squeak(sr, seed = 0) {
+  const r = rng(seed * 4099 + 31);
+  const dur = 0.08 + r() * 0.1, n = Math.floor(dur * sr), out = new Float32Array(n);
+  const f0 = 1500 + r() * 1300, sweep = (r() - 0.4) * 900, stick = 55 + r() * 60;
+  let ph = 0;
+  for (let i = 0; i < n; i++) {
+    const t = i / n, f = f0 + sweep * t;
+    ph += f / sr;
+    const slip = 0.55 + 0.45 * Math.sign(Math.sin(TAU * stick * i / sr)) * 0.6 + 0.4 * Math.sin(TAU * stick * i / sr);
+    const e = Math.sin(Math.PI * t) ** 0.7;
+    out[i] = (Math.sin(TAU * ph) + 0.35 * Math.sin(TAU * ph * 2.01) + 0.08 * (r() * 2 - 1)) * e * slip;
+  }
+  new Biquad('highpass', 900, 0.7, 0, sr).run(out);
+  return normalize(out, 0.5);
+}
+
+// ---- a gust of open air: stepping out of the station into the street / garden ----------
+export function gust(sr, seed = 0) {
+  const r = rng(seed * 977 + 5);
+  const n = Math.floor(3.6 * sr), out = new Float32Array(n);
+  const lp = new Biquad('lowpass', 500, 0.9, 0, sr), bp = new Biquad('bandpass', 900, 0.6, 0, sr);
+  const mod = smoothRandom(n, sr, 3, r);
+  for (let i = 0; i < n; i++) {
+    const t = i / n, env = Math.sin(Math.PI * Math.min(1, t * 1.05)) ** 1.6;
+    const w = r() * 2 - 1;
+    out[i] = (lp.tick(w) * 1.4 + bp.tick(w) * (0.5 + 0.8 * Math.max(0, mod[i]))) * env;
+  }
+  return normalize(out, 0.7);
 }

@@ -216,7 +216,13 @@ space({ id: 'walk_x4', level: 'B1', zone: 'nambawalk', rect: [196, -218, 202, -2
 space({ id: 'walk_court', level: 'B1', zone: 'nambawalk', rect: [110, -232, 132, -212], ceil: 4.0, style: 'arcade_court' });
 
 // --- Sennichimae Line concourse (south of NAMBAWALK) ---------------------------
-space({ id: 's_free', level: 'B1', zone: 'sennichimae', rect: [30, -218, 90, -204], ceil: 3.2, style: 'metro_concourse' });
+// Walled off from NAMBAWALK by a shop row with three 8 m portals (no 60 m open plaza):
+// the free area is a 7 m deep concourse behind it.
+space({ id: 's_free', level: 'B1', zone: 'sennichimae', rect: [30, -211, 90, -204], ceil: 3.2, style: 'metro_concourse' });
+space({ id: 's_portal_a', level: 'B1', zone: 'sennichimae', rect: [38, -218, 46, -211], ceil: 3.2, style: 'metro_concourse' });
+space({ id: 's_portal_b', level: 'B1', zone: 'sennichimae', rect: [56, -218, 64, -211], ceil: 3.2, style: 'metro_concourse' });
+space({ id: 's_portal_c', level: 'B1', zone: 'sennichimae', rect: [78, -218, 86, -211], ceil: 3.2, style: 'metro_concourse' });
+shopRow({ level: 'B1', zone: 'nambawalk', rowRect: [30, -218, 90, -211], frontSide: 'n', widths: [8, 10, 7, 14, 4], prefix: 'walk_sf', gaps: [[38, 46], [56, 64], [78, 86]], ceil: 3.2 });
 space({ id: 's_paid', level: 'B1', zone: 'sennichimae', rect: [30, -204, 90, -178], ceil: 3.2, style: 'metro_concourse', paid: 'sennichimae' });
 gates.push({ id: 'g_s', level: 'B1', zone: 'sennichimae', line: 'sennichimae', axis: 'x', at: -204, from: 36, to: 84, lanes: 10, name: 'Sennichimae Line Gate', ja: '千日前線 改札' });
 escalatorBank({ id: 'esc_s', level0: 'B2', level1: 'B1', axis: 'x', up: -1, at: -196, from: 74, length: 16, lanes: ['up', 'down', 'stairs'], zone: 'sennichimae', stairsWidth: 2 });
@@ -416,6 +422,9 @@ exits.push(
 // =============================================================================
 cores.push(
   { id: 'core_m_office', level: 'B1', rect: [-140, -170, -131, -90], kind: 'station', name: 'Station office / toilets', ja: '駅務室・トイレ' },
+  // Nankai 2F: ticket office block and a coin-locker / service core break the 100 m hall into rooms
+  { id: 'core_nk2_tickets', level: '2F', rect: [-58, -98, -50, -86], kind: 'station', name: 'Nankai ticket office', ja: '南海 きっぷうりば' },
+  { id: 'core_nk2_service', level: '2F', rect: [32, -98, 40, -86], kind: 'station', name: 'Lockers / services', ja: 'コインロッカー・サービス' },
 );
 
 // =============================================================================
@@ -459,8 +468,8 @@ tactile.push(
 // =============================================================================
 Object.assign(spawns, {
   start:        { level: '3F', x: -25.5, z: 20, yaw: 0, note: 'Stepping off the airport express at Nankai Namba, platform 4' },
-  nankai_gate:  { level: '3F', x: -16, z: -72, yaw: 0 },
-  nankai_2f:    { level: '2F', x: -10, z: -80, yaw: Math.PI },
+  nankai_gate:  { level: '3F', x: -16, z: -72, yaw: Math.PI },
+  nankai_2f:    { level: '2F', x: -10, z: -80, yaw: 0 },
   nankai_1f:    { level: '1F', x: -10, z: -118, yaw: 0 },
   walk:         { level: 'B1', x: 60, z: -222, yaw: Math.PI / 2 },
   walk_court:   { level: 'B1', x: 121, z: -222, yaw: Math.PI / 2 },

@@ -15,7 +15,8 @@ const READ = {
   '駅': 'えき', '構内': 'こうない', '禁煙': 'きんえん', '迷子': 'まいご', '案内': 'あんない', '所': 'じょ', '一': 'いち', '二': 'に', '三': 'さん',
   '四': 'よん', '五': 'ご', '六': 'ろく', '七': 'なな', '八': 'はち', '号車': 'ごうしゃ', '両': 'りょう', '編成': 'へんせい', '扉': 'とびら', '前': 'まえ',
   '中百舌鳥': 'なかもず', '大国町': 'だいこくちょう', '心斎橋': 'しんさいばし', '後': 'うし', '安全': 'あんぜん', '確認': 'かくにん', '少々': 'しょうしょう',
-  '待': 'ま', '皆様': 'みなさま', '本': 'ほん', '店': 'てん', '館内': 'かんない', '営業': 'えいぎょう', '時間': 'じかん', '終了': 'しゅうりょう',
+  '待': 'ま', '歩': 'ある', '走': 'はし', '荷物': 'にもつ', '方': 'かた', '持': 'も', '客様': 'きゃくさま', '願': 'ねが', '大': 'おお',
+  '足元': 'あしもと', '気': 'き', '付': 'つ', '子': 'こ', '連': 'つ', '階': 'かい', '上': 'うえ', '止': 'ど', '立': 'た', '全': 'ぜん', '皆様': 'みなさま', '本': 'ほん', '店': 'てん', '館内': 'かんない', '営業': 'えいぎょう', '時間': 'じかん', '終了': 'しゅうりょう',
 };
 const KEYS = Object.keys(READ).sort((a, b) => b.length - a.length);
 const DIGITS = ['ぜろ', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
@@ -33,6 +34,14 @@ export const ESCALATOR = {
   ja: 'エスカレーターをご利用の際は、手すりにおつかまりいただき、黄色い線の内側にお乗りください。',
   en: 'When using the escalator, please hold the handrail and stand inside the yellow lines.',
 };
+
+// the loop on the speaker at the escalator landing alternates ja / en and rotates through these
+export const ESCALATOR_LINES = [
+  ESCALATOR,
+  { ja: 'お客様にお願いいたします。エスカレーターでは、歩いたり走ったりせず、手すりにおつかまりください。', en: 'Please do not walk or run on the escalator. Hold the handrail.' },
+  { ja: 'ベビーカーや大きな荷物をお持ちの方は、エレベーターをご利用ください。', en: 'Passengers with strollers or large luggage, please use the elevator.' },
+  { ja: 'お子様連れのお客様は、足元にご注意ください。', en: 'Please watch your step, and keep small children close.' },
+];
 
 export function approach(track) {
   const no = track && track.no || 1;

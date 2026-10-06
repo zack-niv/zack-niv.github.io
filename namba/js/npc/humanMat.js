@@ -19,6 +19,9 @@ attribute vec4 iPos; attribute vec4 iPose; attribute vec4 iHead; attribute vec4 
 attribute vec4 iLook; attribute vec4 iColA; attribute vec4 iColB;
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying vec3 vFaceP;
+varying float vFaceK;
+varying vec3 vHairCol;
 vec3 crowdUnpack(float v) {
   float r = floor(v / 65536.0);
   float g = floor((v - r * 65536.0) / 256.0);
@@ -43,6 +46,9 @@ const VERT_BODY = /* glsl */`
     if (grp == 1) show = ((flags >> 13) & 7) == val;
     else if (grp == 2) show = ((flags >> val) & 1) == 1;
     else if (grp == 3) show = ((flags >> val) & 1) == 0;
+    vFaceK = 0.0; vFaceP = vec3(0.0);
+    if (bone == 2 && reg == 0 && position.y > 1.525) { vFaceK = 1.0; vFaceP = position - vec3(0.0, 1.615, -0.005); }
+    vHairCol = crowdUnpack(iColA.w);
     float ph = iPose.x, amt = iPose.y, sit = iPose.z, lean = iPose.w;
     float s1 = sin(ph), c1 = cos(ph);
     bool kid = ((flags >> 22) & 1) == 1;
@@ -124,9 +130,54 @@ const VERT_BODY = /* glsl */`
 const FRAG_HEAD = /* glsl */`
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying vec3 vFaceP;
+varying float vFaceK;
+varying vec3 vHairCol;
+float crSoft(float d, float w) { return 1.0 - smoothstep(1.0 - w, 1.0 + w, d); }
+`;
+// procedural face painted in head space (no UVs): eyes, brows, nose, mouth, blush
+const FACE = /* glsl */`
+  if (vFaceK > 0.5 && vFaceP.z < -0.035) {
+    vec3 fp = vFaceP;
+    float fx = abs(fp.x), fy = fp.y;
+    vec3 sk = diffuseColor.rgb;
+    vec3 c = sk;
+    float fw = max(fwidth(fx), fwidth(fy)) * 1.4 + 0.0006;
+    // soft cheek blush and eye-socket shade
+    c = mix(c, c * vec3(1.18, 0.82, 0.8), 0.28 * crSoft(length(vec2(fx - 0.05, fy + 0.02)) / 0.026, 1.0));
+    vec2 e = vec2((fx - 0.031) / 0.0135, (fy - 0.014) / 0.0072);
+    float ee = length(e);
+    c *= 1.0 - 0.16 * (1.0 - smoothstep(1.0, 2.4, ee));
+    float aaE = fw / 0.0072 + 0.04;
+    float scl = crSoft(ee, aaE);
+    float ir = crSoft(length(vec2(fx - 0.0305, fy - 0.0138)) / 0.0068, fw / 0.0068 + 0.05);
+    float lid = (1.0 - smoothstep(0.0, 0.0034, abs(fy - 0.014 - 0.0072 * sqrt(max(0.0, 1.0 - e.x * e.x)))) ) * step(ee, 1.25) * step(0.2, 1.0 - e.x * e.x);
+    c = mix(c, vec3(0.52, 0.47, 0.44), scl);
+    c = mix(c, vec3(0.018, 0.012, 0.01), ir);
+    c = mix(c, vec3(0.012, 0.009, 0.008), clamp(lid, 0.0, 1.0) * 0.85);
+    // eyebrows
+    float bx = (fx - 0.032) / 0.021;
+    float byc = 0.0395 + 0.006 * (1.0 - bx * bx) - 0.003 * bx;
+    float br = (1.0 - smoothstep(0.0022, 0.0042 + fw, abs(fy - byc))) * (1.0 - smoothstep(0.85, 1.05, abs(bx)));
+    c = mix(c, vHairCol * 0.7 + 0.004, br * 0.9);
+    // nose: shadow under the tip, nostrils, faint bridge shade
+    c *= 1.0 - 0.22 * (1.0 - smoothstep(0.0, 0.0065 + fw, abs(fy + 0.0235))) * (1.0 - smoothstep(0.006, 0.013, fx));
+    c = mix(c, c * 0.35, (1.0 - smoothstep(0.0012, 0.0032 + fw, length(vec2(fx - 0.0072, fy + 0.0205)))) * 0.8);
+    c *= 1.0 - 0.07 * (1.0 - smoothstep(0.0, 0.007, fx)) * step(-0.02, fy) * step(fy, 0.03);
+    // mouth: lips a little redder than skin, dark parting line
+    float mc = -0.0475 + 0.0025 * pow(min(fx / 0.02, 1.2), 2.0);
+    float lipB = (1.0 - smoothstep(0.0032, 0.0062 + fw, abs(fy - mc + 0.0007))) * (1.0 - smoothstep(0.014, 0.021, fx));
+    c = mix(c, c * vec3(1.12, 0.62, 0.6), lipB * 0.8);
+    float mline = (1.0 - smoothstep(0.0006, 0.0017 + fw, abs(fy - mc))) * (1.0 - smoothstep(0.012, 0.019, fx));
+    c = mix(c, c * vec3(0.38, 0.2, 0.2), mline * 0.9);
+    // chin and under-lip shade
+    c *= 1.0 - 0.1 * (1.0 - smoothstep(0.0, 0.007, abs(fy + 0.062))) * (1.0 - smoothstep(0.0, 0.03, fx));
+    diffuseColor.rgb = c;
+  }
 `;
 const FRAG_COLOR = /* glsl */`
   diffuseColor.rgb *= vCrowdCol;
+  ${FACE}
   if (vCrowdFade < 0.999) {
     float ign = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (ign > vCrowdFade) discard;
@@ -141,7 +192,7 @@ export function makeHumanMaterial() {
       .replace('#include <begin_vertex>', 'vec3 transformed = crowdP;');
     sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR);
   };
-  m.customProgramCacheKey = () => 'namba_crowd_human_v1';
+  m.customProgramCacheKey = () => 'namba_crowd_human_v2';
   m.name = 'crowd_human';
   return m;
 }
