@@ -91,4 +91,20 @@ kissa) — they now face the table.
 
 ## Status / open items
 
-(see the end of this file, updated at the end of the round)
+Found + fixed in the browser: column ads were z-fighting with their own steel frame (poster coplanar with the frame
+box's front face) — that, not only the resolution, was the "smeared / striped" Koyasan poster. Poster quads now sit 6 mm
+in front of their frames everywhere (columns, pier posters, fascia text, cafe menu boards).
+
+Numbers (headless, shared box so only relative): load 31-48 s (was 37 s), `shops init` 0.85 s, ctx.counters = 134 entries
+(cafe 26, food 64, tempura 3, shop 41). Env triangles per view unchanged to slightly lower (cafes replaced rows of chairs).
+
+Unsure / for the lead:
+* Humans: staff spots now also exist as `kind:'staff'` + `svc:true` in `ctx.shops.spots()`, so the crowd's own staff
+  spawning may duplicate the figure Humans places at `ctx.counters[*].staff` — skip `svc` spots there.
+* Counter staff stand inside solid collision cells (behind the counter); the crowd must not path to them (as before).
+* Seat spots on benches/sofas stand on walkable cells next to a thin collision slab at the wall, so the player can
+  clip into a bench seat (not the backrest). Chairs/stools are not solid either (as before).
+* kitchen aisle behind restaurant passes is sealed solid (it used to be walkable around the counter ends).
+* signage.js untouched (136 px/m faces were fine); `render/textures/library.js` untouched.
+* A few categories keep their old templates (fashion, drugstore, gacha, cosmetics, zakka...): they looked believable
+  in the software renders; bookstore only got a register/clerk.

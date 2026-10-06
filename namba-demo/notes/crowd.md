@@ -68,3 +68,6 @@ Listened: `train:arrive` (uses `doors[]` with `x,z,nx,nz`; spawns the alighting 
 
 ## Log
 - v1: full system. A Dijkstra fix in my worker and in `nav.field` (perf only): float32 rounding let equal-cost duplicates re-expand, which made fields with penalties 30–100× slower. Settled flags fixed it.
+- v2 (Humans agent): rigged CC0 glTF people (`humans.js`, `render.js`; v1 renderer kept as `render_v1.js` fallback / `?v1crowd`),
+  counter staff (`counters.js`), keep-left escalators with single-file lines, player yielding, window shopping, café counter
+  queues, demo population ×0.36. Details, APIs and metrics: `notes/v2-humans.md`.

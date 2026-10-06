@@ -317,7 +317,7 @@ export class Director {
           if (!B) break;
           lv = B.level;
           legs.push({ t: 'go', en: P.bizField(B, i === 0 ? 3 : 6), arrive: 1.5 });
-          if (r() < 0.35) legs.push({ t: 'window', B, dur: 5 + r() * 14 });   // look at the window first (some don't go in)
+          if (r() < 0.35) legs.push({ t: 'window', B, dur: 8 + r() * 18 });   // look at the window first (some don't go in)
           if (r() < 0.8) legs.push({ t: 'browse', B, n: 1 + Math.floor(r() * 3) });
         }
         if (!legs.length) return this.plan('through', a, origin);
@@ -608,7 +608,7 @@ export class Director {
       const n = Math.floor(r() * 3.2 * (0.3 + B.pop));
       for (let i = 0; i < n && browsing < tgt * 0.07; i++) {
         const a = this.makeAgent(this._kindFor('shop'), { trip: 'shop', look: { bags: 0.4 } });
-        const legs = r() < 0.3 ? [{ t: 'window', B, dur: 4 + r() * 12, inside: true }, { t: 'browse', B, n: 1 + Math.floor(r() * 2) }] : [{ t: 'browse', B, n: 1 + Math.floor(r() * 2), inside: true }];
+        const legs = r() < 0.3 ? [{ t: 'window', B, dur: 6 + r() * 22, inside: true }, { t: 'browse', B, n: 1 + Math.floor(r() * 2) }] : [{ t: 'browse', B, n: 1 + Math.floor(r() * 2), inside: true }];
         this._onward(legs, a, null, 7);
         this.B.begin(a, legs);
         browsing++;

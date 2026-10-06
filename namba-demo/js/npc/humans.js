@@ -265,7 +265,8 @@ export class HumanLibrary {
     });
     make('walkcase', C.walk, C.walk.duration, 16, () => caseArm());
     make('idlecase', C.idle, C.idle.duration, 8, () => caseArm());
-    make('ride', C.idle, C.idle.duration, 8, () => { aim('UpperArmR', 'LowerArmR', V(-0.4, -0.9, 0.12)); aim('LowerArmR', 'WristR', V(-0.25, -0.35, 1)); });
+    // escalator: people stand on the LEFT (sim.js ESC_STAND_SIDE), left hand on the handrail
+    make('ride', C.idle, C.idle.duration, 8, () => { aim('UpperArmL', 'LowerArmL', V(0.4, -0.9, 0.12)); aim('LowerArmL', 'WristL', V(0.25, -0.35, 1)); });
   }
 
   // sample `base` over `dur` (looping) at `keys` keys, run fn(u) to modify the pose, bake all bone tracks

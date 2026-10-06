@@ -35,10 +35,10 @@ export const CARDS = [
            <p><b>Q</b> lifts the phone, <b>Q</b> again lowers it. Or hold the right mouse button for a quick look. It drops back down as you walk on.</p>`,
   },
   {
-    title: 'Follow the signs', ja: '案内に従って', keys: [],
+    title: 'Follow the signs', ja: '案内', keys: [],
     body: `<div class="gw-vis gw-sign"><span>↑ 6F</span><span>天ぷら 🍤</span></div>
            <p class="gw-big">The map lies 🙃</p>
-           <p>Overhead signs and floor numbers beat any blue dot. Look up, and ask the walls.</p>`,
+           <p>Overhead signs and floor numbers beat any blue dot. Look up, follow the arrows.</p>`,
   },
 ];
 

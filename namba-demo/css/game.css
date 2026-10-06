@@ -471,6 +471,7 @@ body:has(.g-pause:not([hidden])) .g-walk { opacity: 0; }
 .gw-head { display: flex; align-items: baseline; gap: 10px; }
 .gw-step { font: 600 9.5px/1 var(--g-sans); letter-spacing: .26em; text-transform: uppercase; color: var(--g-accent); font-variant-numeric: tabular-nums; }
 .gw-title { font: 600 15.5px/1.2 var(--g-sans); letter-spacing: .01em; flex: 1; }
+.gw-title { white-space: nowrap; }
 .gw-title small { font: 400 11px var(--g-ja); color: var(--g-faint); margin-left: 6px; letter-spacing: .08em; }
 .gw-skip { appearance: none; border: 0; background: none; color: var(--g-faint); font: 500 12px/1 var(--g-sans); cursor: pointer; padding: 2px 3px; margin: -2px -4px 0 0; border-radius: 3px; transition: color .2s, background .2s; }
 .gw-skip:hover { color: var(--g-ink); background: rgba(255, 255, 255, .08); }
