@@ -100,6 +100,8 @@ export class Mixer {
 
   // ---- listener --------------------------------------------------------------------
   setListener(px, py, pz, fx, fy, fz, ux = 0, uy = 1, uz = 0) {
+    // camera matrices can be non-finite for a frame (teleport / zero-size resize): keep the last good pose
+    if (!(Number.isFinite(px) && Number.isFinite(py) && Number.isFinite(pz) && Number.isFinite(fx) && Number.isFinite(fy) && Number.isFinite(fz) && Number.isFinite(ux) && Number.isFinite(uy) && Number.isFinite(uz))) return;
     const L = this.listener, t = this.now;
     this._lp.x = px; this._lp.y = py; this._lp.z = pz;
     if (L.positionX) {

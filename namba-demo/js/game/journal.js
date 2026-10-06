@@ -67,9 +67,8 @@ export class Journal {
     if (this.found.has(id)) return false;
     this.found.set(id, { en, ja, at: this.ctx.clock.hhmm });
     this.ctx.events.emit('discover', { id, en, ja });
-    if (!silent && this.game.started && !this.game.ended) {
-      this.ctx.events.emit('toast', { kind: 'discover', title: 'Discovered', en, ja });
-    }
+    // demo: no toasts. The game decides whether a place deserves a soft place-name card.
+    if (!silent && this.game.started && !this.game.ended) this.game.onDiscover?.({ id, en, ja });
     return true;
   }
   resetTracking() { const b = this.ctx.player.body; this._last = { x: b.x, z: b.z, y: b.y, level: b.level }; }

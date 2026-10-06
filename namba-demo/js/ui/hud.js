@@ -6,7 +6,7 @@
 //   · fallback phone-notification banner if the phone doesn't render texts
 // API: hud.prompt(t|null) · hud.toast({kind,title,en,ja}) · hud.caption({en,ja,speaker,duration,kind})
 //      hud.ic({balance,fare,ok,reason}) · hud.cup(on) · hud.fade(alpha, ms) → Promise
-//      hud.chapter({ja,en,sub}) · hud.setVisible(bool)
+//      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
 import { params } from '../core/params.js';
 
@@ -32,6 +32,7 @@ export class Hud {
       <div class="h-captions"></div>
       <div class="h-ic"><div class="h-ic-card"><span class="h-ic-logo">ICOCA</span><span class="h-ic-chip"></span></div><div class="h-ic-info"><div class="h-ic-row h-ic-state"></div><div class="h-ic-row"><span>残額 Balance</span><b class="h-ic-bal"></b></div></div></div>
       <div class="h-cup" title="Coffee in hand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 11h14l-1.6 15.2a2 2 0 0 1-2 1.8h-6.8a2 2 0 0 1-2-1.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 8.5h16v2.5H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 6.5h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.6 16.5h10.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path class="h-steam" d="M13 4c-1-1.2 1-2 0-3.2M17 4c-1-1.2 1-2 0-3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+      <div class="h-hint"></div>
       <div class="h-notify"></div>
       <div class="h-chapter"><div class="h-chapter-ja"></div><div class="h-chapter-en"></div><div class="h-chapter-sub"></div></div>
       <div class="h-fade"></div>`;
@@ -39,7 +40,7 @@ export class Hud {
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
       toasts: q('.h-toasts'), captions: q('.h-captions'), ic: q('.h-ic'), icState: q('.h-ic-state'), icBal: q('.h-ic-bal'),
-      cup: q('.h-cup'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
+      cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
     this.quiet = params.test && !params.has('play');
@@ -141,6 +142,21 @@ export class Hud {
     this._icT = setTimeout(() => e.ic.classList.remove('on'), ok ? 2600 : 4200);
   }
   cup(on) { this.el.cup.classList.toggle('on', !!on); }
+
+  // ---- controls hint (bottom centre, fades on its own) ---------------------------------
+  // kinds: 'keys' (the four controls) | 'phone' (Q) | or a ready-made html string
+  hint(kind, duration = 8) {
+    if (this.quiet) return;
+    const k = (x, w) => `<kbd class="g-key${w ? ' wide' : ''}">${x}</kbd>`;
+    const html = kind === 'keys'
+      ? `<span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span>`
+      : kind === 'phone' ? `<span>${k('Q')} <i>take out your phone</i></span>` : String(kind);
+    const e = this.el.hint;
+    e.innerHTML = html;
+    e.classList.remove('on'); void e.offsetWidth; e.classList.add('on');
+    clearTimeout(this._hintT);
+    this._hintT = setTimeout(() => e.classList.remove('on'), duration * 1000);
+  }
 
   // ---- phone notification banner (fallback) ---------------------------------------
   notify({ from = 'Aya', text = '', time = '' } = {}) {

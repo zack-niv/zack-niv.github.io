@@ -1,60 +1,59 @@
 // =============================================================================
 // All the words. Tone: warm, curious, a little funny, never stressful.
 // Kept in one place so the voice stays consistent and is easy to edit.
+// (Demo build: ONE quest — lunch at Tempura Daikichi, Namba Parks 6F.)
 // =============================================================================
 
 export const QUESTS = {
-  coffee:  { text: 'Find a great coffee', textJa: '美味しいコーヒーを探す', detail: 'Not chain stuff, Aya says.' },
-  tempura: { text: 'Find tempura for lunch', textJa: 'お昼は天ぷら', detail: 'Somewhere people queue for.' },
-  subway:  { text: 'Midosuji Line to Shin-Osaka', textJa: '御堂筋線で新大阪へ', detail: 'Shinkansen leaves Shin-Osaka at 16:10.' },
+  tempura: { text: 'Meet Aya at Tempura Daikichi', textJa: '天ぷら大吉でアヤと合流', detail: 'Namba Parks, 6F. She\'s already in the queue.' },
 };
 
-// Opening texts (sent in order, with delays in real seconds)
+// The demo's destination and pacing knobs.
+export const DEMO = {
+  slot: 'parks_6Fdw03',
+  startMinutes: 11 * 60 + 20,       // 11:20, just off the rapi:t
+  offerAt: 135,                     // real seconds of play: the Lodestone offer at the latest
+  offerMin: 45,                     // ...and never before this (the generic map has to be felt)
+  introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
+  introHold: 4.6,                   // seconds the player is held for the opening look
+  arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
+};
+
+// Opening texts: [seconds after the game starts, text]
 export const INTRO = [
-  [2.2, 'Landed?? Welcome to Osaka!!'],
-  [4.2, 'Ok, today\'s mission, very serious:\n1. a GOOD coffee (not chain stuff)\n2. tempura for lunch\n3. Midosuji Line to Shin-Osaka for the 16:10 Shinkansen'],
-  [4.0, 'Namba station is basically a city. You will get lost. That\'s the fun part'],
+  [8.0, 'Landed?? Welcome to Osaka! 🛬'],
+  [10.8, 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤'],
 ];
 
-// Vague hints, one at a time, only after a long while without progress.
-export const HINTS = {
-  coffee: [
-    'Coffee intel from my coworker: there\'s a tiny standing coffee bar somewhere in the underground passage between the subway and Nankai. No chairs. Always a queue. Worth it.',
-    'Or go full Showa: there\'s a kissaten in NAMBAWALK with velvet chairs. Like, 1975 velvet.',
-  ],
-  tempura: [
-    'Tempura: everyone says Daikichi. It\'s in Namba Parks somewhere? One of the restaurant floors. High up.',
-    'If you find the canyon thing in Parks you\'re close-ish. Then just keep going UP.',
-  ],
-  subway: [
-    'Midosuji = the red line. Red "M" signs. It runs under Midosuji avenue, so… west?',
-    'Shin-Osaka is north. You want the platform for Umeda / Shin-Osaka. NOT Tennoji lol',
-  ],
+// Vague, human, unhelpful-on-purpose nudges while only the ordinary map is in hand.
+export const NUDGES = [
+  [58, 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces'],
+  [96, 'Ask your phone! That\'s what it\'s for 😅'],
+];
+
+export const UPGRADE = {
+  // only used if the phone does not send its own offer text
+  offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
+  ready: 'see? 😌 6F, I\'m 3rd in line',
 };
 
-// The walk is long and the clock is quick (1 game minute = 10 real seconds), so
-// the Shinkansen is the 16:10 and the nudges are gentle and well spaced.
-export const SHINKANSEN = { first: 16 * 60 + 10, next: 16 * 60 + 40, leaveBy: 15 * 60 + 40 };
-export const TIMED = [
-  // [minutes since midnight, condition key, text]
-  [12 * 60 + 20, 'tempura', 'It\'s lunch o\'clock. Did you find the tempura?? The good places get a line around now'],
-  [14 * 60 + 30, 'subway', 'Reminder!! Shinkansen 16:10 from Shin-Osaka. Leave Namba by 15:40 and you\'re totally fine'],
-  [15 * 60 + 30, 'subway', 'Ok now-ish would be a good time to find that red line 😅'],
-  [16 * 60 + 10, 'subway', 'Missed it? Lol. There\'s another one at 16:40, I already checked. You\'ll be fine. Japan has a lot of trains'],
-  [17 * 60 + 30, 'subway', 'Honestly just move to Namba at this point'],
+// Queue banter as the route shortens (remaining metres → text), once each.
+export const QUEUE_LINES = [
+  [170, 'I\'m 2nd in line!! 🍤'],
+  [45, 'You can see the noren from there, right?? 👋'],
 ];
 
-export const REACTIONS = {
-  coffeeGreat: 'Wakakusa?? You found it! Told you. Ok now: TEMPURA',
-  coffeeKissa: 'A real kissaten!! Did you get the thick toast',
-  coffeeChain: 'Mocca Rest? 🙄 That\'s airport coffee with extra steps. Keep looking',
-  tempuraGreat: 'DAIKICHI. I\'m so jealous. Ok go find your train, champion',
-  tempuraKitsune: 'Kitsune!! Highball + tempura at a standing bar is peak Osaka',
-  tendon: 'Tendon is good! But it\'s not Daikichi good. Just saying',
-  wrongWay: 'Why does your location say Daikokuchō lol',
-  wrongLine: 'That\'s the pink line btw. You want red',
-  boarded: 'On the train?? Yay. Send me photos of the bento you buy at Shin-Osaka',
-  charged: null,
+export const ARRIVAL = {
+  aya: { ja: 'こっちこっち！', en: 'Over here! You made it 😆' },
+  text: 'THERE you are 🥹 I saved us the two seats at the counter',
+  sub: { en: 'Tempura Daikichi · 天ぷら 大吉', ja: 'なんばパークス 6F' },
+};
+
+export const ENDCARD = {
+  kicker: 'Tempura Daikichi · Namba Parks 6F · 天ぷら 大吉',
+  line: 'Indoor spaces shouldn\'t run on guesswork.',
+  note: 'Built for the Oriient team by Zack Niv — a love letter to Namba and to indoor positioning.',
+  contact: 'contact: zack@…',
 };
 
 // Shop lines ---------------------------------------------------------------

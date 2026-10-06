@@ -17,28 +17,32 @@ export class Title {
   build() {
     const el = this.el;
     el.className = 'g-title-screen';
+    const k = (x, w) => `<kbd class="g-key${w ? ' wide' : ''}">${x}</kbd>`;
+    const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
     el.innerHTML = `
       <div class="t-shade"></div>
       <div class="t-top">
-        <div class="t-place"><span class="t-dot"></span>南海なんば駅 3F · Nankai Namba · 10:42</div>
+        <div class="t-place"><span class="t-dot"></span>南海なんば駅 · Nankai Namba · 11:20</div>
         <div class="t-menu">
-          <button type="button" class="t-link" data-tab="controls">Controls</button>
           <button type="button" class="t-link" data-tab="settings">Settings</button>
         </div>
       </div>
       <div class="t-main">
         <div class="t-kana">なんば</div>
-        <div class="t-latin">NAMBA</div>
+        <div class="t-latin">Lost in Namba</div>
         <div class="t-rule"></div>
-        <div class="t-tag">A great coffee. Tempura for lunch. The right train.<br><span>How hard can it be?</span></div>
-        <div class="t-tag-ja">美味しいコーヒー、お昼の天ぷら、そして正しい電車。</div>
+        <div class="t-tag">Somewhere in this labyrinth, a tempura lunch is waiting.</div>
+        <div class="t-tag-ja">この迷宮のどこかで、天ぷらが待っている。</div>
         <button type="button" class="t-begin"><span class="t-begin-line"></span><span>Click to begin</span><small>クリックしてはじめる</small></button>
       </div>
       <div class="t-drawer" hidden>
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>
         <div class="t-drawer-body"></div>
       </div>
-      <div class="t-foot"><span>A love letter to Namba, Osaka</span><span class="t-sep">·</span><span>大阪・なんばへのラブレター</span></div>`;
+      <div class="t-foot">
+        <div class="t-hint">${touch ? 'Best on a computer with a keyboard and mouse' : 'Best with keyboard &amp; mouse'}<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span></div>
+        <div class="t-keys"><span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span></div>
+      </div>`;
     const drawer = el.querySelector('.t-drawer');
     const body = el.querySelector('.t-drawer-body');
     const titleEl = el.querySelector('.t-drawer-title');
@@ -47,7 +51,7 @@ export class Title {
       drawer.hidden = false; drawer.dataset.tab = tab;
       body.innerHTML = '';
       if (tab === 'settings') { titleEl.innerHTML = 'Settings <small>設定</small>'; body.appendChild(buildSettingsPanel(this.ctx)); }
-      else { titleEl.innerHTML = 'Controls <small>操作</small>'; body.appendChild(buildControlsCard()); body.insertAdjacentHTML('beforeend', '<p class="t-note">There are no arrows. Read the signs, ask your phone, follow the crowd — or don\'t. Getting lost is half the trip.</p>'); }
+      else { titleEl.innerHTML = 'Controls <small>操作</small>'; body.appendChild(buildControlsCard()); }
       this.ctx.audio?.play?.('ui_open');
     };
     el.querySelectorAll('.t-link').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); openTab(b.dataset.tab); }));

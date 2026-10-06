@@ -14,13 +14,23 @@
 //   pos            the phone's location belief {x,z,level,acc,heading,signal,noService}
 //   handlesMessages = true (HUD skips its fallback banner)
 //   search(q)      programmatic search (opens Maps)
+//   --- demo upgrade (Lodestone) ---
+//   offerLodestone()      Aya texts a link card (idempotent). Fallback: the phone does it itself
+//                         after ~150 s of play if the game never has
+//   installLodestone()    install (~2 s) -> calibration (~3.3 s) -> ready. Opens the phone.
+//   positioningMode       'gps' | 'lodestone' (flips to 'lodestone' when stage 'ready' starts)
+//   upgradeStage          'none' | 'offer' | 'installing' | 'calibrating' | 'ready'
+//   stats()               live before/after numbers (see ui/phone/stats.js)
 // Events: emits 'phone:open' / 'phone:close' {app}, 'phone:search' {query,count},
-//   'phone:select' {id,kind,slot,key}, 'phone:route' {id,level}, 'phone:arrive' {id}
-//   listens 'phone:message' {from,text,time}, 'quest:update'
+//   'phone:select' {id,kind,slot,key}, 'phone:route' {id,level}, 'phone:arrive' {id},
+//   'phone:upgrade' {stage: 'offer'|'installing'|'calibrating'|'ready'}, 'lodestone:arrive' {id}
+//   listens 'phone:message' {from,text,time,link?}, 'quest:update', 'demo:arrive'
 // =============================================================================
 import { Positioning } from './phone/positioning.js';
 import { MapApp } from './phone/mapapp.js';
 import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js';
+import { LodestoneApp } from './phone/lodestone.js';
+import { PhoneStats } from './phone/stats.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -33,6 +43,33 @@ export class Phone {
     this.battery = 64;
     this.typing = false;
     this._sway = { x: 0, y: 0, r: 0 };
+    this.upgradeStage = 'none';
+    this.sway = null;          // override while Lodestone calibrates (figure-of-8 wave)
+    this._scale = 1;
+    this._play = 0;            // seconds of play (fallback offer timer)
+  }
+
+  // ---- demo upgrade API -------------------------------------------------------
+  get positioningMode() { return this.pos ? this.pos.mode : 'gps'; }
+  stats() { return this._stats ? this._stats.summary() : {}; }
+  offerLodestone() {
+    if (this.upgradeStage !== 'none') return false;
+    this.ctx.events.emit('phone:message', { id: 'aya_lodestone', from: 'Aya', text: 'you’re lost aren’t you 😂 install Lodestone — it actually works indoors', link: 'lodestone' });
+    return true;
+  }
+  _noteOffer() {                // called by Messages when a link:'lodestone' text lands
+    if (this.upgradeStage !== 'none') return;
+    this.upgradeStage = 'offer'; this._offerAt = this._play;
+    this.ctx.events.emit('phone:upgrade', { stage: 'offer' });
+  }
+  lodestoneAction() { if (this.upgradeStage === 'ready') this.openApp('lodestone'); else this.installLodestone(); }
+  installLodestone() {
+    if (['installing', 'calibrating', 'ready'].includes(this.upgradeStage)) return false;
+    if (this.upgradeStage === 'none') this._noteOffer();
+    this.open('lodestone');
+    this.lodestone.start();
+    this.messages && this.messages.render();
+    return true;
   }
 
   async init() {
@@ -44,6 +81,7 @@ export class Phone {
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
     this.pos = new Positioning(ctx);
+    this._stats = new PhoneStats(this);
     this.pos.update(0);
     if (!this.pos.level) this.pos.level = (ctx.player && ctx.player.body.level) || '3F';
     this.root = (ctx.ui && ctx.ui.phone) || document.getElementById('phone-root');
@@ -53,7 +91,8 @@ export class Phone {
     this.notes = new NotesApp(this, this.views.notes);
     this.messages = new MessagesApp(this, this.views.messages);
     this.transit = new TransitApp(this, this.views.transit);
-    this.apps = { home: this.home, maps: this.maps, notes: this.notes, messages: this.messages, transit: this.transit };
+    this.lodestone = new LodestoneApp(this, this.views.lodestone);
+    this.apps = { home: this.home, maps: this.maps, notes: this.notes, messages: this.messages, transit: this.transit, lodestone: this.lodestone };
     this._showApp('maps');
     // signage finishes its content in the background (never awaited here)
     if (ctx.signage && ctx.signage.start) ctx.signage.start();
@@ -72,7 +111,7 @@ export class Phone {
               <span class="ph-right"><span class="ph-sig"><i></i><i></i><i></i><i></i></span><span class="ph-net">5G</span><span class="ph-bat"><i></i><b>64</b></span></span></div>
             <div class="ph-views">
               <div class="ph-view" data-v="home"></div><div class="ph-view" data-v="maps"></div><div class="ph-view" data-v="notes"></div>
-              <div class="ph-view" data-v="messages"></div><div class="ph-view" data-v="transit"></div>
+              <div class="ph-view" data-v="messages"></div><div class="ph-view" data-v="transit"></div><div class="ph-view" data-v="lodestone"></div>
             </div>
             <div class="ph-notif" hidden></div>
             <div class="ph-toast" hidden></div>
@@ -103,6 +142,7 @@ export class Phone {
   _layout() {
     // scale the 340×700 device to the viewport (held low: the top ~85 % shows)
     const s = Math.max(0.55, Math.min(1.15, (innerHeight * 0.9) / 700, (innerWidth * 0.92) / 340));
+    this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
   }
 
@@ -180,6 +220,11 @@ export class Phone {
       else this.toggle();
     }
     this.pos.update(dt);
+    this._stats.update(dt);
+    // the upgrade: keyboard (Enter / E while the offer is on screen) and the 150 s fallback
+    if (ctx.started && !ctx.paused && !(ctx.game && ctx.game.paused)) this._play += dt;
+    if (this.upgradeStage === 'none' && this._play > 150) this.offerLodestone();
+    if (this.isOpen && this.upgradeStage === 'offer' && !this.typing && inp && (inp.pressed('Enter') || inp.pressed('KeyE') || inp.pressed('KeyI'))) this.installLodestone();
     // battery: drains faster while the screen is on
     this.battery = Math.max(3, this.battery - dt * (this.isOpen ? 1 / 75 : 1 / 420));
     // status bar (cheap DOM writes only when values change)
@@ -200,7 +245,11 @@ export class Phone {
     }
     // hand sway (walking bob + turning inertia)
     const p = ctx.player;
-    if (p) {
+    if (this.sway) {
+      this.wrap.style.setProperty('--sx', `${this.sway.x.toFixed(2)}px`); this.wrap.style.setProperty('--sy', `${this.sway.y.toFixed(2)}px`); this.wrap.style.setProperty('--sr', `${this.sway.r.toFixed(2)}deg`);
+      this._swayOn = true;
+    } else if (p) {
+      if (this._swayOn) { this._swayOn = false; this.wrap.style.setProperty('--sr', '0deg'); }
       const sp = Math.min(1, (p.speed || 0) / 1.6);
       const ph = p.bobPhase || 0;
       const tx = Math.cos(ph) * 4 * sp, ty = Math.abs(Math.sin(ph)) * 5 * sp;
@@ -210,6 +259,7 @@ export class Phone {
       this.wrap.style.setProperty('--sy', `${this._sway.y.toFixed(2)}px`);
     }
     this.maps.update(dt, this.isOpen && this.app === 'maps');
+    this.lodestone.update(dt, this.isOpen && this.app === 'lodestone');
     if (this.isOpen && this.app === 'transit') this.transit.update(dt);
   }
 }

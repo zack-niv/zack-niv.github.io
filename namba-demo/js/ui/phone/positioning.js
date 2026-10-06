@@ -36,6 +36,47 @@ export class Positioning {
     this._sigTimer = 0;
     this.env = 'indoor';
     this._init = false;
+    // 'gps' = the generic phone fix (above); 'lodestone' = true position ±1 m,
+    // true heading, instant floor (set by Phone.installLodestone via setMode)
+    this.mode = 'gps';
+    this.lx = 0; this.lz = 0; this._lsSnap = 0;
+  }
+
+  setMode(mode) {
+    if (mode === this.mode) return;
+    this.mode = mode;
+    if (mode === 'lodestone') {
+      this._lsSnap = 1.4;                 // the dot visibly snaps to the truth
+      this._pendingLevel = null; this._wrongTimer = 0; this._levelTimer = 0;
+      this.lx = this.lz = 0;
+    }
+  }
+
+  // floor of a body, mid-ramp bodies belong to whichever end they are nearer
+  trueLevel(b) {
+    if (b.ramp >= 0) {
+      const r = this.ctx.world.layout.ramps[b.ramp];
+      if (r) { const y0 = this.ctx.world.layout.LEVELS[r.lower].y, y1 = this.ctx.world.layout.LEVELS[r.upper].y; return (b.y - y0) > (y1 - y0) / 2 ? r.upper : r.lower; }
+    }
+    return b.level;
+  }
+
+  _updateLodestone(dt, b, p, E) {
+    const R = this.R;
+    // sub-metre residual error: a fast OU wobble, sigma ~0.35 m
+    const tau = 1.1, k = Math.sqrt(2 / tau) * 0.34 * Math.sqrt(dt);
+    this.lx += -this.lx / tau * dt + k * gauss(R); this.lz += -this.lz / tau * dt + k * gauss(R);
+    const lim = 0.9, m = Math.hypot(this.lx, this.lz); if (m > lim) { this.lx *= lim / m; this.lz *= lim / m; }
+    this._lsSnap = Math.max(0, this._lsSnap - dt);
+    const ease = 1 - Math.exp(-dt / (this._lsSnap > 0 ? 0.28 : 0.07));
+    this.x += (b.x + this.lx - this.x) * ease; this.z += (b.z + this.lz - this.z) * ease;
+    this.fixX = this.x; this.fixZ = this.z;
+    this.accTarget = 1.0;
+    this.acc += (1.0 - this.acc) * (1 - Math.exp(-dt / 0.25));
+    this.level = this.trueLevel(b); this._pendingLevel = null; this._wrongTimer = 0;
+    let d = (p.yaw || 0) - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.heading += d * (1 - Math.exp(-dt / (this._lsSnap > 0 ? 0.25 : 0.05)));
+    this.hBias = 0;
   }
 
   // environment classification of the TRUE location
@@ -46,8 +87,8 @@ export class Positioning {
     const lv = body.level;
     if (outdoor) return { env: 'outdoor', sigma: 2.2, bias: 4, fix: 0.3, sig: 4 };
     if (sp && (sp.zone === 'parks' || sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 4.5, bias: 9, fix: 0.6, sig: 4 };
-    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 5.5, bias: 14, fix: 0.8, sig: 3 };
-    if (lv === '1F') return { env: 'ground', sigma: 6, bias: 16, fix: 0.9, sig: 3 };
+    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 8.5, bias: 18, fix: 1.0, sig: 3 };
+    if (lv === '1F') return { env: 'ground', sigma: 9, bias: 18, fix: 1.1, sig: 3 };
     if (lv === 'B1') return { env: 'under', sigma: 8, bias: 26, fix: 1.4, sig: 2 };
     if (lv === 'B2') return { env: 'deep', sigma: 11, bias: 34, fix: 2.2, sig: 0 };
     return { env: 'indoor', sigma: 8, bias: 12, fix: 0.8, sig: 3 };
@@ -64,6 +105,7 @@ export class Positioning {
     }
     const E = this._env(b);
     this.env = E.env;
+    if (this.mode === 'lodestone') { this._updateLodestone(dt, b, p, E); this._signal(E, dt); return; }
     // --- error random walk (OU process, tau ~ 25 s) ---------------------------
     const tau = 25;
     const k = Math.sqrt(2 / tau) * E.sigma * Math.sqrt(dt);
@@ -113,13 +155,17 @@ export class Positioning {
     if (this._wrongTimer > 0) {
       this._wrongTimer -= dt;
       if (this._wrongTimer <= 0) { this._wrongTimer = 0; this.level = this._pendingLevel || b.level; this._pendingLevel = null; }
-    } else if (!this._pendingLevel && this.level === b.level && (E.env === 'under' || E.env === 'deep' || E.env === 'ground') && R() < dt / 140) {
+    } else if (!this._pendingLevel && this.level === b.level && (E.env === 'under' || E.env === 'deep' || E.env === 'ground' || E.env === 'terminal') && R() < dt / 85) {
       // barometer/Wi-Fi confusion: an adjacent floor for 8–20 s
       const i = LEVEL_ORDER.indexOf(b.level), j = i + (R() < 0.5 ? -1 : 1);
       const lv = LEVEL_ORDER[j];
       if (lv && this.ctx.world.grids[lv]) { this.level = lv; this._wrongTimer = 8 + R() * 12; }
     }
-    // --- signal ---------------------------------------------------------------
+    this._signal(E, dt);
+  }
+
+  _signal(E, dt) {
+    const R = this.R;
     this._sigTimer -= dt;
     if (this._sigTimer <= 0) {
       this._sigTimer = 2 + R() * 4;

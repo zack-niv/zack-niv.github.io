@@ -75,8 +75,10 @@ async function boot() {
       if (!Cls) throw new Error(`${path} has no export ${exp}`);
       const sys = new Cls(ctx);
       ctx[name] = sys;
+      const t0 = performance.now();
       if (sys.init) await sys.init();
       ctx.systems.push({ name, sys });
+      console.log(`[load] ${name} ${(performance.now() - t0).toFixed(0)}ms (at ${(performance.now() / 1000).toFixed(1)}s)`);
     } catch (e) {
       console.error(`[system ${name}] failed`, e);
       ctx.errors.push(`${name}: ${e.message}`);

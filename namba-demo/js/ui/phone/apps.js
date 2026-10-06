@@ -27,9 +27,17 @@ export class HomeApp {
       <div class="hs-dock">${['maps', 'messages', 'transit', 'notes'].map(id => `<button class="hs-app" data-app="${id}"><i class="hs-ic ${apps.find(a => a[0] === id)[2]}"></i></button>`).join('')}</div>`;
     root.querySelectorAll('.hs-app').forEach(b => b.addEventListener('click', () => {
       const id = b.dataset.app;
-      if (['maps', 'transit', 'notes', 'messages'].includes(id)) phone.openApp(id);
+      if (['maps', 'transit', 'notes', 'messages', 'lodestone'].includes(id)) phone.openApp(id);
       else phone.toastIn(id === 'camera' ? 'Storage almost full' : id === 'translate' ? 'Offline language pack not downloaded' : id === 'wallet' ? 'ICOCA · use it at the gates' : 'Osaka 24° · Sunny');
     }));
+  }
+  addLodestone() {
+    if (this.root.querySelector('[data-app="lodestone"]')) return;
+    const grid = this.root.querySelector('.hs-grid');
+    const b = document.createElement('button'); b.className = 'hs-app'; b.dataset.app = 'lodestone';
+    b.innerHTML = '<i class="hs-ic ic-lode"><svg viewBox="0 0 32 32"><path d="M16 4 21 16 16 28 11 16Z" fill="#10192b" stroke="#ffb02e" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 4 21 16H16Z" fill="#ffb02e"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg></i><span>Lodestone</span>';
+    b.addEventListener('click', () => this.phone.openApp('lodestone'));
+    grid.insertBefore(b, grid.firstChild);
   }
   badge(app, n) {
     this.root.querySelectorAll(`.hs-app[data-app="${app}"] .hs-badge`).forEach(b => { b.hidden = !n; b.textContent = n; });
@@ -73,19 +81,31 @@ export class MessagesApp {
     ];
     this.unread = 0;
     this.ctx.events.on('phone:message', (m) => this.receive(m));
+    // tap (or Enter / Space on the focused button) on the Lodestone link card
+    root.addEventListener('click', (e) => { if (e.target.closest('.ms-link')) this.phone.lodestoneAction(); });
     this.render();
   }
+  markInstalled() { this.render(); }
   receive(m) {
     const time = m.time || this.ctx.clock.hhmm;
-    this.msgs.push({ from: m.from || 'Aya', text: m.text, time, me: false });
+    this.msgs.push({ from: m.from || 'Aya', text: m.text, time, me: false, link: m.link || null });
+    if (m.link === 'lodestone') this.phone._noteOffer();
     if (!(this.phone.isOpen && this.phone.app === 'messages')) this.unread++;
     this.render();
     this.phone.notify('messages', { title: m.from || 'Aya', text: m.text });
   }
+  _linkCard() {
+    const st = this.phone.upgradeStage;
+    const label = st === 'ready' ? 'Open' : st === 'installing' || st === 'calibrating' ? 'Installing…' : 'Get';
+    return `<button class="ms-link ${st === 'installing' || st === 'calibrating' ? 'busy' : ''} ${st === 'ready' ? 'done' : ''}" data-act="lodestone" aria-label="Lodestone: ${label}">
+      <i class="ms-l-ic"><svg viewBox="0 0 32 32"><path d="M16 4 21 16 16 28 11 16Z" fill="#10192b" stroke="#ffb02e" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 4 21 16H16Z" fill="#ffb02e"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg></i>
+      <span class="ms-l-t"><b>Lodestone</b><small>Indoor positioning that works inside buildings · lodestone.app</small></span><em>${label}</em></button>
+      ${st === 'offer' ? '<span class="ms-l-hint">Tap the card, or press <kbd>Enter</kbd></span>' : ''}`;
+  }
   onShow() { this.unread = 0; this.phone.home && this.phone.home.badge('messages', 0); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
   render() {
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>Osaka · usually replies fast</small></div></div>
-      <div class="ms-list">${this.msgs.map(m => `<div class="ms-b ${m.me ? 'me' : ''}"><p>${esc(m.text)}</p><small>${esc(m.time)}</small></div>`).join('')}</div>
+      <div class="ms-list">${this.msgs.map(m => `<div class="ms-b ${m.me ? 'me' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}<small>${esc(m.time)}</small></div>`).join('')}</div>
       <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
     const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight;
     this.phone.home && this.phone.home.badge('messages', this.unread);
