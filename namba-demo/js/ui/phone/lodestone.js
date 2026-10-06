@@ -16,7 +16,7 @@ import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
-const fm = (m) => m < 1000 ? `${Math.max(1, Math.round(m / 5) * 5)} m` : `${(m / 1000).toFixed(1)} km`;
+const fm = (m) => !isFinite(m) ? '—' : m < 1000 ? `${Math.max(1, Math.round(m / 5) * 5)} m` : `${(m / 1000).toFixed(1)} km`;
 
 export const LOGO = `<svg viewBox="0 0 32 32" class="ld-logo" aria-hidden="true"><defs><linearGradient id="ldg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd37a"/><stop offset="1" stop-color="#ff8a1f"/></linearGradient></defs>
 <circle cx="16" cy="16" r="13.2" fill="none" stroke="#5b6b86" stroke-width="1.6" stroke-dasharray="2.2 3.1"/>
@@ -31,6 +31,7 @@ const ICONS = {
   uright: '<path d="M7 20V9a4 4 0 0 1 8 0v8M11 13l4 4 4-4"/>',
   up: '<path d="M3 20h5v-5h5v-5h5M12 4h8v8M20 4 11 13"/>',
   down: '<path d="M3 4h5v5h5v5h5M12 20h8v-8M20 20l-9-9"/>',
+  canyon: '<path d="M3 20 8 10l3 5 3-8 7 13M3 20h18M17 4.2a2 2 0 1 0 .01 0"/>',
   flag: '<path d="M6 21V4M6 5h11l-2.5 4L17 13H6"/>',
 };
 const icon = (k, cls = '') => `<svg viewBox="0 0 24 24" class="ld-ic ${cls}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ICONS.straight}</svg>`;
@@ -270,7 +271,8 @@ export class LodestoneApp {
       if (moved > 0.9 || body.level !== this._lastPos[2] || !this.route) {
         this._lastPos = [body.x, body.z, body.level];
         const r = this.guid && this.guid.compute(body, p.heading);
-        if (r && r.ok) { this.route = r; S.setRoute(r); } else if (r) { this.route = r; }
+        // a route with NaN/Infinity in it is never shown: keep the last good one
+        if (r && r.ok) { this.route = r; S.setRoute(r); } else if (r && !r.bad) { this.route = r; }
         this._renderSheet(false);
         this._syncLadder();
       }
@@ -316,6 +318,7 @@ export class LodestoneApp {
     if (this.arrived || !this.guid || !this.guid.field) return;
     this._at = (this._at || 0) - dt; if (this._at > 0) return; this._at = 0.4;
     const b = this.ctx.player && this.ctx.player.body; if (!b) return;
+    this.guid.noteBody(b);          // has the player been out in the canyon yet? (works with the phone down)
     const lv = this.phone.pos.trueLevel(b);
     if (lv !== this.dest.level) return;
     const rem = this.guid.remaining(b);
@@ -347,16 +350,20 @@ export class LodestoneApp {
     this.el.sheet.classList.remove('arrived');
     if (!R || !R.ok) { const k = 'noroute'; if (k === this._sheetKey && !force) return; this._sheetKey = k; S.innerHTML = `<div class="ld-nr"><b>Locating route…</b><span>Walk to an open area</span></div>`; return; }
     const st = R.steps, cur = st[0], nxt = st[1];
-    const mins = R.eta < 45 ? '<1' : String(Math.max(1, Math.round(R.eta / 60)));
-    const dist = Math.round(R.total);
-    const toGo = cur ? Math.max(0, Math.round(cur.at)) : 0;
+    const num = (v, d = 0) => (isFinite(v) ? v : d);
+    const mins = !isFinite(R.eta) ? '–' : R.eta < 45 ? '<1' : String(Math.max(1, Math.round(R.eta / 60)));
+    const dist = Math.round(num(R.total));
+    const toGo = cur ? Math.max(0, Math.round(num(cur.at))) : 0;
     const key = [cur && cur.title, cur && cur.sub, Math.round(toGo / 5), nxt && nxt.title, mins, Math.round(dist / 5), R.ramps, this.expanded, st.length].join('|');
     if (!force && key === this._sheetKey) return; this._sheetKey = key;
-    const live = cur && (cur.kind !== 'ramp' && cur.icon !== 'flag') || (cur && toGo > 14);
-    const first = `<div class="ld-now"><div class="ld-now-ic ${live && toGo > 12 ? 'live' : ''}">${live && toGo > 12 ? icon('straight', 'ld-arrow') : icon(cur ? cur.icon : 'straight')}</div>
+    // big glyph: escalators/stairs always show their own up/down glyph, the flag shows the flag;
+    // walking steps (turns, "continue", the canyon) show the live heading arrow until ~12 m, then the turn arrow
+    const glyphStep = !cur || cur.kind === 'ramp' || cur.kind === 'arrive' || cur.kind === 'via' || cur.icon === 'flag';
+    const live = !glyphStep && toGo > 12;
+    const first = `<div class="ld-now"><div class="ld-now-ic ${live ? 'live' : ''}">${live ? icon('straight', 'ld-arrow') : icon(cur ? cur.icon : 'straight')}</div>
       <div class="ld-now-t"><div class="ld-dist">${toGo < 3 ? 'Now' : fm(toGo)}</div><b>${esc(cur ? cur.title : 'Head to route')}</b><span>${esc(cur ? cur.sub : '')}</span></div></div>`;
     const then = nxt ? `<div class="ld-then"><em>Then</em>${icon(nxt.icon, 'sm')}<span>${esc(nxt.title)}${nxt.sub ? ` <u>${esc(nxt.sub)}</u>` : ''}</span></div>` : '';
-    const stats = `<div class="ld-stats"><div><b>${mins}</b><small>min</small></div><div><b>${dist >= 1000 ? (dist / 1000).toFixed(1) : dist}</b><small>${dist >= 1000 ? 'km' : 'metres'}</small></div><div><b>${R.ramps}</b><small>floor ${R.ramps === 1 ? 'change' : 'changes'}</small></div><button class="ld-more" aria-label="All steps">${this.expanded ? '▾' : '▴'} Steps</button></div>`;
+    const stats = `<div class="ld-stats"><div><b>${mins}</b><small>min</small></div><div><b>${dist >= 1000 ? (dist / 1000).toFixed(1) : dist}</b><small>${dist >= 1000 ? 'km' : 'metres'}</small></div><div><b>${num(R.ramps)}</b><small>floor ${R.ramps === 1 ? 'change' : 'changes'}</small></div><button class="ld-more" aria-label="All steps">${this.expanded ? '▾' : '▴'} Steps</button></div>`;
     let list = '';
     if (this.expanded) list = `<ol class="ld-steps">${st.map(s => `<li>${icon(s.icon, 'sm')}<div><b>${esc(s.title)}</b><small>${esc(s.sub || '')}</small></div><em>${fm(s.at)}</em></li>`).join('')}</ol>`;
     this.el.sheet.classList.toggle('open', this.expanded);

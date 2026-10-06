@@ -46,6 +46,28 @@ export class Guidance {
     this.dest = dest;       // { id, en, ja, level, x, z (door outside), nx, nz (door normal), slot }
     this.field = null;
     this.goal = -1;
+    // Scenic via-point: the Namba Parks canyon (2F). The guided route goes
+    // start -> canyon -> destination until the player has been out in the canyon.
+    this.via = { id: 'canyon', level: '2F', x: 33, z: 222, node: -1, field: null,
+      title: 'Walk out into the Namba Parks canyon', sub: 'Open air · 2F' };
+    this.viaDone = false;
+  }
+
+  // Has the player reached the canyon (or gone up into Parks by the indoor
+  // escalators, which makes the detour pointless)? Cheap O(1): called at 2.5 Hz
+  // from the Lodestone arrival check even while the phone is down.
+  noteBody(body) {
+    if (this.viaDone || !body || body.ramp >= 0) return;
+    const W = this.ctx.world, sp = W.spaceAt(body.level, body.x, body.z);
+    if (sp && (sp.zone === 'parks' || sp.zone === 'parksGarden') && (sp.outdoor || body.level !== '2F')) this.viaDone = true;
+    else if (body.level === this.via.level && Math.hypot(body.x - this.via.x, body.z - this.via.z) < 5) this.viaDone = true;
+  }
+  _viaField() {
+    const V = this.via, nav = this.ctx.nav;
+    if (V.field) return V.field;
+    V.node = nav.nodeAtPoint(V.level, V.x, V.z);
+    if (V.node < 0) return null;
+    return (V.field = fieldNoEntry(nav, 'lodestone:via:' + V.id, [V.node]));
   }
 
   // Heavy part (a few hundred ms): the cost field to the destination.
@@ -80,7 +102,22 @@ export class Guidance {
     const f = this.prepare();
     const v = this._startNode(body);
     if (v < 0) return { ok: false };
-    const legs = routeLegs(nav, f, v);
+    this.noteBody(body);
+    let legs = null, viaOn = false;
+    if (!this.viaDone) {
+      const fv = this._viaField();
+      // the canyon is only a detour worth announcing when it is not behind us
+      if (fv && isFinite(fv.dist[v]) && isFinite(f.dist[this.via.node])) {
+        const l1 = routeLegs(nav, fv, v), l2 = routeLegs(nav, f, this.via.node);
+        if (l1.length && l2.length && l1[l1.length - 1].ramp < 0) {
+          l1[l1.length - 1].via = true;
+          if (l2[0].pts.length > 2 && l1[l1.length - 1].level === l2[0].level) l2[0].pts.shift();
+          legs = l1.concat(l2); viaOn = true;
+        }
+      }
+    }
+    if (!legs) legs = routeLegs(nav, f, v);
+    legs = legs.filter(l => l.pts.length || l.ramp >= 0);
     if (!legs.length) return { ok: false };
 
     const pts = [];        // [x, worldY, z]
@@ -95,16 +132,17 @@ export class Guidance {
 
     for (let li = 0; li < legs.length; li++) {
       const leg = legs[li], lp = leg.pts, g = W.grids[leg.level];
-      const idx = dpIdx(lp, 2.6);
+      const idx = lp.length ? dpIdx(lp, 2.6) : [];
       // cumulative metres along the leg's points
       const cl = new Float32Array(lp.length);
       for (let i = 1; i < lp.length; i++) cl[i] = cl[i - 1] + Math.hypot(lp[i][0] - lp[i - 1][0], lp[i][1] - lp[i - 1][1]);
       const base = cum;
       // 3D polyline (denser than the guidance waypoints, much sparser than the nodes)
       const di = dpIdx(lp, 0.9);
-      for (const i of di) { if (li === 0 && i === 0) continue; pts.push([lp[i][0], yOf(leg.level), lp[i][1], base + cl[i]]); }
-      cum = base + cl[lp.length - 1];
-      time += cl[lp.length - 1] / 1.5;
+      for (const i of di) { if (li === 0 && i === 0) continue; if (!isFinite(lp[i][0] + lp[i][1])) continue; pts.push([lp[i][0], yOf(leg.level), lp[i][1], base + cl[i]]); }
+      const legLen = lp.length ? cl[lp.length - 1] : 0;
+      cum = base + legLen;
+      time += legLen / 1.5;
 
       // ---- zone / space entries along the leg -------------------------------
       const spaceAtIdx = (i) => { const si = g.spaceAt(lp[i][0], lp[i][1]); return si >= 0 ? LAYOUT.spaces[si] : null; };
@@ -137,7 +175,7 @@ export class Guidance {
       if (idx.length >= 2) { const a = lp[idx[idx.length - 2]], b = lp[idx[idx.length - 1]]; const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1; prevDir = [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; }
 
       const zoneName = (z) => ZONE_SHORT[z] || (ZONES[z] && ZONES[z].name) || 'the next area';
-      const mk = (i, o) => man.push({ at: base + cl[i], x: lp[i][0], z: lp[i][1], level: leg.level, ...o });
+      const mk = (i, o) => man.push({ at: base + (cl[i] || 0), x: lp[i][0], z: lp[i][1], level: leg.level, ...o });
       // zone entries become the title of a turn if one is within 12 m, else their own step
       for (const ze of zoneEvents) {
         const near = turns.find(t => Math.abs(cl[t.i] - cl[ze.i]) < 12 && !t.used);
@@ -159,20 +197,21 @@ export class Guidance {
       if (leg.ramp >= 0) {
         const r = LAYOUT.ramps[leg.ramp], up = leg.dir > 0, to = up ? r.upper : r.lower;
         const E = rampEnds(r), s0 = up ? E.low : E.high, s1 = up ? E.high : E.low;
-        const rl = rampLength(r);
+        const t0 = Math.min(0.98, Math.max(0, leg.rampStart || 0));      // already on the ramp (riding): only what is left
+        const rl = rampLength(r) * (1 - t0);
         // geometry of the climb
         const last = pts[pts.length - 1];
         const n = 7;
         for (let k = 0; k <= n; k++) {
-          const t = k / n, x = s0.x + (s1.x - s0.x) * t, z = s0.z + (s1.z - s0.z) * t;
+          const t = t0 + (1 - t0) * k / n, x = s0.x + (s1.x - s0.x) * t, z = s0.z + (s1.z - s0.z) * t;
           const sN = up ? t : 1 - t;
           const y = rampProfile(r, sN);
           if (k === 0 && Math.hypot(x - last[0], z - last[2]) < 0.3) { last[1] = y; continue; }
-          pts.push([x, y, z, cum + rl * t]);
+          pts.push([x, y, z, cum + rl * k / n]);
         }
         const rideDir = [(s1.x - s0.x) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1), (s1.z - s0.z) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1)];
         prevDir = rideDir;
-        const prev = man[man.length - 1];
+        const prev = leg.onRamp ? null : man[man.length - 1];
         // chain of escalators with a short connecting walk collapses into one step
         const word = r.kind === 'escalator' ? 'Escalator' : 'Stairs';
         if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
@@ -186,6 +225,13 @@ export class Guidance {
         }
         cum += rl; time += rl / 0.85; ramps++;
         // the walk that follows starts at the upper end: its turn is relative to the ride direction
+      }
+      if (leg.via) {
+        // canyon waypoint: a landmark step; the walk that follows is not a "turn" relative to it
+        const E = lp[lp.length - 1];
+        man.push({ kind: 'via', at: cum, x: E[0], z: E[1], level: leg.level, icon: 'canyon', title: this.via.title, sub: this.via.sub });
+        marks.push({ x: E[0], z: E[1], y: yOf(leg.level), text: 'Canyon', up: true, level: leg.level, via: true });
+        prevDir = null;
       }
       lastWalkEnd = cum;
     }
@@ -206,13 +252,14 @@ export class Guidance {
     const steps = [];
     for (const m of man) {
       const p = steps[steps.length - 1];
-      if (p && m.at - p.at < 6 && m.kind !== 'ramp' && m.kind !== 'arrive' && p.kind !== 'ramp') continue;
+      if (p && m.at - p.at < 6 && m.kind !== 'ramp' && m.kind !== 'arrive' && m.kind !== 'via' && p.kind !== 'ramp') continue;
       steps.push(m);
     }
     // legs-from-here lookahead point (for the live heading arrow)
     const ahead = this._pointAt(pts, 14);
     const total = cum;
-    return { ok: true, total, eta: time, steps, pts, marks, ramps, ahead, legs, from: lastWalkEnd, startLevel: body.level };
+    if (!isFinite(total) || !isFinite(time) || steps.some(m => !isFinite(m.at))) return { ok: false, bad: true };
+    return { ok: true, total, eta: time, steps, pts, marks, ramps, ahead, legs, from: lastWalkEnd, startLevel: body.level, via: viaOn };
   }
 
   _pointAt(pts, m) {

@@ -9,6 +9,7 @@
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
 import { params } from '../core/params.js';
+import { LEVEL_ORDER } from '../world/layout.js';
 
 export function ensureGameCss() {
   if (document.querySelector('link[data-game-css]') || document.querySelector('link[href$="css/game.css"]')) return;
@@ -16,6 +17,7 @@ export function ensureGameCss() {
   document.head.appendChild(l);
 }
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const STATION_ZONES = new Set(['nankai', 'midosuji', 'sennichimae']);
 const yen = (n) => '¥' + Math.round(n).toLocaleString('en-US');
 
 export class Hud {
@@ -46,18 +48,19 @@ export class Hud {
     this.quiet = params.test && !params.has('play');
     if (this.quiet) root.style.display = 'none';
     const ev = this.ctx.events;
-    // PA announcements: the sound system speaks them and emits timed 'caption'
-    // events; only caption raw 'announce' events when there is no audio.
-    const audioCaptions = () => !!(this.ctx.audio && this.ctx.audio.enabled && this.ctx.audio.announcer);
+    // PA announcements. Station PAs are subtitled whether or not audio is on (audio/trains.js leaves captioning to
+    // us for raw 'announce' events; the announcer's own 'caption' events cover the platform PAs it speaks).
+    // Only what the player could plausibly hear: same level (or +-1 inside a station) and within ~60 m; a payload
+    // without a position counts only while the player is in a station zone.
     const subsOn = () => !(this.ctx.settings && this.ctx.settings.subtitles === false);
     ev.on('announce', (a) => {
-      if (!a || audioCaptions() || !subsOn()) return;
+      if (!a || !subsOn() || !this.paAudible(a)) return;
       this.caption({ ja: a.ja, en: a.text || a.en, kind: 'announce', duration: a.duration || Math.max(4.5, ((a.text || '').length + (a.ja || '').length) * 0.06) });
     });
     ev.on('caption', (c) => {
       if (!c) return;
       const pa = c.speaker === 'PA' || c.kind === 'announce' || c.kind === 'platform' || c.kind === 'train' || c.distant;
-      if (pa && !subsOn()) return;
+      if (pa && (!subsOn() || !this.paAudible(c))) return;
       this.caption(Object.assign({}, c, { en: c.en != null ? c.en : (c.ja ? '' : c.text), speaker: c.speaker === 'PA' ? '' : c.speaker, kind: pa ? 'announce' : (c.kind || 'say'), distant: !!c.distant }));
     });
     ev.on('toast', (t) => t && this.toast(t));
@@ -76,6 +79,21 @@ export class Hud {
       this.notify(m);
     });
   }
+  // is this PA / distant line something the player is near enough to hear?
+  paAudible(a) {
+    const pl = this.ctx.player, b = pl && pl.body;
+    if (!b) return true;
+    const inStation = STATION_ZONES.has(pl.zone);
+    const pos = a.position || (a.x != null && a.z != null ? a : null);
+    if (!pos || pos.x == null || pos.z == null) return inStation;
+    if (Math.hypot(pos.x - b.x, pos.z - b.z) > 60) return false;
+    const lv = a.level || pos.level;
+    if (!lv || lv === b.level) return true;
+    const di = Math.abs(LEVEL_ORDER.indexOf(lv) - LEVEL_ORDER.indexOf(b.level));
+    return inStation && di <= 1;
+  }
+  // the arrival moment (and the end card after it): nothing but Aya and the chef may speak or pop up
+  arrival() { const g = this.ctx.game; return !!(g && g.demo && g.demo.arrived); }
   setVisible(v) { if (!this.quiet) this.root.style.visibility = v ? '' : 'hidden'; }
 
   // ---- interaction prompt -----------------------------------------------------
@@ -114,8 +132,19 @@ export class Hud {
   // ---- subtitles ----------------------------------------------------------------
   caption({ en = '', ja = '', speaker = '', duration, kind = 'say', distant = false } = {}) {
     if (this.quiet || (!en && !ja)) return;
+    if (this.arrival() && (kind === 'announce' || distant)) return;
     const dur = duration || Math.max(3.2, (en.length + ja.length * 1.6) * 0.055);
+    // never the same words twice at once: a repeat just keeps the one on screen alive a little longer
+    const key = `${ja}|${en}`;
+    for (const c of this.el.captions.children) {
+      if (c._key === key && !c._gone) {
+        clearTimeout(c._t);
+        c._t = setTimeout(() => { c._gone = true; c.classList.remove('on'); setTimeout(() => c.remove(), 600); }, dur * 1000);
+        return c;
+      }
+    }
     const d = document.createElement('div');
+    d._key = key;
     d.className = `h-cap k-${kind}${distant ? ' distant' : ''}`;
     const who = speaker ? `<span class="h-cap-who">${esc(speaker)}</span>` : (kind === 'announce' ? '<span class="h-cap-who pa">案内</span>' : '');
     d.innerHTML = `${ja ? `<div class="h-cap-ja">${who}${esc(ja)}</div>` : ''}${en ? `<div class="h-cap-en">${ja ? '' : who}${esc(en)}</div>` : ''}`;
@@ -123,7 +152,7 @@ export class Hud {
     while (this.el.captions.children.length > 2) this.el.captions.firstChild.remove();
     requestAnimationFrame(() => d.classList.add('on'));
     clearTimeout(d._t);
-    d._t = setTimeout(() => { d.classList.remove('on'); setTimeout(() => d.remove(), 600); }, dur * 1000);
+    d._t = setTimeout(() => { d._gone = true; d.classList.remove('on'); setTimeout(() => d.remove(), 600); }, dur * 1000);
     return d;
   }
   clearCaptions() { this.el.captions.innerHTML = ''; }
@@ -146,7 +175,7 @@ export class Hud {
   // ---- controls hint (bottom centre, fades on its own) ---------------------------------
   // kinds: 'keys' (the four controls) | 'phone' (Q) | or a ready-made html string
   hint(kind, duration = 8) {
-    if (this.quiet) return;
+    if (this.quiet || this.arrival()) return;
     const k = (x, w) => `<kbd class="g-key${w ? ' wide' : ''}">${x}</kbd>`;
     const html = kind === 'keys'
       ? `<span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span>`
@@ -173,7 +202,7 @@ export class Hud {
 
   // ---- chapter / location card -------------------------------------------------------
   chapter({ ja = '', en = '', sub = '', duration = 5.5 } = {}) {
-    if (this.quiet) return;
+    if (this.quiet || this.arrival()) return;
     const e = this.el;
     e.chapter.querySelector('.h-chapter-ja').textContent = ja;
     e.chapter.querySelector('.h-chapter-en').textContent = en;

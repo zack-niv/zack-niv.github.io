@@ -554,6 +554,13 @@ export class Stack3D {
       spx(this.pin, 34, 42);
       const dph = (this.time * 0.7 + 0.5) % 1; spx(this.destRing, 24 + dph * 50, 24 + dph * 50); this.destRing.material.opacity = (1 - dph) * 0.9;
       this.destLabel.position.set(this.dest.x, dy + 1 + 42 / pxPerM, this.dest.z); spx(this.destLabel, this.destLabel.userData.px[0], this.destLabel.userData.px[1]);
+      // keep the name chip inside the canvas: shift its anchor when the pin is near an edge
+      this._lblV = this._lblV || new THREE.Vector3();
+      this._lblV.copy(this.destLabel.position).project(this.camera);
+      const lw = this.destLabel.userData.px[0], sx = (this._lblV.x * 0.5 + 0.5) * W, m = 6;
+      let off = 0;                                   // px the chip must move right (+) / left (-)
+      if (isFinite(sx)) { if (sx - lw / 2 < m) off = m - (sx - lw / 2); else if (sx + lw / 2 > W - m) off = (W - m) - (sx + lw / 2); }
+      this.destLabel.center.x = 0.5 - off / lw;
     }
     for (const lv in this.levels) { const s = this.levels[lv].label; spx(s, s.userData.px[0], s.userData.px[1]); }
     for (const s of this.markGroup.children) spx(s, s.userData.px[0], s.userData.px[1]);

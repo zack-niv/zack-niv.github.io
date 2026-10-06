@@ -162,6 +162,27 @@ export function routeLegs(nav, f, v, maxNodes = 4000) {
   const legs = [];
   let leg = { level: nav.levelNames[nav.lvl[v]], pts: [[nav.x[v], nav.z[v]]], ramp: -1, dir: 0, len: 0 };
   let cur = v, inRamp = -1;
+  // Start ON a ramp (the player is riding an escalator): the leg that ends in
+  // this ramp has a single point (where the player is), its floor transition
+  // comes from the ramp's REAL direction of travel -- the level the field
+  // leaves the ramp at -- and the next leg starts on that level.
+  if (nav.rmp[v] >= 0) {
+    const ri0 = nav.rmp[v], r0 = L.ramps[ri0];
+    let toLv = null, w = v;
+    for (let k = 0; k < 400; k++) {
+      const n = stepNext(nav, f, w); if (n < 0) break;
+      if (nav.rmp[n] !== ri0) { if (nav.rmp[n] < 0) toLv = nav.levelNames[nav.lvl[n]]; break; }
+      w = n;
+    }
+    if (toLv === r0.upper || toLv === r0.lower) {
+      const dir0 = toLv === r0.upper ? 1 : -1, list = nav.rampNodes[ri0], ix = list ? list.indexOf(v) : -1;
+      const tLH = ix >= 0 && list.length > 1 ? ix / (list.length - 1) : 0;          // 0 = low end .. 1 = high end
+      leg = { level: dir0 > 0 ? r0.lower : r0.upper, pts: [[nav.x[v], nav.z[v]]], ramp: ri0, dir: dir0, len: 0, rampStart: dir0 > 0 ? tLH : 1 - tLH, onRamp: true };
+      legs.push(leg);
+      leg = { level: toLv, pts: [], ramp: -1, dir: 0, len: 0 };
+      inRamp = ri0;
+    }
+  }
   for (let i = 0; i < maxNodes; i++) {
     const w = stepNext(nav, f, cur);
     if (w < 0) break;

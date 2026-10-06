@@ -15,13 +15,15 @@
 // =============================================================================
 import { businessBySlot } from '../world/directory.js';
 import { params } from '../core/params.js';
-import { DEMO, INTRO, NUDGES, UPGRADE, QUEUE_LINES, ARRIVAL } from './script.js';
+import { DEMO, INTRO, NUDGES, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js';
+import { makeLook, BIT } from '../npc/looks.js';
 import { showEndCard } from './endcard.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
 const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
 const WAVE = 5;                 // npc/sim.js POSE.WAVE
+const STALL_S = 25, STALL_M = 8;   // lost = under 8 m of net progress toward Daikichi in 25 s
 const WRONG_LEVELS = new Set(['B2', 'B1', '1F']);
 
 export class Demo {
@@ -35,7 +37,9 @@ export class Demo {
     this.arrived = false; this.arriveT = null; this.arriveDist = 0;
     this.ended = false;
     this._sent = new Set();
-    this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0 };
+    this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0, hist: [] };
+    this.remReady = null; this.remArrive = null;     // nav distance to the door at the phase boundaries
+    this._canyonSent = false;
     this._acc = { before: { n: 0, e: 0, wf: 0 }, after: { n: 0, e: 0, wf: 0 } };
     this._sampleT = 0; this._tpGuard = 0;
     this._seeded = false;
@@ -125,6 +129,11 @@ export class Demo {
     if (!this.offered && this.nudges && !game.busy && !game.intro) {
       for (const n of this.nudges) if (!n.sent && this.t >= n.at && this.t < this._offerAt - 14) { n.sent = true; game.message(n.text); break; }
     }
+    // Lodestone's route runs through the Namba Parks canyon: Aya says so as the player reaches the bridge
+    if (!this._canyonSent && !game.busy && !game.intro && !game.paused) {
+      const sp = ctx.player.space && ctx.player.space.id;
+      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; game.message(CANYON_TEXT); }
+    }
     // the upgrade trigger
     if (!this.offered && !game.busy && !game.intro && !game.paused && this.t >= this._offerMin) {
       const lost = this._isLost();
@@ -163,7 +172,14 @@ export class Demo {
         a.fadeDir = 1;
       }
       B.seated = seated;
+      const third = B.queue[Math.min(2, B.queue.length - 1)];
+      if (third) this._dressAya(third);                      // dressed long before she is in view: no pop
     });
+  }
+  // nav-field distance (m) from the player to the Daikichi door right now, or the last good value
+  _navRem() {
+    const d = this._field ? safe(() => this.ctx.nav.distance(this._field, this.ctx.player.body)) : null;
+    return num(d) != null ? d : this._lost.rem;
   }
   _releaseQueue() { if (this._held) { this._held.nextAdmit = 0; this._held = null; } }
   _checkRoute(dt) {
@@ -175,9 +191,12 @@ export class Demo {
       if (num(d) != null) {
         L.rem = d;
         if (d < L.best) L.best = d;
-        // queue banter as the route shortens
+        // a short history for the "stalled" rule (no real progress for 25 s)
+        L.hist.push([this.t, d]);
+        while (L.hist.length > 2 && L.hist[1][0] < this.t - STALL_S) L.hist.shift();
+        // queue banter as the route shortens ("the noren" line only once you are on the dining floor)
         if (this.offered) for (const [at, text] of QUEUE_LINES) {
-          if (d < at && !this._sent.has(at) && !game.busy) { this._sent.add(at); game.message(text); }
+          if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); game.message(text); }
         }
       }
     }
@@ -190,6 +209,10 @@ export class Demo {
     if (L.wrongT > 7) return 'floor';
     if (L.rem != null && L.best < Infinity && L.rem - L.best > 75) return 'away';
     if (L.rem != null && L.init && walked > 250 && L.rem > L.init * 0.8) return 'far';
+    // stalled: the nav distance to the door has not dropped by 8 m over the last 25 s (stuck at a gate, dithering in
+    // a concourse, walking in circles). Peak frustration; the caller still enforces the 45 s minimum.
+    const H = L.hist;
+    if (H.length > 1 && this.t - H[0][0] >= STALL_S - 1 && H[0][1] - H[H.length - 1][1] < STALL_M) return 'stalled';
     return null;
   }
 
@@ -215,6 +238,7 @@ export class Demo {
     if (stage === 'ready' && !this.upgraded) {
       this.offered = true; this.upgraded = true;
       this.readyT = this.t; this.readyDist = game.journal.distance;
+      this.remReady = this._navRem();
       game.after(3.0, () => { if (!this.arrived) game.message(UPGRADE.ready); });
     }
   }
@@ -224,6 +248,7 @@ export class Demo {
   async arrive() {
     if (this.arrived) return;
     this.arrived = true; this.arriveT = this.t; this.arriveDist = this.game.journal.distance;
+    this.remArrive = this._navRem();
     const { ctx, game } = this;
     const hud = game.hud, b = this.biz, body = ctx.player.body;
     game.busy = true; game._syncFrozen();
@@ -257,7 +282,7 @@ export class Demo {
     const aya = this._pickAya();
     if (aya) {
       this._aya = aya; this._wave = 3.6;
-      game.lookDir(aya.x - body.x, aya.z - body.z, 0.0, 2.4);
+      this._lookAtAya(2.4);
       this._showMarker(true);
     } else {
       const c = safe(() => ctx.shops && ctx.shops.counter && ctx.shops.counter(b.slot));
@@ -283,21 +308,48 @@ export class Demo {
     if (!sim) return null;
     const B = sim.places && sim.places.bizBySlot && sim.places.bizBySlot[b.slot];
     const q = B && B.queue ? B.queue.filter(a => a && a.alive && a.level === b.level) : [];
-    if (q.length) return q[Math.min(2, q.length - 1)];       // "3rd in line"
-    // nobody queueing: the nearest person standing about outside the door will do
-    let best = null, bd = 1e9;
-    safe(() => sim.near(b.level, b.door.ox, b.door.oz, 9, (a) => {
-      if (!a || !a.alive || a.ramp >= 0 || a.mode !== 3 || a.fade < 0.5) return;
-      const d = Math.hypot(a.x - b.door.ox, a.z - b.door.oz);
-      if (d < bd) { bd = d; best = a; }
-    }));
-    return best;
+    let pick = q.length ? (q.find(a => a._aya) || q[Math.min(2, q.length - 1)]) : null;   // "3rd in line"
+    if (!pick) {
+      // nobody queueing: the nearest person standing about outside the door will do
+      let bd = 1e9;
+      safe(() => sim.near(b.level, b.door.ox, b.door.oz, 9, (a) => {
+        if (!a || !a.alive || a.ramp >= 0 || a.mode !== 3 || a.fade < 0.5) return;
+        const d = Math.hypot(a.x - b.door.ox, a.z - b.door.oz);
+        if (d < bd) { bd = d; pick = a; }
+      }));
+    }
+    if (pick) this._dressAya(pick);
+    return pick;
+  }
+  // Aya must read at a glance: a young woman in a mustard coat with a red tote bag and long dark hair. The crowd
+  // renders per-instance colours and accessory bit flags straight from agent.look / agent.flags every frame, so
+  // swapping in a freshly made look is a safe, local edit (guarded: if the internals ever change, she stays as she was).
+  _dressAya(a) {
+    if (!a || a._aya) return;
+    try {
+      let k = 1; const r = () => ((k = (k * 16807) % 2147483647) / 2147483647);        // fixed seed: always the same Aya
+      const L = makeLook('shopper', r, { female: true, bags: 0 });
+      const keep = (1 << BIT.PHONE);
+      let f = a.flags & keep;
+      f |= (1 << BIT.COAT) | (1 << BIT.TOTE) | (1 << BIT.TIGHTS) | (1 << BIT.JACKET) | (2 << 13);   // coat, tote, tights, long hair
+      L.flags = f; L.h = 0.935; L.build = 0.93; L.stride = 0.95;
+      L.colA = [0xe3a41c, 0x1e2333, 0xf1efe9, 0x1d1714];      // mustard coat, navy legs, white sneakers, dark hair
+      L.colB = [0xeed2bd, 0xf4f4f1, 0xc8283c, 0xc8283c];      // fair skin, white inner, RED tote
+      a.look = L; a.flags = f; a._aya = true;
+    } catch (e) { /* cosmetic only */ }
+  }
+  _lookAtAya(rate) {
+    const a = this._aya, body = this.ctx.player.body; if (!a) return;
+    const dx = a.x - body.x, dz = a.z - body.z, d = Math.max(0.5, Math.hypot(dx, dz));
+    const eye = (this.ctx.player.eye || 1.62), head = 1.5 * (a.look ? a.look.h : 0.93);
+    this.game.lookDir(dx, dz, Math.max(-0.25, Math.min(0.25, Math.atan2(head - eye, d))), rate);
   }
   _stepWave(dt) {
     const a = this._aya; if (!a) return;
     this._wave -= dt;
     if (this._wave <= 0) { this._wave = 0; return; }
     const p = this.ctx.player.body;
+    this._lookAtAya(3.2);                         // keep her dead centre while she waves
     a.pose = WAVE;
     a.yaw = Math.atan2(a.x - p.x, a.z - p.z);   // agents face (-sin yaw, -cos yaw), like the player
   }
@@ -350,7 +402,15 @@ export class Demo {
       err: pA ? num(ps.meanErrorAfter) : mean(A.after),
       wrongFloorS: pA ? num(ps.wrongFloorSecondsAfter) : (A.after.n >= 8 ? A.after.wf : null),
     } : null;
-    return { upgraded, before, after, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm };
+    // Net progress toward the door, in metres per minute: how much the nav distance to Daikichi dropped over the
+    // phase, divided by the phase's minutes. Honest whatever route each phase happened to cover (can be ~0 or
+    // negative while lost). A phase under ~10 s is too short to rate.
+    const rate = (r0, r1, sec) => (num(r0) != null && num(r1) != null && num(sec) != null && sec >= 10 ? (r0 - r1) / (sec / 60) : null);
+    const r0 = this._lost.init, rEnd = this.remArrive != null ? this.remArrive : this._lost.rem;
+    const progress = upgraded && this.readyT != null
+      ? { before: rate(r0, this.remReady, this.readyT), after: rate(this.remReady, rEnd, tEnd - this.readyT) }
+      : { before: rate(r0, rEnd, tEnd), after: null };
+    return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm };
   }
   async _end() {
     if (this.ended) return;

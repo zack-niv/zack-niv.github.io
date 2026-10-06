@@ -41,6 +41,8 @@ export const QUEUE_LINES = [
   [170, 'I\'m 2nd in line!! 🍤'],
   [45, 'You can see the noren from there, right?? 👋'],
 ];
+// Lodestone routes through the Namba Parks canyon; Aya texts once, as you reach the bridge.
+export const CANYON_TEXT = 'take the canyon side — trust me 🌿';
 
 export const ARRIVAL = {
   aya: { ja: 'こっちこっち！', en: 'Over here! You made it 😆' },
@@ -52,7 +54,7 @@ export const ENDCARD = {
   kicker: 'Tempura Daikichi · Namba Parks 6F · 天ぷら 大吉',
   line: 'Indoor spaces shouldn\'t run on guesswork.',
   note: 'Built for the Oriient team by Zack Niv — a love letter to Namba and to indoor positioning.',
-  contact: 'contact: zack@…',
+  contact: '',                       // none yet: the end card hides the line when this is empty
 };
 
 // Shop lines ---------------------------------------------------------------

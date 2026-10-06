@@ -75,7 +75,9 @@
 .h-toast.k-done .h-toast-title { color: #9fd18b; }
 .h-toast.k-quest .h-toast-title { color: var(--g-ink); }
 
-.h-captions { position: absolute; left: 50%; bottom: 8.5vh; transform: translateX(-50%); width: min(880px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.h-captions { position: absolute; left: 50%; bottom: 8.5vh; transform: translateX(-50%); width: min(880px, 92vw); display: flex; flex-direction: column; align-items: center; gap: 8px; transition: bottom .35s var(--g-ease); }
+/* the phone's message toast sits bottom-right: lift the subtitles clear of it while it shows */
+body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .h-cap {
   max-width: 100%; text-align: center; padding: 9px 18px 10px; border-radius: 6px; background: rgba(8, 8, 10, .6);
   backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); opacity: 0; transform: translateY(6px);
@@ -410,6 +412,7 @@
 .e-bar u { display: block; height: 100%; width: var(--w); border-radius: 2px; transform-origin: left; animation: t-grow 1.6s var(--g-ease) 1.5s both; }
 .e-v.b .e-bar u { background: var(--e-before); } .e-v.a .e-bar u { background: var(--e-after); }
 .e-v span { display: block; margin-top: 7px; font: 400 11px/1.35 var(--g-sans); color: var(--g-faint); }
+.e-total { margin: 10px 0 0; font: 400 11.5px/1.4 var(--g-sans); letter-spacing: .02em; color: var(--g-faint); font-variant-numeric: tabular-nums; }
 .e-foot { margin: 12px 0 2px; font: italic 400 13px/1.5 var(--g-sans); color: var(--g-dim); }
 
 @media (max-height: 700px) and (min-width: 721px) {
