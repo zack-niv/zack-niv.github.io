@@ -49,3 +49,25 @@ N specular fixtures), so ~65 programs link synchronously in the GPU process. In 
 * Many materials get their own program only because `inject.js` puts `material.name` in the cache key when the
   builder has an `onBeforeCompile` (env_*, parks_*, out_*): ~15 extra programs. Safe to merge per-family if the
   builders give identical hooks their own `customProgramCacheKey`.
+
+## Measurements (headless SwiftShader, 1280x720, quality=high, loaded machine: load avg 7-13 on 4 cores)
+Load timeline (loadprobe): before = ready seen at 178 s (system build done ~29 s, then ~150 s blocked behind the first-frame
+program compile); after = **READY 35.0 s** (`[load] systems ready` ~34 s; materials 1.4, architecture 7.7, shops 13, parks 16,
+signs 21, bake 23, player 30, audio 33, game 34, first frame 35). The first drawn frame in SwiftShader still takes ~6 minutes
+(62 programs + 10-25 s/frame in software) - real GPUs link in parallel and draw in ms. loadprobe `[err]`: only the sandbox's
+Google-Fonts cert failure.
+
+Draw calls / triangles per view (before = old code snapshot, after = current):
+| view | before calls / tris | after calls / tris |
+|---|---|---|
+| start (Nankai 3F) | 597 / 910k | 636 / 825k |
+| nankai_2f | 806 / 424k | 858 / 407k |
+| city_2f | 849 / 354k | 465 / 185k |
+| canyon | 1177 / 867k | 711 / 715k |
+| parks_6f | 727 / 675k | 532 / 581k |
+| pose:2F,33,222,180,10 (worst canyon) | n/a | 771 / 736k |
+(start / nankai_2f differ from "before" partly because the world agent changed content and the clock moved to 11:20 between
+snapshots; both are under the 900-call `high` budget, the governor trims anything above it.)
+Console: clean (zero errors) apart from the sandbox font cert failure.
+Left: Parks indoor chunks seen from the canyon are not occlusion-culled (needs a portal test, not safe today); merge
+name-keyed programs (see above); real-GPU frame time is unmeasured.
