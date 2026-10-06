@@ -512,3 +512,13 @@
 .gl-t span { -webkit-line-clamp: 1; }
 .gl-ic { position: relative; }
 .gl-wb { position: absolute; right: -4px; top: -4px; width: 19px; height: 19px; border-radius: 50%; background: #ffb02e; color: #1a1206; font: 900 12px/19px Inter, sans-serif; text-align: center; box-shadow: 0 0 0 2.5px #000; }
+/* lowered: the screen goes dark under the glance card (only the live activity is lit) */
+.ph-views, .ph-homebar { transition: opacity .25s; }
+.ph-wrap[data-pose="glance"] .ph-views, .ph-wrap[data-pose="glance"] .ph-homebar, .ph-wrap[data-pose="glance"] .ph-notif,
+.ph-wrap[data-pose="down"] .ph-views { opacity: 0; }
+.ph-wrap[data-pose="glance"] .ph-screen, .ph-wrap[data-pose="down"] .ph-screen { background: #000; }
+/* keep the trip card clear of the screen edge (the raised phone's bottom sits just below the viewport) */
+.ld-trip { bottom: 46px; }
+.ld-x3d { bottom: 208px; }
+.ld .ld-sheet { bottom: 44px; }
+.ld-ctl { bottom: 252px; }

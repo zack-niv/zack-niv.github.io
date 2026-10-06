@@ -8,7 +8,7 @@
 | **Hold right mouse button** | Raise the phone for a quick look while held; mouse-look keeps working. Release to lower it. |
 | **V** (phone up, Lodestone) | Expand / collapse the 3D floor stack (or click the stack preview). |
 | **E / Enter** (phone up, Aya's Lodestone link showing) | Install Lodestone *(unchanged)*. |
-| *(automatic)* | While walking, the phone sits **down at the bottom-right edge** as a slim **glance strip** showing the next step (Lodestone) or the vague Maps hint. Raised, it lowers itself when you **run (Shift)** or after **~4 s of walking**. |
+| *(automatic)* | While walking, the phone sits **down at the bottom-right edge** as a slim **glance strip** showing the next step (Lodestone) or the vague Maps hint. Raised, it lowers itself when you **run (Shift)** or after **~3.5 s of walking** (~4.5 s after raising). |
 | *(automatic)* | A text from Aya slides into the glance strip and it pulses — **Q to read**. |
 
 Suggested walkthrough card copy: **"Q — phone up / down · or hold right-click for a quick look. It drops back down when you walk on."**
@@ -65,6 +65,23 @@ Suggested walkthrough card copy: **"Q — phone up / down · or hold right-click
 
 ## Testing
 - Scripts (scratchpad): `ph/after.mjs` (screens + logic checks), `ph/run.mjs` (before, run against a pristine copy).
-- Logic check in the page: open→up; walk 1 s→up; walk 5 s (old 4.5 s threshold)→still up → threshold lowered to 3.5 s;
-  run→glance; RMB hold→up, walking 6 s while held→up; release→glance; pocket→down; unpocket→glance.
+- Logic check in the page (passes): open→up; walk 1 s→up; walk 5 s→glance; stand→up; run→glance; RMB hold→up,
+  walking 6 s while held→up; release→glance; pocket→down; unpocket→glance. JS heap flat (~269 MB) across all phone states.
+- `tools/loadprobe.mjs`: READY 28.3 s, no errors.
+- Screens: `notes/v2-shots/phone/before_0{1,2,3}_*` (v1, pristine copy) vs `after_*` (1280×720, quality=low, nocrowd).
+  `after_10c_*` / `after_11b_*` are re-renders of the captured phone DOM with the FINAL css (dark screen under the
+  glance card, trip card lifted 16 px) — those last two CSS tweaks were not captured in a live run.
 - The only console error in headless runs is `net::ERR_CERT_AUTHORITY_INVALID` for Google Fonts (sandbox proxy), not the phone.
+
+## Unsure / known issues
+- **Headless renderer OOM**: 4 of my runs had the page killed by the machine-wide memory cgroup (renderer anon-rss
+  3.5–6.8 GB, while 3–4 other agents' browsers ran). Kills happened at different steps (maps route glance, Lodestone
+  ready, teleport to city_2f); JS heap stayed flat and Stack3D disposes its route geometry, so I believe it is the
+  environment, but Lodestone's second WebGL context does add GPU/renderer memory. Worth a glance in the critic run.
+  No `after_14..17` (city_2f / canyon) shots for that reason.
+- Pointer re-lock on auto-lower: only requested while `navigator.userActivation.isActive` (holding W counts). If the
+  browser refuses, the player is at glance with a free cursor and clicks to look again (no pause, no console error).
+- Right-mouse hold could not be exercised for real headless (no pointer lock); tested through the same entry point.
+- The glance card's "Q" key cap hides after 3 raises — Flow's walkthrough should still mention Q.
+- Maps glance shows the GPS problem as an amber "!" badge on the blue arrow (text was too long for one glance).
+- Only console error seen in headless: `net::ERR_CERT_AUTHORITY_INVALID` (Google Fonts through the sandbox proxy).

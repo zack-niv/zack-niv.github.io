@@ -156,8 +156,8 @@ export class LodestoneApp {
   // the free band of the screen the 3D stack is framed into (px of the 316 x 676 screen)
   _bands(s = this.stack) {
     if (!s) return;
-    if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 250; s.bandRight = 46; }
-    else { s.bandTop = this._navBottom || 200; s.bandBottom = 186; s.bandRight = 0; }
+    if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 266; s.bandRight = 46; }
+    else { s.bandTop = this._navBottom || 200; s.bandBottom = 214; s.bandRight = 0; }
   }
   _set(st) { this.state = st; this.root.dataset.state = st; }
 

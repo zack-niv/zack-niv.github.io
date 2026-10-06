@@ -59,6 +59,12 @@ New `js/game/order.js`; `Interactions` (`js/game/interact.js`) gets two hooks (`
 * The old modal coffee vignette (`vignettes.orderCoffee`, the blocking menu) is kept only as a fallback: it is `superseded` for any
   café that has a counters entry, so you never get two prompts.
 
+## Lead follow-ups (done)
+* `hud.paAudible()` defers to `ctx.audio.paVolume(payload) > 0.06` when it exists (falls back to the old distance rule).
+* Nankai approach PA now leads with the key info: `まもなく、{no}番線に、{destJa}行き、{typeJa}が、まいります。…` /
+  "The {typeEn} bound for {destEn} is arriving at track {no}. …" (metro approach text already led with direction + destination).
+* No copy mentions an escalator side.
+
 ## Requests / notes for the lead
 * none blocking. See "unsure" below.
 
