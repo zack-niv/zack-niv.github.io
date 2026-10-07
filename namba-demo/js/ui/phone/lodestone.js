@@ -105,7 +105,7 @@ export class LodestoneApp {
         <button class="ld-x3d"><i>${EXPAND}</i><span>3D view</span>${phone.ctx.input && phone.ctx.input.touch ? '' : '<kbd>V</kbd>'}</button>
         <div class="ld-trip">
           <div class="ld-trip-r ld-here"><i class="ld-dot"></i><div><small>You are here <u>±1 m</u></small><b><span class="ld-w-l">3F</span><span class="ld-w-z">Namba</span></b></div></div>
-          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination</small><b><span class="ld-to-l"></span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em><button class="ld-change" type="button">Change</button></div>
+          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination <button class="ld-change" type="button">Change</button></small><b><span class="ld-to-l"></span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em></div>
         </div>
         <div class="ld-top"><div class="ld-brand">${logo()}<b>Lodestone</b></div><div class="ld-acc"><i></i><span>±1 m</span></div></div>
         <div class="ld-ladder"></div>
@@ -533,7 +533,7 @@ export class LodestoneApp {
     const p = this.phone.pos, here = `you’re on ${lvl(p.level)}`;
     const D = this.phone.dest, nx = D && D.next(), sug = nx && D.name(nx);
     if (!this.dest) return { kind: 'pick', icon: 'pin', title: 'Pick a place in Lodestone', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}` };
-    if (this.arrived) return { kind: 'arr', icon: 'flag', title: `Arrived · ${this.dest.name || this.dest.en}`, sub: sug ? `Next: ${sug} · pick it in Lodestone` : `${lvl(this.dest.level)} · ±1 m` };
+    if (this.arrived) return { kind: 'arr', icon: 'flag', title: `Arrived · ${this.dest.name || this.dest.en}`, sub: sug ? `Next: ${sug}` : `${lvl(this.dest.level)} · ±1 m` };
     const R = this.route;
     if (!R || !R.ok) return { kind: 'wait', icon: 'straight', title: 'Finding your route…', sub: here };
     const cur = R.steps[0], toGo = Math.max(0, Math.round(isFinite(cur && cur.at) ? cur.at : 0));

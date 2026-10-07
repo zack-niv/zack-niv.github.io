@@ -716,13 +716,15 @@
 .dl-lodestone .dl-r.aya .dl-aya { color: #ffb02e; }
 .dl-lodestone .dl-r.aya b { font-size: 15px; font-weight: 750; }
 .dl-lodestone .dl-r.aya kbd { background: #ffb02e; color: #1a1206; box-shadow: none; }
-.ld-change { flex: 0 0 auto; margin-left: 4px; height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid rgba(150,185,235,.25); background: rgba(255,255,255,.06); color: #dbe6fa; font: 650 11.5px Inter, sans-serif; cursor: pointer; }
+.ld-change { display: inline-block; vertical-align: 1px; margin-left: 6px; height: 19px; padding: 0 8px; border-radius: 10px; font-size: 10.5px !important; border: 1px solid rgba(150,185,235,.25); background: rgba(255,255,255,.06); color: #dbe6fa; font: 650 11.5px Inter, sans-serif; cursor: pointer; }
 .ld-change:hover { border-color: rgba(255,176,46,.6); color: #ffcf84; }
 /* glance strip: "Pick a place …" (a decision waits on the raised phone) */
 .gl-ic.gl-pin { background: #1a73e8; color: #fff; }
 .gl-ld .gl-ic.gl-pin { background: linear-gradient(160deg, #ffc35a, #ff8a1f); color: #1a1206; }
 .gl-pin .ld-ic { width: 30px; height: 30px; }
-.gl-pick .gl-t b, .gl-arr .gl-t b { font-size: 15.5px; -webkit-line-clamp: 1; }
+.gl-pick .gl-t b { font-size: 15.5px; -webkit-line-clamp: 1; }
+.gl-arr .gl-t b { font-size: 15px; -webkit-line-clamp: 2; }
+.gl-arr .gl-t span { -webkit-line-clamp: 1 !important; }
 .gl-pick .gl-t span, .gl-arr .gl-t span { -webkit-line-clamp: 2; font-size: 12px; }
 .gl-mp.gl-pick .gl-t span, .gl-mp.gl-arr .gl-t span { color: #9cc7ff; }
 .gl-ld.gl-pick .gl-t span, .gl-ld.gl-arr .gl-t span { color: #ffcf84; }

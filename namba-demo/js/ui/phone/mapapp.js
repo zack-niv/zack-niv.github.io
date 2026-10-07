@@ -733,7 +733,7 @@ export class MapApp {
     if (!t) {
       // v4: nothing routes until the player picks a place
       const D = this.phone.dest, C = D && D.current, nx = D && D.next(), sug = nx && D.name(nx);
-      if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug} · pick it in Maps` : here, warn: '' };
+      if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : here, warn: '' };
       return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
     }
     return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
