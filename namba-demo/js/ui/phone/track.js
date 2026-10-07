@@ -42,7 +42,7 @@ export class Tracker {
   }
   reset() {
     this.state = 'on'; this.err = 0; this.lost = 0; this.active = false;
-    this._r = null; this._minRem = Infinity; this._target = null; this._levels = null; this._wrongFloor = null; this._why = '';
+    this._r = null; this._minRem = Infinity; this._target = null; this._targets = null; this._levels = null; this._wrongFloor = null; this._why = '';
     this._driftT = 0; this._okT = 0; this._offT = 0; this._stateT = 0; this._cool = 0; this._tgtT = 0;
     this._lastBuzz = -1e9; this._t = 0;
   }
@@ -56,7 +56,7 @@ export class Tracker {
 
   // project the player onto the start of the route; the heading target is LOOK m further on
   _aim(R, body) {
-    const P = R.pts; if (!P || P.length < 2) { this._target = null; return; }
+    const P = R.pts; if (!P || P.length < 2) { this._target = null; this._targets = null; return; }
     let best = Infinity, s0 = 0;
     for (let i = 1; i < P.length; i++) {
       const a = P[i - 1], b = P[i];
@@ -66,23 +66,43 @@ export class Tracker {
       const px = a[0] + dx * t, pz = a[2] + dz * t, d = Math.hypot(body.x - px, body.z - pz);
       if (d < best) { best = d; s0 = a[3] + (b[3] - a[3]) * t; }
     }
-    const want = s0 + LOOK;
-    for (let i = 1; i < P.length; i++) if (P[i][3] >= want) {
-      const a = P[i - 1], b = P[i], t = (want - a[3]) / Math.max(1e-3, b[3] - a[3]);
-      this._target = { x: a[0] + (b[0] - a[0]) * t, z: a[2] + (b[2] - a[2]) * t };
-      return;
+    const at = (want) => {
+      for (let i = 1; i < P.length; i++) if (P[i][3] >= want) {
+        const a = P[i - 1], b = P[i], t = (want - a[3]) / Math.max(1e-3, b[3] - a[3]);
+        return { x: a[0] + (b[0] - a[0]) * t, z: a[2] + (b[2] - a[2]) * t, y: a[1] };
+      }
+      const l = P[P.length - 1]; return { x: l[0], z: l[2], y: l[1] };
+    };
+    this._target = at(s0 + LOOK);
+    // v3 critic: also accept heading for points further along the same straight stretch (up to the next turn /
+    // escalator / detour, same floor). The grid path often runs diagonally to one side of a wide hall first
+    // ("go 45° left, then straight"), so a player walking straight down the middle of the Namba CITY mall was told
+    // "Turn left" (amber) for 50 m. Facing ANY of these points is on track; walking the wrong way still is not.
+    this._targets = [this._target];
+    const st = R.steps || [];
+    const nxt = st.find(m => m && (m.kind === 'ramp' || m.kind === 'via' || m.kind === 'arrive' || /^Turn/.test(m.title || '')));
+    const cap = nxt && isFinite(nxt.at) ? nxt.at : Infinity;
+    for (const L of [12, 20, 30]) {
+      const w = Math.min(s0 + L, cap);
+      if (w <= s0 + LOOK + 1) break;
+      const p = at(w);
+      if (Math.abs(p.y - P[0][1]) > 0.5) break;
+      this._targets.push(p);
     }
-    const l = P[P.length - 1]; this._target = { x: l[0], z: l[2] };
   }
 
   // relative bearing (deg, + = to the right) from the phone's heading to the target
   _bearing(body) {
-    const T = this._target; if (!T) return null;
-    const dx = T.x - body.x, dz = T.z - body.z;
-    if (Math.hypot(dx, dz) < 1.2) return null;
-    let d = Math.atan2(-dx, -dz) - this.phone.pos.heading;   // yaw convention: 0 = north (-Z), + turns left
-    d = Math.atan2(Math.sin(d), Math.cos(d));
-    return -d * DEG;
+    const Ts = this._targets || (this._target ? [this._target] : []);
+    let best = null;
+    for (const T of Ts) {
+      const dx = T.x - body.x, dz = T.z - body.z;
+      if (Math.hypot(dx, dz) < 1.2) continue;
+      let d = Math.atan2(-dx, -dz) - this.phone.pos.heading;   // yaw convention: 0 = north (-Z), + turns left
+      d = -Math.atan2(Math.sin(d), Math.cos(d)) * DEG;
+      if (best === null || Math.abs(d) < Math.abs(best)) best = d;
+    }
+    return best;
   }
 
   update(dt, R) {
@@ -114,6 +134,9 @@ export class Tracker {
       // on the escalator / at the door: no judgement (and no stale anger after it)
       this._driftT = 0; this._offT = 0;
       if (nearEnd && this.state !== 'on') this._set('on');
+      // v3 critic: on an escalator there is nothing to turn: drop a stale amber ("Turn left" for a whole ride).
+      // A wrong ride is still caught on the way off (wrong floor -> reroute).
+      if (riding && this.state === 'drifting') this._set('on');
       if (riding) this._minRem = Math.min(this._minRem, isFinite(R.total) ? R.total : this._minRem);
       return;
     }
