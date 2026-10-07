@@ -102,3 +102,32 @@ Shots: `notes/v4-shots/story/walk-*.png`.
 → *"Walk up to the counter — E to order"* ✓; counter prompt *"Order Aya's iced latte 🥤"* ✓; E → order → leg 2 → hints
 *"Q — pick your next stop"* / *"Next stop: pick Tempura Daikichi…"* ✓; arrival with coffee → `textCoffee` ✓; end card line ✓.
 `ctx.errors []`, 0 console issues. Shots: `notes/v4-shots/story/p-*.png`.
+
+**Skip-coffee walk** (same bot with `&nocoffee`: picks the café, then walks straight to Daikichi): Lodestone ready 117 s
+→ `coffee hidden` at 253 s (2F mall, nav rem 146) → *"no latte? 🥲 fine. FINE. the tempura is worth it"* → Daikichi
+suggested → arrive 381 s → end card (no latte line), arrival tease queued. `ctx.errors []`, 0 console issues.
+
+## Walk bot (`scratchpad/critic-demo/walk.mjs`, v3 copy kept as `walk.v3.bak.mjs`)
+
+* picks destinations like a player: when the pick step is due it raises the phone (Maps; Lodestone once live), screenshots
+  the list, presses **1** (Aya's pick); fallback `setDestination(phone.suggested)` only if the key didn't land on it.
+* walks to the errand café's order spot (from `ctx.counters`), faces the staff, uses the `order:<slot>` interactable
+  (what E does), then steers to Daikichi. `&nocoffee` in `Q` skips the café to test the never-block path.
+* logs `nav:destination`, `nav:arrived`, `demo:order`, `story:pick`; probe lines carry `leg`, `errand`, `dest`.
+
+## What I'm unsure about
+
+1. **Leg 2 while the café route is still active.** If the player orders without the phone having fired `nav:arrived`
+   (ordered at another café, or picked something else on leg 1), both apps are in route mode, so "Aya's pick, top of the
+   list" isn't on screen; key 1 does nothing. The hint then says *"tap Change, then Aya's pick"* (Lodestone) / *"end
+   this route (×)…"* (Maps). Phone agent: a one-tap "Next: Daikichi (from Aya)" chip in route mode when `suggested`
+   differs from the destination would make this smoother (they already do it for the arrived screen).
+2. **Walking on without the coffee** while the destination is still the café: Lodestone keeps routing back to the café
+   (amber / reroute) until the player changes it; Aya's tease + the pick2 hint explain it. I chose not to call
+   `setDestination` behind the player's back.
+3. **Café Mitsubachi is a procedural name** (from the slot id hash). If `layout.js` shop slots change, the name may change
+   (the text reads it at runtime, so it stays consistent) — or the slot could move. `DEMO.coffeeSlot` is the one knob.
+4. **Arrival timing headless**: the thanks caption / `textCoffee` are on game time inside the real-time arrival sequence
+   (~7.7 s); under SwiftShader the end card appears before they render, same as v3's arrival text. On real hardware they
+   land at ~4 s / ~5.5 s.
+5. **Trip length**: +34 m / ~30 s for a real player; the upgrade is unaffected (117 s in both bot runs, same as v3).
