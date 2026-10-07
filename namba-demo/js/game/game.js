@@ -18,7 +18,7 @@ import { Demo } from './demo.js';
 import * as V from './vignettes.js';
 import { QUESTS, DEMO } from './script.js';
 import { orderItem, hasCounter } from './order.js';
-import { Walkthrough } from './walkthrough.js';
+import { tutorialStore } from './tutorial.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -54,12 +54,12 @@ export class Game {
     this.orders = [];
     this.interactions.counterItem = (c) => (c && c.slotId && c.slotId !== DEMO.slot ? orderItem(this, c) : null);
     this.interactions.counterCovers = (it) => !!(it.business && hasCounter(this, it.business.slot));
-    this.walkthrough = new Walkthrough(ctx, this);
     this.panels = new Panels(ctx);
     this.journal = new Journal(ctx, this);
     this.meals = this.journal.meals;
     this.title = new Title(ctx, { onBegin: () => this._begin() });
     this.demo = new Demo(ctx, this);
+    this.story = this.demo.story;            // v3: Aya's conversation + the tutorial (story.js)
     // public API
     this.addInteractable = (def) => this.interactions.add(def);
     this.removeInteractable = (id) => this.interactions.remove(id);
@@ -186,6 +186,7 @@ export class Game {
           <button type="button" data-a="resume" class="sel">Resume <small>再開</small></button>
           <button type="button" data-a="settings">Settings <small>設定</small></button>
           <button type="button" data-a="controls">Controls <small>操作</small></button>
+          <button type="button" data-a="restart" class="p-restart">Restart <small>最初から</small></button>
         </nav>
       </div>
       <div class="p-body"></div>`;
@@ -197,7 +198,9 @@ export class Game {
       body.innerHTML = '';
       if (a === 'settings') { body.insertAdjacentHTML('beforeend', '<h3>Settings <small>設定</small></h3>'); body.appendChild(buildSettingsPanel(this.ctx)); }
       else if (a === 'controls') { body.insertAdjacentHTML('beforeend', '<h3>Controls <small>操作</small></h3>'); body.appendChild(buildControlsCard()); }
+      else if (a === 'restart') body.appendChild(this._restartView());
       else body.appendChild(this._aboutView());
+      this._pauseView = a;
     };
     this._pauseShow = show;
     el.querySelectorAll('.p-nav button').forEach(b => b.addEventListener('click', (e) => {
@@ -215,6 +218,24 @@ export class Game {
       <ul><li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li></ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
       <p class="p-hint">Q lifts your phone (or hold right-click for a quick look). Mouse looks, WASD walks. Esc brings this menu back.</p>`;
+    return d;
+  }
+  // v3 item 6: "Restart" asks first. Confirm = a clean reload to the title (the title click is the user gesture
+  // audio and pointer lock need). If the tutorial was completed this session, the next run keeps the story but
+  // hides the hints (tutorial.js: they only come back as a nudge when a step stalls).
+  _restartView() {
+    const d = document.createElement('div');
+    d.className = 'p-confirm';
+    const skip = tutorialStore.completed();
+    d.innerHTML = `<h3>Restart <small>最初から</small></h3>
+      <p class="p-confirm-q">Are you sure?</p>
+      <p class="p-confirm-sub">Your progress will be lost. You'll start again on the platform, fresh off the rapi:t.${skip ? ' The control hints stay hidden — you know the ropes.' : ''}</p>
+      <div class="p-confirm-btns">
+        <button type="button" class="g-btn" data-c="cancel">Cancel <small>やめる</small></button>
+        <button type="button" class="g-btn danger" data-c="restart">Restart <small>最初から</small></button>
+      </div>`;
+    d.querySelector('[data-c="cancel"]').addEventListener('click', (e) => { e.stopPropagation(); this._pauseShow('about'); });
+    d.querySelector('[data-c="restart"]').addEventListener('click', (e) => { e.stopPropagation(); this.restart(); });
     return d;
   }
   pause() {
@@ -244,9 +265,13 @@ export class Game {
     this.ctx.events.emit('game:resume', {});
   }
   restart() {
+    if (this._restarting) return;
+    this._restarting = true;
+    this.ctx.events.emit('game:restart', {});
     const u = new URL(location.href);
-    ['skip', 'test', 'spawn', 'pos', 'yaw', 'pitch', 'play'].forEach(k => u.searchParams.delete(k));
-    location.href = u.toString();
+    ['skip', 'test', 'spawn', 'pos', 'yaw', 'pitch', 'play', 'offerat', 'tutorial'].forEach(k => u.searchParams.delete(k));
+    try { this.pauseEl.classList.add('leaving'); } catch (e) { /* cosmetic */ }
+    setTimeout(() => { location.href = u.toString(); }, 180);
   }
   _syncFrozen() {
     const p = this.ctx.player; if (!p) return;
@@ -502,7 +527,6 @@ export class Game {
         if (t.t <= 0) { this._timers.splice(i, 1); try { t.fn(); } catch (e) { console.error('[game timer]', e); } }
       }
       this.journal.update(dt);
-      this.walkthrough && this.walkthrough.update(dt);
       if (!this.quiet) this.demo.update(dt);
     }
     const b = ctx.player.body;
@@ -521,7 +545,8 @@ export class Game {
     if (menu && !this._endCard && !this.phoneOpen && !this.panels.open) {
       const now = performance.now();
       if (!this._pauseAt || now - this._pauseAt > 350) {
-        if (this.paused) this.resume(); else this.pause();
+        if (this.paused && this._pauseView === 'restart') this._pauseShow('about');   // Esc backs out of the confirm first
+        else if (this.paused) this.resume(); else this.pause();
       }
     }
     // gamepad A / touch E confirms the highlighted choice in a vignette panel

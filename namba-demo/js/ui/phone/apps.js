@@ -71,28 +71,74 @@ export class NotesApp {
 }
 
 export class MessagesApp {
+  // v3: replies. A text may carry reply chips (replies: [{id, text}], max 3); the player answers with
+  // the phone up (click a chip, or keys 1 / 2 / 3). 'phone:reply' {msgId, replyId, text} is emitted and
+  // the player's bubble appended. 'phone:typing' {from, on} shows the typing bubble ("Aya is typing…").
   constructor(phone, root) {
     this.phone = phone; this.root = root; this.ctx = phone.ctx;
     root.classList.add('ms');
+    // yesterday's thread (neutral: the story starts with the first text of today)
     this.msgs = [
-      { from: 'Aya', text: 'Welcome to Osaka!! 🎉 Did you land ok?', time: '09:58', me: false },
-      { from: 'me', text: 'Yes! On the Nankai train now. This station is huge', time: '10:31', me: true },
-      { from: 'Aya', text: 'Haha wait till you see the underground. Get coffee first, then lunch, then Midosuji to Shin-Osaka 🚄', time: '10:33', me: false },
+      { day: 'Yesterday' },
+      { from: 'Aya', text: 'Tomorrow!!! 🎉 I’ll find us somewhere good for lunch', time: '21:14', me: false },
+      { from: 'me', text: 'Can’t wait. Landing at Kansai 10:40 ✈️', time: '21:20', me: true },
+      { from: 'Aya', text: 'Text me when you’re in Namba 🙌', time: '21:22', me: false },
+      { day: 'Today' },
     ];
     this.unread = 0;
+    this.pending = null;          // { msgId, from, replies: [{id, text}] } — reply chips on screen
+    this.typingFrom = null; this._typT = 0;
+    this._seen = new Set();
+    this._autoId = 0;
     this.ctx.events.on('phone:message', (m) => this.receive(m));
-    // tap (or Enter / Space on the focused button) on the Lodestone link card
-    root.addEventListener('click', (e) => { if (e.target.closest('.ms-link')) this.phone.lodestoneAction(); });
+    this.ctx.events.on('phone:typing', (e) => this.setTyping(e && e.from, !!(e && e.on)));
+    // tap (or Enter / Space on the focused button) on the Lodestone link card, or on a reply chip
+    root.addEventListener('click', (e) => {
+      if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
+      const c = e.target.closest('.ms-chip'); if (c) this.reply(+c.dataset.i);
+    });
     this.render();
   }
   markInstalled() { this.render(); }
   receive(m) {
+    if (!m) return;
+    if (m.id != null) { const k = String(m.id); if (this._seen.has(k)) return; this._seen.add(k); }
+    const from = m.from || 'Aya';
     const time = m.time || this.ctx.clock.hhmm;
-    this.msgs.push({ from: m.from || 'Aya', text: m.text, time, me: false, link: m.link || null });
+    const id = m.id != null ? m.id : 'm' + (++this._autoId);
+    if (this.typingFrom === from) { this.typingFrom = null; this._typT = 0; }
+    this.msgs.push({ id, from, text: m.text, time, me: false, link: m.link || null });
+    const reps = Array.isArray(m.replies) ? m.replies.filter(r => r && r.text).slice(0, 3) : [];
+    if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text) })), at: this.phone._now || 0 };
     if (m.link === 'lodestone') this.phone._noteOffer();
-    if (!(this.phone.isOpen && this.phone.app === 'messages')) this.unread++;
+    const reading = this.phone.isOpen && this.phone.app === 'messages';
+    if (!reading) this.unread++;
     this.render();
-    this.phone.notify('messages', { title: m.from || 'Aya', text: m.text });
+    this.phone.notify('messages', { title: from, text: m.text, reply: !!reps.length });
+  }
+  // answer the pending text with chip i (0-based). Returns true when sent.
+  reply(i) {
+    const P = this.pending; if (!P) return false;
+    const r = P.replies[i]; if (!r) return false;
+    this.pending = null;
+    this.msgs.push({ from: 'me', text: r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
+    this.render(true);
+    this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
+    this.ctx.events.emit('phone:reply', { msgId: P.msgId, replyId: r.id, text: r.text, from: P.from });
+    this.phone._badges();
+    return true;
+  }
+  clearReplies() { if (!this.pending) return; this.pending = null; this.render(); this.phone._badges(); }
+  setTyping(from, on) {
+    from = from || 'Aya';
+    if (on) { this.typingFrom = from; this._typT = 12; }       // (safety: a typing bubble never hangs forever)
+    else if (this.typingFrom === from) { this.typingFrom = null; this._typT = 0; }
+    else return;
+    this._renderTyping();
+    this.phone.glance && this.phone.glance.refresh(true);
+  }
+  update(dt) {
+    if (this._typT > 0) { this._typT -= dt; if (this._typT <= 0 && this.typingFrom) { this.typingFrom = null; this._renderTyping(); } }
   }
   _linkCard() {
     const st = this.phone.upgradeStage;
@@ -100,15 +146,38 @@ export class MessagesApp {
     return `<button class="ms-link ${st === 'installing' || st === 'calibrating' ? 'busy' : ''} ${st === 'ready' ? 'done' : ''}" data-act="lodestone" aria-label="Lodestone: ${label}">
       <i class="ms-l-ic"><svg viewBox="0 0 32 32"><path d="M16 4 21 16 16 28 11 16Z" fill="#10192b" stroke="#ffb02e" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 4 21 16H16Z" fill="#ffb02e"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg></i>
       <span class="ms-l-t"><b>Lodestone</b><small>Indoor positioning that works inside buildings · lodestone.app</small></span><em>${label}</em></button>
-      ${st === 'offer' ? '<span class="ms-l-hint">Tap the card, or press <kbd>Enter</kbd></span>' : ''}`;
+      ${st === 'offer' ? `<span class="ms-l-hint">Tap the card${this.phone.ctx.input && this.phone.ctx.input.touch ? '' : ', or press <kbd>Enter</kbd>'}</span>` : ''}`;
   }
-  onShow() { this.unread = 0; this.phone.home && this.phone.home.badge('messages', 0); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
-  render() {
-    this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>Osaka · usually replies fast</small></div></div>
-      <div class="ms-list">${this.msgs.map(m => `<div class="ms-b ${m.me ? 'me' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}<small>${esc(m.time)}</small></div>`).join('')}</div>
+  onShow() { this.unread = 0; this.phone._badges && this.phone._badges(); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
+  _chips() {
+    const P = this.pending; if (!P) return '';
+    const kb = !(this.ctx.input && this.ctx.input.touch);
+    return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
+  }
+  _typingHtml() { return this.typingFrom ? `<div class="ms-b ms-typing" aria-label="${esc(this.typingFrom)} is typing"><p><i></i><i></i><i></i></p></div>` : ''; }
+  _renderTyping() {
+    const list = this.root.querySelector('.ms-list'); if (!list) return;
+    const t = list.querySelector('.ms-typing'); if (t) t.remove();
+    if (this.typingFrom) list.insertAdjacentHTML('beforeend', this._typingHtml());
+    const sm = this.root.querySelector('.ms-h small'); if (sm) sm.textContent = this.typingFrom ? 'typing…' : 'Osaka · usually replies fast';
+    this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
+    list.scrollTop = list.scrollHeight;
+  }
+  render(sentNow) {
+    const last = this.msgs.length - 1;
+    const bubble = (m, i) => {
+      if (m.day) return `<div class="ms-day">${esc(m.day)}</div>`;
+      const fresh = sentNow && i === last && m.me ? ' ms-sent' : '';
+      return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
+    };
+    this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
+      <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>
+      ${this._chips()}
       <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
+    this.root.classList.toggle('ms-has-replies', !!this.pending);
+    this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
     const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight;
-    this.phone.home && this.phone.home.badge('messages', this.unread);
+    this.phone._badges && this.phone._badges();
   }
 }
 
