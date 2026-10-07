@@ -1,5 +1,5 @@
 // Headless escalator / stair congestion probe (Node), v4 crowd flow.
-//   node js/npc/flowprobe.mjs [--spawn start] [--secs 90] [--time 12:10] [--walk 1] [--train 1] [--radius 3.5] [--json out.json] [--seed N]
+//   node js/npc/flowprobe.mjs [--max 1500 (= browser quality=high; default 600 = low/medium-ish)] [--spawn start] [--secs 90] [--time 12:10] [--walk 1] [--train 1] [--radius 3.5] [--json out.json] [--seed N]
 // Builds world + nav, runs the crowd sim at 30 Hz with the viewer at a spawn (optionally walking at 1.4 m/s towards
 // --to x,z, to mimic the player), and for EVERY ramp end within --range m of the viewer path logs:
 //   max / p95 local density (non-riding people within --radius m of the mouth or landing),
@@ -27,7 +27,7 @@ if (args.seed != null) { let s = (+args.seed >>> 0) || 1; Math.random = () => { 
 const world = new World();
 const nav = new Nav(world);
 const events = new Events();
-const sim = new CrowdSim({ world, nav, events, clock, params: {}, quality: { crowdMax: 600, drawDist: 200 }, worker: false });
+const sim = new CrowdSim({ world, nav, events, clock, params: {}, quality: { crowdMax: +(args.max || 600), drawDist: 200 }, worker: false });
 const behave = new Behave(sim, { params: args.seed != null ? { seed: +args.seed } : {} });
 sim.behave = behave;
 sim.fields.syncInUpdate = false;
