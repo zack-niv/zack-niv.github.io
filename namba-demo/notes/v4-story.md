@@ -131,3 +131,8 @@ suggested → arrive 381 s → end card (no latte line), arrival tease queued. `
    (~7.7 s); under SwiftShader the end card appears before they render, same as v3's arrival text. On real hardware they
    land at ~4 s / ~5.5 s.
 5. **Trip length**: +34 m / ~30 s for a real player; the upgrade is unaffected (117 s in both bot runs, same as v3).
+
+**Load / shot** (machine at load average ~20, other agents' browsers in every slot): `loadprobe` READY, errs [] (systems
+built at 22 s; the first frame took until 154 s, which is SwiftShader shader compile under load. No load-path code was
+touched). `shot.mjs --views start --q low`: loaded in 21.2 s, 0 errors except the sandbox's Google-Fonts cert error and
+GL driver perf warnings, the usual filtered noise.
