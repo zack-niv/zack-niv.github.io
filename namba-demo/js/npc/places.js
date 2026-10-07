@@ -213,7 +213,7 @@ export class Places {
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
         if (dyaw < 0.2 && d < 1.15 && Math.abs(dx * fx + dz * fz) < 0.12) n++;
       }
-      if (n >= 2 || (n >= 1 && seats.length >= 2 && false)) { a.stool = true; a.h = 0.78; }
+      if (n >= 2) { a.stool = true; a.h = 0.78; }
     }
   }
   // Measure the real seat from the built furniture: the lowest flat top >= 0.43 m inside a 0.36 m window round the seat spot
