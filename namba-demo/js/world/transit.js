@@ -30,6 +30,7 @@ import { TrainRenderer } from './transit/trains.js';
 import { defineEnvMaterials, buildTrackEnv, buildPSD, ChunkBatches, TS } from './transit/env.js';
 import { Gates } from './transit/gates.js';
 import { Boards } from './transit/boards.js';
+export const NK_VIADUCT_END = 168;
 
 const GAP = 0.5;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -101,7 +102,10 @@ export class Transit {
     const hArr = nankai ? -1 : t.heading;
     const hDep = nankai ? 1 : t.heading;
     let visRange;
-    if (nankai) visRange = [trackRange[0], 245];
+    // v3: the Nankai viaduct (track env + trains) ends at z 168, before Namba CITY's south end and the Parks
+    // (massing.js carries the viaduct on from there, swinging west past the Parks). It used to run to z 245, i.e.
+    // through the Namba CITY 2F ceiling and the Parks interiors, and departing trains drove through the Parks.
+    if (nankai) visRange = [trackRange[0], NK_VIADUCT_END];
     else { const [a, b] = TUNNEL[line.id]; visRange = [platformRange[0] - a, platformRange[1] + b]; }
     const formations = [...new Set(this.tt.byTrack[t.id].map(s => s.formation))];
     const cfg = { t, line, axis, edge, inward, centre, crossRange, trackRange, platformRange, platformCeil: plat.ceil, y, hArr, hDep, visRange, formations, level: t.level };
@@ -370,7 +374,8 @@ export class Transit {
     const afterOpen = ss.state === 'doors' || ss.state === 'closing' || ss.state === 'departing';
     for (const c of lay.cars) {
       const along = ss.front - cfg.hArr * c.off;
-      if (along + c.L / 2 < v0 - 1 || along - c.L / 2 > v1 + 1) continue;
+      // Nankai: a car is drawn only while it is entirely on the station viaduct (no car hangs past the deck end)
+      if (along + c.L / 2 < v0 - 1 || (nankai ? along + c.L / 2 > v1 : along - c.L / 2 > v1 + 1)) continue;
       const dir = cfg.hArr * c.face;
       const yaw = cfg.axis === 'z' ? -dir * Math.PI / 2 : (dir > 0 ? 0 : Math.PI);
       // local +z in world: (sin yaw, cos yaw)

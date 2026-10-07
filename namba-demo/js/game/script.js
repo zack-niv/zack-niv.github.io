@@ -43,14 +43,14 @@ export const TUTORIAL = {
   move: '{k:W}{k:A}{k:S}{k:D} to walk · hold {k:Shift} to hurry',
   raise: 'Your phone buzzed — {k:Q} to raise it',
   raiseHold: 'Your phone buzzed — {k:Q} or hold right-click',
-  reply: 'Answer Aya — tap a reply or press {k:1} {k:2}',
+  reply: 'Answer Aya — press {k:1} {k:2} or click a reply',
   replyDown: 'Aya asked you something — {k:Q} to answer',
-  maps: 'Open <b>Maps</b> — {k:Tab} or tap it in the dock',
+  maps: 'Open <b>Maps</b> — {k:Tab} switches apps (or click the dock)',
   mapsDown: '{k:Q} then open <b>Maps</b>',
   interact: '{k:E} interacts — machines, doors, café counters',
   interactHere: '{k:E} — try it',
-  install: 'Aya sent a link — {k:Q} and tap <b>Lodestone</b>',
-  installUp: 'Tap <b>Lodestone</b> in Aya\'s message',
+  install: 'Aya sent a link — {k:Q}, then {k:Enter} or click <b>Lodestone</b>',
+  installUp: '{k:Enter} or click <b>Lodestone</b> in Aya\'s message',
 };
 
 // Queue banter as the route shortens (remaining metres → text), once each.

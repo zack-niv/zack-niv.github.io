@@ -219,7 +219,7 @@ export class Game {
     d.innerHTML = `<h3>Today <small>今日の予定</small></h3>
       <ul><li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li></ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
-      <p class="p-hint">Q lifts your phone (or hold right-click for a quick look). Mouse looks, WASD walks. Esc brings this menu back.</p>`;
+      <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>`;
     return d;
   }
   // v3 item 6: "Restart" asks first. Confirm = a clean reload to the title (the title click is the user gesture

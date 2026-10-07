@@ -95,6 +95,7 @@ export const CONTROLS = [
   [['Right-click'], 'Hold for a quick phone look', '長押しでちらっと確認'],
   [['Tab'], 'Switch apps (phone up)', 'アプリ切り替え'],
   [['1', '2', '3'], 'Reply to Aya (phone up)', '返信'],
+  [['V'], 'Lodestone 3D view (phone up)', '3D表示'],
   [['E'], 'Interact', '調べる'],
   [['Esc'], 'Pause', '一時停止'],
 ];
