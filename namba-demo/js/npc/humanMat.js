@@ -44,7 +44,7 @@ const VERT_BODY = /* glsl */`
     int reg = int(aPart.y + 0.5);
     int grp = int(aPart.z + 0.5);
     int val = int(aPart.w + 0.5);
-    int flags = int(iLook.z + 0.5);
+    int flags = int(round(iLook.z));   // exact integer <= 2^24: never + 0.5 (16777215.5 rounds to 2^24 in float32)
     bool show = true;
     if (grp == 1) show = ((flags >> 13) & 7) == val;
     else if (grp == 2) show = ((flags >> val) & 1) == 1;

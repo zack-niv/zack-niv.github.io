@@ -409,8 +409,12 @@ export class HumanLibrary {
     box(BIT.SHOPBAG2, 'WristR', A.acc2, hR.x - 0.03, hR.y - 0.2, hR.z, 0.1, 0.28, 0.26);
     // v4 critic: the phone sat 5 mm off the hand's centre line, i.e. INSIDE the 3 cm-thick hand mesh, so it never showed. Hold it
     // against the palm (the palm faces the body's midline in the idle pose the parts are authored in), a bit proud of the fingers.
+    // v4 hotfix: with the box's long side ALONG the fingers the whole phone hid behind the (mitten) hand in every phone pose, and
+    // a near-black phone vanished against dark suits. A phone is gripped across the palm (fingers round one long edge, thumb on
+    // the other), so its long side runs across the palm (+-z in the idle pose) and pokes out ~3 cm on both sides of the hand;
+    // graphite-silver case.
     const palm = hR.x < 0 ? 1 : -1;
-    box(BIT.PHONE, 'WristR', A.dark, hR.x + palm * 0.03, hR.y - 0.035, hR.z + 0.025, 0.014, 0.15, 0.075);
+    box(BIT.PHONE, 'WristR', A.phone, hR.x + palm * 0.028, hR.y - 0.025, hR.z + 0.005, 0.016, 0.075, 0.152);
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);
@@ -526,8 +530,9 @@ const ACC_MATS = [
   { name: 'dark', color: '#141416', tint: TINT.KEEP },
   { name: 'white', color: '#e9e9e6', tint: TINT.KEEP },
   { name: 'cup', color: '#efe9df', tint: TINT.KEEP },
+  { name: 'phone', color: '#8e949c', tint: TINT.KEEP },
 ];
-const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4 };
+const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5 };
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 function smooth(x) { return x * x * (3 - 2 * x); }
@@ -561,10 +566,14 @@ vec3 crowdColour(vec4 cA, vec4 cB) {
   if (t == 7) return crowdUnpack(cB.z);
   return crowdUnpack(cB.w);
 }
+// v4 hotfix ROOT CAUSE of "no phone / bag / briefcase on anybody": the old code did int(crMask + 0.5). crMask is 0xffffff
+// (16777215) for every outfit but the backpackers; 16777215.5 is not a float32, it rounds (ties-to-even) to 16777216 = 1 << 24,
+// so the mask became 0 in bits 0..23 and EVERY accessory was collapsed (near and far). Flags / masks are exact integers in
+// float32 (<= 2^24): convert with round(), never by adding 0.5.
 bool crowdHidden(float flags) {
-  int p = int(aPart + 0.5);
+  int p = int(round(aPart));
   if (p == 0) return false;
-  int f = int(flags + 0.5) & int(crMask + 0.5);
+  int f = int(round(flags)) & int(round(crMask));
   return ((f >> (p - 1)) & 1) == 0;
 }
 `;

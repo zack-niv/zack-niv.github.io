@@ -241,11 +241,15 @@ export class Director {
     if (fromTrain) return { exit: 0.5 + 0.3 * commute, transfer: 0.32 + 0.3 * commute, lunch: 0.6 * lunch, coffee: 0.08, shop: 0.18 * day, parks: 0.08 * day, hall: 0.05 * day };
     return { transit: 0.32 + 0.7 * commute, through: 0.32, lunch: 1.5 * lunch, coffee: 0.1 + 0.2 * gauss(h, 8.5, 1) + 0.12 * gauss(h, 15, 1.3), shop: 0.5 * day, parks: 0.2 * day, hall: 0.13 * day, meet: 0.03 * day };
   }
-  pickPortal(a, exclude) {
+  pickPortal(a, exclude, from = null) {
     const ps = this.P.portals.filter(p => p !== exclude && !(p.inside && a && a.kind === 'commuter' && this.r() < 0.5));
-    let tot = 0; for (const p of ps) tot += p.w;
+    // v4 hotfix: like _pickBiz, the way out falls off with distance (a floor change ~ +30 m), so people leaving lunch on CITY 2F /
+    // Parks use the Parks south exit on their own floor more often instead of all queueing for the CITY 2F down escalator
+    const o = from || (a && a.alive && Number.isFinite(a.x) && a.level ? a : null);
+    const w = ps.map(p => o ? p.w / (1 + (Math.hypot(p.x - o.x, p.z - o.z) + (p.level === o.level ? 0 : 30)) / 120) : p.w);
+    let tot = 0; for (const v of w) tot += v;
     let x = this.r() * tot;
-    for (const p of ps) { x -= p.w; if (x <= 0) return p; }
+    for (let i = 0; i < ps.length; i++) { x -= w[i]; if (x <= 0) return ps[i]; }
     return ps[0];
   }
   _pickPlatform(fromLine) {
@@ -281,7 +285,10 @@ export class Director {
       const pt = this._pickPlatform(fromLine);
       if (pt) { legs.push({ t: 'go', en: this.P.platformField(pt.pl, pri), arrive: 1.0 }, { t: 'board', T: pt.T }); return legs; }
     }
-    const p = this.pickPortal(a);
+    // leave from where the errand ends (the last shop / restaurant), not from where the trip started
+    let from = null;
+    for (let i = legs.length - 1; i >= 0 && !from; i--) { const B = legs[i].B; if (B && B.door) from = { x: B.door.ox, z: B.door.oz, level: B.level }; }
+    const p = this.pickPortal(a, null, from);
     legs.push({ t: 'go', en: this.P.portalField(p, pri), arrive: 1.5 }, { t: 'exit' });
     return legs;
   }
@@ -511,6 +518,18 @@ export class Director {
       if (v < 0) return false;
       const d = a.en.dist[v];
       if (d === 65535 || d < 250) continue;
+      // v4 hotfix (lunch blob at the CITY 2F down escalator): relocated walkers keep their destination, so everybody moved onto
+      // CITY 2F who is heading anywhere off that floor funnels into its ONE down escalator (no stairs; next bank 230 m away).
+      // At quality=high (1500 cap) relocation fed it ~2x its ~1 person/s capacity: a 20-50 person blob, 45-85 s waits.
+      // Don't place people where their route's first ramp is already loaded / was fed recently.
+      const rr = this._firstRamp(a.en, v);
+      if (rr >= 0 && !this._rampRoom(rr, V.level, 1 + (a.followers ? a.followers.length : 0))) {
+        // ... instead, a solo walker nobody has seen yet gets an errand on this floor (shop / café near the spot), then leaves
+        // from there (pickPortal prefers a way out on the same floor): the floor stays lively without feeding the line
+        if (a.followers || !this._localErrand(a, V.level, nav.x[v], nav.z[v])) continue;
+        const d2 = a.en.dist[v];
+        if (d2 === 65535 || d2 < 100) continue;
+      }
       if (!this.free(V.level, nav.x[v] + a.jx, nav.z[v] + a.jz, 1.4)) continue;
       this.claim(V.level, nav.x[v] + a.jx, nav.z[v] + a.jz);
       S.setPos(a, V.level, nav.x[v] + a.jx, nav.z[v] + a.jz);
@@ -522,6 +541,50 @@ export class Director {
       return true;
     }
     return false;
+  }
+  _localErrand(a, lv, x, z) {
+    const o = { alive: true, x, z, level: lv };
+    const near = (B) => B.level === lv && Math.hypot(B.door.ox - x, B.door.oz - z) < 60 && Math.hypot(B.door.ox - x, B.door.oz - z) > 10;
+    const cafe = this.r() < 0.3;
+    const B = this._pickBiz((cafe ? this.cafes : this.shops).filter(near), true, lv, o) || this._pickBiz(this.shops.filter(near), true, lv, o);
+    if (!B) return false;
+    const en = this.P.bizField(B, 4);
+    if (!en || !en.ready) return false;
+    const legs = [{ t: 'go', en, arrive: 1.5 }];
+    if (B.cafe) {
+      const dw = B.info.dwell || [300, 900], scale = (this.sim.clock && this.sim.clock.scale) || 6;
+      legs.push({ t: 'queue', B, max: 6 });
+      if (B.ctr && B.ctr.npc) legs.push({ t: 'order', B });
+      legs.push({ t: 'dine', B, dur: (dw[0] + this.r() * (dw[1] - dw[0])) / scale });
+    } else {
+      if (this.r() < 0.35) legs.push({ t: 'window', B, dur: 8 + this.r() * 18 });
+      legs.push({ t: 'browse', B, n: 1 + Math.floor(this.r() * 3) });
+    }
+    this._onward(legs, a, null);
+    this.B.begin(a, legs);
+    if (a.en !== en) return false;
+    this.counts.errand = (this.counts.errand || 0) + 1;
+    return true;
+  }
+  // first ramp on the way from node v down field en (-1: none within ~400 m of walking)
+  _firstRamp(en, v) {
+    const S = this.sim, rmp = S.nav.rmp;
+    for (let k = 0; k < 400 && v >= 0; k++) { if (rmp[v] >= 0) return rmp[v]; v = S.fields.next(en, v); }
+    return -1;
+  }
+  // may n more relocated people be routed into ramp ri from `level`? Escalator lanes board ~1-1.5 people/s for both lanes
+  // together, and ordinary trips use them too: relocations get <= ~0.35/s per escalator end (0.5/s stairs), none once 4 wait at it.
+  _rampRoom(ri, level, n) {
+    const S = this.sim, R = S.places.ramps[ri]; if (!R) return true;
+    const fromLow = level === R.r.lower;
+    if (S._rampLoad(R, fromLow) >= (R.esc ? 4 : 8)) return false;
+    const key = ri * 2 + (fromLow ? 1 : 0), now = S.time;
+    const L = (this._rampFeed = this._rampFeed || new Map()).get(key) || [];
+    while (L.length && now - L[0] > 40) L.shift();
+    if (L.length + n > (R.esc ? 14 : 20)) return false;
+    for (let i = 0; i < n; i++) L.push(now);
+    this._rampFeed.set(key, L);
+    return true;
   }
   _keepDensity(dt) {
     const S = this.sim, V = S.viewer;
