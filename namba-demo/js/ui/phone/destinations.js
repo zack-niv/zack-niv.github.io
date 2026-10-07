@@ -178,6 +178,12 @@ export class DestList {
     }));
   }
   setQuery(q) { this.query = q || ''; this.sel = 0; this.armed = false; this.root.classList.remove('kb'); this.onQuery && this.onQuery(this.query); }
+  // back to the default list (after a pick: the next time the list opens, Aya's pick is row 1 again)
+  reset() {
+    this.query = ''; this.sel = 0; this.armed = false; this.root.classList.remove('kb');
+    if (this.input) { this.input.value = ''; const x = this.root.querySelector('.dl-x'); if (x) x.hidden = true; }
+    this.root.querySelectorAll('.dl-chips button.on').forEach(b => b.classList.remove('on'));
+  }
   focusSearch() { if (this.input) { this.input.focus(); return true; } return false; }
   setTitle(t, hint) { if (this.titleEl && t != null && this.titleEl.textContent !== t) this.titleEl.textContent = t; if (this.hintEl && hint != null && this.hintEl.innerHTML !== hint) this.hintEl.innerHTML = hint; }
 

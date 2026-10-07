@@ -492,6 +492,7 @@ export class LodestoneApp {
   _pickItem(it) {
     this.phone._lastPhoneInput = this.phone._now;
     if (this.list.input) this.list.input.blur();
+    this.list.reset();
     this.phone.setDestination(it.id, { app: 'lodestone' });
   }
   _syncDest() {
