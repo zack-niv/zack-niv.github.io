@@ -91,7 +91,7 @@ export class Behave {
         // the group comes along
         if (a.followers) for (const f of a.followers) {
           const fs = P.takeSpot(B); if (!fs) continue;
-          f.fstate = 'dine'; f.spot = fs; f.mode = MODE.PATH;
+          f.fstate = 'dine'; f.spot = fs; f.biz = B; f.mode = MODE.PATH;
           if (L.inside) { S.setPos(f, B.level, fs.sx ?? fs.x, fs.sz ?? fs.z); f.mode = MODE.STAND; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._seatOn(f, fs, B); this._reveal(f); }
           else S.goTo(f, fs.sx ?? fs.x, fs.sz ?? fs.z, B.rect, fs.real ? 0.12 : 0.3);
         }
@@ -391,7 +391,7 @@ export class Behave {
   _followerTick(a, dt) {
     const L = a.leader;
     if (a.fstate === 'dine') {
-      if (a.mode === MODE.STAND) { if (a.spot && !a.seatH && !a.seatDone) this._seatOn(a, a.spot, a.biz); if (!a.faceSet) { a.faceYaw = a.yaw; a.faceSet = true; } }
+      if (a.mode === MODE.STAND) { { const Bz = a.biz || (a.leader && a.leader.biz); if (a.spot && Bz && !a.seatH && !a.seatDone) this._seatOn(a, a.spot, Bz); } if (!a.faceSet) { a.faceYaw = a.yaw; a.faceSet = true; } }
       return;
     }
     if (a.mode !== MODE.FOLLOW && a.mode !== MODE.RIDE && !a.fstate) a.mode = MODE.FOLLOW;
