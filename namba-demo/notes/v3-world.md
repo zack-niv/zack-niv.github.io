@@ -91,6 +91,59 @@ one-off ~15-50 ms at init (measured 170-300 ms on this 4-core box at load averag
   low end of the CITY / Parks banks (glass rail) would let you see the upper floor's ceiling
   lights and people from the foot. Not done (changes nav/collision).
 
+## Measurements (headless SwiftShader 1280x720, quality=high, `tools/perfshot.mjs`, frames 5)
+
+Draw calls / triangles at escalator wells (before = baseline copy, after = this build; crowd and
+the call governor vary run to run by ~±5 %):
+
+| view (pose) | before calls / tris | after calls / tris |
+|---|---|---|
+| Nankai 2F foot of 2F→3F `2F,-46,-61,0,18` | 924 / 758k | 929 / 765k |
+| Nankai 3F top `3F,-46,-86,180,-25` | 979 / 1009k | 974 / 1004k |
+| Nankai 1F foot of 1F→2F `1F,-37,-100.5,0,22` | 743 / 610k | 744 / 620k |
+| Nankai 2F top `2F,-37,-123,180,-25` | 658 / 814k | 669 / 866k |
+| CITY B1 foot `B1,-2,46,180,18` | 654 / 312k | 657 / 291k |
+| CITY 1F top `1F,-2,76,0,-25` | 782 / 326k | 769 / 328k |
+| CITY 1F foot of 1F→2F `1F,-2,104,180,18` | 708 / 439k | 696 / 379k |
+| CITY 2F top `2F,-2,130,0,-25` | 942 / 992k | 1024 / 1121k |
+| Parks 2F foot `2F,-2,216,180,18` | 923 / 771k | 922 / 730k |
+| Parks 2F foot close `2F,-2,219,180,30` | 952 / 739k | 828 / 654k |
+| Parks 3F top of 3F→2F `3F,-2,238.5,0,-35` | 1169 / 1089k | 873 / 1128k |
+| Parks 6F top `6F,-2,296,0,-25` | 718 / 888k | 721 / 872k |
+| Midosuji B2 foot `B2,-115,-150,0,18` | 419 / 359k | 416 / 361k |
+| Midosuji B1 top `B1,-115,-176,180,-25` | 654 / 842k | 647 / 818k |
+| Sennichimae B1 top `B1,54,-193,-90,-25` | 526 / 475k | 519 / 479k |
+
+Net: neutral (±1 % typical). CITY 2F top is the one view that went up (+82 calls): the CITY 2F
+south ceiling (line lights, service kit) was hidden behind the viaduct deck before and is now
+actually seen; the draw-call governor (budget 900 on high) trims distance there as before.
+
+Load (`tools/loadprobe.mjs`): systems ready 23.6 s (baseline run of the same machine: 20.3 s;
+machine load average 12-18 throughout, so within noise), first frame dominated by the SwiftShader
+shader compile as before (programs 72 → 72/73, no new programs). Visibility init now includes the
+clip (logged `[render] intrusion clip`). Console: clean except the sandbox's Google-Fonts cert
+error (pre-existing).
+
+Screenshots that tell the story:
+- Parks 2F foot: `before/pose_2F_-2_216_180_18.png` (concrete plane, no well) →
+  `after/…` (timber ceiling, lit lightwell, 3F visible).
+- Parks 3F top of the down escalator: `before/pose_3F_-2_238.5_0_-35.png` (ballast "ground") →
+  `after/…` (2F concourse with signs and people at the bottom).
+- Parks 6F: `before/pose_6F_-2_296_0_-25.png` (black) → `after/…` (strata shaft walls).
+- Street exit 15: `before/pose_1F_-57_-255_180_-35.png` (stairs sink into asphalt) → `after/…`.
+- Riding CITY 1F→2F near the top and just after the swap: `pose_1F_-3_121_180_12`,
+  `pose_2F_-3_125.5_180_5` (before: the 2F ceiling turned into concrete at the swap because 3F,
+  hence the deck, starts drawing; after: no change at the swap).
+
 ## Open / unsure
 
-- See bottom of this file after the measurements.
+1. The clip is a render-side workaround for transit geometry; the upstream fix (request above)
+   is cleaner. Departing Nankai trains still run to z 245 inside the Parks block above 3F
+   (not visible from the route as far as I checked, but a critic might find it from a garden).
+2. The CITY / Nankai wells were already OK-ish; for those the change is subtle (lit coffer,
+   glowing slab-edge line, landing light). The single biggest remaining "reads like a slot"
+   factor is the opening size = escalator footprint (see the optional layout request).
+3. Lighting changes need the bake to look right on a real GPU; I verified them only in
+   SwiftShader screenshots. Cove/line emissives follow the existing material levels.
+4. Not re-checked in this pass: every NAMBAWALK exit (only exit 15 imaged) and the stairs
+   B1→1F at the CITY north plaza; the ground cut covers all 1F openings generically.
