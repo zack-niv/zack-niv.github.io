@@ -734,7 +734,7 @@
 .dl-next b { flex: 1; min-width: 0; font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dl-next small { flex: 0 0 auto; font-size: 11px; opacity: .75; }
 .dl-next kbd { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font: 800 11px/1 Inter, sans-serif; }
-.dl-next-maps { margin: 0 0 10px; border: 1.5px solid #1a73e8; background: #e8f0fe; color: #174ea6; }
+.dl-next-maps { margin: 0 34px 10px 0; width: calc(100% - 34px); border: 1.5px solid #1a73e8; background: #e8f0fe; color: #174ea6; }
 .dl-next-maps em { color: #c5221f; } .dl-next-maps kbd { background: #1a73e8; color: #fff; }
 .ld-next { position: absolute; left: 10px; right: 10px; bottom: 228px; z-index: 4; }
 .ld-main.has-next .ld-x3d { bottom: 276px; }

@@ -85,3 +85,39 @@ destination was picked in Maps), not the whole after-phase.
 replies / typing, dock (Tab, 1/2/3 when no list is up), poses, `search(q)`, `phone:route`, `phone:select`,
 `phone:arrive` (Maps' believed arrival + Lodestone's), `lodestone:arrive {id}` (now for whatever destination
 Lodestone reaches), `nav:track`.
+
+## Files
+`js/ui/phone/destinations.js` (NEW: `Destinations` state/events/arrival + `DestList` shared list + Next chip),
+`js/ui/phone.js` (API, list keys captured before the game, `stats().legs`), `js/ui/phone/mapapp.js` ("Where to?"
+home sheet, numbered results, routes driven by the shared destination, arrived sheet, route-sheet Next chip; the
+hard-wired Daikichi `_goal()` is gone), `js/ui/phone/lodestone.js` (no default destination, list panel, Change,
+per-destination Guidance cache, arrival from phone.dest, Next chip), `js/ui/phone/guidance.js` (shared canyon
+state, detour only for Parks 3F+, transit destinations may cross the gates), `js/ui/phone/glance.js` (pick /
+arrived cards), `js/ui/phone/stack3d.js` (clearing route / destination label), `css/phone.css` (v4 section at the end).
+
+## Testing
+Harness `scratchpad/ph4/t.mjs` + `t2.mjs` (PHASE=B/D/E/F, a fresh page per phase: SwiftShader pages crashed after
+~8 min of shots on this shared machine — not the code: the same steps pass in a fresh page). Verified in-page:
+no route before a pick; `suggest()` → glance "Pick a place in Maps · Aya: …"; ↑↓ move the highlight without moving
+the player (0.00 m); typing "ramen 2 q" in the search box neither walks, switches app nor lowers the phone; key 1 →
+`nav:destination {suggested:true}` + Maps route; teleport to the door → `nav:arrived` (Maps phase and Lodestone
+phase); Arrived sheet with "Next · from Aya"; pick in Maps survives the install (Lodestone `ldRoute:true` at ready,
+no list); Change → search "sushi" → 2 → `suggested:false`; Next chip + 1 in both apps; Daikichi → free-roam pick
+of another place → guidance (6F → B1); `stats().legs` per leg; `ctx.errors` [] and zero console errors (only the
+sandbox's Google-Fonts cert error + SwiftShader ReadPixels warnings).
+Shots `notes/v4-shots/phone/`: 01 glance pick · 02 Maps list (Aya highlighted) · 03 keyboard highlight · 04 Maps
+route · 05 glance route · 06 glance arrived+next · 07 Maps arrived → Where next · 08 Lodestone snaps into guidance
+(picked in Maps) · 09–11 Lodestone Change / search / other pick · 12a Lodestone arrived + Next · 12 arrived, no
+suggestion (free roam list) · 13 free-roam guidance · 14 glance · 15/16 Next chip (Maps / Lodestone).
+(06, 08 and 12a predate two small layout fixes: glance arrived title now 2 lines, Change moved next to the
+"Destination" label so the name isn't cut, Maps Next chip clear of the ×.)
+
+## Unsure / known issues
+- Digits on a list beat the v3 dock slots (1 = Aya's pick, not Messages). Tab / click still switch apps. With a
+  route + Next chip up, only 1 is taken (2/3 stay dock slots, arrows walk, Enter is not taken).
+- Maps search results now pick directly on click (the place card with photos / reviews is still one tap on a map
+  pin; its Directions = pick).
+- Arrival radius: 4 m from the door's outside point / 3 m from the door / < 5 m of Lodestone path. Story's own
+  Daikichi arrival (`demo:arrive`) is separate and unchanged.
+- Glance strip has no Next chip (it keeps the one step); "Arrived · …" + "Next: …" appear there after arrival.
+- `stats().legs[].metres` come from the phone's walked-distance counter (teleports count 0).
