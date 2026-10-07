@@ -136,3 +136,14 @@ shader programs are introduced: only existing materials are used).
    lighting). Visually checked in SwiftShader only.
 4. `pkill -f` in my shell may have matched another agent's process named `*probe.mjs --root /home/user…`
    once at ~15:35 (scratchpad is shared). If someone's probe died then, that was me, sorry.
+
+## Crowd requests (done, `js/world/env/*`)
+
+- Seat spots now carry their real seat height `h` (crowd `places.js` prefers it): chairs 0.495, bar stools
+  0.82, counter stools 0.73, Daikichi's low stools 0.584, depachika stools 0.69, sofas / armchairs /
+  banquettes 0.45–0.46, the low bench 0.42 (cafe.js, dining.js, seating.js, featured.js, shopbuild.js).
+  Left without `h` (the crowd measures them): the kissaten velvet seats, the stand-up ledge spots and
+  the high table at a featured shop (no stool drawn there).
+- `cafe.js` communal table: the seat spot is now exactly on the stool it draws (same jitter, same
+  `r()` call order, so the logic/replay passes stay in step). It was 0.3 m off.
+- Not re-run in a browser after this last change (syntax-checked only; it only touches logic-pass spot data).

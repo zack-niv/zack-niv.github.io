@@ -64,7 +64,7 @@ export function diningInterior(S, c) {
     const first = 2.6;
     for (let a = first; a < W - 1.1; a += 0.78) {
       barStool(P, a + (r() - 0.5) * 0.06, kd - 0.5, izaka ? [0.2, 0.12, 0.08] : [0.35, 0.22, 0.14]);
-      S.spot('seat', a, kd - 0.5, 0, 1);
+      S.spot('seat', a, kd - 0.5, 0, 1, { h: 0.82 });
       if (r() < 0.4) foodItem(S, P, (SAMPLES[cat] || ['salad'])[0], a, 1.05, kd + 0.18, 0.1);
       else if (r() < 0.5) cup(P, a + 0.2, 1.05, kd + 0.1, [0.9, 0.9, 0.88], 0.035);
     }
@@ -106,8 +106,8 @@ export function diningInterior(S, c) {
     for (let k = 0; k < 2; k++) {
       const cd = j + 0.5 + k, ca = bc(2.15);
       chair(P, ca + (r() - 0.5) * 0.06, cd + (r() - 0.5) * 0.06, -bface, 0, { wood: true, frame: wood, seat, jit: (r() - 0.5) * 0.5 });
-      S.spot('seat', ca, cd, -bface, 0);
-      S.spot('seat', bc(0.5), cd, bface, 0);
+      S.spot('seat', ca, cd, -bface, 0, { h: 0.495 });
+      S.spot('seat', bc(0.5), cd, bface, 0, { h: 0.46 });
       if (r() < 0.4) foodItem(S, P, (SAMPLES[cat] || ['salad'])[Math.floor(r() * 2) % (SAMPLES[cat] || [1]).length], ta, 0.74, cd + (k ? 0.1 : -0.1), 0.1);
     }
     if (cat === 'yakiniku') { P.cyl('env_metal', ta, 0.74, 0.8, j + 1.0, 0.2, [0.15, 0.15, 0.15]); P.cyl('env_glow', ta, 0.8, 0.805, j + 1.0, 0.15, [2.2, 0.7, 0.2]); P.cyl('env_metal', ta, 1.55, ceil, j + 1.0, 0.07, [0.6, 0.6, 0.62]); P.cyl('env_metal', ta, 1.45, 1.6, j + 1.0, 0.22, [0.7, 0.7, 0.72]); }
