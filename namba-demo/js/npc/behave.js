@@ -44,7 +44,7 @@ export class Behave {
     if (L.t === 'window' && a.d && a.d.w) { a.d.w.used = 0; }
     if (L.t === 'board' && a.mark) { a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1); a.mark = null; }
     if ((L.t === 'dine' || L.t === 'browse') && a.spot) { a.spot.used = 0; a.spot = null; if (L.t === 'dine' && L.B && a.d && a.d.counted) { L.B.seated = Math.max(0, L.B.seated - 1); a.d.counted = false; } }
-    a.dyn = 0; a.d = null; a.queueing = false; a.faceSet = false; a.pose = POSE.WALK;
+    a.dyn = 0; a.d = null; a.queueing = false; a.faceSet = false; a.pose = POSE.WALK; a.seatH = 0; a.seatPhone = false; a.seatDone = false;
   }
   cleanup(a) {
     if (a.legs) this.endLeg(a);
@@ -86,14 +86,14 @@ export class Behave {
         if (!s) { this.nextLeg(a); return; }
         a.spot = s; a.biz = B; B.seated++; a.d.counted = true;
         a.d.dur = L.dur; a.d.B = B;
-        if (L.inside) { S.setPos(a, B.level, s.x, s.z); a.st = 1; this._sitDown(a, B); this._reveal(a); }
-        else S.goTo(a, s.x, s.z, B.rect, 0.3);
+        if (L.inside) { S.setPos(a, B.level, s.sx ?? s.x, s.sz ?? s.z); a.st = 1; this._sitDown(a, B); this._reveal(a); }
+        else S.goTo(a, s.sx ?? s.x, s.sz ?? s.z, B.rect, s.real ? 0.12 : 0.3);
         // the group comes along
         if (a.followers) for (const f of a.followers) {
           const fs = P.takeSpot(B); if (!fs) continue;
           f.fstate = 'dine'; f.spot = fs; f.mode = MODE.PATH;
-          if (L.inside) { S.setPos(f, B.level, fs.x, fs.z); f.mode = MODE.STAND; f.pose = B.counter ? POSE.EAT : POSE.SIT; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._reveal(f); }
-          else S.goTo(f, fs.x, fs.z, B.rect, 0.3);
+          if (L.inside) { S.setPos(f, B.level, fs.sx ?? fs.x, fs.sz ?? fs.z); f.mode = MODE.STAND; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._seatOn(f, fs, B); this._reveal(f); }
+          else S.goTo(f, fs.sx ?? fs.x, fs.sz ?? fs.z, B.rect, fs.real ? 0.12 : 0.3);
         }
         return;
       }
@@ -278,8 +278,8 @@ export class Behave {
             a.st = 2;
             if (a.spot) { a.spot.used = 0; a.spot = null; }
             if (a.d.counted) { B.seated = Math.max(0, B.seated - 1); a.d.counted = false; }
-            if (a.followers) for (const f of a.followers) { if (f.spot) { f.spot.used = 0; f.spot = null; } f.fstate = null; f.mode = MODE.FOLLOW; f.pose = POSE.WALK; }
-            a.pose = POSE.WALK; a.dyn = 0;
+            if (a.followers) for (const f of a.followers) { if (f.spot) { f.spot.used = 0; f.spot = null; } f.fstate = null; f.mode = MODE.FOLLOW; f.pose = POSE.WALK; f.seatH = 0; f.seatPhone = false; f.seatDone = false; }
+            a.pose = POSE.WALK; a.dyn = 0; a.seatH = 0; a.seatPhone = false; a.seatDone = false;
             S.goTo(a, B.door.ox, B.door.oz, B.rect, 0.6);
           } else if (a.cafeCup) a.dyn |= (1 << BIT.CUP);
         }
@@ -391,7 +391,7 @@ export class Behave {
   _followerTick(a, dt) {
     const L = a.leader;
     if (a.fstate === 'dine') {
-      if (a.mode === MODE.STAND) { a.pose = a.biz && a.biz.counter ? POSE.EAT : POSE.SIT; if (!a.faceSet) { a.faceYaw = a.yaw; a.faceSet = true; } }
+      if (a.mode === MODE.STAND) { if (a.spot && !a.seatH && !a.seatDone) this._seatOn(a, a.spot, a.biz); if (!a.faceSet) { a.faceYaw = a.yaw; a.faceSet = true; } }
       return;
     }
     if (a.mode !== MODE.FOLLOW && a.mode !== MODE.RIDE && !a.fstate) a.mode = MODE.FOLLOW;
@@ -589,16 +589,35 @@ export class Behave {
     if (d > 0.3) { this.sim.goTo(a, sl.x, sl.z, null, 0.22); a.d.slow = 0.7; }
     else this.sim.stand(a, sl.yaw);
   }
+  // v4: sit only ON a real seat (a.seatH = seat-top height, drives the sit clip variant and the hip height in render.js); on a
+  // sampled floor cell nobody sits: they stand and eat / look at their phone instead
+  _seatOn(a, sp, B) {
+    const real = !!(sp && sp.real && !sp.bad);
+    a.seatDone = true;
+    if (real) {
+      a.seatH = sp.h; a.seatStool = !!sp.stool;
+      if (sp.sx !== undefined) { a.x = sp.sx; a.z = sp.sz; }
+      a.yaw = sp.yaw; a.faceYaw = sp.yaw; a.faceSet = true;
+      const r = this.r();
+      a.seatPhone = !!(B.cafe && r < 0.3);
+      a.pose = a.seatPhone ? POSE.SIT : (B.counter || (B.restaurant && r < 0.55) ? POSE.EAT : POSE.SIT);
+      if (a.seatPhone) a.dyn |= (1 << BIT.PHONE);
+    } else {
+      a.seatH = 0; a.seatPhone = false;
+      a.pose = B.cafe && this.r() < 0.3 ? POSE.PHONE : POSE.STAND;
+      if (a.pose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);
+    }
+    if (B.cafe && this.r() < 0.6) { a.cafeCup = true; a.dyn |= (1 << BIT.CUP); }
+  }
   _sitDown(a, B) {
     const S = this.sim;
     const counter = B.counter;
     // face into the room (towards the back / counter) with some variety
-    const real = a.spot && a.spot.real;
+    const real = a.spot && a.spot.real && !a.spot.bad;
     const yaw = real ? a.spot.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5) * (counter ? 0.6 : 2.4);
     S.stand(a, yaw); a.yaw = yaw;
-    a.pose = counter ? POSE.EAT : (B.cafe && this.r() < 0.3 ? POSE.PHONE : POSE.SIT);
-    if (a.pose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);
-    if (B.cafe && this.r() < 0.6) { a.cafeCup = true; a.dyn |= (1 << BIT.CUP); }
+    a.seatDone = false;
+    this._seatOn(a, a.spot, B);
   }
   _browseNext(a, L) {
     const B = L.B;

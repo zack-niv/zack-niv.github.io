@@ -39,7 +39,10 @@ export function buildCeilings(K) {
     if (!g) return;
     const y = K.y(lv), H = y + sp.ceil;
     const up = K.above(lv);
-    const has = (x, z) => { const c = K.cell(lv, x, z); return c.si === si && c.t === CELL.WALK && !(up && K.isHole(up, x, z)); };
+    // v4: the ceiling also continues over the space's own atrium void (CITY 1F court, Nankai 2F): it
+    // used to stop at the void, so from below (and from the top of the B1 escalator) you saw the
+    // floor slab of the level above from underneath = the shops up there floating in the air
+    const has = (x, z) => { const c = K.cell(lv, x, z); return c.si === si && (c.t === CELL.WALK || c.t === CELL.VOID) && !(up && K.isHole(up, x, z)); };
     const [bx0, bz0, bx1, bz1] = sp.rect || polyBounds(sp.poly);
     const W = bx1 - bx0, D = bz1 - bz0;
     const axis = W >= D ? 'x' : 'z';

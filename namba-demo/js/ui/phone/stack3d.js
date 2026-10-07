@@ -349,7 +349,7 @@ export class Stack3D {
     for (const m of this.ribMeshes) { this.scene.remove(m); m.geometry.dispose(); }
     this.ribMeshes = [];
     for (const m of this.markGroup.children.slice()) { this.markGroup.remove(m); m.material.map && m.material.map.dispose(); m.material.dispose(); }
-    if (!r || !r.ok) { this.routeLevels = new Set(); this.fadeN.value = 0; return; }
+    if (!r || !r.ok) { this.routeLevels = new Set(); this.fadeN.value = 0; this.fitPts = []; return; }
     const P = r.pts; const n = P.length;
     // build a screen-space ribbon: 2 verts per point
     const pos = new Float32Array(n * 2 * 3), pv = new Float32Array(n * 2 * 3), nx = new Float32Array(n * 2 * 3), side = new Float32Array(n * 2), u = new Float32Array(n * 2);
@@ -396,7 +396,7 @@ export class Stack3D {
 
   setDestination(d) {
     this.dest = d;
-    if (!d) { this.pin.visible = this.destBeam.visible = this.destRing.visible = false; return; }
+    if (!d) { this.pin.visible = this.destBeam.visible = this.destRing.visible = false; if (this.destLabel) this.destLabel.visible = false; return; }
     const y = LEVELS[d.level].y * this.K + 1.2;
     this.pin.position.set(d.x, y, d.z); this.destBeam.position.set(d.x, y, d.z); this.destRing.position.set(d.x, y + 0.3, d.z);
     this.pin.visible = this.destBeam.visible = this.destRing.visible = true;

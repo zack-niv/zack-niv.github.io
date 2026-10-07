@@ -14,6 +14,8 @@ import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js';
 import { Stack3D } from './stack3d.js';
 import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
 import { Tracker } from './track.js';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort } from './destinations.js';
+import { businessBySlot } from '../../world/directory.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -38,6 +40,7 @@ const ICONS = {
   canyon: '<path d="M3 20 8 10l3 5 3-8 7 13M3 20h18M17 4.2a2 2 0 1 0 .01 0"/>',
   flag: '<path d="M6 21V4M6 5h11l-2.5 4L17 13H6"/>',
   check: '<path d="M5 12.5 10 17.5 19 7"/>',
+  pin: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
 };
 export const icon = (k, cls = '') => `<svg viewBox="0 0 24 24" class="ld-ic ${cls}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ICONS.straight}</svg>`;
 
@@ -75,8 +78,11 @@ export class LodestoneApp {
     this.state = 'idle';
     this.t = 0;
     this.T_INSTALL = 1.8; this.T_CALIB = 3.0;
-    this.dest = destinationFromSlot('parks_6Fdw03');
-    this.guid = this.dest ? new Guidance(this.ctx, this.dest) : null;
+    // v4: no destination until the player picks one (here or in Maps: phone.dest is shared)
+    this.dest = null; this.guid = null;
+    this._guids = new Map();               // one Guidance (cost field) per destination, kept for multi-leg trips
+    this._via = { done: false };           // the Namba Parks canyon detour is offered once per game, whatever the leg
+    this._choosing = false;                // "Change" pressed: the list is up although a destination is set
     this.route = null; this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this.arrived = false;
     this.track = new Tracker(this);  // v3: heading / progress vs the route ('nav:track')
@@ -84,7 +90,7 @@ export class LodestoneApp {
     this.mode = 'overview';
     this._revealT = 0;
     root.classList.add('ld');
-    const destName = this.dest ? esc(this.dest.en) : 'Destination';
+    const destName = '';
     root.innerHTML = `
       <section class="ld-install"><div class="ld-i-icon">${logo()}</div><h1>Lodestone</h1><p class="ld-i-sub">Indoor positioning that works</p>
         <div class="ld-bar"><i></i></div><p class="ld-i-state">Installing…</p></section>
@@ -99,13 +105,14 @@ export class LodestoneApp {
         <button class="ld-x3d"><i>${EXPAND}</i><span>3D view</span>${phone.ctx.input && phone.ctx.input.touch ? '' : '<kbd>V</kbd>'}</button>
         <div class="ld-trip">
           <div class="ld-trip-r ld-here"><i class="ld-dot"></i><div><small>You are here <u>±1 m</u></small><b><span class="ld-w-l">3F</span><span class="ld-w-z">Namba</span></b></div></div>
-          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination</small><b><span class="ld-to-l">${this.dest ? lvl(this.dest.level) : ''}</span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em></div>
+          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination</small><b><span class="ld-to-l"></span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em><button class="ld-change" type="button">Change</button></div>
         </div>
         <div class="ld-top"><div class="ld-brand">${logo()}<b>Lodestone</b></div><div class="ld-acc"><i></i><span>±1 m</span></div></div>
         <div class="ld-ladder"></div>
         <div class="ld-ctl"><div class="ld-seg"><button data-m="overview" class="on">Route</button><button data-m="follow">Me</button></div><button class="ld-recenter" title="Re-centre" aria-label="Re-centre">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>'}</button><button class="ld-done">Done</button></div>
         <div class="ld-sheet"><ol class="ld-steps"></ol></div>
         <div class="ld-card" hidden></div>
+        <div class="ld-pick"><button class="ld-pick-x" type="button" aria-label="Back to the route">×</button><div class="ld-pick-l"></div></div>
       </section>`;
     const q = (c) => root.querySelector(c);
     this.el = {
@@ -113,8 +120,14 @@ export class LodestoneApp {
       main: q('.ld-main'), c3d: q('.ld-3d'), wL: q('.ld-w-l'), wZ: q('.ld-w-z'), ladder: q('.ld-ladder'),
       card: q('.ld-card'), seg: root.querySelectorAll('.ld-seg button'),
       head: q('.ld-head'), nav: q('.ld-nav'), navIc: q('.ld-nav-ic'), navD: q('.ld-nav-d'), navI: q('.ld-nav-i'), then: q('.ld-then'),
-      toM: q('.ld-to-m'), trip: q('.ld-trip'), steps: q('.ld-steps'),
+      toM: q('.ld-to-m'), trip: q('.ld-trip'), steps: q('.ld-steps'), toL: q('.ld-to-l'), toN: q('.ld-to-n'), pick: q('.ld-pick'),
     };
+    // v4: the shared "Where to?" list, Lodestone styling (search box, chips, Aya's pick on top)
+    this.list = new DestList(q('.ld-pick-l'), { theme: 'lodestone', search: true, chips: true, onPick: (it) => this._pickItem(it), onQuery: () => this._renderList() });
+    this.list.touch = !!(phone.ctx.input && phone.ctx.input.touch);
+    q('.ld-change').addEventListener('click', (e) => { e.stopPropagation(); this.choose(true); });
+    q('.ld-pick-x').addEventListener('click', (e) => { e.stopPropagation(); this.choose(false); });
+    for (const ev of ['pointerdown', 'click', 'wheel']) this.el.pick.addEventListener(ev, e => e.stopPropagation(), { passive: true });
     this.fg = this.el.field.getContext('2d');
     // floor ladder (top = highest)
     const lvs = LEVEL_ORDER.filter(l => this.ctx.world.grids[l]).slice().reverse();
@@ -146,7 +159,7 @@ export class LodestoneApp {
     try {
       if (step === 1) this.stack = this._makeStack();
       if (step === 2 && this.guid) this.guid.prepare();
-      if (step === 3 && this.stack && this.stack.ready) { this.stack.setDestination(this.dest); this.stack.warm(); }
+      if (step === 3 && this.stack && this.stack.ready) { this.stack.setDestination(this.dest || null); this.stack.warm(); }
     } catch (e) { console.error('[lodestone warm]', e); this.ctx.errors && this.ctx.errors.push('lodestone: ' + e.message); }
   }
   _makeStack() {
@@ -160,7 +173,7 @@ export class LodestoneApp {
   _bands(s = this.stack) {
     if (!s) return;
     if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 316; s.bandRight = 46; }      // (v3: + the dock)
-    else { s.bandTop = this._navBottom || 200; s.bandBottom = 264; s.bandRight = 0; }
+    else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 264; s.bandRight = 0; }
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards
     try { this.el.c3d.style.setProperty('--ld-band-t', `${Math.round(s.bandTop) - 8}px`); this.el.c3d.style.setProperty('--ld-band-b', `${Math.round(s.bandBottom) - (this.view === 'stack' ? 6 : 40)}px`); } catch (e) { /* ignore */ }
@@ -182,7 +195,7 @@ export class LodestoneApp {
     this._guideKey = ''; this._renderGuide(true);
     this._syncLadder();
   }
-  toggleStack() { this.setView(this.view === 'stack' ? 'guide' : 'stack'); }
+  toggleStack() { if (this.picking && this.view === 'guide') return; this.setView(this.view === 'stack' ? 'guide' : 'stack'); }
 
   onShow() { this._guideKey = ''; }
 
@@ -190,15 +203,15 @@ export class LodestoneApp {
   // visible: the phone is up on Lodestone; glancing: the phone is lowered (the glance card needs the next step);
   // active: the phone is not pocketed (route + on-track checks keep running, e.g. with Messages up)
   update(dt, visible, glancing, active = glancing) {
-    // arrival is cheap and runs even with the phone down
-    if (this.state === 'ready') this._arrivalCheck(dt);
+    // the canyon note is cheap and runs even with the phone down (v4: arrival is phone.dest's, on the true position)
+    if (this.state === 'ready') this._viaCheck(dt);
     if (this._revealT > 0) { this._revealT -= dt; if (this._revealT <= 0) this.el.main.classList.remove('reveal'); }
     if (this.state === 'idle') return;
     if (this.state === 'installing') { this.t += dt; this._tickInstall(dt); }
     else if (this.state === 'calibrating') { this.t += dt; this._tickCalib(dt, visible); }
     else if (this.state === 'ready' && visible) { this.t += dt; this._tickMain(dt); }
     else if (this.state === 'ready' && (glancing || active)) this._routeTick(dt);
-    if (this.state === 'ready' && (visible || glancing || active) && !this.arrived) this.track.update(dt, this.route);
+    if (this.state === 'ready' && (visible || glancing || active) && this.dest && !this.arrived) this.track.update(dt, this.route);
   }
   // a fresh route right now (the tracker's reroute)
   forceRoute() {
@@ -297,12 +310,12 @@ export class LodestoneApp {
     this.phone.sway = null;
     const ph = this.phone;
     ph.pos.setMode('lodestone');
-    ph.upgradeStage = 'ready';
+    ph.upgradeStage = 'ready'; ph._readyAt = ph._play || 0;
     this._set('ready'); this.t = 0;
     ph.home && ph.home.addLodestone();
     ph._dockAddLodestone && ph._dockAddLodestone();
     ph.messages && ph.messages.markInstalled();
-    if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest); } catch (e) { console.error(e); } }
+    if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest || null); } catch (e) { console.error(e); } }
     this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this._shownLevel = ph.pos.level;
     this.view = 'guide'; this.el.main.dataset.view = 'guide'; this._bands();
@@ -312,6 +325,7 @@ export class LodestoneApp {
     this._revealT = 2.3; this.el.main.classList.add('reveal');
     this._showCard(`You’re on ${lvl(ph.pos.level)}`, `${this._zoneName()} · ±1 m`, true);
     this._guideKey = '';
+    this._syncDest(); this._syncPick();
     ph.app !== 'lodestone' && ph.isOpen && ph._showApp('lodestone');
     this.ctx.events.emit('phone:upgrade', { stage: 'ready' });
   }
@@ -335,7 +349,7 @@ export class LodestoneApp {
       b.classList.toggle('me', l === this.phone.pos.level);
       b.classList.toggle('on', l === cur);
       b.classList.toggle('route', !!(rl && rl.has(l)));
-      b.classList.toggle('dest', l === this.dest.level);
+      b.classList.toggle('dest', !!this.dest && l === this.dest.level);
     });
   }
 
@@ -348,7 +362,8 @@ export class LodestoneApp {
     const moved = Math.hypot(body.x - this._lastPos[0], body.z - this._lastPos[1]);
     if (!(moved > 0.9 || body.level !== this._lastPos[2] || !this.route)) return false;
     this._lastPos = [body.x, body.z, body.level];
-    const r = this.guid && this.guid.compute(body, this.phone.pos.heading);
+    if (!this.guid) return false;
+    const r = this.guid.compute(body, this.phone.pos.heading);
     // a route with NaN/Infinity in it is never shown: keep the last good one
     if (r && r.ok) { this.route = r; this._stackRoute = false; } else if (r && !r.bad) { this.route = r; }
     return true;
@@ -382,6 +397,7 @@ export class LodestoneApp {
       if (this.el.wL.textContent !== l) this.el.wL.textContent = l;
       if (this.el.wZ.textContent !== z) this.el.wZ.textContent = z;
       if (!this._guideKey) this._renderGuide(true);
+      else if (!this.dest) this._renderGuide(false);          // "You're on 3F · Namba CITY" follows you while you choose
     }
     if (this._cardT > 0) { this._cardT -= dt; if (this._cardT <= 0) this.el.card.classList.add('out'); }
     else if (!this.el.card.hidden && this.el.card.classList.contains('out')) { this._cardOutT = (this._cardOutT || 0) + dt; if (this._cardOutT > 0.5) { this.el.card.hidden = true; this.el.card.classList.remove('out'); this._cardOutT = 0; } }
@@ -408,28 +424,99 @@ export class LodestoneApp {
     a.style.transform = `rotate(${ang.toFixed(1)}deg)`;
   }
 
-  _arrivalCheck(dt) {
-    if (this.arrived || !this.guid || !this.guid.field) return;
+  _viaCheck(dt) {
+    if (!this.guid || this._via.done) return;
     this._at = (this._at || 0) - dt; if (this._at > 0) return; this._at = 0.4;
-    const b = this.ctx.player && this.ctx.player.body; if (!b) return;
-    this.guid.noteBody(b);          // has the player been out in the canyon yet? (works with the phone down)
-    const lv = this.phone.pos.trueLevel(b);
-    if (lv !== this.dest.level) return;
-    const rem = this.guid.remaining(b);
-    if (rem < 5 || Math.hypot(b.x - this.dest.x, b.z - this.dest.z) < 3.5) this._arrive();
+    const b = this.ctx.player && this.ctx.player.body; if (b) this.guid.noteBody(b);   // has the player been out in the canyon yet?
   }
   _arrive() {
     if (this.arrived) return;
-    this.arrived = true; this._arrStats = this.phone.stats();
+    this.arrived = true; this._arrStats = this.phone.stats(); this._arrAt = this.phone._play || 0;
+    this._choosing = false;
+    this._guideKey = ''; if (this.state === 'ready') this._renderGuide(true);
+    this._syncPick();
+    if (this.state !== 'ready' || !this.dest) return;
+    this.ctx.events.emit('phone:arrive', { id: 'b:' + (this.dest.slot || this.dest.id), source: 'lodestone' });
+    this.ctx.events.emit('lodestone:arrive', { id: this.dest.slot || this.dest.id });
+  }
+
+  // ---------------------------------------------------------- destinations ---
+  _guidFor(d) {
+    let g = this._guids.get(d.id);
+    if (!g) { g = new Guidance(this.ctx, d, this._via); this._guids.set(d.id, g); }
+    return g;
+  }
+  // metres of path left to `d` (for the shared arrival check), Infinity when unknown
+  remainingTo(d, body) {
+    if (this.state !== 'ready' || !this.dest || this.dest.id !== d.id || !this.guid || !this.guid.field) return Infinity;
+    return this.guid.remaining(body);
+  }
+  // phone.dest changed (picked here, in Maps, or by the story)
+  onDestination(d) {
+    this.dest = d || null; this.guid = d ? this._guidFor(d) : null;
+    this.route = null; this._stackRoute = false; this.arrived = false; this._arrStats = null; this._choosing = false;
+    this.track.reset(); this._lastPos = [1e9, 1e9, '']; this._rt = 0; this._guideKey = '';
+    if (this.stack && this.stack.ready) { this.stack.setDestination(this.dest); this.stack.setRoute(null); }
+    this._syncDest(); this._syncPick(); this._syncLadder();
+    if (this.state === 'ready') { this._renderGuide(true); this.phone.glance && this.phone.glance.refresh(true); }
+  }
+  onArrived(d) { if (this.dest && d && d.id === this.dest.id) this._arrive(); }
+  onListChanged() { this._syncPick(); this._guideKey = ''; }
+  // "Change" (true) / back to the route (false)
+  choose(on) {
+    if (this.state !== 'ready') return;
+    this._choosing = !!on && !!this.dest && !this.arrived;
+    if (on && this.view !== 'guide') this.setView('guide');
+    this._syncPick();
     this._guideKey = ''; this._renderGuide(true);
-    this.ctx.events.emit('phone:arrive', { id: 'b:' + this.dest.slot, source: 'lodestone' });
-    this.ctx.events.emit('lodestone:arrive', { id: this.dest.slot });
+  }
+  get picking() { return this.state === 'ready' && (!this.dest || this.arrived || this._choosing); }
+  activeList() { return this.picking && this.view === 'guide' && this.list.items.length ? this.list : null; }
+  focusSearch() { return this.picking ? this.list.focusSearch() : false; }
+  _pickItem(it) {
+    this.phone._lastPhoneInput = this.phone._now;
+    if (this.list.input) this.list.input.blur();
+    this.phone.setDestination(it.id, { app: 'lodestone' });
+  }
+  _syncDest() {
+    const d = this.dest;
+    if (this.el.toL.textContent !== (d ? lvl(d.level) : '')) this.el.toL.textContent = d ? lvl(d.level) : '';
+    if (this.el.toN.textContent !== (d ? d.name || d.en : '')) this.el.toN.textContent = d ? d.name || d.en : '';
+  }
+  _syncPick() {
+    const on = this.picking;
+    this.el.main.classList.toggle('picking', on);
+    this.el.main.classList.toggle('choosing', on && this._choosing);
+    if (on !== this._wasPicking) { this._wasPicking = on; this._bands(); }
+    if (on) this._renderList();
+  }
+  _renderList() {
+    if (!this.picking) return;
+    const D = this.phone.dest, sug = D ? D.suggested : null, q = this.list.query, M = this.phone.maps;
+    const here = this.arrived && this.dest ? this.dest.id : null;
+    const sugOk = sug && sug !== here ? sug : null;
+    let items;
+    if (q && M) {
+      items = M.search(q).slice(0, 20).map(p => this._itemFor(destIdOf(p), destIdOf(p) === sugOk ? 'From Aya' : null, p)).filter(Boolean);
+    } else items = defaultIds(sugOk, here).map(id => this._itemFor(id, id === sugOk ? (this.arrived ? 'Next · from Aya' : 'From Aya') : null)).filter(Boolean);
+    this.list.render(items);
+    this.list.setTitle(this.arrived ? 'Where next?' : this._choosing ? 'Change destination' : 'Where to?', '');
+  }
+  // Lodestone's row: the true floor + area (no misleading crow-flies number)
+  _itemFor(id, aya, place) {
+    if (!id) return null;
+    const b = businessBySlot[id];
+    if (b) { const s = bizSub(b, this.ctx.clock.minutes); return { id, name: b.en, icon: b.info.icon, aya, closed: s.closed, sub: s.status ? `${s.sub} · ${s.status}` : s.sub, right: lvl(b.level) }; }
+    const p = place || (this.phone.maps && this.phone.maps.placeById(id)); if (!p || !LEVELS[p.level]) return null;
+    return { id, name: p.en, icon: p.icon || (p.kind === 'transit' ? '🚇' : p.kind === 'exit' ? '🚪' : '📍'), aya, sub: String(p.sub || '').split(' · ').slice(0, 2).join(' · '), right: lvl(p.level) };
   }
 
   // ------------------------------------------------------------- glance ---
   glanceInfo() {
     const p = this.phone.pos, here = `you’re on ${lvl(p.level)}`;
-    if (this.arrived) return { kind: 'arr', icon: 'flag', title: 'You’ve arrived', sub: `${this.dest.en} · ${lvl(this.dest.level)}` };
+    const D = this.phone.dest, nx = D && D.next(), sug = nx && D.name(nx);
+    if (!this.dest) return { kind: 'pick', icon: 'pin', title: 'Pick a place in Lodestone', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}` };
+    if (this.arrived) return { kind: 'arr', icon: 'flag', title: `Arrived · ${this.dest.name || this.dest.en}`, sub: sug ? `Next: ${sug} · pick it in Lodestone` : `${lvl(this.dest.level)} · ±1 m` };
     const R = this.route;
     if (!R || !R.ok) return { kind: 'wait', icon: 'straight', title: 'Finding your route…', sub: here };
     const cur = R.steps[0], toGo = Math.max(0, Math.round(isFinite(cur && cur.at) ? cur.at : 0));
@@ -443,16 +530,28 @@ export class LodestoneApp {
   _renderGuide(force) {
     const R = this.route, E = this.el;
     const dest = this.dest;
-    if (this.arrived) {
-      const st = this._arrStats || this.phone.stats();
-      const key = 'arrived:' + st.secondsAfter + this.view;
+    if (!dest) {
+      // v4: nothing to guide to yet — where you are, and the list below
+      const p = this.phone.pos, key = 'pick:' + p.level + this._zoneName();
       if (!force && key === this._guideKey) return; this._guideKey = key;
-      const sec = Math.max(0, Math.round(st.secondsAfter || 0)), mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
+      this.el.main.classList.remove('arrived'); E.nav.dataset.trk = 'trk-on';
+      E.navIc.className = 'ld-nav-ic trk-on'; E.navIc.innerHTML = icon('pin');
+      E.navD.textContent = `You’re on ${lvl(p.level)} · ${this._zoneName()} · ±1 m`;
+      E.navI.textContent = 'Where to?';
+      E.then.hidden = true; E.toM.textContent = ''; E.steps.innerHTML = ''; this._arrowEl = null;
+      return;
+    }
+    if (this.arrived) {
+      // the time of this leg with Lodestone (from the pick, or from the install when it was picked in Maps)
+      const ld = this._legT0();
+      const sec = Math.max(0, Math.round((this._arrAt || 0) - ld)), mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
+      const key = 'arrived:' + dest.id + sec + this.view;
+      if (!force && key === this._guideKey) return; this._guideKey = key;
       this.el.main.classList.add('arrived'); E.nav.dataset.trk = 'trk-on';
       E.navIc.className = 'ld-nav-ic ok'; E.navIc.innerHTML = CHECK;
-      E.navD.textContent = `${dest.en} · ${lvl(dest.level)}`;
+      E.navD.textContent = `${dest.name || dest.en} · ${lvl(dest.level)}`;
       E.navI.textContent = 'You’ve arrived';
-      E.then.hidden = false; E.then.innerHTML = `<span>Aya’s in the queue 🍤 · door ${esc(this._doorSide())}</span>`;
+      E.then.hidden = false; E.then.innerHTML = `<span>${dest.slot === 'parks_6Fdw03' ? 'Aya’s in the queue 🍤 · ' : ''}door ${esc(this._doorSide())}</span>`;
       E.toM.textContent = `${mm}:${ss}`;
       this._arrowEl = null;
       return;
@@ -496,6 +595,11 @@ export class LodestoneApp {
     // all steps (the 3D view's list)
     E.steps.innerHTML = st.map((s, i) => `<li class="${i === 0 ? 'cur' : ''}">${icon(s.icon, 'sm')}<span>${esc(phrase(s, dest).long)}</span><em>${i === 0 && toGo < 3 ? 'now' : fm(s.at)}</em></li>`).join('');
     this._arrowEl = live ? E.navIc.querySelector('.ld-arrow') : null;
+  }
+  _legT0() {
+    const D = this.phone.dest, leg = D && D.legs[D.legs.length - 1];
+    const ready = this.phone._readyAt != null ? this.phone._readyAt : 0;
+    return Math.max(leg ? leg.t0 : 0, ready);
   }
   _doorSide() { const s = this.route && this.route.steps && this.route.steps[this.route.steps.length - 1]; return s && /left|right|ahead/.test(s.sub) ? s.sub.split(' · ')[0].replace('on your ', 'on the ') : 'ahead'; }
 }

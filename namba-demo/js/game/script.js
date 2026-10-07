@@ -6,11 +6,13 @@
 
 export const QUESTS = {
   tempura: { text: 'Meet Aya at Tempura Daikichi', textJa: '天ぷら大吉でアヤと合流', detail: 'Namba Parks, 6F. She\'s already in the queue.' },
+  coffee: { text: 'An iced latte for Aya', textJa: 'アヤにアイスラテ', detail: 'On the way. She can\'t leave the queue.' },
 };
 
 // The demo's destination and pacing knobs.
 export const DEMO = {
   slot: 'parks_6Fdw03',
+  coffeeSlot: 'city_1e12',          // v4: Aya's coffee errand (Namba CITY 1F, at the foot of the esc_city_b escalators)
   offerAt: 165,                     // real seconds of play: Aya sends Lodestone anyway (nobody stays stuck forever)
   offerMin: 45,                     // ...and never before this (the generic map has to be felt)
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
@@ -30,11 +32,22 @@ export const AYA = {
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
     replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'omw', text: 'On my way!' }] },
   whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅' },
+  // v4: the coffee errand ({cafe} = the café's name, read at runtime). Sent right after "meet"; the café is
+  // suggested ("Aya's pick") in both apps' destination lists.
+  coffee: { id: 'coffee', text: 'oh!! can you bring me an iced latte from {cafe}? Namba CITY 1F, it\'s on your way 🙏 the queue here is forever' },
+  otherPick: 'ooh, {name} first? 😂 I\'ll wait…',
+  skipCoffeePick: 'straight to the tempura? respect 😂 …my latte though 🥲',
+  gotCoffee: 'omg you\'re an angel 😭☕ ok NOW come: Daikichi, Parks 6F',
+  gotOtherCoffee: 'that\'s not {cafe}… but I\'ll allow it 😌 now come: Parks 6F',
+  noCoffee: 'no latte? 🥲 fine. FINE. the tempura is worth it',
 };
+// v4: what the player asks for at the errand café (overrides the café's own drink)
+export const ERRAND_DRINK = { say: 'iced latte', label: 'iced latte', ja: 'アイスラテ', price: 520, icon: '🥤', who: 'Barista', line: 'One iced latte, please. To go!' };
 
 export const UPGRADE = {
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
   ready: 'see? 😌 6F, I\'m 3rd in line',
+  readyCoffee: 'see? 😌 it even knows which floor my latte is on',
 };
 
 // v3: the in-game tutorial hints (one small line at a time, never a modal). {k:X} renders a key cap.
@@ -47,6 +60,13 @@ export const TUTORIAL = {
   replyDown: 'Aya asked you something — {k:Q} to answer',
   maps: 'Open <b>Maps</b> — {k:Tab} switches apps (or click the dock)',
   mapsDown: '{k:Q} then open <b>Maps</b>',
+  // v4: choose where to go (validated by 'nav:destination'; any pick counts)
+  pick: 'Pick where to go — {k:1} for <b>Aya\'s pick</b>, or click any place',
+  pickDown: '{k:Q}, open <b>Maps</b> and pick where to go',
+  pick2: 'Next stop: pick <b>Tempura Daikichi</b> — Aya\'s pick, top of the list',
+  pick2Down: '{k:Q} — pick your next stop',
+  pick2Route: 'Next stop: <b>Tempura Daikichi</b> — end this route (×) and pick Aya\'s place',
+  order: 'Walk up to the counter — {k:E} to order',
   interact: '{k:E} interacts — machines, doors, café counters',
   interactHere: '{k:E} — try it',
   install: 'Aya sent a link — {k:Q}, then {k:Enter} or click <b>Lodestone</b>',
@@ -64,6 +84,10 @@ export const CANYON_TEXT = 'take the canyon side — trust me 🌿';
 export const ARRIVAL = {
   aya: { ja: 'こっちこっち！', en: 'Over here! You made it 😆' },
   text: 'THERE you are 🥹 I saved us the two seats at the counter',
+  // v4: with / without her iced latte
+  textCoffee: 'THERE you are 🥹 and you brought my latte?? best friend ever. I saved us the two seats at the counter',
+  thanks: { ja: 'ありがとう〜！', en: 'Thank youuu! 🥤' },
+  tease: '…wait. where\'s my latte 😑 kidding. (not kidding)',
   sub: { en: 'Tempura Daikichi · 天ぷら 大吉', ja: 'なんばパークス 6F' },
 };
 

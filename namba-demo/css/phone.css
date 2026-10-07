@@ -629,3 +629,100 @@
 .gl-rep { flex: 0 0 auto; align-self: center; position: relative; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #f0a, #fa0); color: #fff; font: 800 13px/1 Inter, sans-serif; font-style: normal; box-shadow: 0 0 0 2px #30d158, 0 0 12px rgba(48,209,88,.6); animation: glRep 2.4s ease-in-out infinite; }
 .gl-rep b { position: absolute; right: -6px; bottom: -5px; width: 16px; height: 16px; border-radius: 50%; background: #30d158; color: #fff; font: 900 10px/16px Inter, sans-serif; text-align: center; box-shadow: 0 0 0 2px #000; }
 @keyframes glRep { 50% { box-shadow: 0 0 0 2px #30d158, 0 0 20px rgba(48,209,88,.95); } }
+
+/* =============================================================================
+   v4 — "Where to?": the shared destination list (Maps + Lodestone), Aya's pick on top
+   ============================================================================= */
+.dl { display: flex; flex-direction: column; min-height: 0; }
+.dl-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 2px 0 7px; }
+.dl-h b { font-size: 17px; font-weight: 800; letter-spacing: -.01em; }
+.dl-hint { font-size: 11px; color: #80868b; }
+.dl-s { position: relative; display: flex; align-items: center; gap: 8px; height: 38px; border-radius: 19px; padding: 0 8px 0 12px; margin-bottom: 8px; }
+.dl-s svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; opacity: .7; }
+.dl-s input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 500 14px Inter, "Noto Sans JP", sans-serif; color: inherit; pointer-events: auto; -webkit-user-select: text; user-select: text; }
+.dl-s kbd { font: 700 10px/1 Inter, sans-serif; border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 5px; padding: 3px 5px 2px; opacity: .45; }
+.dl-s input:focus ~ kbd { display: none; }
+.dl-x { border: 0; background: none; color: inherit; font-size: 18px; cursor: pointer; opacity: .6; padding: 0 4px; }
+.dl-x[hidden] { display: none; }
+.dl-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px 1px 8px; flex: 0 0 auto; }
+.dl-chips::-webkit-scrollbar { display: none; }
+.dl-chips button { flex: 0 0 auto; display: flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px 0 8px; border-radius: 14px; font: 600 12px Inter, sans-serif; cursor: pointer; }
+.dl-chips button span { font-size: 12.5px; }
+.dl-rows { display: flex; flex-direction: column; gap: 4px; }
+.dl-r { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 6px 10px 6px 8px; border: 0; border-radius: 14px; background: none; text-align: left; cursor: pointer; font-family: inherit; color: inherit; transition: background .15s, box-shadow .15s, transform .1s; }
+.dl-r:active { transform: scale(.985); }
+.dl-ic { flex: 0 0 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 16px; font-style: normal; }
+.dl-ic .mp-ic, .dl-ic .mp-lb, .dl-ic .mp-ex { margin: 0; }
+.dl-m { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dl-m b { font-size: 14px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-m small { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.dl-aya { font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 1px; }
+.dl-d { flex: 0 0 auto; font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+.dl-r kbd { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font: 800 11px/1 Inter, sans-serif; }
+.dl-r.closed .dl-m b { opacity: .62; }
+.dl-r.picked { animation: dlPick .45s ease-out; }
+@keyframes dlPick { 0% { transform: scale(.97); } 60% { transform: scale(1.015); } 100% { transform: none; } }
+.dl-empty { padding: 14px 4px; font-size: 13px; opacity: .7; }
+/* Maps styling */
+.dl-maps .dl-h b { color: #202124; }
+.dl-maps .dl-chips button { border: 1px solid #dadce0; background: #fff; color: #3c4043; }
+.dl-maps .dl-chips button:hover { background: #f1f3f4; }
+.dl-maps .dl-chips button.on { background: #e8f0fe; border-color: #1a73e8; color: #1967d2; }
+.dl-maps .dl-r { color: #202124; }
+.dl-maps .dl-r:hover, .dl-maps.kb .dl-r.sel { background: #f1f3f4; }
+.dl-maps .dl-m small { color: #5f6368; } .dl-maps .dl-d { color: #3c4043; }
+.dl-maps .dl-ic { background: #f1f3f4; }
+.dl-maps .dl-ic .mp-ic { width: 32px; height: 32px; }
+.dl-maps .dl-r kbd { background: #f1f3f4; color: #5f6368; box-shadow: inset 0 -1.5px 0 #dadce0; }
+.dl-maps .dl-r.aya { background: #e8f0fe; box-shadow: inset 0 0 0 1.5px #1a73e8; padding-top: 8px; padding-bottom: 8px; }
+.dl-maps .dl-r.aya .dl-aya { color: #c5221f; }
+.dl-maps .dl-r.aya b { font-size: 15px; font-weight: 750; }
+.dl-maps .dl-r.aya kbd { background: #1a73e8; color: #fff; box-shadow: none; }
+.dl-maps .dl-r.aya::after { content: 'Go'; flex: 0 0 auto; order: 3; font: 750 12.5px Inter, sans-serif; color: #fff; background: #1a73e8; border-radius: 14px; padding: 6px 11px; }
+.dl-maps .dl-r.aya .dl-d { display: none; }
+.dl.kb .dl-r.sel { box-shadow: inset 0 0 0 2px #1a73e8; }
+.dl.kb.dl-lodestone .dl-r.sel { box-shadow: inset 0 0 0 2px #ffb02e; }
+.dl-maps .mp-open { color: #188038; } .dl-maps .mp-closed { color: #c5221f; }
+.mp-sheet.mp-home.mp-full { max-height: 66%; }
+.mp-home .mp-here { margin-bottom: 10px; }
+.mp-home .mp-here b { font-size: 15px; } .mp-home .mp-here small { font-size: 11.5px; }
+.mp-sheet.mp-results .mp-dl { margin: 2px -6px 0; }
+.mp-arr { display: flex; align-items: center; gap: 11px; margin: 0 0 10px; }
+.mp-arr > i { flex: 0 0 30px; height: 30px; border-radius: 50%; background: #188038; color: #fff; display: grid; place-items: center; font: 800 16px/1 Inter, sans-serif; font-style: normal; }
+.mp-arr b { display: block; font-size: 16px; font-weight: 750; } .mp-arr small { display: block; font-size: 12px; color: #5f6368; }
+/* Lodestone styling: graphite + magnetite amber */
+.ld-pick { display: none; position: absolute; left: 8px; right: 8px; bottom: 96px; max-height: 340px; z-index: 5; flex-direction: column; padding: 13px 12px 8px; border-radius: 24px; background: linear-gradient(180deg, rgba(16,23,40,.97), rgba(8,12,23,.98)); border: 1px solid rgba(150,185,235,.16); box-shadow: 0 -8px 40px rgba(0,0,0,.5); color: #e8eefc; }
+.ld-main.picking .ld-pick { display: flex; animation: ldPickIn .4s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes ldPickIn { from { transform: translateY(24px); opacity: 0; } }
+.ld-main.picking .ld-trip, .ld-main.picking .ld-x3d, .ld-main.picking .ld-tap { display: none; }
+.ld-main.reveal .ld-pick { opacity: 0; transform: translateY(18px); }
+.ld-pick-l { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.ld-pick .dl-rows { overflow-y: auto; scrollbar-width: none; min-height: 0; flex: 1; margin: 0 -4px; padding: 0 4px 2px; }
+.ld-pick .dl-rows::-webkit-scrollbar { display: none; }
+.ld-pick-x { display: none; position: absolute; top: 9px; right: 10px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(150,185,235,.25); background: rgba(255,255,255,.06); color: #dbe6fa; font: 600 17px/1 Inter, sans-serif; cursor: pointer; z-index: 2; }
+.ld-main.choosing .ld-pick-x { display: block; }
+.dl-lodestone .dl-h b { color: #fff; }
+.dl-lodestone .dl-s { background: rgba(255,255,255,.07); border: 1px solid rgba(150,185,235,.18); color: #dbe6fa; }
+.dl-lodestone .dl-s input::placeholder { color: rgba(219,230,250,.5); }
+.dl-lodestone .dl-chips button { border: 1px solid rgba(150,185,235,.2); background: rgba(255,255,255,.05); color: #d6e2f7; }
+.dl-lodestone .dl-chips button:hover { border-color: rgba(255,176,46,.5); }
+.dl-lodestone .dl-chips button.on { border-color: #ffb02e; background: rgba(255,176,46,.16); color: #ffcf84; }
+.dl-lodestone .dl-r:hover, .dl-lodestone.kb .dl-r.sel { background: rgba(255,255,255,.06); }
+.dl-lodestone .dl-ic { background: rgba(255,255,255,.07); }
+.dl-lodestone .dl-m b { color: #f2f6ff; } .dl-lodestone .dl-m small { color: #8fa3c4; }
+.dl-lodestone .dl-d { padding: 2px 7px; border-radius: 7px; background: rgba(255,176,46,.12); color: #ffcf84; box-shadow: inset 0 0 0 1px rgba(255,176,46,.35); font-weight: 800; }
+.dl-lodestone .dl-r kbd { background: rgba(255,255,255,.08); color: rgba(219,230,250,.7); box-shadow: inset 0 -1.5px 0 rgba(255,255,255,.12); }
+.dl-lodestone .dl-r.aya { background: linear-gradient(100deg, rgba(255,176,46,.2), rgba(255,138,31,.08)); box-shadow: inset 0 0 0 1.5px rgba(255,176,46,.75), 0 0 18px rgba(255,150,40,.18); padding-top: 8px; padding-bottom: 8px; }
+.dl-lodestone .dl-r.aya .dl-aya { color: #ffb02e; }
+.dl-lodestone .dl-r.aya b { font-size: 15px; font-weight: 750; }
+.dl-lodestone .dl-r.aya kbd { background: #ffb02e; color: #1a1206; box-shadow: none; }
+.ld-change { flex: 0 0 auto; margin-left: 4px; height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid rgba(150,185,235,.25); background: rgba(255,255,255,.06); color: #dbe6fa; font: 650 11.5px Inter, sans-serif; cursor: pointer; }
+.ld-change:hover { border-color: rgba(255,176,46,.6); color: #ffcf84; }
+/* glance strip: "Pick a place …" (a decision waits on the raised phone) */
+.gl-ic.gl-pin { background: #1a73e8; color: #fff; }
+.gl-ld .gl-ic.gl-pin { background: linear-gradient(160deg, #ffc35a, #ff8a1f); color: #1a1206; }
+.gl-pin .ld-ic { width: 30px; height: 30px; }
+.gl-pick .gl-t b, .gl-arr .gl-t b { font-size: 15.5px; -webkit-line-clamp: 1; }
+.gl-pick .gl-t span, .gl-arr .gl-t span { -webkit-line-clamp: 2; font-size: 12px; }
+.gl-mp.gl-pick .gl-t span, .gl-mp.gl-arr .gl-t span { color: #9cc7ff; }
+.gl-ld.gl-pick .gl-t span, .gl-ld.gl-arr .gl-t span { color: #ffcf84; }

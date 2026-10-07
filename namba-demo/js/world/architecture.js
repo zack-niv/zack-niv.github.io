@@ -28,6 +28,7 @@ import { buildStations } from './arch/stations.js';
 import { Ramps } from './arch/escalators.js';
 import { wallKit, wearKit } from './arch/details.js';
 import { buildPortals } from './arch/portals.js';
+import { buildShells } from './arch/shells.js';
 
 export { STYLE, styleOf };
 
@@ -52,6 +53,7 @@ export class Architecture {
     step('columns', () => { this.columns = K.columns = buildColumns(K); });
     step('surfaces', () => { this.fascia = buildSurfaces(K).fascia; });
     step('ceilings', () => buildCeilings(K));
+    step('shells', () => { this.stats.shells = buildShells(K); });
     step('ramps', () => { this.ramps = new Ramps(K); this.ramps.build(); this.exitCanopies = this.ramps.exitCanopies || []; });
     this.hangPoints = K.hangPoints || [];
     this.wallItems = K.wallItems || [];

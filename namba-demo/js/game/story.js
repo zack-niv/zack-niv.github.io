@@ -12,9 +12,16 @@
 //     "I'm lost 😭" / "On my way!".
 //   Lodestone offer = engagement: "I'm lost", or "On my way!" while the director
 //     says you're lost (then "Ask your phone!" → offer). Fallback at DEMO.offerAt.
+// v4 (items 4 + 6): right after "Meet me…" Aya asks for an iced latte from a café
+//   off the straight line (DEMO.coffeeSlot, CITY 1F) and suggests it in the
+//   phones' destination lists. The tutorial's Maps step is now "pick where to
+//   go" (any pick counts; a different pick gets one light reaction). Ordering
+//   there ('demo:order') → she suggests Daikichi and a short "next stop" hint
+//   shows. Walking on past the café without it → one tease, never a block.
 // Words in script.js (AYA, UPGRADE, TUTORIAL); measurements in demo.js.
 // =============================================================================
-import { AYA, TUTORIAL } from './script.js';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE } from './script.js';
+import { businessBySlot } from '../world/directory.js';
 import { Aya } from './aya.js';
 import { Tutorial } from './tutorial.js';
 
@@ -27,7 +34,25 @@ export class Story {
     this.f = { raised: false, maps: false, mapsT: 0, interacted: false, walk0: 0, look: 0, lastYaw: null };
     this.engaged = null; this._offering = false;
     this.helloT = null; this.whereT = null;
+    // v4: the coffee errand. state: 'none' → 'asked' → 'done' (got a coffee) | 'skipped' (walked on without one)
+    const cb = businessBySlot[DEMO.coffeeSlot] || null;
+    this.errand = { slot: cb ? DEMO.coffeeSlot : null, biz: cb, name: cb ? cb.en : 'the café', state: 'none', got: null, at: null };
+    this.f.picked = false; this.f.picks = 0; this.f.pick2 = false; this.f.atCafe = false;
+    this.suggested = null; this._reacted = false; this._leg2 = false;
   }
+  // the phone's destination list (v4 contract) — feature-detected, v3 behaviour without it
+  get dests() { const p = this.ctx.phone; return !!(p && typeof p.suggest === 'function'); }
+  _suggest(slot) {
+    this.suggested = slot;
+    const p = this.ctx.phone;
+    if (p && typeof p.suggest === 'function') { try { p.suggest(slot); } catch (e) { console.error('[story] suggest', e); } }
+  }
+  _destSlot() { const p = this.ctx.phone, d = p && p.destination; return d && d.slotId || null; }
+  get hasCoffee() { return !!this.errand.got; }
+  // order.js: the drink the player orders at the errand café while Aya is waiting for it
+  errandDrink(slot) { return this.errand.state === 'asked' && slot === this.errand.slot ? Object.assign({ errand: true }, ERRAND_DRINK) : null; }
+  // Lodestone's first line once it is live: about the latte while that's where it is taking you
+  readyText() { return this.errand.state === 'asked' && (!this._destSlot() || this._destSlot() === this.errand.slot) ? UPGRADE.readyCoffee : UPGRADE.ready; }
   get walked() { return Math.max(0, this.game.journal.distance - this.f.walk0); }
   _free() { const g = this.game; return !g.busy && !g.intro && !g.paused && !this.demo.arrived && !g.ended; }
 
@@ -39,7 +64,90 @@ export class Story {
     ev.on('phone:open', () => { this.f.raised = true; });
     ev.on('phone:app', (e) => { if (e && e.app === 'maps' && this.aya.wasSent('meet')) this.f.maps = true; });
     ev.on('interact', () => { this.f.interacted = true; });
+    // v4: the player chose a destination in Maps or Lodestone (any pick satisfies the step)
+    ev.on('nav:destination', (e) => this._onPick(e || {}));
+    ev.on('nav:arrived', (e) => { if (e && e.slotId && e.slotId === this.errand.slot) this.f.atCafe = true; });
+    ev.on('demo:order', (e) => this._onOrder(e || {}));
     this._steps();
+  }
+  _onPick(e) {
+    this.f.picked = true; this.f.picks++;
+    if (this._leg2) this.f.pick2 = true;
+    this.ctx.events.emit('story:pick', { slotId: e.slotId, suggested: this._isSuggested(e), leg: this._leg2 ? 2 : 1 });
+    // a different place than Aya's pick: she reacts lightly, once (the suggestion stays highlighted)
+    if (this._reacted || !this.suggested || this._isSuggested(e) || this.demo.arrived) return;
+    this._reacted = true;
+    const name = e.name || (businessBySlot[e.slotId] && businessBySlot[e.slotId].en) || 'that';
+    const skip = !this._leg2 && e.slotId === DEMO.slot && this.errand.state === 'asked';
+    if (skip) this._skipPicked = true;
+    const text = skip ? AYA.skipCoffeePick : AYA.otherPick.replace('{name}', name);
+    this.aya.say(text, { wait: 1.2 });
+  }
+  _isSuggested(e) { return e.suggested === true || (!!e.slotId && e.slotId === this.suggested); }
+  _onOrder(e) {
+    const E = this.errand;
+    if (e.kind !== 'cafe' || !e.item || E.state === 'done' || E.state === 'none') return;
+    const mine = e.slotId === E.slot;
+    const was = E.state;
+    E.state = 'done'; E.got = { slotId: e.slotId, name: e.name, item: e.item }; E.at = this.t;
+    this.game.setQuest('coffee', 'done', mine ? `${e.item} from ${E.name}, to go` : `${e.item} from ${e.name || 'a café'} (close enough)`, true);
+    if (was === 'skipped') { this.aya.say('wait is that a coffee?? for ME?? 🥹', { wait: 2.6 }); return; }
+    this.aya.say(mine ? AYA.gotCoffee : AYA.gotOtherCoffee.replace('{cafe}', E.name), { wait: 2.6, run: () => this._leg2Start() });
+  }
+  // the second leg: Daikichi becomes Aya's pick and a short "next stop" hint shows (not the full tutorial again)
+  _leg2Start() {
+    if (this._leg2) return;
+    this._leg2 = true;
+    this._suggest(DEMO.slot);
+    const ph = () => this.ctx.phone || {};
+    const up = () => !!ph().isOpen;
+    this.tut.add({ id: 'pick2', late: true, delay: 3.5,
+      available: () => !this.aya.busy() && this.dests,
+      done: () => this.f.pick2 || this._destSlot() === DEMO.slot || !this.dests || this.demo.arrived,
+      hint: () => {
+        if (!up()) return { html: TUTORIAL.pick2Down, at: 'phone' };
+        const d = ph().destination;      // still routing somewhere else (not arrived): the list is one step away
+        return { html: d && !d.arrived && d.slotId !== DEMO.slot ? TUTORIAL.pick2Route : TUTORIAL.pick2, at: 'phoneup' };
+      } });
+  }
+  _sendCoffee() {
+    const E = this.errand;
+    if (!E.slot || E.state !== 'none') return;
+    this.aya.say({ id: 'coffee', text: AYA.coffee.text.replace('{cafe}', E.name) }, { wait: 1.4, run: () => {
+      E.state = 'asked';
+      this._suggest(E.slot);
+      this.game.setQuest('coffee', 'active', null, true);
+      this._orderStep();
+    } });
+  }
+  // at the café without the coffee yet: one line on how to order (the counter prompt does the rest)
+  _orderStep() {
+    const E = this.errand, b = E.biz;
+    const near = () => {
+      if (this.f.atCafe) return true;
+      const p = this.ctx.player && this.ctx.player.body; if (!p || !b || !b.door || p.level !== b.level) return false;
+      return Math.hypot(p.x - b.door.ox, p.z - b.door.oz) < 13;
+    };
+    this.tut.add({ id: 'order', late: true, delay: 2.5,
+      available: () => E.state === 'asked' && near() && !(this.ctx.phone && this.ctx.phone.isOpen),
+      done: () => E.state !== 'asked',
+      hint: () => { const t = this.game.interactions && this.game.interactions.target; return { html: TUTORIAL.order, at: t && !t.passive ? 'prompt' : 'center' }; } });
+  }
+  // walked on well past the café without the latte (nearer Daikichi than the café is): one tease, then Daikichi
+  _checkSkip() {
+    const E = this.errand, d = this.demo;
+    if (E.state !== 'asked' || !E.biz || !d._field || !this.ctx.nav) return;
+    if (this._cafeDk == null) {
+      const b = E.biz, v = this.ctx.nav.nodeAtPoint(b.level, b.door.ox, b.door.oz);
+      const x = v >= 0 ? d._field.dist[v] : null;
+      this._cafeDk = typeof x === 'number' && isFinite(x) ? x : -1;
+    }
+    const rem = d._lost.rem;
+    if (this._cafeDk <= 0 || rem == null || rem > this._cafeDk - 40 || !this.aya.idle(4)) return;
+    E.state = 'skipped';
+    this.game.setQuest('coffee', 'hidden', null, true);
+    if (this._skipPicked) { this._leg2Start(); return; }      // she already teased you when you picked Daikichi
+    this.aya.say(AYA.noCoffee, { run: () => this._leg2Start() });
   }
   _sendHello() {
     if (this.helloT != null) return;
@@ -50,6 +158,7 @@ export class Story {
     if (this._meetQueued) return;
     this._meetQueued = true;
     this.aya.say(AYA.meet, { wait, run: () => this.game.setQuest('tempura', 'active', null, true) });
+    this._sendCoffee();
   }
 
   _steps() {
@@ -68,10 +177,16 @@ export class Story {
         available: () => aya.open && aya.open.msg.id === 'hello',
         done: () => aya.answered('hello') || aya.wasSent('meet'),
         hint: () => (up() ? (aya.rich ? { html: TUTORIAL.reply, at: 'phoneup' } : readHint) : { html: TUTORIAL.replyDown, at: 'phone' }) },
-      { id: 'maps', core: true, delay: 1.0,
-        available: () => aya.wasSent('meet') && !aya.busy(),
-        done: () => this.f.maps,
-        hint: () => (up() ? { html: TUTORIAL.maps, at: 'phoneup' } : { html: TUTORIAL.mapsDown, at: 'phone' }) },
+      // v4: "choose where to go" — open Maps and pick a place (Aya's pick is highlighted; any pick counts).
+      // Without the phone's destination list (older phone) the v3 rule holds: opening Maps is enough.
+      { id: 'pick', core: true, delay: 1.0,
+        available: () => (aya.wasSent('coffee') || (aya.wasSent('meet') && !this.errand.slot)) && !aya.busy(),
+        done: () => this.f.picked || (!this.dests && this.f.maps),
+        hint: () => {
+          if (!up()) return { html: this.dests ? TUTORIAL.pickDown : TUTORIAL.mapsDown, at: 'phone' };
+          const app = ph().app;
+          return this.dests && (app === 'maps' || app === 'lodestone') ? { html: TUTORIAL.pick, at: 'phoneup' } : { html: TUTORIAL.maps, at: 'phoneup' };
+        } },
       { id: 'interact', delay: 1.5,
         done: () => this.f.interacted,
         hint: () => { const t = this.game.interactions && this.game.interactions.target; return up() ? null : t && !t.passive ? { html: TUTORIAL.interactHere, at: 'prompt' } : { html: TUTORIAL.interact, at: 'center' }; } },
@@ -100,6 +215,7 @@ export class Story {
     // "Landed??" ignored while they walk on: she sends the plan anyway
     if (this.helloT != null && !aya.answered('hello') && !this._meetQueued && !aya.busy() && (this.t - this.helloT > 30 || this.walked > 40)) this._sendMeet(0);
     if (!demo.offered && !this._offering && aya.wasSent('meet')) this._beforeOffer();
+    this._checkSkip();
   }
 
   _beforeOffer() {

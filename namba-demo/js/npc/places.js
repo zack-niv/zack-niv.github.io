@@ -177,22 +177,104 @@ export class Places {
     }
     // shuffle deterministically
     for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(B.r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
-    // restaurants and cafés: diners sit on the REAL chairs / stools the environment built (facing the right way)
+    // restaurants and cafés: diners sit on the REAL chairs / stools the environment built (facing the right way).
+    // v4: ONLY on real seats (a sitting pose on a random floor cell = a body floating in the air); with no real seat at all the
+    // diners stand (see behave._sitDown). Seat height / kind / exact centre are read from the seat spot (`h`, `kind`) when the
+    // environment provides them, otherwise derived (rows of 3+ same-facing seats = counter stools, else chairs) and, as soon as
+    // the shop's geometry exists, measured from the built furniture (_scanSeat).
     let spots = out;
     const sh = this.ctx && this.ctx.shops;
     if ((B.restaurant || B.cafe) && sh && sh.seats) {
       try {
-        const real = (sh.seats(B.id) || []).filter(q => this.col.walkable(B.level, q.x, q.z)).map(q => ({ x: q.x, z: q.z, depth: 9, used: 0, yaw: q.yaw, real: true }));
-        if (real.length >= 3) spots = real;
-      } catch (e) { /* fall back to sampled cells */ }
+        const rawSp = sh.spots ? (sh.spots(B.id) || []).filter(q => q.kind === 'seat') : [];
+        const real = (sh.seats(B.id) || []).filter(q => this.col.walkable(B.level, q.x, q.z)).map((q, i) => {
+          const ex = rawSp.find(r => Math.abs(r.x - q.x) < 1e-3 && Math.abs(r.z - q.z) < 1e-3) || {};
+          const h = ex.h || ex.seatH || q.h || q.seatH || 0;
+          return { x: q.x, z: q.z, depth: 9, used: 0, yaw: q.yaw, real: true, h: h || 0.495, hKnown: !!h, scan: h ? 2 : 0, stool: !!(h && h > 0.62) || ex.kind2 === 'stool' };
+        });
+        if (real.length) this._seatRuns(real);
+        if (real.length >= 1) spots = real;
+        else spots = out.map(s => (s.real = false, s));
+      } catch (e) { /* fall back to sampled cells (diners stand) */ }
     }
     B.spots = spots;
     B.cap = Math.max(2, Math.min(B.cap, spots.length));
     return spots;
   }
+  // seats in a straight row of 3+ with the same facing (counter stools) default to the stool height until measured
+  _seatRuns(seats) {
+    for (const a of seats) {
+      if (a.hKnown) continue;
+      const fx = -Math.sin(a.yaw), fz = -Math.cos(a.yaw);                 // facing (yaw 0 = -z)
+      let n = 0;
+      for (const b of seats) {
+        if (b === a) continue;
+        const dyaw = Math.abs(Math.atan2(Math.sin(a.yaw - b.yaw), Math.cos(a.yaw - b.yaw)));
+        const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+        if (dyaw < 0.2 && d < 1.15 && Math.abs(dx * fx + dz * fz) < 0.12) n++;
+      }
+      if (n >= 2 || (n >= 1 && seats.length >= 2 && false)) { a.stool = true; a.h = 0.78; }
+    }
+  }
+  // Measure the real seat from the built furniture: the lowest flat top >= 0.43 m inside a 0.36 m window round the seat spot
+  // (chair seat 0.495, stool 0.73, bar stool 0.82, sofa ~0.45), and its centre (the cafe stools sit 0.3 m off their spot).
+  // Returns true (measured), false (no seat surface there: nobody sits), null (shop geometry not built yet).
+  _scanSeat(B, s) {
+    const sh = this.ctx && this.ctx.shops; const rec = sh && sh.recs && sh.recs.get && sh.recs.get(B.id);
+    const grp = rec && rec.group; if (!grp) return null;
+    const y0 = LEVELS[B.level] ? LEVELS[B.level].y : 0, R = 0.36;
+    const pts = [];
+    grp.updateWorldMatrix(true, true);
+    grp.traverse((o) => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const pos = o.geometry.attributes.position, m = o.matrixWorld.elements, n = pos.count;
+      for (let i = 0; i < n; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const wx = m[0] * x + m[4] * y + m[8] * z + m[12];
+        if (wx < s.x - R || wx > s.x + R) continue;
+        const wz = m[2] * x + m[6] * y + m[10] * z + m[14];
+        if (wz < s.z - R || wz > s.z + R) continue;
+        const wy = m[1] * x + m[5] * y + m[9] * z + m[13] - y0;
+        if (wy >= 0.43 && wy <= 0.95) pts.push(wx, wy, wz);
+      }
+    });
+    const np = pts.length / 3;
+    if (np < 3) return false;
+    const cnt = new Map();
+    for (let i = 0; i < np; i++) { const k = Math.round(pts[i * 3 + 1] * 100); cnt.set(k, (cnt.get(k) || 0) + 1); }
+    const ks = [...cnt.keys()].sort((a, b) => a - b);
+    let k0 = null;
+    for (const k of ks) if ((cnt.get(k) || 0) + (cnt.get(k - 1) || 0) + (cnt.get(k + 1) || 0) >= 3) { k0 = k; break; }
+    if (k0 == null) return false;
+    let top = k0;                                   // extend up through the seat slab (<= 0.09 m)
+    for (const k of ks) if (k > top && k <= k0 + 9 && k - top <= 7 && (cnt.get(k) || 0) >= 3) top = k;
+    const h = top / 100;
+    let cx = s.x, cz = s.z, c = 0;
+    for (let it = 0; it < 3; it++) {
+      let sx = 0, sz = 0, k = 0;
+      for (let i = 0; i < np; i++) {
+        if (Math.abs(pts[i * 3 + 1] - h) > 0.014) continue;
+        if (Math.hypot(pts[i * 3] - cx, pts[i * 3 + 2] - cz) > (it ? 0.22 : R)) continue;
+        sx += pts[i * 3]; sz += pts[i * 3 + 2]; k++;
+      }
+      if (!k) break; c = k; cx = sx / k; cz = sz / k;
+    }
+    if (c < 3 || h < 0.4 || h > 0.92) return false;
+    s.h = h; s.stool = h >= 0.62; s.hKnown = true;
+    if (Math.hypot(cx - s.x, cz - s.z) < 0.45) { s.sx = cx; s.sz = cz; }
+    return true;
+  }
   takeSpot(B) {
     const S = this.spots(B);
-    for (const s of S) if (!s.used) { s.used = 1; return s; }
+    for (const s of S) {
+      if (s.used || s.bad) continue;
+      if (s.real && !s.hKnown && s.scan !== 2 && (s.scan | 0) < 2) {
+        const r = this._scanSeat(B, s);
+        if (r === false) { s.bad = true; s.scan = 2; continue; }       // no furniture to sit on: nobody sits here
+        if (r === true) s.scan = 2;
+      }
+      s.used = 1; return s;
+    }
     return null;
   }
   // queue slots along the frontage, starting beside the door

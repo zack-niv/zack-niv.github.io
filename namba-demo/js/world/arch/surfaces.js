@@ -276,12 +276,15 @@ function buildSlabEdges(K) {
         // neighbour ramp on its lower level (escalator foot) or nothing: skip if
         // there is no slab to show (track / solid ground with no walk above)
         // bottom: ceiling of the level below under the neighbour cell
+        // v4: the edge always reaches the ceiling of the space below when there is one. It used to be
+        // clamped to 0.9 m where the upper neighbour is solid (no floor up there), which left the plenum
+        // between the lower ceiling and the upper slab open: riding the Parks 6F->7F escalator you looked
+        // sideways into it and saw the 6F restaurants from above (no roofs) and the sky beyond.
         let yb = y - 0.9;
         if (bl) {
           const cb = bl ? K.ceilAt(bl, nx0, nz0) : null;
           if (cb != null) yb = Math.min(y - 0.25, cb);
         }
-        if (nc.t !== CELL.WALK && nc.t !== CELL.RAMP) { if (yb < y - 0.9) yb = y - 0.9; }
         // edge line between the cells, face towards the hole (-dx,-dz)
         const ex = X + dx * 0.5, ez = Z + dz * 0.5;
         const [ax, az, bx, bz] = dx ? [ex, Z - 0.5, ex, Z + 0.5] : [X - 0.5, ez, X + 0.5, ez];
