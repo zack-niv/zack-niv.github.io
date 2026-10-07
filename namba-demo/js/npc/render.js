@@ -349,6 +349,15 @@ export class CrowdRenderer {
     tp = tp > HEAD_PITCH_MAX ? HEAD_PITCH_MAX : tp < -HEAD_PITCH_MAX ? -HEAD_PITCH_MAX : tp;
     a.pHY = this._ease(isFinite(a.pHY) ? a.pHY : 0, ty, dh);
     a.pHP = this._ease(isFinite(a.pHP) ? a.pHP : 0, tp, dh);
+    // a seat seated before its shop's furniture existed (initial fill): measure it the first time somebody can see it
+    if (a.seatH && a.spot && a.spot.real && a.spot.scan !== 2 && a._d2 < 900 && a.biz) {
+      const r = this.sim.places._scanSeat(a.biz, a.spot);
+      if (r !== null) {
+        a.spot.scan = 2;
+        if (r === false) { a.spot.bad = true; a.seatH = 0; a.pose = POSE.STAND; }   // no furniture there: stand rather than hover
+        else { a.seatH = a.spot.h; a.seatStool = !!a.spot.stool; if (a.spot.sx !== undefined) { a.x = a.spot.sx; a.z = a.spot.sz; } }
+      }
+    }
     // seated: the clip's pelvis sits at its design seat height (SEAT_BODY); lift / lower the person so it lands on the REAL seat top
     const kind = SEAT_CLIPS[a._ac];
     const tgt = kind && a.seatH ? a.seatH + 0.005 - a._sc * SEAT_BODY[kind] : 0;
