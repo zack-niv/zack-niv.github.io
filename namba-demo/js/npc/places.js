@@ -222,7 +222,7 @@ export class Places {
   _scanSeat(B, s) {
     const sh = this.ctx && this.ctx.shops; const rec = sh && sh.recs && sh.recs.get && sh.recs.get(B.id);
     const grp = rec && rec.group; if (!grp) return null;
-    const y0 = LEVELS[B.level] ? LEVELS[B.level].y : 0, R = 0.36;
+    const y0 = LEVELS[B.level] ? LEVELS[B.level].y : 0, R = 0.55;
     const pts = [];
     grp.updateWorldMatrix(true, true);
     grp.traverse((o) => {
@@ -250,11 +250,11 @@ export class Places {
     for (const k of ks) if (k > top && k <= k0 + 9 && k - top <= 7 && (cnt.get(k) || 0) >= 3) top = k;
     const h = top / 100;
     let cx = s.x, cz = s.z, c = 0;
-    for (let it = 0; it < 3; it++) {
+    for (let it = 0; it < 6; it++) {
       let sx = 0, sz = 0, k = 0;
       for (let i = 0; i < np; i++) {
         if (Math.abs(pts[i * 3 + 1] - h) > 0.014) continue;
-        if (Math.hypot(pts[i * 3] - cx, pts[i * 3 + 2] - cz) > (it ? 0.22 : R)) continue;
+        if (Math.hypot(pts[i * 3] - cx, pts[i * 3 + 2] - cz) > (it ? 0.24 : 0.5)) continue;
         sx += pts[i * 3]; sz += pts[i * 3 + 2]; k++;
       }
       if (!k) break; c = k; cx = sx / k; cz = sz / k;
