@@ -129,3 +129,19 @@ at 9 with p90 20 s (stairs are single-file at the mouth in the sim). Not near th
 * Scripts (scratchpad, not in the repo): `maskrepro.mjs` (GPU repro), `acc.mjs` (staged accessory shots, `BEFORE=1` serves the
   git-HEAD `humans.js`), `lunch.mjs` (browser lunch count), `diag.mjs` (who boards `esc_city_b_1`), `scen.sh` (all flowprobe
   scenarios against a HEAD copy and the working tree).
+
+## 3. Accessory refinement (lead follow-up, `humans.js` only)
+
+Now that they render, the boxes were replaced with proportioned, still cheap shapes (merged into the same instanced/skinned mesh):
+* **Backpack** 0.28 × 0.38 × 0.12 bevelled body (`RoundedBoxGeometry`, 1 segment, 108 tris) placed on the **measured** back surface
+  (`_bodyPts`: idle-pose body vertices of every non-backpacker outfit, dominant-bone skinned, head/hair excluded), a bevelled front
+  pocket with a zip line, and two shoulder straps built as a chain of thin bars that follow the measured chest / shoulder-top /
+  back surface. Colour `TINT.PACK`: keeps a clearly coloured bag (tourist red), otherwise a per-person pick of navy / olive / grey /
+  beige / slate (hashed from the look colours) — no more pure-black crates.
+* **Briefcase** 0.42 × 0.31 × 0.07 bevelled, hanging from a small handle (grip + two posts) in the fist; `TINT.CASE` = the
+  person's bag colour if dark, else black or dark-brown leather.
+* **Paper shopping bags** 0.30 × 0.32 × 0.12 with a folded rim and two thin cord handles rising to the fist; body keeps the
+  brand / paper tint (`acc2`), cords contrast with it (`TINT.CORD`).
+* Cost: backpack ~290 tris, briefcase ~150, paper bag ~84 per bag (old: 12 each); 3 more colour-table entries (max 23 / 24).
+Shots (re-taken): `bags_near.png`, `bags_far.png`, `phones_near.png`, `phones_far.png`, `closeup_*` incl. `closeup_backpack_side.png`,
+`closeup_backpack_back.png`, `closeup_paperbags.png`. 0 console errors; loadprobe READY 7.6 s (two runs right after a long shot session read 38–39 s, all in "Drawing the first frame": SwiftShader variance on this box, not the build).

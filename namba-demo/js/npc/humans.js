@@ -25,10 +25,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { BIT } from './looks.js';
 import { ESC_STAND_SIDE } from './sim.js';
 
-export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8 };
+export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11 };
 const MAX_MATS = 24;
 const FPS = 30;
 const BASE = new URL('../../assets/humans/', import.meta.url).href;
@@ -107,7 +108,7 @@ export class HumanLibrary {
     // procedural clips
     this._procClips(rig);
     // accessory parts (need the idle pose)
-    const acc = this._accessories(rig);
+    const acc = this._accessories(rig, meshes);
     // outfits
     for (const name of VARIANTS[g]) {
       const m0 = meshes[name]; if (!m0) continue;
@@ -384,7 +385,7 @@ export class HumanLibrary {
 
   // ---------------------------------------------------------------------------
   // accessory parts, authored in model space around the idle pose, converted to bind space
-  _accessories(rig) {
+  _accessories(rig, meshes = {}) {
     const S = rig.sampler, B = S.by;
     // v4 ROOT CAUSE of "phone not in the hand": the last procedural clip ('ride', which bends the right arm onto the handrail) left
     // the sampler in its pose; _pose() then saw "idle at t=0 == last evaluated value" and did not rewrite the arm, so every
@@ -401,12 +402,31 @@ export class HumanLibrary {
     this._pose(rig, rig.clips.idle, 0);
     const parts = [];
     const box = (bit, bone, mat, cx, cy, cz, sx, sy, sz, rx = 0, ry = 0, rz = 0) => parts.push({ bit, bone, mat, g: new THREE.BoxGeometry(sx, sy, sz), c: [cx, cy, cz], r: [rx, ry, rz] });
+    // bevelled box (108 tris): bags read as soft goods, not crates
+    const rbox = (bit, bone, mat, cx, cy, cz, sx, sy, sz, rad, rx = 0, ry = 0, rz = 0) => parts.push({ bit, bone, mat, g: new RoundedBoxGeometry(sx, sy, sz, 1, rad), c: [cx, cy, cz], r: [rx, ry, rz] });
+    const body = this._bodyPts(rig, meshes);
     const cyl = (bit, bone, mat, cx, cy, cz, r, h) => parts.push({ bit, bone, mat, g: new THREE.CylinderGeometry(r, r * 0.85, h, 8), c: [cx, cy, cz], r: [0, 0, 0] });
     const A = ACC_IDX;
-    // hands
-    box(BIT.BRIEFCASE, 'WristR', A.acc, hR.x - 0.02, hR.y - 0.19, hR.z, 0.085, 0.3, 0.4);
-    box(BIT.SHOPBAG, 'WristL', A.acc2, hL.x + 0.03, hL.y - 0.21, hL.z, 0.11, 0.32, 0.3);
-    box(BIT.SHOPBAG2, 'WristR', A.acc2, hR.x - 0.03, hR.y - 0.2, hR.z, 0.1, 0.28, 0.26);
+    // hands (v4 hotfix: real proportions; the old ones were plain crates)
+    // briefcase ~0.42 x 0.31 x 0.07, hanging from a small handle in the right hand, long side along the walk
+    const bcTop = hR.y - 0.06;
+    rbox(BIT.BRIEFCASE, 'WristR', A.case, hR.x - 0.015, bcTop - 0.155, hR.z, 0.07, 0.31, 0.42, 0.012);
+    box(BIT.BRIEFCASE, 'WristR', A.dark, hR.x - 0.015, hR.y - 0.012, hR.z, 0.018, 0.016, 0.12);
+    for (const dz of [-0.052, 0.052]) box(BIT.BRIEFCASE, 'WristR', A.dark, hR.x - 0.015, (hR.y - 0.012 + bcTop) / 2, hR.z + dz, 0.016, hR.y - 0.012 - bcTop, 0.016);
+    // paper shopping bags ~0.30 x 0.32 x 0.12 with two thin cord handles up to the hand
+    const paperBag = (bit, bone, h, sx) => {
+      const top = h.y - 0.09;
+      box(bit, bone, A.acc2, h.x + sx * 0.035, top - 0.16, h.z, 0.12, 0.32, 0.30);
+      box(bit, bone, A.acc2, h.x + sx * 0.035, top - 0.004, h.z, 0.124, 0.012, 0.304);   // folded rim
+      for (const dx of [-0.045, 0.045]) for (const dz of [-1, 1]) {
+        // each cord rises from the rim (z +-5.5 cm) to the fist (z +-1.2 cm): a tilted thin bar
+        const x0 = h.x + sx * 0.035 + dx * 0.6, z0 = h.z + dz * 0.055, z1 = h.z + dz * 0.012, y1 = h.y - 0.005;
+        const len = Math.hypot(y1 - top, z1 - z0);
+        box(bit, bone, A.cord, x0, (top + y1) / 2, (z0 + z1) / 2, 0.007, len, 0.007, -dz * Math.atan2(z0 * dz - z1 * dz, y1 - top), 0, 0);
+      }
+    };
+    paperBag(BIT.SHOPBAG, 'WristL', hL, 1);
+    paperBag(BIT.SHOPBAG2, 'WristR', hR, -1);
     // v4 critic: the phone sat 5 mm off the hand's centre line, i.e. INSIDE the 3 cm-thick hand mesh, so it never showed. Hold it
     // against the palm (the palm faces the body's midline in the idle pose the parts are authored in), a bit proud of the fingers.
     // v4 hotfix: with the box's long side ALONG the fingers the whole phone hid behind the (mitten) hand in every phone pose, and
@@ -421,7 +441,25 @@ export class HumanLibrary {
     box(BIT.SHOULDERBAG, 'Hips', A.acc, hips.x + 0.21, hips.y + 0.04, hips.z + 0.03, 0.08, 0.22, 0.28);
     box(BIT.SHOULDERBAG, 'Chest', A.acc, chest.x, chest.y + 0.02, chest.z + chestZ + 0.01, 0.035, 0.62, 0.012, 0, 0, -0.62);
     box(BIT.TOTE, 'ShoulderL', A.acc, hips.x + 0.25, hips.y + 0.12, hips.z - 0.02, 0.1, 0.36, 0.33);
-    box(BIT.BACKPACK, 'Chest', A.acc, chest.x, chest.y - 0.06, chest.z - 0.22, 0.32, 0.42, 0.17);
+    // backpack (v4 hotfix): ~0.28 x 0.38 x 0.12 bevelled body snug on the back (measured back surface), front pocket, top grab
+    // loop, and two shoulder straps that run over the shoulders and down the chest; muted palette colour (TINT.PACK)
+    {
+      const cy = chest.y - 0.07, back = body.back(chest.x, cy - 0.12, cy + 0.12, 0.12, chest.z - 0.13) - 0.004;
+      rbox(BIT.BACKPACK, 'Chest', A.pack, chest.x, cy, back - 0.06, 0.28, 0.38, 0.12, 0.035);
+      rbox(BIT.BACKPACK, 'Chest', A.pack, chest.x, cy - 0.085, back - 0.12 - 0.018, 0.21, 0.15, 0.045, 0.018);
+      box(BIT.BACKPACK, 'Chest', A.dark, chest.x, cy - 0.012, back - 0.163, 0.17, 0.008, 0.006);   // pocket zip
+      // straps: a chain of thin bars hugging the measured surface: chest -> collarbone -> over the trapezius -> down to the pack top
+      const bar = (y0, z0, y1, z1, x) => { const dy = y1 - y0, dz = z1 - z0; box(BIT.BACKPACK, 'Chest', A.pack, x, (y0 + y1) / 2, (z0 + z1) / 2, 0.042, Math.hypot(dy, dz) + 0.01, 0.01, Math.atan2(dz, dy), 0, 0); };
+      for (const sd of [-1, 1]) {
+        const x = chest.x + sd * 0.105;
+        const top = body.top(x, chest.y + 0.02, chest.y + 0.32, chest.y + 0.18) + 0.005;
+        const yF0 = chest.y - 0.13, yF1 = top - 0.035;
+        const zF0 = body.front(x, yF0, chest.z + 0.1) + 0.006, zF1 = body.front(x, yF1, chest.z + 0.06) + 0.006;
+        const zB1 = body.back(x, yF1 - 0.03, yF1 + 0.03, 0.02, chest.z - 0.08) - 0.006;
+        const zT = (zF1 + zB1) / 2, yB0 = cy + 0.17, zB0 = back - 0.012;
+        bar(yF0, zF0, yF1, zF1, x); bar(yF1, zF1, top, zT, x); bar(top, zT, yF1, zB1, x); bar(yF1, zB1, yB0, zB0, x);
+      }
+    }
     box(BIT.CART, 'Root', A.acc, 0, 0.5, 0.78, 0.5, 0.86, 0.62);
     box(BIT.CART, 'Root', A.dark, 0, 0.98, 0.5, 0.48, 0.035, 0.035);
     box(BIT.SUITCASE, 'Root', A.acc2, hC.x + 0.04, 0.33, hC.z - 0.2, 0.22, 0.56, 0.38, 0.25, 0, 0);
@@ -438,7 +476,7 @@ export class HumanLibrary {
     const mInv = new THREE.Matrix4(), mOne = new THREE.Matrix4(), e = new THREE.Euler();
     for (const p of parts) {
       const bi = rig.boneIdx[p.bone]; if (bi === undefined) continue;
-      const g = p.g.toNonIndexed(); g.deleteAttribute('uv');
+      const g = p.g.index ? p.g.toNonIndexed() : p.g; g.deleteAttribute('uv');   // RoundedBoxGeometry is already non-indexed
       g.rotateX(p.r[0]); g.rotateY(p.r[1]); g.rotateZ(p.r[2]);
       g.translate(p.c[0], p.c[1], p.c[2]);
       mOne.multiplyMatrices(S.bones[bi].matrixWorld, rig.boneInverses[bi]);
@@ -448,6 +486,32 @@ export class HumanLibrary {
     }
     S.mixer.stopAllAction(); S.cur = null;
     return out;
+  }
+  // Idle-pose body surface samples (every non-backpacker outfit, each vertex moved by its dominant bone; hair / head excluded),
+  // used to put straps and packs ON the clothes: back(x, y0, y1, halfWidth) = rearmost z, front(x, y) = foremost z,
+  // top(x, y0, y1) = highest point (shoulder line). Fallbacks when nothing is found.
+  _bodyPts(rig, meshes) {
+    const S = rig.sampler, pts = [];
+    const mats = S.bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, rig.boneInverses[i]));
+    const skipB = new Set(['Head', 'Neck'].map(n => rig.boneIdx[n]).filter(i => i !== undefined));
+    const v = new THREE.Vector3();
+    for (const name of VARIANTS[rig.g] || []) {
+      const m = meshes[name]; if (!m || name.endsWith('Backpacker')) continue;
+      const P = m.geometry.attributes.position, I = m.geometry.attributes.skinIndex, W = m.geometry.attributes.skinWeight;
+      for (let i = 0; i < P.count; i++) {
+        let bi = I.getX(i), bw = W.getX(i);
+        for (const k of [1, 2, 3]) { const w = W.getComponent(i, k); if (w > bw) { bw = w; bi = I.getComponent(i, k); } }
+        if (skipB.has(bi)) continue;
+        v.fromBufferAttribute(P, i).applyMatrix4(mats[bi]);
+        pts.push(v.x, v.y, v.z);
+      }
+    }
+    const scan = (test, pick, init) => { let r = init; for (let i = 0; i < pts.length; i += 3) if (test(pts[i], pts[i + 1], pts[i + 2])) r = pick(r, pts[i], pts[i + 1], pts[i + 2]); return r; };
+    return {
+      back: (x, y0, y1, hw, fb) => { const r = scan((px, py) => Math.abs(px - x) < hw && py > y0 && py < y1, (r, px, py, pz) => Math.min(r, pz), Infinity); return isFinite(r) ? r : fb; },
+      front: (x, y, fb) => { const r = scan((px, py) => Math.abs(px - x) < 0.025 && Math.abs(py - y) < 0.04, (r, px, py, pz) => Math.max(r, pz), -Infinity); return isFinite(r) ? r : fb; },
+      top: (x, y0, y1, fb) => { const r = scan((px, py, pz) => Math.abs(px - x) < 0.02 && py > y0 && py < y1 && Math.abs(pz) < 0.06, (r, px, py) => Math.max(r, py), -Infinity); return isFinite(r) ? r : fb; },
+    };
   }
   // how far the body surface sits in front of the bone column at height y (bind mesh, rough)
   _frontZ(rig, y, head = false) {
@@ -531,8 +595,11 @@ const ACC_MATS = [
   { name: 'white', color: '#e9e9e6', tint: TINT.KEEP },
   { name: 'cup', color: '#efe9df', tint: TINT.KEEP },
   { name: 'phone', color: '#8e949c', tint: TINT.KEEP },
+  { name: 'pack', color: '#3a3f48', tint: TINT.PACK },     // backpack: muted palette pick (shader crowdColour)
+  { name: 'case', color: '#2b1c13', tint: TINT.CASE },     // briefcase: black / dark brown leather
+  { name: 'cord', color: '#3a2a1e', tint: TINT.CORD },     // paper-bag handles: contrast with the bag
 ];
-const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5 };
+const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5, pack: 6, case: 7, cord: 8 };
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 function smooth(x) { return x * x * (3 - 2 * x); }
@@ -564,6 +631,23 @@ vec3 crowdColour(vec4 cA, vec4 cB) {
   if (t == 5) return crowdUnpack(cA.z);
   if (t == 6) return crowdUnpack(cB.y);
   if (t == 7) return crowdUnpack(cB.z);
+  if (t >= 9) {
+    // per-person pick from a small palette (stable: hashed from the person's colours)
+    float h = fract(cA.x * 0.000131 + cB.x * 0.000097 + cA.w * 0.000071 + cA.y * 0.000053);
+    vec3 a = crowdUnpack(cB.z);
+    if (t == 9) {   // backpack: keep a clearly coloured bag (tourist red ...), else navy / olive / grey / beige / slate
+      if (max(a.r, max(a.g, a.b)) - min(a.r, min(a.g, a.b)) > 0.06) return a * 0.8;
+      int k = int(h * 5.0);
+      vec3 c = k == 0 ? vec3(0.165, 0.204, 0.314) : k == 1 ? vec3(0.31, 0.325, 0.22) : k == 2 ? vec3(0.36, 0.37, 0.39) : k == 3 ? vec3(0.63, 0.56, 0.45) : vec3(0.2, 0.24, 0.27);
+      return pow(c, vec3(2.2));
+    }
+    if (t == 10) {  // briefcase: the person's bag colour if it is dark, else black or dark brown leather
+      if (dot(a, vec3(0.2126, 0.7152, 0.0722)) < 0.05) return a;
+      return h < 0.5 ? vec3(0.0075) : pow(vec3(0.24, 0.15, 0.09), vec3(2.2));
+    }
+    vec3 b = crowdUnpack(cB.w);   // 11: paper-bag cord, contrasting with the bag
+    return dot(b, vec3(0.2126, 0.7152, 0.0722)) > 0.2 ? pow(vec3(0.3, 0.22, 0.15), vec3(2.2)) : vec3(0.75, 0.73, 0.68);
+  }
   return crowdUnpack(cB.w);
 }
 // v4 hotfix ROOT CAUSE of "no phone / bag / briefcase on anybody": the old code did int(crMask + 0.5). crMask is 0xffffff
