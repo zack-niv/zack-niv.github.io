@@ -564,7 +564,7 @@ export function shelfRun(S, P, o) {
       const u0 = k * sl + 0.03, u1 = (k + 1) * sl - 0.03;
       // v3 critic: shoes sit on open shelves (no printed product block behind them: with the upright packs in
       // front it read as a bookcase - "Sneaker Lab Kansai is furnished with bookshelves")
-      if (kind !== 'shoes') {
+      if (kind !== 'shoes' && kind !== 'zakka') {
         boxF('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
         face(reg, u0, u1, y, y + ph, depth - 0.029);
       }
@@ -599,6 +599,7 @@ function packs(S, P, o, L) {
   const faces = front + 't';
   if (kind === 'shoes') { shoePairs(P, o, L, pal, pr); return; }
   if (kind === 'folded') { foldedStacks(P, o, L, pal, pr); return; }
+  if (kind === 'zakka') { zakkaItems(P, o, L, pal, pr); return; }
   const n0 = depth - 0.036, n1 = depth + 0.024;
   let u = u0 + 0.02;
   while (u < u1 - 0.08) {
@@ -645,6 +646,26 @@ function foldedStacks(P, o, L, pal, pr) {
     const p = L(u, depth - 0.3), q = L(u + w, depth - 0.02);
     P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col);
     u += w + 0.05 + pr() * 0.05;
+  }
+}
+
+// zakka / lifestyle goods: candles, mugs, jars, small boxes - spaced out, not spines (they read as books)
+function zakkaItems(P, o, L, pal, pr) {
+  const { u0, u1, y, ph, depth } = o;
+  let u = u0 + 0.04 + pr() * 0.05;
+  while (u < u1 - 0.14) {
+    const col = pal[Math.floor(pr() * pal.length)];
+    if (pr() < 0.55) {
+      const r = 0.035 + pr() * 0.03, h = Math.min(ph * 0.75, 0.07 + pr() * 0.14);
+      const c = L(u + r, depth - 0.12);
+      P.cyl('env_gloss', c.a, y, y + h, c.d, r, col, 'cyl6');
+      u += 2 * r + 0.05 + pr() * 0.07;
+    } else {
+      const w = 0.1 + pr() * 0.1, h = Math.min(ph * 0.7, 0.05 + pr() * 0.14);
+      const p = L(u, depth - 0.2), q = L(u + w, depth - 0.04);
+      P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col);
+      u += w + 0.05 + pr() * 0.07;
+    }
   }
 }
 
@@ -1066,7 +1087,7 @@ INTERIOR.zakka = (S, c) => {
   const wood = [0.75, 0.6, 0.42];
   for (const side of [0, 1]) {
     if (S.solid(side ? W - 0.45 : 0, side ? W : 0.45, 1.5, Dm - 1, { pocket: 4 }))
-      shelfRun(S, P, { a: side ? W : 0, d: 1.5, ra: 0, rd: 1, na: side ? -1 : 1, nd: 0, len: Dm - 2.5, depth: 0.42, h: 1.9, kinds: ['zakka', 'zakka', 'stationery'], levels: 4, frame: wood, rail: false });
+      shelfRun(S, P, { a: side ? W : 0, d: 1.5, ra: 0, rd: 1, na: side ? -1 : 1, nd: 0, len: Dm - 2.5, depth: 0.42, h: 1.9, kinds: ['zakka'], levels: 4, frame: wood, rail: false });
   }
   for (let d = 1.6; d < Dm - 2.5; d += 2.8) {
     const w = Math.min(1.8, W - 3.2);
