@@ -55,11 +55,21 @@ Frames in which the engine rendered between two steps (bigger dt) are not compar
 | nankai gate, stress 1 | 10 | 2675 | 66.7 deg | 6.27 deg | - |
 | nankai gate, stress 2 | 5 | 1672 | 69.4 deg (state) | 6.0 deg (state) | 24.1 deg |
 
+| Namba CITY 2F, natural | 6 | 986 | 14.5 deg | 2.2 deg | - |
+| Namba CITY 2F, stress 1 | 14 | 3080 | 69.5 deg | 6.22 deg | - |
+| Namba CITY 2F, stress 2 | 25 | 5362 | 69.8 deg (state) | 6.0 deg (state) | 24.3 deg |
+| NAMBAWALK, natural (133 queueing samples) | 40 | 6646 | 0.9 deg | 0.16 deg | - |
+| NAMBAWALK, stress 1 | 28 | 5374 | 70.1 deg | 6.35 deg | - |
+| NAMBAWALK, stress 2 | 32 | 6716 | 70.0 deg (state) | 6.0 deg (state) | 25 deg |
+
+Final batch (`--secs 12 --spawns city_2f,walk`): **PASS**, 28164 samples, 145 people, 0 NaN, applied spikes > 7 deg/frame: 0. No escalator riders
+were in the headtest samples (`onRamp` = 0 in every run), so riders are covered by the code path (they use the same `_near`) but not by a number.
+Seated people (`sit`) and staff on `interact` were sampled in the CITY 2F runs.
+
 State-level (`a.pHY`) over all runs: max |yaw| 70.0 deg, max step 6.0 deg/frame = 180 deg/s, max |pitch| 25 deg, 0 NaN. Bone-level
-numbers are a hair above because the clip's own head motion adds to the measurement. See the end of this file for the second batch
-(Namba CITY 2F with queues and seated people, NAMBAWALK) and the earlier run on the old code: natural play on the old code reached a
+numbers are a hair above because the clip's own head motion adds to the measurement. Earlier run on the old code (first version of the test): natural play on the old code reached a
 head yaw of **179.6 deg vs the body** in Namba CITY 2F (queueing people) and 34.5 deg / 10.9 deg-per-frame spikes at Nankai 2F; with
-extreme targets it spun at up to **5400 deg/s** (all 3 numbers from the first run of `headtest.mjs`, before the fix).
+extreme targets it spun at up to **5400 deg/s** (from the first run of `headtest.mjs`, before the fix).
 The headtest's total head-vs-body yaw in natural play still shows occasional 13-25 deg/frame steps: those are the clean animation
 (clip changes / cross-fades), not the look turn (applied step <= 6 deg).
 Escalator riders and queueing people are in the sample (`onRamp`, `queueing` columns in the raw output); seated people carry a
@@ -70,7 +80,10 @@ baseline ~28 deg head offset from the `sit` clip itself (not from the look).
 `js/audio/announcer.js`: only `lang:'ja'` parts are ever spoken, with a ja-JP voice (`u.lang = 'ja-JP'`). The English voice search is
 gone, `canSpeak` needs a ja voice, `_speakable()` returns null for `en`. No ja-JP voice (or `settings.speech` off): **chime only**, the caption
 still shows the English text. `parts` keep their `en` entry purely as caption text. `stats()/debug()` report no English voice.
-Test (`tools/escshot.mjs`, stubbed `speechSynthesis` with a ja and an en voice; then en-only; then none): see the results below.
+Test (`node tools/escshot.mjs`, stubbed `speechSynthesis`): with a ja-JP + en-US voice installed, a station line, an escalator
+safety line and an excuse-me produced exactly two utterances, both `ja-JP` / Kyoko (vol 0.8); nothing in English. With only an
+en voice, and with no voice: nothing spoken, chime + captions only. Captions carried the English text with `channel` `ambient`
+(station, escalator) and `speech` (すみません). No console errors.
 
 ## Item 9 - footsteps
 
@@ -89,7 +102,12 @@ Pass `channel` wherever this area raises captions (HUD reads it via `captionChan
 ## Escalator stand side (Osaka: stand right, `ESC_STAND_SIDE = +1`)
 
 Code check: lane offset `u = (+0.24 stander, -0.24 walker) * ESC_STAND_SIDE`, `+u` = right of travel (right vector `(-tz, tx)` verified
-for travel -Z -> +X); the standing arm in the `ride` clip is `R` for `+1`. Screenshot result below (`notes/v3-shots/crowd/`).
+for travel -Z -> +X); the standing arm in the `ride` clip is `R` for `+1`. `escshot.mjs` logged the riders: every stander had `u = +0.24` (right of travel), walkers `-0.24`, across esc_nk_1..4 and esc_city_a.
+Screenshots `notes/v3-shots/crowd/esc_nankai_gate_esc_nk_4_0.png` and `esc_city_1f_esc_city_a_1.png`: standers on the right-hand lane, the
+queue at the mouth is single file. It reads right; a clean "all standers on the right of the picture" shot needs a real escalator
+camera angle and was not worth more SwiftShader time.
+
+`node tools/loadprobe.mjs`: READY, no errors (105 s on a machine at load ~12-16; the crowd step itself is unchanged).
 
 ## Unsure about
 
