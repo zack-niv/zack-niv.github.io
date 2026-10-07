@@ -76,8 +76,9 @@ calibration finishes it drops in with an amber glow (the dock hides during insta
   - `drifting` — moving with heading > 60° off for > 1.1 s (105° right before a turn / escalator), or > 5 m of route
     progress lost. **Amber** pulsing tile, amber ring on the glance strip, sign: "Turn around" (≥ 135°), "Turn left /
     right", or "Back to the route". Back to `on` after 0.7 s facing within 40°.
-  - `off` — > 12 m of progress lost for 0.5 s (walking the wrong way, wandering into a side hall, getting off the wrong
-    escalator = wrong floor). **Vibration**: the device rattles, the glance card shakes + flashes orange, a soft
+  - `off` — > 12 m of progress lost for 0.5 s (walking the wrong way, wandering into a side hall), or **wrong floor**:
+    stepping off onto a floor that is not on the route you were following (checked even when that floor happens to
+    have an equally short way; sign says "You're on B1 · finding a new way"). **Vibration**: the device rattles, the glance card shakes + flashes orange, a soft
     two-pulse buzz (own tiny WebAudio voice on the `ui` bus; `navigator.vibrate` on touch). Max once per 20 s.
     "Rerouting…" 1.1 s → fresh route.
   - `rerouted` — "Rerouted · New route · N min" (blue check) for 2.6 s, then `on`. No new `off` for 8 s.
@@ -85,5 +86,35 @@ calibration finishes it drops in with an amber glow (the dock hides during insta
   the route is recomputed from the player's position every ~0.5 s, and in wide halls players walk metres beside the
   line without being lost.
 
-## Status
-(see bottom: testing / unsure)
+## Files
+`js/ui/phone.js` (dock, keys, messages API, vibrate), `js/ui/phone/apps.js` (MessagesApp: replies, typing, day
+separators, neutral "yesterday" history), `js/ui/phone/glance.js` (reply/typing badges, live arrow every frame, track
+ring), `js/ui/phone/track.js` (NEW: Tracker + buzz sound), `js/ui/phone/lodestone.js` (tracker hook, signs, blue tile,
+`phone:stack`, dock bands), `js/ui/phone/stats.js` (+`lodestoneReroutes`), `css/phone.css` (v3 sections at the end).
+
+## Testing
+Scripts: `scratchpad/ph3/t.mjs` (screens), `scratchpad/ph3/lg.mjs` (logic checks, no screens).
+Screens in `notes/v3-shots/phone/` (1280×720, quality=low, nocrowd; captured with CSS animations settled):
+`01_glance_typing`, `03_glance_reply_waiting`, `04_up_reply_chips`, `05_up_replied_typing`, `07_up_maps_dock_badge`,
+`08_lode_ready_dock_new`, `09_lode_up_on_track`, `10_glance_on_track`, `11_glance_drifting_turn`,
+`12_glance_drifting_around`, `13_lode_up_drifting`, `14_lode_up_off_rerouting`, `15_glance_off`,
+`16_glance_rerouted`, `18_up_messages_dock_lode`, `20_up_maps`.
+(`02_glance_reply_note` and `06_up_chips_2` were taken before I disabled CSS animations in the harness — the
+note/chips were mid slide-in at frame 0 and look empty; the same states are in 03/04.)
+Verified in-page: Q→Messages with a pending text, key 2 replies (phone:reply + bubble), Tab → maps (phone stays up),
+1 = Messages slot, 3 = reply 3, offer with custom text, install→ready, Lodestone joins the dock, Tab cycle
+messages→maps→lodestone→messages, on→drifting (100° and 180°)→off after ~12 m walked the wrong way→rerouted→on,
+`ctx.errors` [] and no console errors from the phone (only the sandbox's Google-Fonts cert error + SwiftShader
+ReadPixels perf warnings).
+
+## Unsure / known issues
+- Headless runs kept being OOM-killed by the shared memory cgroup after ~20–25 min (other agents' browsers; same as v2),
+  so I never got one end-to-end run with every screenshot; states were shot in 3 runs. No 17 (phone up + "Rerouted").
+- Tracker thresholds (60°/1.1 s, 5 m / 12 m lost) were tuned by reasoning + scripted walks, not by a human playing.
+  Watch for false "drifting" at sharp corners (I give 105° of slack when a turn/escalator step is < 9 m away) and in the
+  canyon via-point detour (the route length jumps if the via-route flips on/off — would show as one spurious reroute).
+- Standing still and looking around never nags (drift needs speed > 0.6 m/s); turning while standing updates the
+  arrow + sign wording only when already drifting.
+- Tab no longer lowers the phone while it is up (Q does). If the walkthrough copy says "Tab — phone up/down", adjust.
+- The buzz is a tiny synthesized WebAudio voice (no `ctx.audio` recipe existed); unheard by ear.
+- The dock costs ~48 px of screen: the Lodestone 3D preview band is that much shorter in the guide view.
