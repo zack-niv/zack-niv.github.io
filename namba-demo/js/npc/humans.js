@@ -320,6 +320,7 @@ export class HumanLibrary {
     const q = bones.map(() => new Float32Array((keys + 1) * 4));
     const bodyP = new Float32Array((keys + 1) * 3);
     const body = S.by.Body || S.by.Hips;
+    S.cur = null; S.curClip = null;   // v4: the previous clip's pose function edited bones directly; never trust the mixer's "value unchanged" shortcut
     const feetB = feet ? ['FootL', 'FootR'].map(n => S.by[n]).filter(Boolean) : [];
     const feetP = feetB.map(() => new Float32Array((keys + 1) * 3));
     for (let k = 0; k <= keys; k++) {
@@ -385,6 +386,10 @@ export class HumanLibrary {
   // accessory parts, authored in model space around the idle pose, converted to bind space
   _accessories(rig) {
     const S = rig.sampler, B = S.by;
+    // v4 ROOT CAUSE of "phone not in the hand": the last procedural clip ('ride', which bends the right arm onto the handrail) left
+    // the sampler in its pose; _pose() then saw "idle at t=0 == last evaluated value" and did not rewrite the arm, so every
+    // right-hand prop (phone, briefcase, bag) was authored at the RIDE hand position, ~0.28 m in front of the real hand.
+    S.cur = null; S.curClip = null; this._restore(rig); S.mixer.stopAllAction();
     this._pose(rig, rig.clips.idle, 0);
     const P = (n) => B[n] ? new THREE.Vector3().setFromMatrixPosition(B[n].matrixWorld) : new THREE.Vector3();
     const hand = (s) => { const w = P('Wrist' + s), m = P('Middle1' + s); return w.clone().add(m.sub(w).normalize().multiplyScalar(0.05)); };
