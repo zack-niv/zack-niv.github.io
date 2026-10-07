@@ -51,7 +51,10 @@ export function buildShells(K) {
               // an indoor space below draws its own ceiling here (void cells too: ceilings.js
               // continues the space's ceiling over its atrium void)
               const ceiled = (c.t === CELL.WALK || c.t === CELL.VOID) && c.sp && !c.sp.outdoor && styleOf(c.sp).ceil && styleOf(c.sp).ceilSys;
-              need = !ceiled;
+              // the top of an escalator / stair below: ceilings.js buildWellCeilings covers it (its coffer
+              // can reach this very slab line, so a soffit here would hang in front of it)
+              const well = c.t === CELL.RAMP && L.ramps[c.ri].upper === bl;
+              need = !ceiled && !well;
             }
           }
           if (need && run === null) run = cx;

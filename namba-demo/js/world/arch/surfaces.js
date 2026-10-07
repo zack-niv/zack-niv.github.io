@@ -203,7 +203,10 @@ export function buildSurfaces(K) {
         const xa = g.x0 + cx + 0.5, za = g.z0 + cz + 0.5, xb = xa + dx, zb = za + dz;
         if (K.isHole(K.above(lv), xa, za) || K.isHole(K.above(lv), xb, zb)) continue;
         const low = A.ceil < Bs.ceil ? A : Bs, high = low === A ? Bs : A;
-        const nx = low === A ? -dx : dx, nz = low === A ? -dz : dz; // facing the lower side
+        // v4: the step face is only ever seen from the HIGH side (from the low side it hides above the low
+        // ceiling). It used to face the low side, so from a tall court you looked through the step into the
+        // plenum over the next corridor and saw the floor above from underneath (CITY 1F court, z 50).
+        const nx = low === A ? dx : -dx, nz = low === A ? dz : -dz; // facing the higher side
         const b = K.B(lv, X, Z);
         const [ax, az, bx, bz] = dx ? [X, Z - 1, X, Z] : [X - 1, Z, X, Z];
         face(b, styleOf(low).fascia, ax, az, bx, bz, y + low.ceil, y + high.ceil, nx, nz, 0);
