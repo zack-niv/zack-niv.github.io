@@ -328,7 +328,8 @@ function buildRoofSlabs(K) {
         let ok = false;
         if (cx < g.w) {
           const i = cz * g.w + cx;
-          if (g.type[i] === CELL.WALK && !L.spaces[g.space[i]].outdoor) {
+          // (the glazed Parks skywalks get their own planted roof from outdoor/structures.js, 1.6 m lower)
+          if (g.type[i] === CELL.WALK && !L.spaces[g.space[i]].outdoor && L.spaces[g.space[i]].style !== 'parks_skywalk') {
             const t = gu ? gu.typeAt(g.x0 + cx + 0.5, g.z0 + cz + 0.5) : CELL.SOLID;
             ok = t === CELL.SOLID || t == null;
           }

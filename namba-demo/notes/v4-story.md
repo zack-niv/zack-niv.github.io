@@ -1,6 +1,6 @@
 # v4 — Story (item 4 + the tutorial side of 6) · owner: js/game/*, js/ui/hud.js, css/game.css, index.html
 
-Status: **PLAN (early draft for the Phone agent)**; results below get filled in as they land.
+Status: **implemented**, full walk bot completes the demo with the coffee leg (results at the bottom).
 
 ## The coffee checkpoint — where
 
@@ -61,3 +61,44 @@ delivered. Phone stats freeze on `demo:arrive` (Daikichi), not on `nav:arrived` 
 `ctx.phone.suggest(slot)`, `ctx.phone.destination`, `'nav:destination' {slotId,name,app,suggested}`, `'nav:arrived'
 {slotId}` — all feature-detected; without them the v3 behaviour (open Maps) validates the step and the coffee leg still
 works through `demo:order` + proximity.
+
+## Files touched
+
+| File | What |
+|---|---|
+| `js/game/script.js` | `QUESTS.coffee`, `DEMO.coffeeSlot = 'city_1e12'`, `AYA.coffee/otherPick/skipCoffeePick/gotCoffee/gotOtherCoffee/noCoffee`, `ERRAND_DRINK`, `UPGRADE.readyCoffee`, `TUTORIAL.pick/pickDown/pick2/pick2Down/pick2Route/order`, `ARRIVAL.textCoffee/thanks/tease`. v3 texts unchanged. |
+| `js/game/story.js` | v3 "maps" step → **pick** (validated by `nav:destination`, any pick; v3 fallback without the contract); the errand (`errand.state none→asked→done/skipped`), `_onPick` (one light reaction), `_onOrder`, `_leg2Start` (suggest Daikichi + late **pick2** hint), late **order** hint at the café, `_checkSkip` (one tease), `errandDrink()`, `readyText()` |
+| `js/game/order.js` | at the errand café the prompt is *"Order Aya's iced latte 🥤"* and the line *"One iced latte, please. To go!"*; `demo:order` carries `errand` |
+| `js/game/demo.js` | Lodestone's first line via `story.readyText()`; arrival payoff (with coffee: `textCoffee` + Aya's *"ありがとう〜！ Thank youuu! 🥤"* caption + the cup leaves the HUD; asked but no coffee: the tease); `summary().errand` |
+| `js/game/endcard.js` | whole-trip line gains *"· 1 iced latte delivered"* |
+| `js/game/game.js` | pause "Today" lists the coffee errand once asked |
+| hud.js / game.css / index.html | no change needed (the tip anchors `phone`, `phoneup`, `prompt`, `center` already cover it) |
+
+## Edge cases (all non-blocking)
+
+* **Other pick** (anything but Aya's pick, e.g. Wakakusa or ramen): Aya once: *"ooh, Wakakusa Coffee Stand first? 😂 I'll wait…"*;
+  the café stays suggested. Picking Daikichi on leg 1: *"straight to the tempura? respect 😂 …my latte though 🥲"*.
+* **Coffee from another café** counts (Aya: *"that's not Café Mitsubachi… but I'll allow it 😌"*) and gets the arrival payoff.
+* **Walking on without it**: once the nav distance to Daikichi is 40 m shorter than the café's own (≈ the Parks bridge) she
+  texts *"no latte? 🥲 fine. FINE…"* (skipped if she already teased the Daikichi pick), suggests Daikichi, pick2 hint.
+  A coffee bought later still gets *"wait is that a coffee?? for ME?? 🥹"* and the payoff.
+* **Arriving at Daikichi** works whatever the destination (unchanged `demo.arrive`), with the coffee payoff or the tease.
+* **pick2 while still routing elsewhere** (not arrived): hint *"end this route (×) and pick Aya's place"* — see "unsure".
+
+## Results
+
+**Full walk bot** (`scratchpad/critic-demo/walk.mjs`, `?quality=low&noaudio`, crowd on, machine heavily loaded):
+look/move → "Landed??" 12 s → reply → "Meet me…" 18.9 s → coffee ask 22.4 s → **pick 1 with key 1 in Maps: Café
+Mitsubachi (suggested)** 24.9 s → "Where are you??" 102.7 s → "I'm lost 😭" → offer 108.6 s → **Lodestone ready 117 s**
+(same as v3) → *"see? 😌 it even knows which floor my latte is on"* → Lodestone (keeping the café) down the CITY 2F mall,
+U-turn into the down escalator, `nav:arrived city_1e12` 257.6 s → E at the counter → `demo:order` iced latte 270.9 s →
+*"omg you're an angel…"* → **pick 2 in Lodestone (key 1): Tempura Daikichi (suggested)** 277.9 s → up escalator → canyon →
+2F→6F → arrive 424 s → end card *"Position error ±7 m vs ±0.5 m · Wrong-floor 39 s vs 0 s · Whole trip: 7:04 min · 567 m
+on foot · 1 iced latte delivered"*. `ctx.errors []`, 0 console issues (the 2 listed are the bot's own `dbg` warnings).
+Trip +60 s vs v3 (6:04); ~20 s of that is the bot getting stuck at the 1F escalator foot; the real detour is 34 m.
+Shots: `notes/v4-shots/story/walk-*.png`.
+
+**Story probe** (`scratchpad/story4/probe.mjs`, nocrowd, teleports): picks row 2 (Wakakusa) → reaction text ✓; café door
+→ *"Walk up to the counter — E to order"* ✓; counter prompt *"Order Aya's iced latte 🥤"* ✓; E → order → leg 2 → hints
+*"Q — pick your next stop"* / *"Next stop: pick Tempura Daikichi…"* ✓; arrival with coffee → `textCoffee` ✓; end card line ✓.
+`ctx.errors []`, 0 console issues. Shots: `notes/v4-shots/story/p-*.png`.
