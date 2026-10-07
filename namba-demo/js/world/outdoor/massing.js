@@ -45,6 +45,9 @@ export function buildMassing(ctx, ex) {
   strataFace(strata, 5, 203.7, 20.5, 203.7, 16.6, 30, 0, -1, 405);
   strataFace(strata, -5, 203.7, 5, 203.7, 0, 6, 0, -1, 406);
   strataFace(strata, -5, 203.7, 5, 203.7, 10.2, 30, 0, -1, 407);
+  // v4: east face of the block between the north face and the canyon walls (above the canyon-entrance
+  // lintel): from the 3F garden you looked through the open corner into the mall roof from below
+  strataFace(strata, 20.5, 203.7, 20.5, 214.4, 16.6, 30, 1, 0, 409);
   // dining block (6F-8F) east facade over the canyon, north face, south face
   facadeQuad(office, 22.6, 284, 22.6, 324, 30, 47, 1, 0, warmW, 284);
   facadeQuad(office, 22.6, 332, 22.6, 350, 30, 47, 1, 0, warmW, 332);

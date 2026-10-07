@@ -24,6 +24,8 @@ import { face } from './surfaces.js';
 
 const SOFFIT = 0.1;     // soffit line below a floor (m)
 const IN = 0.008;       // outer room faces sit this far inside the boundary (behind glass / facades)
+// exterior finish of a space's outer face: Namba Parks reads as strata from the canyon and terraces
+const outerMat = (sp) => sp.zone === 'parks' || sp.zone === 'parksGarden' ? 'wall_strata' : styleOf(sp).wall === 'glass' ? 'wall_stone_warm' : styleOf(sp).wall;
 
 export function buildShells(K) {
   const { world, L } = K;
@@ -68,8 +70,9 @@ export function buildShells(K) {
       const spA = e.spaceA >= 0 ? L.spaces[e.spaceA] : null, spB = e.spaceB >= 0 ? L.spaces[e.spaceB] : null;
       const outs = [];   // [room, outward normal]
       if (e.kind === EDGE.WALL) {
+        // rooms and corridors alike: the solid side is visible from the canyon / terraces / wells
         const walkSp = e.nx < 0 || e.nz < 0 ? spA : e.nx > 0 || e.nz > 0 ? spB : spA;
-        if (walkSp && walkSp.kind === 'room' && !walkSp.outdoor) outs.push([walkSp, -e.nx, -e.nz]);
+        if (walkSp && !walkSp.outdoor && styleOf(walkSp).wall !== 'glass') outs.push([walkSp, -e.nx, -e.nz]);   // glazed skywalks stay see-through
       } else if (e.kind === EDGE.PARTITION) {
         const vert = e.ax === e.bx;
         const nA = vert ? [-1, 0] : [0, -1], nB = vert ? [1, 0] : [0, 1];
@@ -82,9 +85,31 @@ export function buildShells(K) {
       const b = K.B(lv, (e.ax + e.bx) / 2, (e.az + e.bz) / 2);
       for (const [sp, nx, nz] of outs) {
         const top = up ? K.y(up) - 0.12 : y + sp.ceil + 0.3;
-        const mat = styleOf(sp).wall === 'glass' ? 'wall_stone_warm' : styleOf(sp).wall;
-        face(b, mat, e.ax, e.az, e.bx, e.bz, y0, top, nx, nz, -IN);
+        face(b, outerMat(sp), e.ax, e.az, e.bx, e.bz, y0, top, nx, nz, -IN);
         st.wallFaces++;
+      }
+    }
+    // ---- 3. mouths: an indoor space open to an outdoor one (canyon-view openings, skywalk ends,
+    // bridge mouths) has no wall between them; above the indoor ceiling the plenum stood open, and
+    // from outside you looked up into it (the floor above from underneath). Close it with a lintel
+    // from the indoor ceiling up to the next slab, facing out.
+    if (up) {
+      for (let cz = 0; cz < g.h; cz++) for (let cx = 0; cx < g.w; cx++) {
+        const i = cz * g.w + cx;
+        if (g.type[i] !== CELL.WALK) continue;
+        const A = L.spaces[g.space[i]];
+        if (!A || A.outdoor || !styleOf(A).ceil || A.style === 'parks_skywalk') continue;   // skywalks: outdoor/structures.js roofs them
+        const X = g.x0 + cx + 0.5, Z = g.z0 + cz + 0.5;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const c = K.cell(lv, X + dx, Z + dz);
+          if (c.t !== CELL.WALK || !c.sp || !c.sp.outdoor) continue;
+          const yc = K.ceilAt(lv, X, Z) ?? (y + A.ceil), top = K.y(up) - 0.12;
+          if (top - yc < 0.05) continue;
+          const ex = X + dx * 0.5, ez = Z + dz * 0.5;
+          const [ax, az, bx, bz] = dx ? [ex, Z - 0.5, ex, Z + 0.5] : [X - 0.5, ez, X + 0.5, ez];
+          face(K.B(lv, ex, ez), outerMat(A), ax, az, bx, bz, yc, top, dx, dz, -IN);
+          st.wallFaces++;
+        }
       }
     }
   }
