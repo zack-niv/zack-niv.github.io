@@ -9,15 +9,15 @@
 //   getVolume(bus)
 //   play(name, opts)              UI / foley one-shots, see SOUNDS below.
 //                                 opts: { gain, rate, pos:{x,y?,z,level?}, pan }
-//   say({ ja, en, kind, pos })    a PA-style line: chime, then the browser's ja-JP voice, then an en-* voice
-//                                 (no voice: chime + caption only). Volume follows where you stand (zones.js).
+//   say({ ja, en, kind, pos })    a PA-style line: chime, then the browser's ja-JP voice (Japanese ONLY, never English TTS;
+//                                 no ja-JP voice: chime + caption only). Volume follows where you stand (zones.js).
 //   debug()                       zone / bed gains / last PA text+voice (for tests)
 //   paVolume(payload)             0..1: how audible an 'announce' payload is from here (HUD captions use it)
 //   setMuted(bool), stats(), debugText()
 //   useSpeech (bool)              allow SpeechSynthesis voices (default true; false = chime + caption only)
 // Events consumed: player:step/land/bump, phone:open/close, phone:message,
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
-// Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant }
+// Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
 import { params } from '../core/params.js';
 import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js';
@@ -213,7 +213,9 @@ export class Audio {
     this._stepI = i;
     const name = `fs:${surf}:sneaker:${i}`;
     const inten = e.intensity != null ? e.intensity : Math.min(1.5, (e.speed || 1.4) / 1.5);
-    const g = 0.8 * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
+    // v3: -6 dB (0.8 -> 0.4). Hard floors keep +1 dB of that so they stay clearly audible; soft ones sit lower.
+    const hard = surf === 'tile' || surf === 'stone' || surf === 'metal' || surf === 'wood';
+    const g = (hard ? 0.45 : 0.38) * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
     const L = this.L;
     const outdoor = L && L.outdoorish;
     // polished floors: the occasional rubber squeak, likelier on turns
@@ -223,7 +225,7 @@ export class Audio {
       if (cam && cam.matrixWorld) { const m = cam.matrixWorld.elements; yaw = Math.atan2(-m[8], -m[10]); }
       let dy = Math.abs(yaw - (this._yaw0 ?? yaw)); if (dy > Math.PI) dy = 2 * Math.PI - dy;
       this._yaw0 = yaw;
-      if (this._rnd() < (dy > 0.25 ? 0.45 : 0.04)) this.mixer.play(`fs:squeak:${Math.floor(this._rnd() * 6)}`, { bus: 'sfx', gain: 0.22 + 0.12 * this._rnd(), rate: 0.9 + this._rnd() * 0.3, pan: (e.foot ? 0.1 : -0.1), send: 0.3, when: this.ac.currentTime + 0.03 + this._rnd() * 0.04, prio: 3 });
+      if (this._rnd() < (dy > 0.25 ? 0.45 : 0.04)) this.mixer.play(`fs:squeak:${Math.floor(this._rnd() * 6)}`, { bus: 'sfx', gain: 0.12 + 0.07 * this._rnd(), rate: 0.9 + this._rnd() * 0.3, pan: (e.foot ? 0.1 : -0.1), send: 0.3, when: this.ac.currentTime + 0.03 + this._rnd() * 0.04, prio: 3 });
     }
     this.mixer.play(name, { bus: 'sfx', gain: g, rate: 0.95 + Math.random() * 0.1 - (inten > 1.1 ? 0.03 : 0), pan: (e.foot ? 0.07 : -0.07), send: outdoor ? 0.12 : 0.32, prio: 0, lp: surf === 'soft' ? 3500 : undefined });
   }
@@ -232,7 +234,7 @@ export class Audio {
     // stepping off an escalator comb plate / last stair
     const metal = e.ramp && e.ramp.kind === 'escalator';
     const surf = metal ? 'metal' : SURF[e.surface] || 'stone';
-    this.mixer.play(`fs:${surf}:sneaker:${Math.floor(Math.random() * STEP_N)}`, { bus: 'sfx', gain: 0.45, rate: 0.92, send: 0.3 });
+    this.mixer.play(`fs:${surf}:sneaker:${Math.floor(Math.random() * STEP_N)}`, { bus: 'sfx', gain: 0.24, rate: 0.92, send: 0.3 });   // v3: -6 dB with the footsteps
   }
   _bump(e) {
     if (!this.mixer || !e) return;
@@ -256,7 +258,7 @@ export class Audio {
     let gain = kind === 'excuse' ? 0.8 : 0.5;
     if (this.ctx.world) { try { if (!this.ctx.world.visible(L.level, L.x, L.z, e.x, e.z)) gain *= 0.5; } catch (er) { /* */ } }
     this.announcer.say({ kind: 'crowd', parts: [{ lang: 'ja', text: txt }], pos: { x: e.x, y, z: e.z }, ref: kind === 'excuse' ? 1.8 : 3, gain, sameLevel: true, caption: false, maxAge: 1.2 });
-    if (kind === 'excuse' && d < 3) this.ctx.events.emit('caption', { text: e.en || 'Excuse me', en: e.en || 'Excuse me', ja: e.ja || 'すみません', kind: 'say', speaker: 'Stranger', duration: 1.8 });
+    if (kind === 'excuse' && d < 3) this.ctx.events.emit('caption', { text: e.en || 'Excuse me', en: e.en || 'Excuse me', ja: e.ja || 'すみません', kind: 'say', speaker: 'Stranger', duration: 1.8, channel: 'speech' });
   }
   _rnd() { this._rs = ((this._rs || 987654321) * 1664525 + 1013904223) >>> 0; return this._rs / 4294967296; }
 
@@ -364,7 +366,7 @@ export class Audio {
       state: this.ac.state, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
       layers: Object.values(a.layers).filter(l => l.em).map(l => l.name), sources: [...this.sources.live.keys()], oneShots: this.mixer.liveOneShots,
       trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => `${t.tr.id}:${t.phase}`),
-      speech: this.announcer.hasJaVoice ? 'ja-JP voice' : this.announcer.hasEnVoice ? 'en voice only' : 'chime + caption', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
+      speech: this.announcer.hasJaVoice ? 'ja-JP voice' : 'chime + caption (no ja-JP voice; English is never spoken)', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
     };
   }
   debugText() { const s = this.stats(); return s.mood ? `audio ${s.state} ${s.acoustic}/${s.mood} ppl ${s.people} steps/s ${s.cloudRate} src ${s.sources.length} 1shot ${s.oneShots}` : `audio ${s.state}`; }

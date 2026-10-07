@@ -73,16 +73,17 @@ export class Tutorial {
     this.t += dt;
     const g = this.game;
     // 1) validation: any step whose condition holds is done, in any order
-    let mainLeft = 0;
+    let coreLeft = 0, liveLeft = 0;
     for (const s of this.steps) {
       const st = this.state[s.id];
       if (st.done) continue;
       let ok = false;
       try { ok = !!s.done(); } catch (e) { ok = false; }
       if (ok) { st.done = true; this.ctx.events.emit('tutorial:step', { id: s.id, done: true, t: +this.t.toFixed(1), nudges: st.nudges }); continue; }
-      if (!s.side && !s.late) mainLeft++;
+      if (!s.side && !s.late) { if (s.core) coreLeft++; if (st.nudges <= NUDGE_S.length) liveLeft++; }
     }
-    if (!mainLeft && !this.finished) {
+    // complete = the core steps (phone up, answer, Maps) done and nothing else still being taught
+    if (!coreLeft && !liveLeft && !this.finished) {
       this.finished = true; tutorialStore.mark();
       this.ctx.events.emit('tutorial:done', { t: +this.t.toFixed(1), skipped: false });
     }

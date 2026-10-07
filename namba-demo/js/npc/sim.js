@@ -78,7 +78,7 @@ export class CrowdSim {
     a.alive = true; a.dead = false; a.serial = ++this.serial;
     a.mode = MODE.NONE; a.ramp = -1; a.en = null; a.path = null; a.gate = null; a.lane = -1; a.leader = null; a.followers = null;
     a.legs = null; a.leg = 0; a.st = 0; a.t = 0; a.t2 = 0; a.d = null; a.fade = 0; a.fadeDir = 1; a.vx = a.vz = 0; a.spd = 0;
-    a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
+    a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.lookAbs = undefined; a.lookRel = undefined; a.pHY = 0; a.pHP = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
     a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0;
     a.lastUpd = this.time; a.tier = 2; a.handHold = false; a.rampQ = null; a._slot = null;
     this.count++;
@@ -117,6 +117,7 @@ export class CrowdSim {
     let rel = wrap(want - a.yaw);
     rel = Math.max(-1.2, Math.min(1.2, rel));
     a.lookYaw = rel; a.lookT = dur;
+    a.lookAbs = want; a.lookRel = rel;   // renderer keeps looking at this world bearing while the body turns (clamped there)
   }
 
   // ---------------------------------------------------------------------------
@@ -796,5 +797,5 @@ export class CrowdSim {
   agentsNear(level, x, z, r) { const out = []; this.near(level, x, z, r, (b) => { if (b.alive) out.push(b); }); return out; }
 }
 
-export function wrap(a) { while (a > Math.PI) a -= TWO_PI; while (a < -Math.PI) a += TWO_PI; return a; }
+export function wrap(a) { if (!isFinite(a)) return 0; while (a > Math.PI) a -= TWO_PI; while (a < -Math.PI) a += TWO_PI; return a; }
 function now() { return (typeof performance !== 'undefined' ? performance : Date).now(); }

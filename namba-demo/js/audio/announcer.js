@@ -1,11 +1,11 @@
 // =============================================================================
 // Announcer: station PA, escalator / shop / restaurant voice lines.
 //
-// Voices are the browser's real voices (window.speechSynthesis): a ja-JP voice
-// for the Japanese line, then an en-* voice for the English line (that is how
-// a real Japanese PA works), preceded by the synthesized station chime.
-//   * no ja-JP voice  -> the English line only
-//   * no voice at all -> chime + caption only
+// Voices are the browser's real voices (window.speechSynthesis), JAPANESE ONLY: the
+// browser never narrates in English (v3 feedback: hearing the announcements in
+// Japanese is enough). A ja-JP voice speaks the Japanese line after the synthesized
+// station chime; the English translation lives in the caption text only.
+//   * no ja-JP voice  -> chime + caption only (nothing is ever spoken in English)
 // speechSynthesis cannot be routed into Web Audio or spatialised, so every
 // item carries *where it is audible* and we set utterance.volume from that at
 // the moment we speak (platform zone / point speaker distance / plain gain —
@@ -22,7 +22,6 @@ import { platformGain, pointGain } from './zones.js';
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
 const MIN_VOL = 0.06;
-const BAD_EN = /Albert|Bad News|Bahh|Bells|Boing|Bubbles|Cellos|Deranged|Good News|Hysterical|Jester|Organ|Superstar|Trinoids|Whisper|Wobble|Zarvox|Fred|Junior|Ralph|Kathy|Eddy|Flo\b|Grandma|Grandpa|Reed|Rocko|Sandy|Shelley/i;
 const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
 
 export class Announcer {
@@ -30,7 +29,7 @@ export class Announcer {
     this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac;
     this.queue = []; this.cur = null; this.seq = 0; this.t = 0;
     this.speech = (sys.allowSpeech && typeof speechSynthesis !== 'undefined') ? speechSynthesis : null;
-    this.voices = { ja: null, en: null };
+    this.voices = { ja: null, en: null };   // en stays null on purpose: no English speechSynthesis, ever
     this.voiceCount = 0;
     this.useSpeech = true;
     this.duck = 1;
@@ -57,11 +56,10 @@ export class Announcer {
       return c.find(v => v.localService) || c[0];
     };
     this.voices.ja = by('ja', [/Nanami|Kyoko|O-ren|Haruka|Ayumi|Google 日本語|Mizuki|Sayaka|Otoya|Hattori|Ichiro/i]);
-    this.voices.en = by('en-us', [/Aria|Jenny|Samantha|Zira|Google US English|Allison|Ava|Susan|Karen|Moira|Tessa/i], BAD_EN) || by('en', [/Google UK English Female|Serena|Karen|Moira|Tessa|Samantha/i], BAD_EN);
   }
   get hasJaVoice() { return !!(this.speech && this.voices.ja); }
-  get hasEnVoice() { return !!(this.speech && this.voices.en); }
-  get canSpeak() { return !!(this.useSpeech && this.speech && (this.voices.ja || this.voices.en)); }
+  get hasEnVoice() { return false; }
+  get canSpeak() { return !!(this.useSpeech && this.speech && this.voices.ja); }
   cancelSpeech() { if (this.speech) try { this.speech.cancel(); } catch (e) { /* */ } if (this.cur) this.cur.utter = null; }
   pauseSpeech(on) { if (this.speech) try { on ? this.speech.pause() : this.speech.resume(); } catch (e) { /* */ } }
   // iOS / Safari want one (silent) utterance inside a user gesture
@@ -122,13 +120,13 @@ export class Announcer {
   }
   _speakable(p) {
     if (!this.useSpeech || !this.speech) return null;
-    const v = this.voices[p.lang === 'ja' ? 'ja' : 'en'];
-    return v || null;
+    if (p.lang !== 'ja') return null;   // English parts are caption text only
+    return this.voices.ja || null;
   }
 
   update(dt) {
     this.t += Math.min(dt || 0, 0.25);
-    if (this.speech && !this.voices.ja && !this.voices.en && this.t - this._pollT > 2 && this.t < 60) { this._pollT = this.t; this.refreshVoices(); }
+    if (this.speech && !this.voices.ja && this.t - this._pollT > 2 && this.t < 60) { this._pollT = this.t; this.refreshVoices(); }
     // stale lines are not spoken late
     if (this.queue.length) this.queue = this.queue.filter(q => this.t - q.born <= q.maxAge);
     if (!this.cur) {
@@ -164,8 +162,8 @@ export class Announcer {
   _speak(c, p, voice, vol) {
     const text = spokenText(p.say || p.text, p.lang);
     const u = new SpeechSynthesisUtterance(text);
-    u.voice = voice; u.lang = voice.lang || (p.lang === 'ja' ? 'ja-JP' : 'en-US');
-    u.rate = p.lang === 'ja' ? 0.95 : 0.93; u.pitch = p.lang === 'ja' ? 1.05 : 1.0;
+    u.voice = voice;
+    u.lang = 'ja-JP'; u.rate = 0.95; u.pitch = 1.05;
     const mv = this.mixer.volumes;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * mv.master));
     u.onstart = () => { if (c.utter === u) c.uStarted = true; };
@@ -181,7 +179,7 @@ export class Announcer {
     this.cur = item;
     item.step = 0; item.wait = this.t; item.spoke = false;
     const vol = this._vol(item);
-    this.last = { kind: item.kind, ja: (item.parts.find(p => p.lang === 'ja') || {}).text || '', en: (item.parts.find(p => p.lang === 'en') || {}).text || '', vol: +vol.toFixed(2), t: +this.t.toFixed(1), voiceJa: this.voices.ja ? this.voices.ja.name : null, voiceEn: this.voices.en ? this.voices.en.name : null, spoken: [] };
+    this.last = { kind: item.kind, ja: (item.parts.find(p => p.lang === 'ja') || {}).text || '', en: (item.parts.find(p => p.lang === 'en') || {}).text || '', vol: +vol.toFixed(2), t: +this.t.toFixed(1), voiceJa: this.voices.ja ? this.voices.ja.name : null, voiceEn: null, spoken: [] };
     this._note(`start ${item.kind} vol=${vol.toFixed(2)} "${(this.last.ja || this.last.en).slice(0, 24)}"`);
     if (item.cooldown) this._repeat.set(item._key, this.t);
     if (item.prio <= 1) this._setDuck(1 - 0.45 * Math.min(1, vol)); else if (item.prio <= 3) this._setDuck(1 - 0.2 * Math.min(1, vol));
@@ -193,7 +191,9 @@ export class Announcer {
     if (cap) {
       const en = this.last.en, ja = this.last.ja;
       const dur = item.parts.reduce((a, p) => a + (p.lang === 'ja' ? p.text.length * 0.16 : p.text.length * 0.065), 1.5);
-      this.sys.ctx.events.emit('caption', { text: en || ja, en, ja, kind: item.kind, speaker: 'PA', duration: dur, distant: !!item.distant });
+      // channel: the PA, escalator safety lines and background voices sit with the ambience; a person addressing you is 'speech'
+      const channel = item.channel || (item.kind === 'crowd' ? 'speech' : 'ambient');
+      this.sys.ctx.events.emit('caption', { text: en || ja, en, ja, kind: item.kind, speaker: 'PA', duration: dur, distant: !!item.distant, channel });
     }
   }
   // the chime plays diffusely (station-wide speakers), at the item's audible level

@@ -11,7 +11,7 @@ ctx.phone.message({ id, from: 'Aya', text, link?, replies?: [{ id, text }], expe
 //   - replies: max 3. Reply chips show under the thread until answered (a newer text WITH replies replaces them;
 //     a newer text without replies keeps them). `link: 'lodestone'` = the install card (unchanged).
 //   - `expectReply` is accepted and ignored (chips are shown whenever `replies` is non-empty).
-ctx.phone.typing('Aya', true|false)          // = emit 'phone:typing' {from, on}; either works.
+ctx.phone.showTyping('Aya', true|false)      // = emit 'phone:typing' {from, on}; either works.
 //   Typing bubble (three dots) at the bottom of the thread, header says "typing…", and three small dots on the
 //   glance strip. Cleared automatically when a message from that sender lands, or after 12 s (safety).
 ctx.phone.reply(i)                           // answer chip i (0-based) programmatically (tests / touch fallbacks)

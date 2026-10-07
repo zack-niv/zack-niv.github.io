@@ -19,7 +19,7 @@
 // =============================================================================
 import { businessBySlot } from '../world/directory.js';
 import { params } from '../core/params.js';
-import { DEMO, AYA, ARRIVAL } from './script.js';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js';
 import { Story } from './story.js';
 import { makeLook, BIT } from '../npc/looks.js';
 import { showEndCard } from './endcard.js';
@@ -41,6 +41,7 @@ export class Demo {
     this.upgraded = false; this.readyT = null; this.readyDist = 0; this.installT = null;
     this.arrived = false; this.arriveT = null; this.arriveDist = 0;
     this.ended = false;
+    this._sent = new Set(); this._canyonSent = false;
     this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0, hist: [] };
     this.remReady = null; this.remArrive = null;     // nav distance to the door at the phase boundaries
     this._acc = { before: { n: 0, e: 0, wf: 0 }, after: { n: 0, e: 0, wf: 0 } };
@@ -128,7 +129,12 @@ export class Demo {
       this._lost.lastCheck = 0.5;
       this._checkRoute(0.5);
     }
-    // (the upgrade offer is the story's call now: it needs the player to have engaged with Aya, see story.js)
+    // Lodestone's route runs through the Namba Parks canyon: Aya says so as the player reaches the bridge
+    if (!this._canyonSent && !game.busy && !game.intro && !game.paused) {
+      const sp = ctx.player.space && ctx.player.space.id;
+      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; game.message(CANYON_TEXT); }
+    }
+    // (v3: the upgrade offer is the story's call — it follows the player engaging with Aya, see story.js)
     // arrival
     if (!game.busy && !game.intro && !game.paused && this.biz && b.level === this.biz.level) {
       const d = Math.hypot(b.x - this.biz.door.ox, b.z - this.biz.door.oz);
@@ -184,6 +190,10 @@ export class Demo {
         // a short history for the "stalled" rules (no real progress for 25-40 s); a minute is kept
         L.hist.push([this.t, d]);
         while (L.hist.length > 2 && L.hist[1][0] < this.t - 62) L.hist.shift();
+        // queue banter as the route shortens ("the noren" line only once you are on the dining floor)
+        if (this.offered) for (const [at, text] of QUEUE_LINES) {
+          if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); game.message(text); }
+        }
       }
     }
   }
@@ -218,9 +228,9 @@ export class Demo {
     this.offered = true; this.offerT = this.t; this.offerWhy = why;
     const { ctx, game } = this;
     const ph = ctx.phone;
-    const fallback = () => this.story.aya.say({ id: 'aya_lodestone', text: AYA.offerText, link: 'lodestone' }, { typing: 0, wait: 0 });
+    const fallback = () => this.story.aya.say({ id: 'aya_lodestone', text: UPGRADE.offer, link: 'lodestone' }, { typing: 0, wait: 0 });
     if (ph && typeof ph.offerLodestone === 'function') {
-      try { ph.offerLodestone({ text: AYA.offerText, why }); } catch (e) { console.error('[demo] offerLodestone', e); fallback(); }
+      try { ph.offerLodestone({ text: UPGRADE.offer, why }); } catch (e) { console.error('[demo] offerLodestone', e); fallback(); }
     } else fallback();
     ctx.events.emit('demo:offer', { why, t: this.t });
   }
@@ -232,7 +242,8 @@ export class Demo {
     if (stage === 'ready' && !this.upgraded) {
       this.offered = true; this.upgraded = true;
       this.readyT = this.t; this.readyDist = game.journal.distance;
-      this.remReady = this._navRem();          // (Aya's "see? 😌" is story.js)
+      this.remReady = this._navRem();
+      game.after(3.0, () => { if (!this.arrived) game.message(UPGRADE.ready); });
     }
   }
 
@@ -284,7 +295,7 @@ export class Demo {
     }
     if (aya) hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
     ctx.audio?.play?.('notify');
-    this.story.aya.say(ARRIVAL.text, { wait: 1.2, typing: 0.5 });
+    game.message(ARRIVAL.text, 'Aya', 1.2);
     await sleep(3100);
 
     // 3) back to the shopfront: the noren, the lanterns, the oil you can hear

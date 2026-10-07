@@ -24,7 +24,7 @@
 // API (ctx.phone):
 //   isOpen (= pose 'up'), app, open(app?), close(), toggle(), openApp(id) (emits 'phone:app' {app})
 //   message({id, from, text, link?, replies?: [{id,text}], expectReply?})   a text (= emit 'phone:message')
-//   typing(from, on)  /  'phone:typing' {from, on}                        the "Aya is typing…" bubble
+//   showTyping(from, on) / 'phone:typing' {from, on}                      the "Aya is typing…" bubble
 //   reply(i)          answer the pending text with chip i (0-based)  → 'phone:reply' {msgId, replyId, text}
 //   pendingReply      the reply chips on screen ({msgId, from, replies}) or null
 //   pose, setPose('up'|'glance'|'down'), pocket(bool)
@@ -109,7 +109,7 @@ export class Phone {
   }
   // ---- v3 messages API (Story) ------------------------------------------------
   message(m) { if (m && m.text) this.ctx.events.emit('phone:message', m); }
-  typing(from, on = true) { this.ctx.events.emit('phone:typing', { from: from || 'Aya', on: !!on }); }
+  showTyping(from, on = true) { this.ctx.events.emit('phone:typing', { from: from || 'Aya', on: !!on }); }
   reply(i) { return this.messages ? this.messages.reply(i) : false; }
   get pendingReply() { return this.messages ? this.messages.pending : null; }
   _noteOffer() {                // called by Messages when a link:'lodestone' text lands
@@ -255,6 +255,7 @@ export class Phone {
     this.maps._dirty = true;
     if (this.app === 'messages') this.messages.onShow();
     this.glance.clearNote(true);
+    this._badges();
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_open');
     this.ctx.events.emit('phone:open', { app: this.app });
     this._setPose('up');
@@ -276,6 +277,7 @@ export class Phone {
     }
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_close');
     this.ctx.events.emit('phone:close', { app: this.app });
+    this._badges();
     this._setPose(this._wantDown() ? 'down' : 'glance');
   }
   toggle() { this.isOpen ? this.close() : this.open(); }
@@ -316,6 +318,7 @@ export class Phone {
     this.el.dock.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.app === id));
     const a = this.apps && this.apps[id];
     if (a && a.onShow) a.onShow();
+    this._badges();
     if (prev !== id && this.apps) {
       this._appAt = this._now;
       if (id === 'messages' && this.el.notif) this.el.notif.hidden = true;
@@ -336,10 +339,10 @@ export class Phone {
     b.hidden = false; b.classList.add('new');
     setTimeout(() => b.classList.remove('new'), 4200);
   }
-  // unread badges: home screen + dock (a reply waiting counts as at least 1)
+  // unread badges: home screen + dock (a reply waiting counts as 1 while you are not looking at the thread)
   _badges() {
     const M = this.messages; if (!M) return;
-    const n = M.unread || (M.pending ? 1 : 0);
+    const n = M.unread || (M.pending && !(this.isOpen && this.app === 'messages') ? 1 : 0);
     this.home && this.home.badge('messages', n);
     const b = this.el.dock.querySelector('.ph-d-badge');
     if (b) { b.hidden = !n; b.textContent = n; }

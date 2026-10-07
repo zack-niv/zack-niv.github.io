@@ -21,15 +21,15 @@ page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0
 page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
 let code = 0;
 try {
-  await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=${args.q || 'medium'}&time=12:10`);
+  await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=${args.q || 'high'}&time=12:10`);
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 300000 });
-  const spawns = (args.spawns || 'start,nankai_gate,nankai_2f,city_b1,city_2f,walk,midosuji_gate').split(',');
+  const spawns = (args.spawns || 'start,nankai_gate,nankai_2f,city_1f,city_2f,walk,midosuji_gate').split(',');
   const secs = +(args.secs || 20), stress = args.stress != null ? +args.stress : 1;
   const all = [];
   for (const sp of spawns) {
     await page.evaluate(s => window.__namba.teleport(s), sp);
     await page.waitForTimeout(1500);
-    await page.evaluate(() => { const n = window.__namba; for (let i = 0; i < 450; i++) { n.crowd.update(1 / 30); n.crowd.lateUpdate(1 / 30); } });   // 15 s warm-up: director fills the area
+    await page.evaluate(async () => { const n = window.__namba; for (let i = 0; i < 450; i++) { n.crowd.update(1 / 30); n.crowd.lateUpdate(1 / 30); if (i % 10 === 9) await new Promise(r => setTimeout(r, 4)); } });   // 15 s warm-up: director fills the area
     for (const mode of stress ? [0, 1] : [0]) {
       const res = await page.evaluate(async ({ secs, stress }) => {
         const n = window.__namba, T = n.THREE, R = n.crowd.renderer;
@@ -60,6 +60,7 @@ try {
             }
           }
           n.crowd.update(dt); n.crowd.lateUpdate(dt); t += dt;
+          if (i % 10 === 9) await new Promise(r => setTimeout(r, 4));   // let the flow-field worker answer
           for (const s of R.slots) {
             const a = s.agent; if (!a || !a.alive || !s.root.visible || s.alpha <= 0) continue;
             s.root.updateMatrixWorld(true);

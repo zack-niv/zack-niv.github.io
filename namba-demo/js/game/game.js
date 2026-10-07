@@ -165,6 +165,8 @@ export class Game {
   }
   message(text, from = 'Aya', delaySec = 0, extra = null) {
     if (!text) return;
+    // v3: Aya's texts go through her outbox (typing indicator, never two at once — story.js / aya.js)
+    if (from === 'Aya' && this.story && this.story.aya) { this.story.aya.say(Object.assign({ text }, extra || {}), { wait: delaySec }); return; }
     const send = () => {
       const m = Object.assign({ id: ++this._msgId, from, text, time: this.ctx.clock.hhmm }, extra || {});
       this.ctx.events.emit('phone:message', m);

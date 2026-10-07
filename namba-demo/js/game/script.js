@@ -18,72 +18,37 @@ export const DEMO = {
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
 };
 
-// =============================================================================
-// v3: Aya's side of the conversation. She texts like a real friend: short,
-// warm, a bit funny, emoji. Messages with `replies` are questions: the phone
-// shows reply chips and emits 'phone:reply' {msgId, replyId}. `lost: true`
-// on a reply means "the player asked for help" (that is what earns the
-// Lodestone offer). Ids are strings and unique in the thread.
-// =============================================================================
+// Aya's texts (v2 words, unchanged). v3: they are gated on the player — a question carries reply chips and the
+// next beat waits for the answer (or for a location / state), see story.js. `lost: true` on a reply = the player
+// asked for help, which is what earns the Lodestone offer.
 export const AYA = {
-  hello: { id: 'hello', text: 'Landed?? Welcome to Osaka!! 🛬',
-    replies: [{ id: 'yes', text: 'Just landed! 🙌' }, { id: 'huge', text: 'Yes!! This station is HUGE 😵' }] },
-  helloAck: { yes: 'yayyy 🎉🎉', huge: 'hahaha wait till you see the rest of it 😂' },
-  helloNudge: 'hellooo? 👀',
-  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi — Namba Parks, 6F! I\'m already in the queue 🍤',
-    replies: [{ id: 'omw', text: 'On my way! 🏃' }, { id: 'how', text: 'How do I get there? 🤔' }] },
-  meetAck: { omw: 'yesss 🙌 your Maps app will get you there… probably 😅', how: 'it\'s all connected inside! check Maps, it\'s like 10 min 📍' },
-  meetLate: 'ok I see you walking 😂',                    // she sends `meet` anyway if `hello` is ignored
-
-  // where you are (before Lodestone)
-  gates: { id: 'gates', text: 'out of the gates? 🙌 Parks is south, through Namba CITY. easy 😌',
-    replies: [{ id: 'ok', text: '👍' }, { id: 'south', text: 'Which way is south?? 😅', lost: true }] },
-  gatesAck: { ok: '😌' },
-  under: { id: 'under', text: 'wait are you underground?? 😅 Parks is UP. like, up up',
-    replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'explore', text: 'Just exploring 😎' }] },
-  underAck: { explore: 'lol ok tourist 😎 the tempura won\'t wait forever tho' },
-  city: { id: 'city', text: 'Namba CITY!! ok you\'re close-ish. Parks is at the very end 🌿',
-    replies: [{ id: 'ok', text: 'On it 🫡' }, { id: 'lost', text: 'Close-ish?? I\'m lost 😵‍💫', lost: true }] },
-  cityAck: { ok: '🫡🍤' },
-  checkin: { id: 'checkin', text: 'how\'s it going? 👀',
-    replies: [{ id: 'lost', text: 'Honestly? Lost 😵‍💫', lost: true }, { id: 'ok', text: 'Getting there!' }] },
-  checkinAck: { ok: 'ok ok 😌 shout if you need me' },
-  checkin2: { id: 'checkin2', text: 'still "getting there"? 😏',
-    replies: [{ id: 'lost', text: 'Ok fine, I\'m lost 😭', lost: true }, { id: 'ok', text: 'Yes!! Almost!' }] },
-  checkin2Ack: { ok: 'mhm 😏' },
-  coffee: 'wait did you just stop for COFFEE 😂 I\'m starving',
-  early: 'already?? 😂 give Maps a chance first, I\'ll rescue you if it\'s hopeless',
-
-  // the upgrade: a short preface, then the phone's own link card (offerLodestone)
-  offerPre: { lost: 'lol I KNEW it 😂 hang on', checkin: 'mhm. "getting there" 😏', time: 'ok I\'m just sending you this. no arguments 😤' },
-  offerText: 'install Lodestone — it actually works indoors 🧲',
-  offerNudge: 'tap the link!! 👆',
-  installing: 'it learns the building\'s magnetic thing, it\'s so cool 🧲',
-
-  // after Lodestone
-  ready: { id: 'ready', text: 'see? 😌 6F, I\'m 3rd in line',
-    replies: [{ id: 'magic', text: 'Ok this is magic ✨' }, { id: 'genius', text: 'You\'re a genius 🙏' }] },
-  readyAck: { magic: 'right?? it even knows which floor you\'re on', genius: 'I know 😌' },
-  wrongWay: 'wrong way? 😅 follow the arrow',
-  stall: { id: 'stall', text: 'everything ok? 🙂',
-    replies: [{ id: 'ok', text: 'On my way!' }, { id: 'distracted', text: 'Got distracted, sorry 🙈' }] },
-  stallAck: { ok: '🏃🏃🏃', distracted: 'NAMBA DOES THAT 😂 the arrow knows the way' },
+  hello: { id: 'hello', text: 'Landed?? Welcome to Osaka! 🛬',
+    replies: [{ id: 'yes', text: 'Just landed! 🙌' }, { id: 'huge', text: 'Yes! This station is HUGE 😵' }] },
+  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤' },
+  // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
+  // the second is her answer to "On my way!"
+  where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
+    replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'omw', text: 'On my way!' }] },
+  whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅' },
 };
 
-// v3: the tutorial hints (one small line at a time, in-world, never a modal). {k:X} renders a key cap.
+export const UPGRADE = {
+  offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
+  ready: 'see? 😌 6F, I\'m 3rd in line',
+};
+
+// v3: the in-game tutorial hints (one small line at a time, never a modal). {k:X} renders a key cap.
 export const TUTORIAL = {
+  look: 'Move the mouse to look around',
+  move: '{k:W}{k:A}{k:S}{k:D} to walk · hold {k:Shift} to hurry',
   raise: 'Your phone buzzed — {k:Q} to raise it',
   raiseHold: 'Your phone buzzed — {k:Q} or hold right-click',
   reply: 'Answer Aya — tap a reply or press {k:1} {k:2}',
   replyDown: 'Aya asked you something — {k:Q} to answer',
   maps: 'Open <b>Maps</b> — {k:Tab} or tap it in the dock',
   mapsDown: '{k:Q} then open <b>Maps</b>',
-  walk: '{k:W}{k:A}{k:S}{k:D} to walk · mouse to look',
-  walkPhone: '{k:Q} lowers the phone · {k:W}{k:A}{k:S}{k:D} to walk',
-  hurry: 'Hold {k:Shift} to hurry',
-  gate: 'Follow the signs to the <b>中央改札</b> Central Gate',
-  gateNudge: 'Look up — the overhead signs point the way',
-  interact: '{k:E} to interact',
+  interact: '{k:E} interacts — machines, doors, café counters',
+  interactHere: '{k:E} — try it',
   install: 'Aya sent a link — {k:Q} and tap <b>Lodestone</b>',
   installUp: 'Tap <b>Lodestone</b> in Aya\'s message',
 };

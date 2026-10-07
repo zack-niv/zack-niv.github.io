@@ -1,79 +1,83 @@
 # v3 — Story (items 1, 5, 6, 8) · owner: js/game/*, js/ui/hud.js, js/ui/title.js, css/game.css, index.html
 
-Status: IN PROGRESS (plan first, so Phone can build the reply UI against it).
+**Scope (tightened by the lead):** keep the v2 quest flow, texts and beats. (a) Replace the 4 walkthrough cards with
+a quick in-game tutorial; (b) gate the existing beats on player interaction + location instead of timers. Plus
+item 6 (restart + confirm) and item 8 (caption channels). Small diffs, no new systems beyond what that needs.
 
-## What I need from Phone (contract in V3.md, restated with details)
+## Files
 
-```js
-ctx.phone.message({ id, from: 'Aya', text, replies?: [{ id, text }], link?: 'lodestone', expectReply?: true })
-// emits 'phone:reply' { msgId, replyId, text } once the player picks a chip (and appends the 'me' bubble)
-```
-* `id` is a **string** (e.g. `'hello'`, `'meet'`, `'checkin'`). Please keep the chips of a message visible until the
-  player answers **or until a newer Aya message with its own replies arrives** (then the old chips can go — I never
-  need two open questions at once). An answered message's chips disappear.
-* A message with `replies` should feel like a question in the glance strip too (e.g. "Aya · reply ▸" or the chip count),
-  so a player with the phone down knows an answer is expected. The keys you choose (1/2/3?) I will show in my hint:
-  **please write the final reply keys + the app-switch keys in notes/v3-phone.md** (or expose `ctx.phone.keys =
-  { reply: ['1','2','3'], apps: 'Tab' }` and I will read that).
-* Typing indicator: **I emit `'phone:typing' { from: 'Aya', on: true|false }`** on the event bus ~0.8–1.8 s before each
-  of her texts (and `on:false` right before the `message()` call). Phone renders "Aya is typing…" (thread + glance).
-* `ctx.phone.offerLodestone(opts?)` — I call it when the player has engaged (see below). If you accept an optional
-  `{ text }`, I pass Aya's line; otherwise your default text is fine. **Please remove the 150 s self-trigger.**
-* Events I validate tutorial steps with: `phone:pose` {pose:'up'} (exists), `phone:app` {app}, `phone:reply`,
-  `phone:open`. If `phone:app` doesn't fire on the initial app, I also read `ctx.phone.app` while the phone is up.
-* Optional `nav:track { state }` — Aya reacts once to `'off'` (or `'drifting'` held > 5 s): "wrong way? 😅".
+| File | What |
+|---|---|
+| `js/game/walkthrough.js` | **deleted** (v2 card deck) |
+| `js/game/tutorial.js` | new, ~150 lines: the step machine + the one-line hint (`.g-tip`) |
+| `js/game/aya.js` | new, ~120 lines: Aya's outbox (typing indicator, one text at a time, reply routing, no-chips fallback) |
+| `js/game/story.js` | new, ~150 lines: the 6 tutorial steps + the gating of Aya's v2 beats + the offer decision |
+| `js/game/demo.js` | the old INTRO/NUDGES timers and the time/lost offer trigger removed → `this.story`; adds `progressOver(sec)`; canyon / queue / ready / arrival texts unchanged |
+| `js/game/script.js` | v2 texts kept verbatim (in `AYA` / `UPGRADE`); `TUTORIAL` hint copy; `offerAt` 135 → 165 (fallback only now) |
+| `js/game/game.js` | pause menu **Restart** + confirm; `game.message()` routes Aya through the outbox; `game.story` |
+| `js/ui/hud.js`, `css/game.css` | caption channels; tip + restart styles; v2 walkthrough CSS removed |
 
-Until your API lands I feature-detect: no `ctx.phone.message` → I fall back to `phone:message` (no chips) and a
-reply step validates as "the player raised the phone and looked at Messages for ~1.5 s".
+## (a) The tutorial — 6 steps, ~60–90 s, validated by the real action
 
-## The opening = the tutorial (each step waits for the player; one small hint; nudge after ~12 s)
+| # | Step | Hint (one line, where the action is) | Validated by |
+|---|---|---|---|
+| 1 | look | *Move the mouse to look around* (centre) | ≥ 1 rad of player yaw (intro camera excluded) |
+| 2 | move | *WASD to walk · hold Shift to hurry* | 8 m walked |
+| 3 | phone up | *Your phone buzzed — Q to raise it* (above the lowered phone) | `phone:pose` up / `phone:open` |
+| 4 | answer Aya | *Answer Aya — tap a reply or press 1 2* (beside the raised phone; "Q to answer" when it's down) | `phone:reply` on `hello` |
+| 5 | open Maps | *Open Maps — Tab or tap it in the dock* | `phone:app` maps / `phone.app==='maps'` while up |
+| 6 | E | *E interacts — machines, doors, café counters* (→ *E — try it* under the prompt when one is on screen) | `interact` event |
 
-| # | Step | Hint (small, in-world, not modal) | Validated by | Nudge |
-|---|------|------|------|------|
-| – | intro hold 4.6 s (platform, chapter card, PA) | – | – | – |
-| 1 | Aya: *"Landed?? Welcome to Osaka!! 🛬"* (typing first) · chips **"Just landed! 🙌" / "Yes!! This station is HUGE 😵"** | by the phone: *Your phone buzzed — **Q** to raise it* | `phone:pose` up | 12 s: buzz + "hellooo? 👀"; 25 s: "…or hold right-click" |
-| 2 | (same message) | left of the raised phone: *Answer Aya — tap a reply (1 / 2)* | `phone:reply` msgId `hello` | pulse |
-| 3 | Aya reacts to the answer, then *"Meet me at Tempura Daikichi — Namba Parks, 6F! I'm already in the queue 🍤"* · chips **"On my way! 🏃" / "How do I get there? 🤔"** | *Answer Aya* | `phone:reply` msgId `meet` | pulse |
-| 4 | Aya: "Maps will get you there… probably 😅" | *Open **Maps*** (key from phone notes) | `phone:app` maps | pulse |
-| 5 | – | *Lower the phone (Q) · **WASD** to walk, mouse to look* (+ "hold Shift to hurry" once moving) | 12 m walked | pulse |
-| 6 | – | *Follow the signs to the 中央改札 Central Gate* | tapped out at the Nankai gate / left the platform level | "look up — the overhead signs" |
-| side | first E prompt on screen | *Press **E*** | `interact` event | – |
+* Any step validates as soon as the player does it (any order); the hint belongs to the first pending step, strictly in
+  order (nothing shows while that step isn't available yet, e.g. while Aya types). Nudge after 12 / 26 / 42 s of
+  inaction (the hint pulses; on "phone up" the 2nd nudge adds "or hold right-click"); after the 3rd it goes quiet.
+* Never freezes or blocks anything. Events: `tutorial:start`, `tutorial:step {id,done,t,nudges}`, `tutorial:done`.
+* A late step appears once Lodestone is offered: *Aya sent a link — Q and tap Lodestone* (6 s grace, then hint).
+* Completed (core steps 3–5 done, nothing else still being taught) → `sessionStorage['namba.tutorial.v3']='done'`.
+  **Restart/Replay after that: the hints stay hidden unless a step stalls (they come back on the first nudge); the
+  conversation plays as always.** `?tutorial` forces hints, `?notutorial` hides them.
 
-Steps validate out of order when the player simply does the thing (walks first, etc.); the hint always shows the first
-undone step; a hint that has been nudged 3 times goes quiet. Nothing ever freezes the player.
+## (b) Aya's v2 beats, gated on the player (texts unchanged)
 
-## After the tutorial: Aya reacts to where you are (pre-Lodestone)
+1. *"Landed?? Welcome to Osaka! 🛬"* — arrives when the player has walked (step 2) or 8 s after the intro look,
+   with chips **"Just landed! 🙌" / "Yes! This station is HUGE 😵"**.
+2. *"Meet me at Tempura Daikichi. Namba Parks, 6F! …🍤"* — follows the **answer** (or 30 s / 40 m of ignoring it). Quest active.
+3. *"Where are you?? The line is moving. …"* — v2's 58 s nudge, now sent when the director says the player is
+   **lost** (wrong floor 7 s, walked away, long walk no closer, stalled 25 s) from 45 s on, or at 100 s; chips
+   **"I'm lost 😭" / "On my way!"**.
+4. **Lodestone offer** (v2 text, the phone's link card) follows engagement: "I'm lost 😭" → offer; "On my way!" →
+   *"Ask your phone! That's what it's for 😅"* (v2's 2nd nudge) and, if the player is clearly lost, the offer right
+   after; otherwise the offer waits until they are. **Fallback: 165 s** whatever happens. Never before 45 s.
+5. After: *"see? 😌 6F, I'm 3rd in line"*, the canyon line at the bridge, the queue lines, the arrival — unchanged.
+   Every Aya text gets a typing beat first (`phone:typing`) and they never overlap.
 
-* **through the Nankai gates** → "out of the gates? 🙌 Parks is south, through Namba CITY. easy 😌" · chips
-  "👍" / "Which way is south?? 😅" (the second counts as *asking for help*)
-* **wrong floor (B1/1F/B2) for 40 s** → "wait are you underground?? 😅 Parks is UP" · chips "I'm lost 😭" / "Just exploring 😎"
-* **stalled** (no progress toward Daikichi for ~30 s) → "how's it going? 👀" · chips "Honestly? Lost 😵‍💫" / "Getting there!"
-* **Namba CITY 2F** → "Namba CITY! ok you're close-ish. Parks is at the very end 🌿"
-* **coffee ordered** → "did you just stop for COFFEE 😂 I'm starving"
+Phone contract used (notes/v3-phone.md, FINAL): `ctx.phone.message({id,from,text,replies,link})`, `phone:reply`,
+`phone:app`, `phone:typing`, `phone.reply(i)`, `phone.pendingReply`, `offerLodestone({text})`. Feature-detected: without
+`message()` a question counts as answered with its first chip once the player has read it (phone up on Messages 1.5 s).
 
-**The Lodestone offer needs engagement:** a "lost"/"help" chip, or answering a check-in while the director's
-`_isLost()` is true. Then Aya: "lol I KNEW it 😂" → `offerLodestone()`. "Getting there!" while lost → a second, teasing
-check-in 35 s later. **Fallback** (nobody stuck forever): at ~165 s with no engagement she sends it anyway ("ok I'm just
-sending you this 😂 no arguments"). Never before 45 s (the ordinary map has to be felt).
+## Item 8 — caption channels: `hud.caption(textOrObj, { channel })`
 
-## After Lodestone
+* `ambient` (PA, distant voices, shop callouts): small, **top-left edge**, low contrast (~0.8 opacity, 12.5/11.5 px),
+  fades on its own (≤ 9 s), max 2 (oldest retires).
+* `speech` (someone addressing you: すみません, staff, the chef, Aya at arrival) and `action` (your own lines when
+  ordering, gate results, your thoughts): bottom centre, prominent (action has a warm hairline).
+* No channel → inferred: kind announce/platform/train, `speaker:'PA'`, or `distant` → ambient; kind
+  thought/machine/action → action; else speech. `'caption'` event payloads may carry `channel`; `'announce'` and
+  `crowd:callout` default to ambient. Audibility gating (`paAudible`) unchanged.
 
-ready → "see? 😌 6F, I'm 3rd in line" (chips "Ok this is magic ✨" / "You're a genius 🙏"); `nav:track` off-route →
-"wrong way? 😅 follow the arrow" (**once**); Parks bridge → "take the canyon side — trust me 🌿"; ~170 m → "I'm 2nd in
-line!! 🍤"; 45 m → "You can see the noren from there, right?? 👋"; stalled 40 s → "everything ok? 🙂" (once). Arrival
-and end card unchanged.
+## Item 6 — Restart
 
-## Captions (item 8) — `hud.caption(textOrObj, { channel })`
+Pause → **Restart 最初から** → *"Are you sure? Your progress will be lost."* [Cancel] [Restart]. Esc backs out of the
+confirm. Restart = reload to the title with test/teleport flags stripped (`skip test spawn pos yaw pitch play offerat
+tutorial`); the title click provides the user gesture audio + pointer lock need. Tutorial hints after a restart: see (a).
 
-* `channel: 'ambient'` — PA, distant voices, shop callouts: small, top-left edge, low contrast, auto-fades, max 2.
-* `channel: 'speech'` — someone addressing you (すみません, staff, Aya at arrival): bottom centre, prominent.
-* `channel: 'action'` — E interactions, ordering, gate results, the player's own thoughts: bottom centre, prominent.
-* Default when absent: `kind` announce/platform/train, `speaker:'PA'` or `distant:true` → ambient; `kind`
-  thought/machine → action; anything with a speaker → speech. The `'caption'` event payload may carry `channel` too.
+## Testing
 
-## Restart (item 6)
+* `scratchpad/story-probe.mjs` plays the opening like a player (mouse turn, walking, Q, 1, Tab, answering "I'm lost"),
+  screenshots in `notes/v3-shots/story/`.
+* The critic's full-route walk bot (`scratchpad/critic-demo/walk.mjs`) now answers Aya's questions (phone up on Messages,
+  picks the "lost" chip when there is one, peeks at Maps, lowers the phone).
 
-Pause menu → **Restart** → "Are you sure? Your progress will be lost." [Cancel] [Restart] → reload to the title (a fresh
-page; the title click is the user gesture audio + pointer lock need). If the tutorial was completed this browser session
-the hints stay hidden on the next run (they only appear as a nudge when a step is stalled for ~15 s); Aya's conversation
-always plays — it *is* the story. `?tutorial` forces hints, `?notutorial` turns them off.
+## Status / results
+
+(filled in below after the verification run)
