@@ -243,7 +243,7 @@ export class Demo {
       this.offered = true; this.upgraded = true;
       this.readyT = this.t; this.readyDist = game.journal.distance;
       this.remReady = this._navRem();
-      game.after(3.0, () => { if (!this.arrived) game.message(UPGRADE.ready); });
+      game.after(3.0, () => { if (!this.arrived) game.message(this.story.readyText ? this.story.readyText() : UPGRADE.ready); });
     }
   }
 
@@ -295,7 +295,12 @@ export class Demo {
     }
     if (aya) hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
     ctx.audio?.play?.('notify');
-    game.message(ARRIVAL.text, 'Aya', 1.2);
+    // v4: her iced latte — handed over (the cup leaves your HUD), or a tease if you came empty-handed
+    const st = this.story, coffee = st.hasCoffee, asked = st.errand.state !== 'none';
+    game.message(coffee ? ARRIVAL.textCoffee : ARRIVAL.text, 'Aya', 1.2);
+    if (coffee) {
+      game.after(1.9, () => { hud?.caption({ ja: ARRIVAL.thanks.ja, en: ARRIVAL.thanks.en, speaker: 'Aya', duration: 2.6 }); hud?.cup(false); ctx.audio?.play?.('cup'); });
+    } else if (asked) game.message(ARRIVAL.tease, 'Aya', 0.6);
     await sleep(3100);
 
     // 3) back to the shopfront: the noren, the lanterns, the oil you can hear
@@ -431,7 +436,9 @@ export class Demo {
     const progress = upgraded && this.readyT != null
       ? { before: rate(r0, this.remReady, this.readyT), after: rate(this.remReady, rEnd, tEnd - this.readyT) }
       : { before: rate(r0, rEnd, tEnd), after: null };
-    return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm };
+    const E = this.story.errand;
+    const errand = E.state === 'none' ? null : { delivered: !!E.got, item: E.got ? E.got.item : null, cafe: E.got ? E.got.name : E.name, mine: !!(E.got && E.got.slotId === E.slot) };
+    return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm, errand };
   }
   async _end() {
     if (this.ended) return;

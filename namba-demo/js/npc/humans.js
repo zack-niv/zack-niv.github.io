@@ -38,7 +38,13 @@ export const CLIP = {
   walk: 'Walk', run: 'Run', idle: 'Idle_Neutral', idle2: 'Idle', wave: 'Wave', interact: 'Interact',
   sit: null, eat: null, phone: null, phonewalk: null, photo: null, bow: null, nod: null, browse: null,
   lookup: null, cart: null, walkcase: null, idlecase: null, ride: null,
+  // v4: seated variants: chair (seat ~0.5 m) and high stool (seat ~0.8 m), each sitting / eating / on the phone
+  sitphone: null, sit2: null, eat2: null, sitphone2: null,
 };
+// design heights of the seated clips: the pelvis bone ('Body') sits at the seat top; render.js lifts / lowers each person so the
+// pelvis lands exactly on the real seat (SEAT_BODY[kind] is the clip's own Body height at scale 1)
+export const SEAT_BODY = { chair: 0.5, stool: 0.8 };
+export const SEAT_CLIPS = { sit: 'chair', eat: 'chair', sitphone: 'chair', sit2: 'stool', eat2: 'stool', sitphone2: 'stool' };
 export const CLIP_IDS = Object.keys(CLIP);
 // clips whose playback rate follows the walking speed (value = which base it was made from)
 export const LOCO = { walk: 1, run: 1, phonewalk: 1, cart: 1, walkcase: 1 };
@@ -222,13 +228,42 @@ export class HumanLibrary {
     const footY = () => { va.setFromMatrixPosition(B.Body.matrixWorld); return va.y; };
     const make = (id, base, dur, keys, fn) => { C[id] = this._resample(rig, id, base, dur, keys, fn); };
     const head = (a) => { bend('Neck', X, a * 0.45); bend('Head', X, a * 0.55); };
-    const sitPose = (u) => {
-      const by = footY();
-      moveBody(0.47 - by, -0.04);
+    // The legs' IK feet ('FootL' / 'FootR' are controls under Root, NOT children of the shin) and the shin's own axis (child-to-
+    // foot direction at rest, in the knee's frame) are what the old pose got wrong: `aim(LowerLeg, Foot)` aimed at the PLANTED
+    // foot, so the shin pointed diagonally (and the foot stayed under the hip, legs through the chair).
+    this._pose(rig, C.idle, 0);
+    const shinAx = {}, shinLen = {};
+    for (const sd of ['L', 'R']) {
+      const kn = B['LowerLeg' + sd], ft = B['Foot' + sd];
+      va.setFromMatrixPosition(kn.matrixWorld); vb.setFromMatrixPosition(ft.matrixWorld).sub(va);
+      shinLen[sd] = vb.length();
+      kn.getWorldQuaternion(qb); shinAx[sd] = vb.clone().normalize().applyQuaternion(qb.clone().invert());
+    }
+    const aimAxis = (bn, axisLocal, dir) => {
+      const b = B[bn]; if (!b) return;
+      b.getWorldQuaternion(qb);
+      vb.copy(axisLocal).applyQuaternion(qb);
+      qa.setFromUnitVectors(vb, dir);
+      qa.multiply(qb);
+      b.parent.getWorldQuaternion(qp); b.quaternion.copy(qp.invert().multiply(qa));
+      b.updateMatrixWorld(true);
+    };
+    const SEAT = {
+      chair: { body: SEAT_BODY.chair, thigh: (sx) => V(0.09 * sx, -0.10, 1), shin: (sx) => V(0.02 * sx, -1, 0.08) },
+      stool: { body: SEAT_BODY.stool, thigh: (sx) => V(0.10 * sx, -1.0, 1), shin: (sx) => V(0.0, -1, -0.10) },
+    };
+    const sitPose = (kind = 'chair') => {
+      const cfg = SEAT[kind], by = footY();
+      moveBody(cfg.body - by, -0.04);
       for (const s of ['L', 'R']) {
         const sx = s === 'L' ? 1 : -1;
-        aim('UpperLeg' + s, 'LowerLeg' + s, V(0.09 * sx, -0.06, 1));
-        aim('LowerLeg' + s, 'Foot' + s, V(0.02 * sx, -1, 0.12));
+        aim('UpperLeg' + s, 'LowerLeg' + s, cfg.thigh(sx));
+        const sd = cfg.shin(sx);
+        aimAxis('LowerLeg' + s, shinAx[s], sd);
+        // foot control at the end of the shin (keeps the idle foot's orientation: flat)
+        const kn = B['LowerLeg' + s], ft = B['Foot' + s];
+        va.setFromMatrixPosition(kn.matrixWorld).addScaledVector(sd, shinLen[s]);
+        ft.parent.worldToLocal(va); ft.position.copy(va); ft.updateMatrixWorld(true);
         aim('UpperArm' + s, 'LowerArm' + s, V(0.18 * sx, -0.9, 0.45));
         aim('LowerArm' + s, 'Wrist' + s, V(-0.25 * sx, -0.38, 1));
       }
@@ -239,14 +274,19 @@ export class HumanLibrary {
       aim('LowerArmR', 'WristR', V(0.42, 0.62, 0.66), k);
     };
     const caseArm = () => { aim('UpperArmL', 'LowerArmL', V(0.32, -1, -0.28)); aim('LowerArmL', 'WristL', V(0.3, -1, -0.38)); };
-    make('sit', C.idle, C.idle.duration, 8, () => sitPose());
-    make('eat', C.idle, 2.4, 16, (u) => {
-      sitPose();
+    const eatLoop = (u) => {
       const k = smooth(clamp01((u - 0.2) / 0.15)) * (1 - smooth(clamp01((u - 0.55) / 0.15)));
       aim('LowerArmR', 'WristR', V(0.15 + 0.2 * k, -0.38 + 1.1 * k, 1 - 0.4 * k));
       aim('LowerArmL', 'WristL', V(-0.35, -0.2, 1));
       head(0.18 - 0.1 * k);
-    });
+    };
+    const seatMake = (id, kind, fn, dur = C.idle.duration, keys = 8) => { C[id] = this._resample(rig, id, C.idle, dur, keys, (u) => { sitPose(kind); fn(u); }, true); };
+    seatMake('sit', 'chair', () => {});
+    seatMake('eat', 'chair', eatLoop, 2.4, 16);
+    seatMake('sitphone', 'chair', () => { phoneArm(); head(0.32); });
+    seatMake('sit2', 'stool', () => {});
+    seatMake('eat2', 'stool', eatLoop, 2.4, 16);
+    seatMake('sitphone2', 'stool', () => { phoneArm(); head(0.32); });
     make('phone', C.idle, C.idle.duration, 8, () => { phoneArm(); aim('UpperArmL', 'LowerArmL', V(0.1, -1, 0.15)); head(0.32); });
     make('phonewalk', C.walk, C.walk.duration, 16, () => { phoneArm(); head(0.28); });
     make('photo', C.idle, C.idle.duration, 8, () => {
@@ -274,12 +314,15 @@ export class HumanLibrary {
   }
 
   // sample `base` over `dur` (looping) at `keys` keys, run fn(u) to modify the pose, bake all bone tracks
-  _resample(rig, id, base, dur, keys, fn) {
+  _resample(rig, id, base, dur, keys, fn, feet = false) {
     const S = rig.sampler, bones = S.bones;
     const times = new Float32Array(keys + 1);
     const q = bones.map(() => new Float32Array((keys + 1) * 4));
     const bodyP = new Float32Array((keys + 1) * 3);
     const body = S.by.Body || S.by.Hips;
+    S.cur = null; S.curClip = null;   // v4: the previous clip's pose function edited bones directly; never trust the mixer's "value unchanged" shortcut
+    const feetB = feet ? ['FootL', 'FootR'].map(n => S.by[n]).filter(Boolean) : [];
+    const feetP = feetB.map(() => new Float32Array((keys + 1) * 3));
     for (let k = 0; k <= keys; k++) {
       const u = k / keys;
       times[k] = u * dur;
@@ -288,14 +331,17 @@ export class HumanLibrary {
       fn(u);
       for (let i = 0; i < bones.length; i++) bones[i].quaternion.toArray(q[i], k * 4);
       body.position.toArray(bodyP, k * 3);
+      feetB.forEach((f, i) => f.position.toArray(feetP[i], k * 3));
     }
+    feetP.forEach(a => { for (let c = 0; c < 3; c++) a[keys * 3 + c] = a[c]; });
     // loop seam: last key = first key
     for (let i = 0; i < bones.length; i++) for (let c = 0; c < 4; c++) q[i][keys * 4 + c] = q[i][c];
     for (let c = 0; c < 3; c++) bodyP[keys * 3 + c] = bodyP[c];
     const tracks = bones.map((b, i) => new THREE.QuaternionKeyframeTrack(b.name + '.quaternion', times, q[i]));
     tracks.push(new THREE.VectorKeyframeTrack(body.name + '.position', times, bodyP));
-    // the base clip's constant position offsets (shoulders, fingers…)
-    for (const t of base.tracks) if (t.name.endsWith('.position') && !t.name.startsWith(body.name + '.')) tracks.push(t);
+    feetB.forEach((f, i) => tracks.push(new THREE.VectorKeyframeTrack(f.name + '.position', times, feetP[i])));
+    // the base clip's constant position offsets (shoulders, fingers…); seated clips own the feet
+    for (const t of base.tracks) if (t.name.endsWith('.position') && !t.name.startsWith(body.name + '.') && !feetB.some(f => t.name.startsWith(f.name + '.'))) tracks.push(t);
     return new THREE.AnimationClip(id, dur, tracks);
   }
 
@@ -340,6 +386,10 @@ export class HumanLibrary {
   // accessory parts, authored in model space around the idle pose, converted to bind space
   _accessories(rig) {
     const S = rig.sampler, B = S.by;
+    // v4 ROOT CAUSE of "phone not in the hand": the last procedural clip ('ride', which bends the right arm onto the handrail) left
+    // the sampler in its pose; _pose() then saw "idle at t=0 == last evaluated value" and did not rewrite the arm, so every
+    // right-hand prop (phone, briefcase, bag) was authored at the RIDE hand position, ~0.28 m in front of the real hand.
+    S.cur = null; S.curClip = null; this._restore(rig); S.mixer.stopAllAction();
     this._pose(rig, rig.clips.idle, 0);
     const P = (n) => B[n] ? new THREE.Vector3().setFromMatrixPosition(B[n].matrixWorld) : new THREE.Vector3();
     const hand = (s) => { const w = P('Wrist' + s), m = P('Middle1' + s); return w.clone().add(m.sub(w).normalize().multiplyScalar(0.05)); };
@@ -357,7 +407,10 @@ export class HumanLibrary {
     box(BIT.BRIEFCASE, 'WristR', A.acc, hR.x - 0.02, hR.y - 0.19, hR.z, 0.085, 0.3, 0.4);
     box(BIT.SHOPBAG, 'WristL', A.acc2, hL.x + 0.03, hL.y - 0.21, hL.z, 0.11, 0.32, 0.3);
     box(BIT.SHOPBAG2, 'WristR', A.acc2, hR.x - 0.03, hR.y - 0.2, hR.z, 0.1, 0.28, 0.26);
-    box(BIT.PHONE, 'WristR', A.dark, hR.x + 0.005, hR.y - 0.04, hR.z + 0.03, 0.012, 0.15, 0.075);
+    // v4 critic: the phone sat 5 mm off the hand's centre line, i.e. INSIDE the 3 cm-thick hand mesh, so it never showed. Hold it
+    // against the palm (the palm faces the body's midline in the idle pose the parts are authored in), a bit proud of the fingers.
+    const palm = hR.x < 0 ? 1 : -1;
+    box(BIT.PHONE, 'WristR', A.dark, hR.x + palm * 0.03, hR.y - 0.035, hR.z + 0.025, 0.014, 0.15, 0.075);
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);

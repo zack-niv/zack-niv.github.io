@@ -215,9 +215,10 @@ export class Game {
   _aboutView() {
     const d = document.createElement('div');
     d.className = 'p-goals';
-    const q = this.quests.tempura;
+    // the quest, plus Aya's coffee errand once she has asked (v4)
+    const qs = [this.quests.tempura, this.quests.coffee].filter(q => q && (q.id === 'tempura' || q.state !== 'hidden'));
     d.innerHTML = `<h3>Today <small>今日の予定</small></h3>
-      <ul><li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li></ul>
+      <ul>${qs.map(q => `<li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li>`).join('')}</ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
       <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>`;
     return d;

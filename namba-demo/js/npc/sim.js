@@ -47,6 +47,7 @@ export class Agent {
     this.aL = [0, 0.05, 0.12, 0]; this.aR = [0, 0.05, 0.12, 0];
     this.blockT = 0; this.excuseT = 0; this.queueing = false; this.hesT = 0; this.waitField = false; this.ff = 0;
     this.spot = null; this.biz = null; this.mark = null; this.markK = -1; this.track = null;
+    this.seatH = 0; this.seatPhone = false; this.seatDone = false; this.seatStool = false;
   }
 }
 
@@ -79,7 +80,7 @@ export class CrowdSim {
     a.mode = MODE.NONE; a.ramp = -1; a.en = null; a.path = null; a.gate = null; a.lane = -1; a.leader = null; a.followers = null;
     a.legs = null; a.leg = 0; a.st = 0; a.t = 0; a.t2 = 0; a.d = null; a.fade = 0; a.fadeDir = 1; a.vx = a.vz = 0; a.spd = 0;
     a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.lookAbs = undefined; a.lookRel = undefined; a.pHY = 0; a.pHP = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
-    a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0;
+    a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0; a.seatH = 0; a.seatPhone = false; a.seatDone = false; a.seatStool = false; a._dy = undefined;
     a.lastUpd = this.time; a.tier = 2; a.handHold = false; a.rampQ = null; a._slot = null;
     this.count++;
     return a;
@@ -250,6 +251,7 @@ export class CrowdSim {
       case MODE.FOLLOW: this._followStep(a, dt); return;
       case MODE.STAND:
         if (a.tier === 2) { a.vx = a.vz = 0; a.spd = 0; return; }
+        if (a.seatH) { a.vx = a.vz = 0; a.spd = 0; if (a.faceSet) this._turn(a, a.faceYaw, dt, 3); return; }   // seated: rigid (no personal-space push off the seat)
         this._steer(a, 0, 0, dt); return;
       default: a.vx = a.vz = 0; a.spd = 0;
     }
@@ -367,6 +369,13 @@ export class CrowdSim {
     const dx0 = L.x - a.x, dz0 = L.z - a.z, dist = Math.hypot(dx0, dz0);
     const sameLv = L.level === a.level && L.ramp < 0;
     if (a.ramp >= 0) { this._ride(a, dt); return; }
+    // v4: the leader is in a lane's line: the group queues together, behind the leader (a formation standing between the leader and
+    // the mouth, in the lane, starves the escalator)
+    if (a.rampNext < 0 && L.rampNext >= 0 && sameLv && dist < 9 && L.en && L.en.ready) {
+      if (a.en !== L.en) { if (a.en) this.fields.unref(a.en); a.en = L.en; this.fields.ref(a.en); a.arriveDm = 0; a.aimT = 0; }
+      this._beginRamp(a, L.rampNext, true, L);
+      this._rampApproach(a, dt); return;
+    }
     // far / different floor / leader riding: use the leader's field
     if ((!sameLv || dist > 5 || L.mode === MODE.RIDE || a.rampNext >= 0) && L.en && L.en.ready && L.en.dist) {
       if (a.en !== L.en) { if (a.en) this.fields.unref(a.en); a.en = L.en; this.fields.ref(a.en); a.arriveDm = 0; a.aimT = 0; }
@@ -412,8 +421,8 @@ export class CrowdSim {
 
   // ---------------------------------------------------------------------------
   // Ramps (escalators / stairs)
-  _beginRamp(a, ri) {
-    ri = this._rampChoice(a, ri);
+  _beginRamp(a, ri, fixed, like) {
+    if (!fixed) ri = this._rampChoice(a, ri);
     const R = this.places.ramps[ri], r = R.r;
     a.rampNext = ri;
     const fromLow = a.level === r.lower;
@@ -423,7 +432,15 @@ export class CrowdSim {
     const rx = -tz, rz = tx;            // right of travel
     let u;
     if (R.esc) {
-      a.walkLane = a.hurry > 0.62 && !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
+      const able = !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
+      a.walkLane = like ? like.walkLane : a.hurry > 0.62 && able;
+      // v4 critic: the stand lane backed up and the walk lane (nearly) empty => able people walk down/up the left lane instead
+      // of joining a 20-person line (lunch at the CITY 2F down escalator grew a 30-person blob with the walk lane idle)
+      if (!like && !a.walkLane && able) {
+        const pre = fromLow ? 'qL' : 'qH', live = (q) => q ? q.reduce((n, b) => n + (b.alive && b.rampQ === q ? 1 : 0), 0) : 0;
+        const ns = live(R[pre + 's']), nw = live(R[pre + 'w']);
+        if (ns >= 4 && nw * 2 + 2 < ns) a.walkLane = true;
+      }
       u = (a.walkLane ? -0.24 : 0.24) * ESC_STAND_SIDE; // +u = right of travel
     } else {
       a.walkLane = true;
@@ -449,23 +466,26 @@ export class CrowdSim {
     for (const k of fromLow ? ['qLs', 'qLw', 'qL'] : ['qHs', 'qHw', 'qH']) { const q = R[k]; if (q) for (const b of q) if (b.alive && b.rampNext >= 0 && this.places.ramps[b.rampNext] === R) n++; }
     return n;
   }
-  // a long line at this escalator: take the stairs / the next escalator going the same way if one is close
+  // a long line at this escalator: take the stairs / the next escalator going the same way if the total time (walk + wait) is
+  // clearly shorter. Cost in seconds: ~0.85 s per person in the line (one step each), ~1.25 m/s to walk there, stairs +3 s.
   _rampChoice(a, ri) {
     const P = this.places, R = P.ramps[ri], fromLow = a.level === R.r.lower;
     const load = this._rampLoad(R, fromLow);
-    if (load < 5) return ri;
+    if (load < 4) return ri;
     const end = fromLow ? R.ends.low : R.ends.high;
-    let best = ri, bc = load;
+    const slow = a.kind === 'elderly' || (a.flags & (1 << 3));      // elderly / suitcase: no stairs
+    let best = ri, bc = load * 0.85 + Math.hypot(end.x - a.x, end.z - a.z) / 1.25;
     for (let j = 0; j < P.ramps.length; j++) {
       if (j === ri) continue;
       const Q = P.ramps[j];
       if (Q.r.lower !== R.r.lower || Q.r.upper !== R.r.upper) continue;
       if (Q.esc && Q.r.move !== (fromLow ? 1 : -1)) continue;
+      if (!Q.esc && slow) continue;
       const e = fromLow ? Q.ends.low : Q.ends.high;
       const d = Math.hypot(e.x - a.x, e.z - a.z);
-      if (d > 13) continue;
-      const c = this._rampLoad(Q, fromLow) + d * 0.35 + (Q.esc ? 0 : 1.5 + (a.kind === 'elderly' || (a.flags & (1 << 3)) ? 8 : 0));
-      if (c < bc - 1.5) { bc = c; best = j; }
+      if (d > 18) continue;
+      const c = this._rampLoad(Q, fromLow) * (Q.esc ? 0.85 : 0.3) + d / 1.25 + (Q.esc ? 0 : 3);
+      if (c + 3 < bc) { bc = c; best = j; }
     }
     return best;
   }
@@ -477,17 +497,42 @@ export class CrowdSim {
   _rampApproach(a, dt) {
     const R = this.places.ramps[a.rampNext];
     const end = a.rampFromLow ? R.ends.low : R.ends.high;
-    // waiting: stand in line behind the people ahead of us (rank in this lane's queue), not in a blob
+    // waiting: stand in line behind the people ahead of us. Rank = how many people of this lane are physically closer to the
+    // mouth (so the nearest person always steps on next and an order mix-up can never starve the escalator).
     const q = a.rampQ;
     let rank = 0;
-    if (q) { for (let i = 0; i < q.length && q[i] !== a; i++) { const b = q[i]; if (b.alive && b.rampNext === a.rampNext && Math.hypot(b.x - a.rampAimX, b.z - a.rampAimZ) < 7) rank++; } }
-    a.aimX = a.rampAimX + end.dx * 0.66 * rank; a.aimZ = a.rampAimZ + end.dz * 0.66 * rank;
+    if (q) {
+      const dA = Math.hypot(a.x - a.rampAimX, a.z - a.rampAimZ);
+      for (let i = 0; i < q.length; i++) {
+        const b = q[i]; if (b === a || !b.alive || b.rampNext !== a.rampNext) continue;
+        const dB = Math.hypot(b.x - a.rampAimX, b.z - a.rampAimZ);
+        if (dB < 9 && (dB < dA - 0.05 || (dB < dA + 0.05 && b.serial < a.serial))) rank++;
+      }
+    }
+    // a long line: the tail re-checks the other lanes / the stairs from time to time
+    if (rank >= 4 && this.time > (a.rcT || 0)) {
+      a.rcT = this.time + 1.5 + this.rnd();
+      const alt = this._rampChoice(a, a.rampNext);
+      if (alt !== a.rampNext) { this._beginRamp(a, alt, true); return; }
+    }
+    // single file behind the mouth (rank 0..ROW-1), further people wait in a second / third file beside it, not in a blob
+    const ROW = 8, col = Math.floor(rank / ROW), row = rank - col * ROW;
+    const back = 0.66 * row + 0.25 * col;
+    const side = a.rampU < 0 ? -1 : 1;
+    const tx = -end.dx, tz = -end.dz, px = -tz, pz = tx;                  // travel direction into the ramp, and its right-hand side
+    const u0 = Math.abs(a.rampU);
+    let uw = u0 * (1 + 0.85 * Math.min(1, Math.max(0, back - 0.3) / 1.0)) + 0.8 * col;
+    if (!R.esc) uw = Math.min(uw, Math.max(0.3, R.hw - 0.25));
+    const u = side * uw;
+    a.aimX = end.x + end.dx * (0.45 + back) + px * u; a.aimZ = end.z + end.dz * (0.45 + back) + pz * u;
     const dx = a.aimX - a.x, dz = a.aimZ - a.z, l = Math.hypot(dx, dz);
     // distance to the end line along the ramp axis
     const along = (a.x - end.x) * end.dx + (a.z - end.z) * end.dz;
     const lat = Math.abs((a.x - a.aimX) * -end.dz + (a.z - a.aimZ) * end.dx);
     a.queueing = l < 4.5;
-    if ((rank === 0 && (l < 0.35 || (along < 0.6 && lat < 0.3))) || a.tier === 2) {
+    // the head of the line: stuck close to the mouth (a neighbour's personal space) for a moment => steps on anyway
+    if (rank === 0 && l < 1.8 && a.spd < 0.08) a.headT = (a.headT || 0) + dt; else a.headT = 0;
+    if ((rank === 0 && (l < 0.5 || (along < 1.0 && lat < 0.8) || a.headT > 0.8)) || a.tier === 2) {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
@@ -495,10 +540,11 @@ export class CrowdSim {
         const busy = q && q.length > 4 ? 0.8 : 1;
         if (a.walkLane) R.nextWalk = this.time + (0.52 + this.rnd() * 0.15) * busy; else R.nextStand = this.time + (0.7 + this.rnd() * 0.25) * busy;
       }
+      a.headT = 0;
       this._startRide(a);
       return;
     }
-    if (l > 14 + rank * 0.7) { this._rampDequeue(a); a.rampNext = -1; a.aimT = 0; return; } // pushed away; re-plan
+    if (l > 20 + rank * 0.7) { this._rampDequeue(a); a.rampNext = -1; a.aimT = 0; return; } // pushed away; re-plan
     let sp = a.pref;
     if (l < 2.5) sp *= Math.max(rank > 0 ? 0.0 : 0.5, l / 2.5);
     if (rank > 0 && l < 0.3) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }

@@ -138,7 +138,9 @@ export function proto(name) {
       boxG(0.4, 0.035, 0.03, 0, 0.4, -0.2), boxG(0.4, 0.035, 0.03, 0, 0.4, 0.2), boxG(0.03, 0.035, 0.4, -0.2, 0.4, 0), boxG(0.03, 0.035, 0.4, 0.2, 0.4, 0),
       boxG(0.4, 0.05, 0.03, 0, 0.93, 0.2)].map(nonIndexed)); break;
     case 'chair_seat': g = mergeGeometries([boxG(0.44, 0.05, 0.44, 0, 0.47, 0), boxG(0.42, 0.24, 0.04, 0, 0.74, 0.21)].map(nonIndexed)); break;
-    case 'stool': g = mergeGeometries([new THREE.CylinderGeometry(0.18, 0.18, 0.06, 6).translate(0, 0.7, 0), new THREE.CylinderGeometry(0.03, 0.03, 0.68, 5, 1, true).translate(0, 0.35, 0), new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8, 1, true).translate(0, 0.01, 0)].map(nonIndexed)); break;
+    // v4 critic: + a footrest ring (feet of people on high stools rest on it instead of hovering)
+    case 'stool': g = mergeGeometries([new THREE.CylinderGeometry(0.18, 0.18, 0.06, 6).translate(0, 0.7, 0), new THREE.CylinderGeometry(0.03, 0.03, 0.68, 5, 1, true).translate(0, 0.35, 0), new THREE.CylinderGeometry(0.2, 0.2, 0.02, 8, 1, true).translate(0, 0.01, 0),
+      new THREE.TorusGeometry(0.22, 0.013, 4, 10).rotateX(Math.PI / 2).translate(0, 0.08, 0), boxG(0.44, 0.014, 0.018, 0, 0.08, 0), boxG(0.018, 0.014, 0.44, 0, 0.08, 0)].map(nonIndexed)); break;
     case 'table_leg': g = mergeGeometries([new THREE.CylinderGeometry(0.035, 0.035, 0.72, 5, 1, true).translate(0, 0.36, 0), new THREE.CylinderGeometry(0.22, 0.24, 0.03, 6).translate(0, 0.015, 0)].map(nonIndexed)); break;
     case 'mannequin': {
       const parts = [

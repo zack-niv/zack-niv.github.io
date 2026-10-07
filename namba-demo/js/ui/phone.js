@@ -43,6 +43,9 @@
 //   'phone:arrive' {id}, 'phone:upgrade' {stage}, 'lodestone:arrive' {id}
 //   'phone:app' {app, prev}, 'phone:reply' {msgId, replyId, text, from}, 'phone:stack' {open},
 //   'nav:track' {state: 'on'|'drifting'|'off'|'rerouted', headingErr, lost}
+//   v4 (notes/v4-phone.md): suggest(slotId|null), suggested, destination, setDestination(slotId), clearDestination();
+//   'nav:destination' {slotId, name, app, suggested}, 'nav:arrived' {slotId, name, app}. Nothing routes until
+//   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
 import { Positioning } from './phone/positioning.js';
@@ -52,6 +55,7 @@ import { LodestoneApp } from './phone/lodestone.js';
 import { PhoneStats } from './phone/stats.js';
 import { Glance } from './phone/glance.js';
 import { buzzSound } from './phone/track.js';
+import { Destinations, DEST_KEYS } from './phone/destinations.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -78,7 +82,7 @@ export class Phone {
     this.app = 'maps';
     this.handlesMessages = true;
     // the final key bindings (for Story's hints): see notes/v3-phone.md
-    this.keys = { raise: 'Q', lower: 'Q', apps: 'Tab', reply: ['1', '2', '3'], appSlots: ['1', '2', '3'], stack: 'V', install: 'Enter' };
+    this.keys = { raise: 'Q', lower: 'Q', apps: 'Tab', reply: ['1', '2', '3'], appSlots: ['1', '2', '3'], stack: 'V', install: 'Enter', pick: DEST_KEYS, search: '/' };
     this.battery = 64;
     this.typing = false;
     this.upgradeStage = 'none';
@@ -99,7 +103,20 @@ export class Phone {
 
   // ---- demo upgrade API -------------------------------------------------------
   get positioningMode() { return this.pos ? this.pos.mode : 'gps'; }
-  stats() { return this._stats ? this._stats.summary() : {}; }
+  stats() {
+    const s = this._stats ? this._stats.summary() : {};
+    if (this.dest) { s.legs = this.dest.legStats(); s.destination = this.destination; }
+    return s;
+  }
+  // ---- v4 destinations API (Story) — notes/v4-phone.md ------------------------
+  suggest(slotId) { return this.dest ? this.dest.suggest(slotId || null) : false; }
+  get suggested() { return this.dest ? this.dest.suggested : null; }
+  get destination() {
+    const C = this.dest && this.dest.current;
+    return C ? { slotId: C.slotId, name: C.name, level: C.level, app: C.app, suggested: !!C.suggested, arrived: !!C.arrived } : null;
+  }
+  setDestination(slotId, opts) { return this.dest ? this.dest.set(slotId, opts || {}) : false; }
+  clearDestination() { this.dest && this.dest.clear(); }
   // opts (optional): { text, from, id, replies } — Aya's own line for the link card
   offerLodestone(opts) {
     if (this.upgradeStage !== 'none') return false;
@@ -137,6 +154,7 @@ export class Phone {
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
     this.pos = new Positioning(ctx);
     this._stats = new PhoneStats(this);
+    this.dest = new Destinations(this);
     this.pos.update(0);
     if (!this.pos.level) this.pos.level = (ctx.player && ctx.player.body.level) || '3F';
     this.root = (ctx.ui && ctx.ui.phone) || document.getElementById('phone-root');
@@ -156,6 +174,37 @@ export class Phone {
     // a pointer lock grabbed by a click on the world lowers the phone (unless it is held up by the right button)
     document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement && this.isOpen && !this._held && !this._locking) this.close(true); });
     this._bindHold();
+    // v4: the destination lists' keys (1–9, ↑ ↓, Enter, /) — captured before the game sees them (no walking on ↑ ↓)
+    addEventListener('keydown', (e) => this._listKey(e), true);
+  }
+
+  // the "Where to?" list on screen right now (Maps / Lodestone, phone up), or null
+  _activeList() {
+    if (!this.isOpen || this._held) return null;
+    const a = this.app === 'maps' ? this.maps : this.app === 'lodestone' ? this.lodestone : null;
+    return a && a.activeList ? a.activeList() : null;
+  }
+  _listKey(e) {
+    if (!this.ctx.started || !this._canUse()) return;
+    const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const L = this._activeList(); if (!L) return;
+    const eat = () => { e.preventDefault(); e.stopPropagation(); this._lastPhoneInput = this._now; };
+    const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
+    if (m) {
+      if (e.repeat) return eat();
+      const i = +m[1] - 1; if (i >= L.items.length) return;          // beyond the list: the v3 dock slot
+      eat();
+      if (this._now - (this._appAt || -1e9) < 0.35) return;           // just switched app: no accidental pick
+      L.pick(i); return;
+    }
+    if (L.chip) return;                                                // the "Next" chip: only its number (arrows still walk)
+    if (e.code === 'ArrowDown' || e.code === 'ArrowUp') { eat(); L.move(e.code === 'ArrowDown' ? 1 : -1); return; }
+    if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
+      if (this.upgradeStage === 'offer' && !L.armed) return;          // Enter still installs Lodestone while it is offered
+      eat(); L.pick(L.sel); return;
+    }
+    if (e.code === 'Slash' && !e.repeat) { const a = this.app === 'maps' ? this.maps : this.lodestone; if (a.focusSearch && a.focusSearch()) eat(); }
   }
 
   // right mouse button: raise while held (pointer lock stays: you can keep looking around)
@@ -410,6 +459,7 @@ export class Phone {
     if (this.isOpen && !this.typing && inp && inp.pressed('KeyV') && this.app === 'lodestone') this.lodestone.toggleStack();
     this.pos.update(dt);
     this._stats.update(dt);
+    this.dest.update(dt);
     // the upgrade: keyboard (Enter / E while the offer is on screen). v3: no timer fallback — Story calls offerLodestone()
     if (ctx.started && !ctx.paused && !(ctx.game && ctx.game.paused)) this._play += dt;
     this.messages.update(dt);

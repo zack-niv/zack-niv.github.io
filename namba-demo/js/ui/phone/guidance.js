@@ -41,23 +41,27 @@ function dpIdx(pts, eps) {
 }
 
 export class Guidance {
-  constructor(ctx, dest) {
+  constructor(ctx, dest, via) {
     this.ctx = ctx;
-    this.dest = dest;       // { id, en, ja, level, x, z (door outside), nx, nz (door normal), slot }
+    this.dest = dest;       // { id, en, ja, level, x, z (door outside), nx, nz (door normal), slot, transit? }
+    this._viaState = via || { done: false };   // v4: shared by every destination's Guidance (the detour is offered once)
     this.field = null;
     this.goal = -1;
     // Scenic via-point: the Namba Parks canyon (2F). The guided route goes
     // start -> canyon -> destination until the player has been out in the canyon.
     this.via = { id: 'canyon', level: '2F', x: 33, z: 222, node: -1, field: null,
       title: 'Walk out into the Namba Parks canyon', sub: 'Open air · 2F' };
-    this.viaDone = false;
+    // the canyon detour only makes sense on the way up into Namba Parks (3F and above)
+    this.viaUseful = !!(dest && dest.zone === 'parks' && LEVELS[dest.level] && LEVELS['2F'] && LEVELS[dest.level].y > LEVELS['2F'].y + 1);
   }
+  get viaDone() { return this._viaState.done || !this.viaUseful; }
+  set viaDone(v) { if (v) this._viaState.done = true; }
 
   // Has the player reached the canyon (or gone up into Parks by the indoor
   // escalators, which makes the detour pointless)? Cheap O(1): called at 2.5 Hz
   // from the Lodestone arrival check even while the phone is down.
   noteBody(body) {
-    if (this.viaDone || !body || body.ramp >= 0) return;
+    if (this._viaState.done || !body || body.ramp >= 0) return;
     const W = this.ctx.world, sp = W.spaceAt(body.level, body.x, body.z);
     if (sp && (sp.zone === 'parks' || sp.zone === 'parksGarden') && (sp.outdoor || body.level !== '2F')) this.viaDone = true;
     else if (body.level === this.via.level && Math.hypot(body.x - this.via.x, body.z - this.via.z) < 5) this.viaDone = true;
@@ -75,7 +79,8 @@ export class Guidance {
     if (this.field) return this.field;
     const nav = this.ctx.nav, d = this.dest;
     this.goal = nav.nodeAtPoint(d.level, d.x, d.z);
-    this.field = fieldNoEntry(nav, 'lodestone:' + d.id, [this.goal]);
+    // (a station / platform destination may route through the fare gates; anything else never does)
+    this.field = d.transit ? nav.field('lodestone:t:' + d.id, [this.goal]) : fieldNoEntry(nav, 'lodestone:' + d.id, [this.goal]);
     return this.field;
   }
 
@@ -275,5 +280,5 @@ export class Guidance {
 export function destinationFromSlot(slot = 'parks_6Fdw03') {
   const b = businessBySlot[slot];
   if (!b) return null;
-  return { id: slot, slot, en: b.en, ja: b.ja, level: b.level, x: b.door.ox, z: b.door.oz, nx: b.door.nx, nz: b.door.nz, doorX: b.door.x, doorZ: b.door.z, rating: b.rating, cat: b.cat };
+  return { id: slot, slot, slotId: slot, name: b.en, en: b.en, ja: b.ja, level: b.level, x: b.door.ox, z: b.door.oz, nx: b.door.nx, nz: b.door.nz, doorX: b.door.x, doorZ: b.door.z, rating: b.rating, cat: b.cat, zone: b.zone };
 }

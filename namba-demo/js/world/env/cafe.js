@@ -209,7 +209,7 @@ export function cafeInterior(S, c) {
       for (let a = a0 + 0.3; a < a1 - 0.1; a += 1.2) P.box('env_metal', a - 0.015, a + 0.015, 0.2, 1.02, 0.6, 0.64, [0.18, 0.18, 0.2], 'nsewt');
       for (let a = p0 + 0.6; a < p1 - 0.3; a += 0.75) {
         barStool(P, a + (r() - 0.5) * 0.08, 1.42, mix(wood2, [0, 0, 0], 0.2));
-        S.spot('seat', a, 1.42, 0, -1);
+        S.spot('seat', a, 1.42, 0, -1, { h: 0.82 });
         if (r() < 0.35) cup(P, a, 1.07, 0.8);
       }
       if (r() < 0.6) laptop(P, (a0 + a1) / 2, 1.07, 0.78, 0);
@@ -253,8 +253,8 @@ export function cafeInterior(S, c) {
       for (let k = 0; k < 2; k++) {
         const cd = j + 0.5 + k, ca = bc(2.1);
         chair(P, ca + (r() - 0.5) * 0.06, cd + (r() - 0.5) * 0.06, -bface, 0, { wood: true, frame: wood2, seat: mix(col, [0, 0, 0], 0.1), jit: (r() - 0.5) * 0.5 });
-        S.spot('seat', ca, cd, -bface, 0);
-        S.spot('seat', bc(0.5), cd, bface, 0);
+        S.spot('seat', ca, cd, -bface, 0, { h: 0.495 });
+        S.spot('seat', bc(0.5), cd, bface, 0, { h: 0.46 });
         if (r() < 0.55) cup(P, ta + (r() - 0.5) * 0.1, 0.74, cd + (r() - 0.5) * 0.1);
       }
       if (r() < 0.5) globeLamp(P, ta, j + 1.0, 2.1, ceil, 0.12);
@@ -296,8 +296,8 @@ export function cafeInterior(S, c) {
         }
         armchair(P, sx + (bside > 0 ? -1.4 : 1.4) * 0 + 0.0, dB - 2.55, 0, 1, fab[1]);
         cushion(P, sx - 0.8, dB - 0.62, 0.52, 0.2, fab[2]); cushion(P, sx + 0.85, dB - 0.62, 0.52, -0.25, fab[1]);
-        for (const dx of [-0.9, 0, 0.9]) S.spot('seat', sx + dx * 0.9 + (dx === 0 ? 0 : 0), dB - 0.5, 0, -1);
-        S.spot('seat', sx, dB - 2.5, 0, 1);
+        for (const dx of [-0.9, 0, 0.9]) S.spot('seat', sx + dx * 0.9 + (dx === 0 ? 0 : 0), dB - 0.5, 0, -1, { h: 0.46 });
+        S.spot('seat', sx, dB - 2.5, 0, 1, { h: 0.46 });
         pendant(P, sx, dB - 1.5, 2.0, ceil, [0.76, 0.5, 0.2], 0.22);
         { const pa = bside > 0 ? lc0 - 0.4 : lc0 + 3.4; if (S.solid(pa - 0.28, pa + 0.28, dB - 0.9, dB - 0.35, { pocket: 2 })) plantPot(P, pa, dB - 0.6, 0.42, 1.1, plantSeed, POTS[plantSeed % 4], GREENS[plantSeed % 4]); }
         mark(lc0 - 1, lc0 + 3, dB - 4, dB);
@@ -308,7 +308,7 @@ export function cafeInterior(S, c) {
     const lc0 = bside > 0 ? W - 2 : 0;
     if (S.solid(lc0, lc0 + 2, dB - 0.2, dB, { pocket: 2 })) {
       sofa(P, lc0 + 1, dB - 0.5, 0, -1, 1.7, fab[0]);
-      S.spot('seat', lc0 + 0.5, dB - 0.5, 0, -1); S.spot('seat', lc0 + 1.5, dB - 0.5, 0, -1);
+      S.spot('seat', lc0 + 0.5, dB - 0.5, 0, -1, { h: 0.46 }); S.spot('seat', lc0 + 1.5, dB - 0.5, 0, -1, { h: 0.46 });
       cushion(P, lc0 + 0.55, dB - 0.62, 0.52, 0.2, fab[2]);
       pendant(P, lc0 + 1, dB - 1.2, 2.0, ceil, [0.76, 0.5, 0.2], 0.2);
       mark(lc0, lc0 + 1, dB - 2, dB);
@@ -326,7 +326,7 @@ export function cafeInterior(S, c) {
         if (counterOK && Math.abs(d - dOrd) < 1.6) continue;      // keep the order spot clear
         const sa = bc(1.1);
         barStool(P, sa, d, mix(wood2, [0, 0, 0], 0.2));
-        S.spot('seat', sa, d, bside > 0 ? 1 : -1, 0);
+        S.spot('seat', sa, d, bside > 0 ? 1 : -1, 0, { h: 0.82 });
         if (r() < 0.4) cup(P, bc(0.2), 1.07, d);
       }
       // slats above
@@ -359,7 +359,7 @@ export function cafeInterior(S, c) {
     place.forEach(([ca, cd, fa, fd], q) => {
       if (!full && q >= 2) return;
       chair(P, ca + (r() - 0.5) * 0.1, cd + (r() - 0.5) * 0.1, fa, fd, { wood: wooden, frame: wooden ? tcol : [0.16, 0.16, 0.17], seat: chc, jit: (r() - 0.5) * 0.55 });
-      S.spot('seat', ca, cd, fa, fd);
+      S.spot('seat', ca, cd, fa, fd, { h: 0.495 });
     });
     // clutter
     if (r() < 0.7) cup(P, ta - 0.08, 0.74, td - 0.06);
@@ -383,8 +383,8 @@ export function cafeInterior(S, c) {
       P.box('env_wood', ci + 0.45, ci + 2.55, 0.2, 0.24, cj + 0.47, cj + 0.53, mix(wcol, [0, 0, 0], 0.3), 'nsewt');
       for (let k = 0; k < 3; k++) {
         const a = ci + 0.5 + k;
-        stoolSeat(a + (r() - 0.5) * 0.08, cj - 0.2, 0, 1); S.spot('seat', a, cj - 0.5, 0, 1);
-        stoolSeat(a + (r() - 0.5) * 0.08, cj + 1.2, 0, -1); S.spot('seat', a, cj + 1.5, 0, -1);
+        const j0 = (r() - 0.5) * 0.08; stoolSeat(a + j0, cj - 0.2, 0, 1); S.spot('seat', a + j0, cj - 0.2, 0, 1, { h: 0.73 });
+        const j1 = (r() - 0.5) * 0.08; stoolSeat(a + j1, cj + 1.2, 0, -1); S.spot('seat', a + j1, cj + 1.2, 0, -1, { h: 0.73 });
       }
       for (let k = 0; k < 4; k++) if (r() < 0.6) cup(P, ci + 0.4 + k * 0.7, 0.78, cj + 0.3 + (k % 2) * 0.4);
       P.cyl('env_matte', ci + 1.5, 0.78, 0.84, cj + 0.5, 0.12, [0.8, 0.76, 0.7]); P.geo('env_matte', 'plant', ci + 1.5, 0.84, cj + 0.5, 0.4, [0.3, 0.3, 0.3], GREENS[1]);

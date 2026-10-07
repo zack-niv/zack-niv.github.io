@@ -22,7 +22,7 @@ import { buildBlob } from './humanGeo.js';
 import { makeBlobMaterial } from './humanMat.js';
 import { POSE } from './sim.js';
 import { BIT } from './looks.js';
-import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO } from './humans.js';
+import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO, SEAT_BODY, SEAT_CLIPS } from './humans.js';
 
 const FAR_CAP = 320, FADE_CAP = 64;
 const TIERS = {
@@ -31,6 +31,7 @@ const TIERS = {
   high: { near: 32, nearD: 16, lod1D: 34 },
   ultra: { near: 44, nearD: 20, lod1D: 44 },
 };
+const PHONE_CLIPS = new Set(['phone', 'phonewalk', 'photo', 'browse', 'sitphone', 'sitphone2']);   // clips with a hand up at a phone
 const XFADE = 0.3;   // near <-> far hand-over (s)
 const BLEND = 0.28;  // clip cross-fade (s)
 const HEAD_YAW_MAX = 70 * Math.PI / 180, HEAD_PITCH_MAX = 25 * Math.PI / 180, HEAD_RATE = Math.PI;   // head look limits: +-70 / +-25 deg, 180 deg/s
@@ -211,7 +212,7 @@ export class CrowdRenderer {
       // blobs
       if (nb < this.blobCap && a._d2 < 60 * 60) {
         const o = nb * 4, h = a.look ? a.look.h : 1;
-        const sitting = a._ac === 'sit' || a._ac === 'eat';
+        const sitting = !!SEAT_CLIPS[a._ac];
         BA[o] = a._rx; BA[o + 1] = a.y; BA[o + 2] = a._rz; BA[o + 3] = (sitting ? 0.7 : 0.56) * h;
         BB[o] = a.fade * (a.ramp >= 0 ? 0.6 : 0.9); BB[o + 1] = 1.25; BB[o + 2] = a.yaw; BB[o + 3] = 0;
         nb++;
@@ -284,8 +285,12 @@ export class CrowdRenderer {
     switch (pose) {
       case POSE.WALK: case POSE.CART: return moving ? loco() : ((flags & (1 << BIT.SUITCASE)) ? 'idlecase' : 'idle');
       case POSE.PHONE: return moving ? 'phonewalk' : 'phone';
-      case POSE.SIT: return 'sit';
-      case POSE.EAT: return 'eat';
+      case POSE.SIT: case POSE.EAT: {
+        // v4: a seated clip only ever plays on a real seat (a.seatH); anything else stands instead of showing a broken sit
+        if (!a.seatH) return moving ? loco() : 'idle';
+        const base = pose === POSE.EAT ? 'eat' : a.seatPhone ? 'sitphone' : 'sit';
+        return a.seatStool ? base + '2' : base;
+      }
       case POSE.RIDE: return 'ride';
       case POSE.WAVE: return 'wave';
       case POSE.PHOTO: return 'photo';
@@ -297,6 +302,15 @@ export class CrowdRenderer {
       case POSE.TALK: return moving ? loco() : 'idle2';
       default: return moving ? loco() : ((flags & (1 << BIT.SUITCASE)) ? 'idlecase' : ((a.serial % 5) === 0 ? 'idle2' : 'idle'));
     }
+  }
+  // v4: accessory / variant flags actually drawn. The phone prop follows the CLIP, not the behaviour flags (which several code paths
+  // forgot to set: escalator riders, hesitating tourists, seat-phone users...): whenever a phone-looking clip plays (or is still
+  // blending out) the phone is in the hand; near and far LOD both use this, so they always agree.
+  _flags(a) {
+    let f = (a.flags | a.dyn) & 0xffffff;
+    const c = a._ac;
+    if (PHONE_CLIPS.has(c) || (a._ap && a._aw < 0.6 && PHONE_CLIPS.has(a._ap))) f |= 1 << BIT.PHONE;
+    return f;
   }
   _rate(a, id) {
     const info = a._rig.info[id];
@@ -335,6 +349,19 @@ export class CrowdRenderer {
     tp = tp > HEAD_PITCH_MAX ? HEAD_PITCH_MAX : tp < -HEAD_PITCH_MAX ? -HEAD_PITCH_MAX : tp;
     a.pHY = this._ease(isFinite(a.pHY) ? a.pHY : 0, ty, dh);
     a.pHP = this._ease(isFinite(a.pHP) ? a.pHP : 0, tp, dh);
+    // a seat seated before its shop's furniture existed (initial fill): measure it the first time somebody can see it
+    if (a.seatH && a.spot && a.spot.real && a.spot.scan !== 2 && a._d2 < 900 && a.biz) {
+      const r = this.sim.places._scanSeat(a.biz, a.spot);
+      if (r !== null) {
+        a.spot.scan = 2;
+        if (r === false) { a.spot.bad = true; a.seatH = 0; a.pose = POSE.STAND; }   // no furniture there: stand rather than hover
+        else { a.seatH = a.spot.h; a.seatStool = !!a.spot.stool; if (a.spot.sx !== undefined) { a.x = a.spot.sx; a.z = a.spot.sz; } }
+      }
+    }
+    // seated: the clip's pelvis sits at its design seat height (SEAT_BODY); lift / lower the person so it lands on the REAL seat top
+    const kind = SEAT_CLIPS[a._ac];
+    const tgt = kind && a.seatH ? a.seatH + 0.005 - a._sc * SEAT_BODY[kind] : 0;
+    a._dy = a._dy === undefined ? tgt : a._dy + (tgt - a._dy) * Math.min(1, dh * 8);
   }
   _ease(cur, tgt, dh) {
     let step = (tgt - cur) * (1 - Math.exp(-dh * 5));
@@ -349,7 +376,7 @@ export class CrowdRenderer {
 
   _write(set, n, a) {
     const o = n * 4, at = set.attrs, lk = a.look, rig = a._rig;
-    let p = at.iPos.array; p[o] = a._rx; p[o + 1] = a.y; p[o + 2] = a._rz; p[o + 3] = a.yaw;
+    let p = at.iPos.array; p[o] = a._rx; p[o + 1] = a.y + (a._dy || 0); p[o + 2] = a._rz; p[o + 3] = a.yaw;
     p = at.iAnim.array;
     p[o] = this._frameOf(rig, a._ac, a._at);
     if (a._ap) { p[o + 1] = this._frameOf(rig, a._ap, a._apt); p[o + 2] = 1 - a._aw; } else { p[o + 1] = p[o]; p[o + 2] = 0; }
@@ -357,20 +384,20 @@ export class CrowdRenderer {
     const cA = a._colA, cB = a._colB;
     p = at.iColA.array; p[o] = cA[0]; p[o + 1] = cA[1]; p[o + 2] = cA[2]; p[o + 3] = cA[3];
     p = at.iColB.array; p[o] = cB[0]; p[o + 1] = cB[1]; p[o + 2] = cB[2]; p[o + 3] = cB[3];
-    p = at.iMisc.array; p[o] = a.fade; p[o + 1] = (a.flags | a.dyn) & 0xffffff; p[o + 2] = a._wsc; p[o + 3] = 0;
+    p = at.iMisc.array; p[o] = a.fade; p[o + 1] = this._flags(a); p[o + 2] = a._wsc; p[o + 3] = 0;
   }
 
   // drive one near (skinned) person
   _near(s, a, dt) {
     const root = s.root, lk = a.look;
-    root.position.set(a._rx, a.y, a._rz);
+    root.position.set(a._rx, a.y + (a._dy || 0), a._rz);
     root.rotation.set(0, a.yaw + Math.PI, 0);
     root.scale.set(a._sc * a._wsc, a._sc, a._sc * a._wsc);
     const U = s.U;
     U.crColA.value.set(a._colA[0], a._colA[1], a._colA[2], a._colA[3]);
     U.crColB.value.set(a._colB[0], a._colB[1], a._colB[2], a._colB[3]);
     const alpha = Math.min(a.fade, s.alpha);
-    U.crMisc.value.set(alpha, (a.flags | a.dyn) & 0xffffff, 1, 0);
+    U.crMisc.value.set(alpha, this._flags(a), 1, 0);
     s.mesh.material = alpha < 0.999 ? s.matF : s.matO;
     s.mesh.renderOrder = alpha < 0.999 ? 3 : 0;
     // actions: current (+ previous while blending)

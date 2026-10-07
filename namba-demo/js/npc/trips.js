@@ -258,11 +258,19 @@ export class Director {
     const T = pl.tracks[Math.floor(this.r() * pl.tracks.length)];
     return { pl, T };
   }
-  _pickBiz(list, open = true, nearLevel = null) {
+  // v4: star places (the quest's tempura / coffee spots) must not pull half the crowd through one set of escalators, and nobody
+  // crosses the whole complex for lunch when there is a restaurant next door: popularity is softened (pop^1.4, capped), long
+  // queues put people off, and with a person given the weight falls with distance (+ a floor change counts as ~25 m).
+  _pickBiz(list, open = true, nearLevel = null, a = null) {
     const m = this.minutes;
     const cand = list.filter(B => !open || this.P.bizOpen(B, m));
     if (!cand.length) return null;
-    let tot = 0; const w = cand.map(B => { const v = B.pop * B.pop * (nearLevel && B.level === nearLevel ? 1.5 : 1); tot += v; return v; });
+    const have = a && a.alive && Number.isFinite(a.x) && a.level;
+    let tot = 0; const w = cand.map(B => {
+      let v = Math.pow(Math.min(1.5, B.pop), 1.4) * (nearLevel && B.level === nearLevel ? 1.5 : 1) / (1 + B.queue.length * 0.2);
+      if (have) { const d = Math.hypot(B.door.ox - a.x, B.door.oz - a.z) + (B.level === a.level ? 0 : 25); v /= 1 + d / 90; }
+      tot += v; return v;
+    });
     let x = this.r() * tot;
     for (let i = 0; i < cand.length; i++) { x -= w[i]; if (x <= 0) return cand[i]; }
     return cand[0];
@@ -294,14 +302,14 @@ export class Director {
         return legs;
       }
       case 'lunch': {
-        const B = this._pickBiz(this.restaurants);
+        const B = this._pickBiz(this.restaurants, true, null, a);
         if (!B) return this.plan('through', a, origin);
         const dw = B.info.dwell || [900, 1800];
         legs.push({ t: 'go', en: P.bizField(B, 3), arrive: 1.5 }, { t: 'queue', B, max: 10 + Math.floor(a.patience * 6) }, { t: 'dine', B, dur: (dw[0] + r() * (dw[1] - dw[0])) / scale });
         return this._onward(legs, a, null);
       }
       case 'coffee': {
-        const B = this._pickBiz(this.cafes);
+        const B = this._pickBiz(this.cafes, true, null, a);
         if (!B) return this.plan('shop', a, origin);
         const dw = B.info.dwell || [300, 900];
         legs.push({ t: 'go', en: P.bizField(B, 3), arrive: 1.5 }, { t: 'queue', B, max: 6 });
@@ -313,7 +321,7 @@ export class Director {
         const n = 1 + Math.floor(r() * 3);
         let lv = null;
         for (let i = 0; i < n; i++) {
-          const B = this._pickBiz(this.shops, true, lv);
+          const B = this._pickBiz(this.shops, true, lv, a);
           if (!B) break;
           lv = B.level;
           legs.push({ t: 'go', en: P.bizField(B, i === 0 ? 3 : 6), arrive: 1.5 });
@@ -390,8 +398,11 @@ export class Director {
     let T = ev && ev.track && P.trackById[ev.track];
     if (!T && ev && ev.platform) { const pl = P.platformById[ev.platform]; if (pl) T = pl.tracks[0]; }
     if (!T) return;
+    // v4: the same train can be announced twice within a second or two (transit's start event + the demo's forced one + 'initial'
+    // arrivals): one surge only, otherwise 2-3 x 50 people step out at once and jam the escalator heads
+    const dup = T.doorsT0 != null && S.time - T.doorsT0 < 6 && T.doorsUntil > S.time && T.surgeN > 0;
     T.doorsT0 = S.time; T.doorsUntil = S.time + (ev.dwell || 22);
-    if (ev.force) T.forceUntil = S.time + 24;   // the demo's opening train: its passengers always step out
+    if (ev.force) T.forceUntil = S.time + 50;   // the demo's opening train: its passengers always step out
     this.counts.trains++;
     // door positions
     let doors = [];
@@ -408,11 +419,17 @@ export class Director {
     const tgt = this.target();
     const base = LINE_BASE[T.line] || 40;
     const fill = clamp(1 + (tgt - (S.count - this.extra)) / Math.max(1, tgt) * 2.5, 0.35, 1.8);
-    const n = Math.round(base * (0.45 + 0.75 * this.rush) * fill * (ev.load != null ? ev.load : 1) * Math.max(0.35, this.scale * 1.5));
+    // a train that was already standing at its doors when the game loaded only populates the platform (a quarter of a surge)
+    const prior = ev.initial && !ev.start && !ev.force ? 0.25 : 1;
+    const n = dup ? 0 : Math.round(base * (0.45 + 0.75 * this.rush) * fill * (ev.load != null ? ev.load : 1) * Math.max(0.35, this.scale * 1.5) * prior);
+    T.surgeN = n || T.surgeN;
     this.counts.surge += n;
+    // a train empties over ~15 s near the doors, but a full rapi:t is 40+ people: the rest trickle out over up to ~45 s so the
+    // escalator heads (1 person / ~0.8 s per lane) can absorb them; the first 40 % come out in the first ~12 s (a lively platform)
+    const span = clamp(10 + n * 0.7, 15, 48);
     for (let i = 0; i < n; i++) {
       const d = doors[Math.floor(this.r() * doors.length)];
-      const delay = 0.3 + this.r() * 11 + (i / n) * 6;   // a train empties over ~15 s, not in one burst
+      const delay = i < n * 0.4 ? 0.3 + this.r() * 11 : 8 + this.r() * (span - 8);
       this.pending.push({ t: S.time + delay, fn: () => this._alight(T, d) });
     }
   }

@@ -466,7 +466,7 @@ function brandCounter(H, R, x0, z0, x1, z1, [name, bg, fg]) {
     for (let k = 0; k < 6; k++) P.cyl('env_gloss', cx - 1.5 + k * 0.6, 0.92, 1.02 + (k % 3) * 0.03, zc + 0.2, 0.025, mix(B, [1, 1, 1], 0.3));
     P.box('env_gloss', cx - 0.25, cx + 0.25, 0.92, 1.35, zc + 0.15, zc + 0.2, [0.8, 0.85, 0.9]);
     const sz = side < 0 ? z0 - 0.35 : z1 + 0.35;
-    for (const sx of [cx - 1.0, cx + 1.0]) { P.geo('env_metal', 'stool', sx, 0, sz, 0, [1, 0.95, 1], mix(B, [1, 1, 1], 0.2)); H.spot('seat', sx, sz, 0, side < 0 ? 1 : -1); }
+    for (const sx of [cx - 1.0, cx + 1.0]) { P.geo('env_metal', 'stool', sx, 0, sz, 0, [1, 0.95, 1], mix(B, [1, 1, 1], 0.2)); H.spot('seat', sx, sz, 0, side < 0 ? 1 : -1, { h: 0.69 }); }
     H.spot('browse', cx, side < 0 ? z0 - 0.5 : z1 + 0.5, 0, side < 0 ? 1 : -1);
     H.spot('staff', cx + 0.6, side < 0 ? z0 + 1.2 : z1 - 1.2, 0, side < 0 ? -1 : 1, { outfit: { uniform: bg } });
   }

@@ -71,10 +71,13 @@ export function orderItem(game, c) {
     },
     view() {
       const n = (game.orders || []).filter(x => x.slotId === c.slotId).length;
+      // v4: Aya's coffee errand (story.js) — this café is where her iced latte comes from
+      const er = isCafe && errandDrink(game, c.slotId);
+      if (er) return { prompt: `Order Aya's ${er.label} ${er.icon}`, promptJa: '注文する', sub: b ? `${b.en} · ${b.ja}` : name };
       if (isCafe) return { prompt: n ? 'Order another ☕' : (drink.icon === '☕' ? 'Order a coffee ☕' : `Order ${drink.icon}`), promptJa: '注文する', sub: b ? `${b.en} · ${b.ja}` : name };
       return { prompt: 'Say hi', promptJa: 'こんにちは', sub: b ? `${b.en} · ${b.ja}` : name };
     },
-    onUse() { exchange(game, c, b, isCafe, drink, name); },
+    onUse() { exchange(game, c, b, isCafe, (isCafe && errandDrink(game, c.slotId)) || drink, name); },
   };
   cache.set(c.slotId, it);
   return it;
@@ -94,7 +97,7 @@ function exchange(game, c, b, isCafe, drink, name) {
   hud?.prompt(null);
 
   if (isCafe) {
-    const line = again ? `Another ${drink.say}, please.` : `One ${drink.say}, please.`;
+    const line = drink.line || (again ? `Another ${drink.say}, please.` : `One ${drink.say}, please.`);
     hud?.caption({ ja: WELCOME.ja, en: WELCOME.en, speaker: who, duration: 1.7 });
     game.after(0.9, () => hud?.caption({ en: line, speaker: 'You', duration: 1.6, channel: 'action' }));
     game.after(1.8, () => hud?.caption({ ja: again ? 'ふふ、かしこまりました。' : 'かしこまりました。', en: again ? 'Ha, of course.' : 'Certainly. One moment.', speaker: who, duration: 1.4 }));
@@ -102,11 +105,11 @@ function exchange(game, c, b, isCafe, drink, name) {
     game.after(2.3, () => {
       const rec = { slotId: c.slotId, name, item: drink.label, icon: drink.icon, at: ctx.clock.hhmm, price: drink.price };
       orders.push(rec);
-      if (game.journal) game.journal.coffees = (game.journal.coffees || 0) + (drink.icon === '☕' ? 1 : 0);
+      if (game.journal) game.journal.coffees = (game.journal.coffees || 0) + (drink.icon === '☕' || drink.errand ? 1 : 0);
       pay(game, drink.price);
       hud?.toast({ kind: 'done', title: 'Ordered', en: `${drink.icon} ${drink.label} — ${name}`, ja: drink.ja, duration: 3.4 });
       hud?.cup(true, `${drink.icon} ${drink.label} — ${name}`, orders.length);
-      ctx.events.emit('demo:order', { slotId: c.slotId, name, item: drink.label, kind: 'cafe', t: ctx.clock.minutes });
+      ctx.events.emit('demo:order', { slotId: c.slotId, name, item: drink.label, kind: 'cafe', errand: !!drink.errand, t: ctx.clock.minutes });
     });
     return;
   }
@@ -117,6 +120,11 @@ function exchange(game, c, b, isCafe, drink, name) {
   hud?.caption({ ja: WELCOME.ja, en: c.kind === 'shop' ? 'Welcome in! Take your time.' : 'Welcome! Table for one?', speaker: who, duration: 1.8 });
   game.after(1.0, () => hud?.caption(tail.thought ? { en: tail.en, kind: 'thought', duration: 2.4 } : { en: tail.en, speaker: 'You', duration: 1.6, channel: 'action' }));
   game.after(2.0, () => ctx.events.emit('demo:order', { slotId: c.slotId, name, item: null, kind: c.kind, hi: true, t: ctx.clock.minutes }));
+}
+
+// v4: the drink Aya asked for, while her errand is open at this café (else null)
+function errandDrink(game, slotId) {
+  try { const st = game.story; return st && st.errandDrink ? st.errandDrink(slotId) : null; } catch (e) { return null; }
 }
 
 // pay with the ICOCA card if there is enough on it (quiet chip), else coins (no chip)

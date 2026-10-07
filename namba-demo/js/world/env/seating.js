@@ -42,7 +42,7 @@ export function tableSet(S, P, cells, i, j, o = {}) {
   place.forEach(([ca, cd, fa, fd], q) => {
     if (sides === 1 && q % 2) return;
     chair(P, ca + (r() - 0.5) * 0.1, cd + (r() - 0.5) * 0.1, fa, fd, { wood: wooden, frame: wooden ? wood : [0.16, 0.16, 0.17], seat, jit: (r() - 0.5) * 0.55 });
-    S.spot('seat', ca, cd, fa, fd);
+    S.spot('seat', ca, cd, fa, fd, { h: 0.495 });
   });
   if (o.decor) o.decor(ta, td, axis, tw, tdp);
   else {

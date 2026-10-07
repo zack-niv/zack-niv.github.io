@@ -38,6 +38,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const total = [
     s.totalSeconds != null && isFinite(s.totalSeconds) ? `${mmss(s.totalSeconds)} min` : null,
     s.totalMeters != null && isFinite(s.totalMeters) ? `${metres(s.totalMeters)} m on foot` : null,
+    s.errand && s.errand.delivered ? `1 ${s.errand.item || 'coffee'} delivered` : null,      // v4: the coffee stop
   ].filter(Boolean).join(' · ');
   const cell = (r, side) => {
     const v = side === 'b' ? r.b : r.a;

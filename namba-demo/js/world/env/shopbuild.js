@@ -964,7 +964,7 @@ INTERIOR.shoes = (S, c) => {
     if (W >= 6 && S.solid(W / 2 - 0.6, W / 2 + 0.6, d, d + 0.5)) {
       P.box('env_matte', W / 2 - 0.6, W / 2 + 0.6, 0, 0.42, d, d + 0.5, [0.3, 0.32, 0.36]);
       P.box('env_matte', W / 2 - 0.15, W / 2 + 0.15, 0.42, 0.9, d + 0.2, d + 0.24, [0.8, 0.85, 0.9]);
-      S.spot('seat', W / 2 - 0.3, d + 0.25, 0, -1); S.spot('seat', W / 2 + 0.3, d + 0.25, 0, -1);
+      S.spot('seat', W / 2 - 0.3, d + 0.25, 0, -1, { h: 0.42 }); S.spot('seat', W / 2 + 0.3, d + 0.25, 0, -1, { h: 0.42 });
     }
   }
   // display table at the front
@@ -1267,7 +1267,7 @@ INTERIOR.cafeOld = (S, c) => {
   if (S.solid(bwA, bwA + 0.55, cd1 + 0.6, Dm - 0.5, { pocket: 3 })) {
     P.box('env_matte', bwA, bwA + 0.55, 0, 0.45, cd1 + 0.6, Dm - 0.5, seatCol);
     P.box('env_matte', right ? 0 : W - 0.12, right ? 0.12 : W, 0.45, 1.0, cd1 + 0.6, Dm - 0.5, seatCol);
-    for (let d = cd1 + 1; d < Dm - 0.8; d += 0.9) S.spot('seat', right ? 0.9 : W - 0.9, d, right ? -1 : 1, 0);
+    for (let d = cd1 + 1; d < Dm - 0.8; d += 0.9) S.spot('seat', right ? 0.9 : W - 0.9, d, right ? -1 : 1, 0, { h: 0.45 });
   }
   // pendant lamps
   for (let d = 2; d < Dm - 1; d += 2.5) {
@@ -1297,7 +1297,7 @@ export function cafeTable(S, P, a, d, wood, seatCol, round = false) {
   P.geo('env_matte', 'chair_seat', a, 0, d - 0.62, Math.PI + j, 1, seatCol);
   P.geo('env_metal', 'chair_frame', a, 0, d + 0.62, -j, 1, [0.15, 0.15, 0.15]);
   P.geo('env_matte', 'chair_seat', a, 0, d + 0.62, -j, 1, seatCol);
-  S.spot('seat', a, d - 0.62, 0, 1); S.spot('seat', a, d + 0.62, 0, -1);
+  S.spot('seat', a, d - 0.62, 0, 1, { h: 0.495 }); S.spot('seat', a, d + 0.62, 0, -1, { h: 0.495 });
   // cups
   if (S.r() < 0.4) P.cyl('env_gloss', a + 0.1, 0.75, 0.84, d - 0.1, 0.04, [0.97, 0.97, 0.95]);
   return true;
@@ -1327,7 +1327,7 @@ INTERIOR.kissa = (S, c) => {
       P.geo('env_gloss', 'sphere', a, 1.15, cd + 0.3, 0, 0.07, [0.2, 0.1, 0.05]);
       P.cyl('env_glow', a, 1.05, 1.09, cd + 0.3, 0.04, [2.4, 1.2, 0.4]);
     }
-    for (let a = 1.2; a < W - 3.2; a += 0.7) { stool(P, a, cd - 0.5, [0.45, 0.07, 0.09]); S.spot('seat', a, cd - 0.5, 0, 1); }
+    for (let a = 1.2; a < W - 3.2; a += 0.7) { stool(P, a, cd - 0.5, [0.45, 0.07, 0.09]); S.spot('seat', a, cd - 0.5, 0, 1, { h: 0.73 }); }
     S.service('barista', [W - 2.5, cd - 0.5], [W - 2.5, cd + 1.1]);
     // shelves of cups & bottles behind
     for (let k = 0; k < 3; k++) {
@@ -1539,7 +1539,7 @@ INTERIOR.rcounter = (S, c) => {
     const sa = right ? ca0 - 0.45 : ca1 + 0.45;
     for (let d = kd0 + 1.0; d < kd1 - 0.3; d += 0.62) {     // (the first slot is the ordering spot)
       stool(P, sa, d, cat === 'ramen' ? [0.7, 0.1, 0.1] : [0.25, 0.2, 0.15]);
-      S.spot('seat', sa, d, right ? 1 : -1, 0);
+      S.spot('seat', sa, d, right ? 1 : -1, 0, { h: 0.73 });
       // bowl on the counter now and then
       if (r() < 0.35) foodItem(S, P, (SAMPLES[cat] || ['ramen'])[0], right ? ca0 + 0.12 : ca1 - 0.12, 1.05, d, 0.11);
       // water cups + condiments
@@ -1606,7 +1606,7 @@ INTERIOR['key:tempura_great'] = (S, c) => {
     P.qh('env_glow', a0 + 0.1, a1 - 0.1, cd0 + 0.1, cd0 + 0.14, 0.9, false, [1.8, 1.2, 0.7]);  // under-counter glow
     for (let a = a0 + 0.55; a < a1 - 0.3; a += 0.82) {
       P.geo('env_metal', 'stool', a, 0, cd0 - 0.45, 0, [1, 0.8, 1], [0.2, 0.11, 0.07]);
-      S.spot('seat', a, cd0 - 0.45, 0, 1);
+      S.spot('seat', a, cd0 - 0.45, 0, 1, { h: 0.584 });
       if (r() < 0.6) { foodItem(S, P, 'tempura', a, 1.04, cd0 + 0.18, 0.12); P.cyl('env_gloss', a + 0.26, 1.04, 1.1, cd0 + 0.1, 0.04, [0.95, 0.94, 0.9]); }
     }
   }
@@ -1666,7 +1666,7 @@ INTERIOR.sushiOld = (S, c) => {
     P.qh('env_glow', 0.82, W - 0.82, cd + 0.27, cd + 0.58, 1.29, false, [2, 2, 2]);
     const reg = S.R.food('sushi');
     for (let a = 0.85; a < W - 1.2; a += 0.45) P.qh(reg.atlas.mat(reg), a, a + 0.4, cd + 0.28, cd + 0.56, 1.08, true, WHITE, reg.atlas.uv(reg));
-    for (let a = 1.9; a < W - 0.9; a += 0.65) { stool(P, a, cd - 0.45, [0.3, 0.2, 0.12]); S.spot('seat', a, cd - 0.45, 0, 1); if (S.r() < 0.4) foodItem(S, P, 'sushi', a, 1.06, cd - 0.05, 0.1); }
+    for (let a = 1.9; a < W - 0.9; a += 0.65) { stool(P, a, cd - 0.45, [0.3, 0.2, 0.12]); S.spot('seat', a, cd - 0.45, 0, 1, { h: 0.73 }); if (S.r() < 0.4) foodItem(S, P, 'sushi', a, 1.06, cd - 0.05, 0.1); }
     S.spot('staff', W / 2, cd + 1.2, 0, -1); S.spot('staff', W / 2 + 1.2, cd + 1.2, 0, -1);
     S.service('chef', [1.0, cd - 0.55], [1.0, cd + 1.2]);
   }
@@ -1716,7 +1716,7 @@ INTERIOR.rtableOld = (S, c) => {
       }
       for (const [oa, od, rot] of [[-0.3, -0.62, Math.PI], [0.3, -0.62, Math.PI], [-0.3, 0.62, 0], [0.3, 0.62, 0]]) {
         chair(P, a + oa, d + od, rot, [0.15, 0.12, 0.1], seat);
-        S.spot('seat', a + oa, d + od, 0, od < 0 ? 1 : -1);
+        S.spot('seat', a + oa, d + od, 0, od < 0 ? 1 : -1, { h: 0.495 });
       }
     }
   }

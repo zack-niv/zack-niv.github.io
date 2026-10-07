@@ -9,6 +9,8 @@
 //   3. Lodestone ready: the ONE next step ("Escalator up to 2F", in 40 m)
 //   4. the generic Maps app: the vague crow-flies hint (or its one-floor route),
 //      with the GPS-weak excuse
+//   v4: no destination yet → "Pick a place in Maps / Lodestone" · "Aya: <her pick>";
+//       arrived → "Arrived · <name>" · "Next: <suggestion>" 
 // Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
@@ -72,11 +74,12 @@ export class Glance {
   _render(i) {
     // the key hint teaches itself away: shown until the phone has been raised a few times
     const rep = this.phone.messages && this.phone.messages.pending;
-    const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || (this.phone._raises || 0) >= 3 ? '' : `<kbd class="gl-k">Q</kbd>`);
+    const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || ((this.phone._raises || 0) >= 3 && i.kind !== 'pick' && !(i.kind === 'arr' && /^Next/.test(i.sub || ''))) ? '' : `<kbd class="gl-k">Q</kbd>`);
     let ic = '';
     if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
     else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;
     else if (i.cls === 'gl-ld') ic = `<i class="gl-ic ${i.trk || ''}">${i.live ? icon('straight', 'gl-arrow') : icon(i.icon || 'straight')}</i>`;
+    else if (i.icon === 'pin' || i.icon === 'check') ic = `<i class="gl-ic gl-pin">${icon(i.icon)}</i>`;
     else ic = `<i class="gl-ic">${i.warn ? `<b class="gl-wb" title="${esc(i.warn)}">!</b>` : ''}${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
     const bar = i.pct != null ? `<u class="gl-bar"><i style="width:${(i.pct * 100).toFixed(0)}%"></i></u>` : '';
     const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${esc(i.sub || '')}</span>`;

@@ -203,7 +203,10 @@ export function buildSurfaces(K) {
         const xa = g.x0 + cx + 0.5, za = g.z0 + cz + 0.5, xb = xa + dx, zb = za + dz;
         if (K.isHole(K.above(lv), xa, za) || K.isHole(K.above(lv), xb, zb)) continue;
         const low = A.ceil < Bs.ceil ? A : Bs, high = low === A ? Bs : A;
-        const nx = low === A ? -dx : dx, nz = low === A ? -dz : dz; // facing the lower side
+        // v4: the step face is only ever seen from the HIGH side (from the low side it hides above the low
+        // ceiling). It used to face the low side, so from a tall court you looked through the step into the
+        // plenum over the next corridor and saw the floor above from underneath (CITY 1F court, z 50).
+        const nx = low === A ? dx : -dx, nz = low === A ? dz : -dz; // facing the higher side
         const b = K.B(lv, X, Z);
         const [ax, az, bx, bz] = dx ? [X, Z - 1, X, Z] : [X - 1, Z, X, Z];
         face(b, styleOf(low).fascia, ax, az, bx, bz, y + low.ceil, y + high.ceil, nx, nz, 0);
@@ -276,12 +279,15 @@ function buildSlabEdges(K) {
         // neighbour ramp on its lower level (escalator foot) or nothing: skip if
         // there is no slab to show (track / solid ground with no walk above)
         // bottom: ceiling of the level below under the neighbour cell
+        // v4: the edge always reaches the ceiling of the space below when there is one. It used to be
+        // clamped to 0.9 m where the upper neighbour is solid (no floor up there), which left the plenum
+        // between the lower ceiling and the upper slab open: riding the Parks 6F->7F escalator you looked
+        // sideways into it and saw the 6F restaurants from above (no roofs) and the sky beyond.
         let yb = y - 0.9;
         if (bl) {
           const cb = bl ? K.ceilAt(bl, nx0, nz0) : null;
           if (cb != null) yb = Math.min(y - 0.25, cb);
         }
-        if (nc.t !== CELL.WALK && nc.t !== CELL.RAMP) { if (yb < y - 0.9) yb = y - 0.9; }
         // edge line between the cells, face towards the hole (-dx,-dz)
         const ex = X + dx * 0.5, ez = Z + dz * 0.5;
         const [ax, az, bx, bz] = dx ? [ex, Z - 0.5, ex, Z + 0.5] : [X - 0.5, ez, X + 0.5, ez];
@@ -322,7 +328,8 @@ function buildRoofSlabs(K) {
         let ok = false;
         if (cx < g.w) {
           const i = cz * g.w + cx;
-          if (g.type[i] === CELL.WALK && !L.spaces[g.space[i]].outdoor) {
+          // (the glazed Parks skywalks get their own planted roof from outdoor/structures.js, 1.6 m lower)
+          if (g.type[i] === CELL.WALK && !L.spaces[g.space[i]].outdoor && L.spaces[g.space[i]].style !== 'parks_skywalk') {
             const t = gu ? gu.typeAt(g.x0 + cx + 0.5, g.z0 + cz + 0.5) : CELL.SOLID;
             ok = t === CELL.SOLID || t == null;
           }
