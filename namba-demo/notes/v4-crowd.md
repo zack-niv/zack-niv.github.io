@@ -171,11 +171,20 @@ Per ramp end (worst four per scenario):
 (`-` = the other end of a lane / a landing: nobody boards there. Densities at a landing include the neighbouring lane's line.)
 Stability: 3 further seeds of the start scenario: max density 7 / 6 / 7, longest line 7 / 6 / 6, worst wait 11.6 / 11.1 / 10.9 s.
 
+Browser confirmation (real game page, same start surges injected at t=0, 110 s of sim, viewer at the 3F concourse): people within 3.5 m of the
+esc_nk_3 3F head at t = 10..110 s: 12, 6, 5, 3, 2, 3, 4, 1, 0, 3, 7 (the 12 at t=10 s is the initial fill that is already standing there; the wave never
+exceeds 7). The camera for the screenshot of the head faced the wrong way, so there is no head screenshot; the numbers are the evidence.
+
 ## Tools
 
 * `node js/npc/flowprobe.mjs --spawn start --time 11:20 --secs 150 --walk 1 --to -40,-62 --range 130 [--train 0|1] [--seed N] [--dump esc_nk_3_1 --dumpend high] [--dumpstarve 1] [--json out.json]`
   (Node only, ~5 s per run). Reproduces the browser's start surges (`--nodouble 1` = only the forced train).
-* Seat / pose / crowd screenshots: `notes/v4-shots/crowd/`.
+* Screenshots (`notes/v4-shots/crowd/`, headless SwiftShader, quality high): `after_seats_counter_stools.png` (kissaten bar: 6 people on stools facing the counter,
+  hips on the seat, shins down), `after_seats0.png` (table chairs, sofa, armchair), `after_phone.png` (phone / photo / browse poses on the 3F concourse, seen from the front). The "before" of the clump is the player's `notes/v4-shots/player/e_nankai3f_escalator_clump.webp`
+  (the v3 code is not kept; the before numbers come from flowprobe on the v3 code).
+* Checks: `node tools/loadprobe.mjs`: READY in 22.1 s, no errors. All final.mjs browser steps ran with no console errors other than the known Google-Fonts certificate error.
+  Node: `js/npc/bench.mjs 1500 600 12:10 city_2f` sim CPU avg 1.1 ms (no regression).
+  Phone prop distance to the right wrist (skinned-vertex dump): 0.285 m -> 0.097 m in idle, phone, phonewalk, photo, browse and the new sitphone clips.
 
 ## Requests (outside my files)
 
