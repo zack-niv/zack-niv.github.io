@@ -726,3 +726,17 @@
 .gl-pick .gl-t span, .gl-arr .gl-t span { -webkit-line-clamp: 2; font-size: 12px; }
 .gl-mp.gl-pick .gl-t span, .gl-mp.gl-arr .gl-t span { color: #9cc7ff; }
 .gl-ld.gl-pick .gl-t span, .gl-ld.gl-arr .gl-t span { color: #ffcf84; }
+/* v4 (lead): "Next: <Aya's pick>" chip while a route is active elsewhere — one tap / key 1 */
+.dl-next { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px 8px 12px; border-radius: 14px; cursor: pointer; font-family: inherit; text-align: left; }
+.dl-next em { flex: 0 0 auto; font-style: normal; font-size: 10px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.dl-next b { flex: 1; min-width: 0; font-size: 14px; font-weight: 750; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-next small { flex: 0 0 auto; font-size: 11px; opacity: .75; }
+.dl-next kbd { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font: 800 11px/1 Inter, sans-serif; }
+.dl-next-maps { margin: 0 0 10px; border: 1.5px solid #1a73e8; background: #e8f0fe; color: #174ea6; }
+.dl-next-maps em { color: #c5221f; } .dl-next-maps kbd { background: #1a73e8; color: #fff; }
+.ld-next { position: absolute; left: 10px; right: 10px; bottom: 228px; z-index: 4; }
+.ld-main.has-next .ld-x3d { bottom: 276px; }
+.ld-next:empty { display: none; }
+.dl-next-lode { border: 1.5px solid rgba(255,176,46,.75); background: linear-gradient(100deg, rgba(40,30,12,.95), rgba(14,18,30,.95)); color: #f2f6ff; box-shadow: 0 6px 22px rgba(0,0,0,.45); }
+.dl-next-lode em { color: #ffb02e; } .dl-next-lode kbd { background: #ffb02e; color: #1a1206; }
+.ld-main[data-view="stack"] ~ .ld-next, .ld-main.picking .ld-next, .ld-main.reveal .ld-next, .ld-main[data-view="stack"] .ld-next { display: none; }

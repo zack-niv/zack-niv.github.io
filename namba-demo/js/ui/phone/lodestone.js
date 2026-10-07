@@ -14,7 +14,7 @@ import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js';
 import { Stack3D } from './stack3d.js';
 import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
 import { Tracker } from './track.js';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort } from './destinations.js';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js';
 import { businessBySlot } from '../../world/directory.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -112,6 +112,7 @@ export class LodestoneApp {
         <div class="ld-ctl"><div class="ld-seg"><button data-m="overview" class="on">Route</button><button data-m="follow">Me</button></div><button class="ld-recenter" title="Re-centre" aria-label="Re-centre">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/></svg>'}</button><button class="ld-done">Done</button></div>
         <div class="ld-sheet"><ol class="ld-steps"></ol></div>
         <div class="ld-card" hidden></div>
+        <div class="ld-next"></div>
         <div class="ld-pick"><button class="ld-pick-x" type="button" aria-label="Back to the route">×</button><div class="ld-pick-l"></div></div>
       </section>`;
     const q = (c) => root.querySelector(c);
@@ -462,6 +463,17 @@ export class LodestoneApp {
   }
   onArrived(d) { if (this.dest && d && d.id === this.dest.id) this._arrive(); }
   onListChanged() { this._syncPick(); this._guideKey = ''; }
+  // "Next: <Aya's pick>" chip above the trip card while guiding somewhere else (1 / click takes it)
+  _syncNext() {
+    const c = this.state === 'ready' && !this.picking ? nextChip(this.phone) : null;
+    this._next = c;
+    const key = c ? c.id : '';
+    if (key === this._nextKey) return; this._nextKey = key;
+    this.el.main.classList.toggle('has-next', !!c);
+    const box = this.root.querySelector('.ld-next');
+    box.innerHTML = nextChipHtml(c, this.list.touch, 'dl-next-lode');
+    const b = box.querySelector('.dl-next'); if (b) b.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
+  }
   // "Change" (true) / back to the route (false)
   choose(on) {
     if (this.state !== 'ready') return;
@@ -471,7 +483,11 @@ export class LodestoneApp {
     this._guideKey = ''; this._renderGuide(true);
   }
   get picking() { return this.state === 'ready' && (!this.dest || this.arrived || this._choosing); }
-  activeList() { return this.picking && this.view === 'guide' && this.list.items.length ? this.list : null; }
+  activeList() {
+    if (this.view !== 'guide' || this.state !== 'ready') return null;
+    if (!this.picking) return this._next || null;
+    return this.list.items.length ? this.list : null;
+  }
   focusSearch() { return this.picking ? this.list.focusSearch() : false; }
   _pickItem(it) {
     this.phone._lastPhoneInput = this.phone._now;
@@ -488,6 +504,7 @@ export class LodestoneApp {
     this.el.main.classList.toggle('picking', on);
     this.el.main.classList.toggle('choosing', on && this._choosing);
     if (on !== this._wasPicking) { this._wasPicking = on; this._bands(); }
+    this._syncNext();
     if (on) this._renderList();
   }
   _renderList() {

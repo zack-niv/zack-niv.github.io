@@ -18,7 +18,7 @@ import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './p
 import { routeLegs, simplify, fieldNoEntry } from './routes.js';
 import { hash } from '../../core/rng.js';
 import { placeArt, reviewsFor, popularTimes } from './art.js';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort } from './destinations.js';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js';
 
 const BASE_PPM = 4;          // cached base layer resolution (px per metre)
 const ZOOM_MIN = 0.45, ZOOM_MAX = 14;
@@ -698,9 +698,12 @@ export class MapApp {
     this.follow = true;
     this.showHome();
   }
-  onListChanged() { if (this.sheet === 'home') this.showHome(); }
-  // the list the keyboard drives (1–9, ↑↓ Enter) while Maps is up
-  activeList() { return (this.sheet === 'home' || this.sheet === 'results') && this.list && this.list.items.length ? this.list : null; }
+  onListChanged() { if (this.sheet === 'home') this.showHome(); else if (this.sheet === 'route') this._routeSheet(); }
+  // the list the keyboard drives (1–9, ↑↓ Enter) while Maps is up; on a route: the "Next (from Aya)" chip
+  activeList() {
+    if (this.sheet === 'route') return this._next || null;
+    return (this.sheet === 'home' || this.sheet === 'results') && this.list && this.list.items.length ? this.list : null;
+  }
   focusSearch() { this.input.focus(); return true; }
   _refreshHome() {
     if (this.sheet !== 'home' || !this._homeEl) return;
@@ -893,7 +896,9 @@ export class MapApp {
       }
     });
     if (legs.length > 1) steps.push(`<li class="mp-dim">Directions for the remaining floors will appear once we detect you on ${LEVELS[(() => { const r = LAYOUT.ramps[leg.ramp]; return leg.dir > 0 ? r.upper : r.lower; })()].label}. <i>(We’re not sure when that is.)</i></li>`);
+    this._next = nextChip(this.phone);
     this._setSheet('route', `<button class="mp-x">×</button><div class="mp-pc">
+      ${nextChipHtml(this._next, this.ctx.input && this.ctx.input.touch, 'dl-next-maps')}
       <div class="mp-rt-h"><b>${minutes} min</b> <span class="mp-dim">(${fmtDist(R.total)})</span></div>
       <div class="mp-pc-meta">to <b>${esc(t.en)}</b> · <span class="mp-fl">${LEVELS[t.level].label}</span></div>
       ${t.level !== R.level ? `<div class="mp-note">Showing this floor only · destination is on ${LEVELS[t.level].label} · straight-line distance ${fmtDist(this._crow(t))}</div>` : ''}
@@ -902,6 +907,7 @@ export class MapApp {
       <div class="mp-actions"><button class="mp-end">End</button></div></div>`);
     this.sheetIn.querySelector('.mp-x').addEventListener('click', () => this.endRoute());
     this.sheetIn.querySelector('.mp-end').addEventListener('click', () => this.endRoute());
+    const nb = this.sheetIn.querySelector('.dl-next'); if (nb) nb.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
   }
   // End / × on the route = no destination any more (both apps back to their list)
   endRoute() { this.route = null; this.banner.hidden = true; this.selected = null; this.results = []; if (this.phone.dest && this.phone.dest.current) this.phone.clearDestination(); else this.showHome(); }

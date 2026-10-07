@@ -234,4 +234,15 @@ export function bizSub(b, minutes) {
   const st = b.cat === 'closed' ? 'Closed for renovation' : open ? '' : `Closed · opens ${hm(b.hours[0])}`;
   return { sub: [CATEGORIES[b.cat].en.replace(/ \(.*\)$/, ''), lvl(b.level), zoneShort(b.zone)].filter(Boolean).join(' · '), closed: !open, status: st };
 }
+// The "Next: <name> (from Aya)" chip shown while a route is active and Aya's suggestion is somewhere else
+// (lead's v4 request: the second leg never needs Change / ×). A one-row stand-in for DestList so the phone's
+// list keys work on it: 1 / Enter take it. `null` when there is nothing to offer.
+export function nextChip(phone) {
+  const D = phone.dest, C = D && D.current, id = D && D.next();
+  if (!id || !C || C.arrived) return null;
+  const name = D.name(id); if (!name) return null;
+  return { id, name, chip: true, items: [{ id, name }], sel: 0, armed: false, move() {},
+    pick() { phone._lastPhoneInput = phone._now; return phone.setDestination(id, { app: phone.app === 'lodestone' ? 'lodestone' : 'maps' }); } };
+}
+export const nextChipHtml = (c, touch, cls) => c ? `<button type="button" class="dl-next ${cls || ''}"><em>Next</em><b>${esc(c.name)}</b><small>from Aya</small>${touch ? '' : '<kbd>1</kbd>'}</button>` : '';
 export { lvl as levelLabel, esc as escHtml };

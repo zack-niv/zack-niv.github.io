@@ -68,6 +68,11 @@ ctx.phone.clearDestination()       // drop the destination (both apps back to th
   (cost field) per destination is cached, so going back and forth between legs costs nothing after the first time.
   The Namba Parks canyon detour is only offered on the way up into the Parks (3F+) and only once per game.
 
+- **"Next" chip (lead's request).** While a route is active and `ctx.phone.suggested` is somewhere else, both apps
+  show a one-tap **"NEXT · <name> · from Aya [1]"** chip: top of the Maps route sheet, and above Lodestone's trip
+  card. Key **1** takes it (only 1: arrows and Enter keep their normal meaning there), so the second leg never needs
+  Change or ×. Not added to the glance strip (it already carries the step; one glance = one decision).
+
 ## Stats across legs
 `stats()` keeps every v3 field (before/after are positioning *phases*, not legs, so they stay sane over two legs:
 before = Maps time, after = Lodestone time, frozen on `demo:arrive`) and adds

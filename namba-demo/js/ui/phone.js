@@ -198,6 +198,7 @@ export class Phone {
       if (this._now - (this._appAt || -1e9) < 0.35) return;           // just switched app: no accidental pick
       L.pick(i); return;
     }
+    if (L.chip) return;                                                // the "Next" chip: only its number (arrows still walk)
     if (e.code === 'ArrowDown' || e.code === 'ArrowUp') { eat(); L.move(e.code === 'ArrowDown' ? 1 : -1); return; }
     if ((e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat) {
       if (this.upgradeStage === 'offer' && !L.armed) return;          // Enter still installs Lodestone while it is offered
