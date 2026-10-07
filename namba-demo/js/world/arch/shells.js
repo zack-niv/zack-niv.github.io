@@ -78,14 +78,16 @@ export function buildShells(K) {
         const nA = vert ? [-1, 0] : [0, -1], nB = vert ? [1, 0] : [0, 1];
         // the other side shows no opaque wall here: outdoors, or a glazed space (skywalk)
         const open = (sp) => !sp || sp.outdoor || styleOf(sp).wall === 'glass';
-        if (spA && spA.kind === 'room' && !spA.outdoor && open(spB)) outs.push([spA, nB[0], nB[1]]);
-        if (spB && spB.kind === 'room' && !spB.outdoor && open(spA)) outs.push([spB, nA[0], nA[1]]);
+        // v4 critic: behind skywalk glass the room's back reads as obscured (frosted) glazing, not a slab of canyon strata
+        const glassy = (sp) => !!sp && !sp.outdoor && styleOf(sp).wall === 'glass';
+        if (spA && spA.kind === 'room' && !spA.outdoor && open(spB)) outs.push([spA, nB[0], nB[1], glassy(spB)]);
+        if (spB && spB.kind === 'room' && !spB.outdoor && open(spA)) outs.push([spB, nA[0], nA[1], glassy(spA)]);
       }
       if (!outs.length) continue;
       const b = K.B(lv, (e.ax + e.bx) / 2, (e.az + e.bz) / 2);
-      for (const [sp, nx, nz] of outs) {
+      for (const [sp, nx, nz, frosted] of outs) {
         const top = up ? K.y(up) - 0.12 : y + sp.ceil + 0.3;
-        face(b, outerMat(sp), e.ax, e.az, e.bx, e.bz, y0, top, nx, nz, -IN);
+        face(b, frosted ? 'wall_panel_white' : outerMat(sp), e.ax, e.az, e.bx, e.bz, y0, top, nx, nz, -IN);
         st.wallFaces++;
       }
     }

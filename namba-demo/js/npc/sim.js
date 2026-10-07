@@ -432,7 +432,15 @@ export class CrowdSim {
     const rx = -tz, rz = tx;            // right of travel
     let u;
     if (R.esc) {
-      a.walkLane = like ? like.walkLane : a.hurry > 0.62 && !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
+      const able = !(a.flags & (1 << 3)) && a.kind !== 'elderly' && a.kind !== 'child' && a.kind !== 'tourist';
+      a.walkLane = like ? like.walkLane : a.hurry > 0.62 && able;
+      // v4 critic: the stand lane backed up and the walk lane (nearly) empty => able people walk down/up the left lane instead
+      // of joining a 20-person line (lunch at the CITY 2F down escalator grew a 30-person blob with the walk lane idle)
+      if (!like && !a.walkLane && able) {
+        const pre = fromLow ? 'qL' : 'qH', live = (q) => q ? q.reduce((n, b) => n + (b.alive && b.rampQ === q ? 1 : 0), 0) : 0;
+        const ns = live(R[pre + 's']), nw = live(R[pre + 'w']);
+        if (ns >= 4 && nw * 2 + 2 < ns) a.walkLane = true;
+      }
       u = (a.walkLane ? -0.24 : 0.24) * ESC_STAND_SIDE; // +u = right of travel
     } else {
       a.walkLane = true;

@@ -736,6 +736,7 @@
 .dl-next kbd { flex: 0 0 auto; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font: 800 11px/1 Inter, sans-serif; }
 .dl-next-maps { margin: 0 34px 10px 0; width: calc(100% - 34px); border: 1.5px solid #1a73e8; background: #e8f0fe; color: #174ea6; }
 .dl-next-maps em { color: #c5221f; } .dl-next-maps kbd { background: #1a73e8; color: #fff; }
+.dl-next-maps small { display: none; }   /* v4 critic: the narrow Maps chip shows the place name, not "from Aya" (the red NEXT + key cap already say it) */
 .ld-next { position: absolute; left: 10px; right: 10px; bottom: 228px; z-index: 4; }
 .ld-main.has-next .ld-x3d { bottom: 276px; }
 .ld-next:empty { display: none; }
