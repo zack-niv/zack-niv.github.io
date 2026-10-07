@@ -410,7 +410,7 @@ export class HumanLibrary {
     // v4 critic: the phone sat 5 mm off the hand's centre line, i.e. INSIDE the 3 cm-thick hand mesh, so it never showed. Hold it
     // against the palm (the palm faces the body's midline in the idle pose the parts are authored in), a bit proud of the fingers.
     const palm = hR.x < 0 ? 1 : -1;
-    box(BIT.PHONE, 'WristR', A.white, hR.x + palm * 0.03, hR.y - 0.035, hR.z + 0.025, 0.1, 0.45, 0.3);
+    box(BIT.PHONE, 'WristR', A.dark, hR.x + palm * 0.03, hR.y - 0.035, hR.z + 0.025, 0.014, 0.15, 0.075);
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);
