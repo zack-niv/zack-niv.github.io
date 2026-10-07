@@ -107,7 +107,8 @@ export class Story {
       hint: () => {
         if (!up()) return { html: TUTORIAL.pick2Down, at: 'phone' };
         const d = ph().destination;      // still routing somewhere else (not arrived): the list is one step away
-        return { html: d && !d.arrived && d.slotId !== DEMO.slot ? TUTORIAL.pick2Route : TUTORIAL.pick2, at: 'phoneup' };
+        const routing = d && !d.arrived && d.slotId !== DEMO.slot;
+        return { html: routing ? (ph().app === 'lodestone' ? TUTORIAL.pick2RouteLs : TUTORIAL.pick2Route) : TUTORIAL.pick2, at: 'phoneup' };
       } });
   }
   _sendCoffee() {

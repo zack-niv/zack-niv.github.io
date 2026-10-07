@@ -66,6 +66,7 @@ export const TUTORIAL = {
   pick2: 'Next stop: pick <b>Tempura Daikichi</b> — Aya\'s pick, top of the list',
   pick2Down: '{k:Q} — pick your next stop',
   pick2Route: 'Next stop: <b>Tempura Daikichi</b> — end this route (×) and pick Aya\'s place',
+  pick2RouteLs: 'Next stop: <b>Tempura Daikichi</b> — tap <b>Change</b>, then Aya\'s pick',
   order: 'Walk up to the counter — {k:E} to order',
   interact: '{k:E} interacts — machines, doors, café counters',
   interactHere: '{k:E} — try it',
