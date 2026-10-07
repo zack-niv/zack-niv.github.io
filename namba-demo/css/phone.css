@@ -742,3 +742,4 @@
 .dl-next-lode { border: 1.5px solid rgba(255,176,46,.75); background: linear-gradient(100deg, rgba(40,30,12,.95), rgba(14,18,30,.95)); color: #f2f6ff; box-shadow: 0 6px 22px rgba(0,0,0,.45); }
 .dl-next-lode em { color: #ffb02e; } .dl-next-lode kbd { background: #ffb02e; color: #1a1206; }
 .ld-main[data-view="stack"] ~ .ld-next, .ld-main.picking .ld-next, .ld-main.reveal .ld-next, .ld-main[data-view="stack"] .ld-next { display: none; }
+.dl-lodestone .dl-r.aya .dl-d { display: none; }
