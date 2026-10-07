@@ -29,8 +29,8 @@ export class Glance {
   }
 
   showNote(msg) {
-    this.note = { title: msg.title || 'Aya', text: msg.text || '' };
-    this._noteT = NOTE_S;
+    this.note = { title: msg.title || 'Aya', text: msg.text || '', reply: !!msg.reply };
+    this._noteT = msg.reply ? NOTE_S + 3 : NOTE_S;
     this.refresh(true);
     // pulse (restart the animation)
     this.root.classList.remove('ping'); void this.root.offsetWidth; this.root.classList.add('ping');
@@ -46,9 +46,13 @@ export class Glance {
     if (this._t > 0) { this._spin(dt); return; }
     this._t = 0.25;
     const info = this._info();
-    info.unread = this.phone.messages && this.phone.messages.unread > 0 && info.kind !== 'note';
-    const key = JSON.stringify([info.kind, info.cls, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, (this.phone._raises || 0) >= 3]);
+    const M = this.phone.messages;
+    info.unread = M && (M.unread > 0 || !!M.pending) && info.kind !== 'note';
+    info.rep = !!(M && M.pending);
+    info.typing = M && M.typingFrom && info.kind !== 'note' ? M.typingFrom : null;
+    const key = JSON.stringify([info.kind, info.cls, info.trk, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, info.rep, info.typing, (this.phone._raises || 0) >= 3]);
     if (key !== this._key) { this._key = key; this._render(info); }
+    this._angFn = info.angFn || null;
     this._target = info.ang;
     this._spin(dt);
   }
@@ -67,22 +71,27 @@ export class Glance {
 
   _render(i) {
     // the key hint teaches itself away: shown until the phone has been raised a few times
-    const k = (i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || (this.phone._raises || 0) >= 3 ? '' : `<kbd class="gl-k">Q</kbd>`);
+    const rep = this.phone.messages && this.phone.messages.pending;
+    const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || (this.phone._raises || 0) >= 3 ? '' : `<kbd class="gl-k">Q</kbd>`);
     let ic = '';
     if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
     else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;
-    else if (i.cls === 'gl-ld') ic = `<i class="gl-ic">${i.live ? icon('straight', 'gl-arrow') : icon(i.icon || 'straight')}</i>`;
+    else if (i.cls === 'gl-ld') ic = `<i class="gl-ic ${i.trk || ''}">${i.live ? icon('straight', 'gl-arrow') : icon(i.icon || 'straight')}</i>`;
     else ic = `<i class="gl-ic">${i.warn ? `<b class="gl-wb" title="${esc(i.warn)}">!</b>` : ''}${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
     const bar = i.pct != null ? `<u class="gl-bar"><i style="width:${(i.pct * 100).toFixed(0)}%"></i></u>` : '';
     const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${esc(i.sub || '')}</span>`;
     const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${esc(i.title)}</b>`;
-    this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'}`;
-    this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} read</span>` : k}`;
+    this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'} ${i.trk || ''}`;
+    // (the island itself carries the on-track state: amber ring while drifting / off)
+    this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');
+    this.root.classList.toggle('trk-off', i.trk === 'trk-off');
+    this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} ${this.note && this.note.reply ? 'reply' : 'read'}</span>` : k}`;
     this._arrow = this.box.querySelector('.gl-arrow');
   }
 
   // the arrow turns smoothly toward the target angle (degrees, 0 = straight ahead)
   _spin(dt) {
+    if (this._angFn) { const v = this._angFn(); if (v != null) this._target = v; }       // live: follows the heading every frame
     const a = this._arrow; if (!a || this._target == null || !isFinite(this._target)) return;
     let d = this._target - this._ang; d = ((d + 540) % 360) - 180;
     this._ang += d * (1 - Math.exp(-dt / 0.12));

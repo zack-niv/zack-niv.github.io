@@ -96,7 +96,7 @@ function exchange(game, c, b, isCafe, drink, name) {
   if (isCafe) {
     const line = again ? `Another ${drink.say}, please.` : `One ${drink.say}, please.`;
     hud?.caption({ ja: WELCOME.ja, en: WELCOME.en, speaker: who, duration: 1.7 });
-    game.after(0.9, () => hud?.caption({ en: line, speaker: 'You', duration: 1.6 }));
+    game.after(0.9, () => hud?.caption({ en: line, speaker: 'You', duration: 1.6, channel: 'action' }));
     game.after(1.8, () => hud?.caption({ ja: again ? 'ふふ、かしこまりました。' : 'かしこまりました。', en: again ? 'Ha, of course.' : 'Certainly. One moment.', speaker: who, duration: 1.4 }));
     game.after(2.0, () => ctx.audio?.play?.('cup'));
     game.after(2.3, () => {
@@ -115,7 +115,7 @@ function exchange(game, c, b, isCafe, drink, name) {
     ? { en: (b && PEEK[b.cat]) || 'It smells wonderful. Not today, though.', thought: true }
     : { en: 'Just looking, thank you.' };
   hud?.caption({ ja: WELCOME.ja, en: c.kind === 'shop' ? 'Welcome in! Take your time.' : 'Welcome! Table for one?', speaker: who, duration: 1.8 });
-  game.after(1.0, () => hud?.caption(tail.thought ? { en: tail.en, kind: 'thought', duration: 2.4 } : { en: tail.en, speaker: 'You', duration: 1.6 }));
+  game.after(1.0, () => hud?.caption(tail.thought ? { en: tail.en, kind: 'thought', duration: 2.4 } : { en: tail.en, speaker: 'You', duration: 1.6, channel: 'action' }));
   game.after(2.0, () => ctx.events.emit('demo:order', { slotId: c.slotId, name, item: null, kind: c.kind, hi: true, t: ctx.clock.minutes }));
 }
 

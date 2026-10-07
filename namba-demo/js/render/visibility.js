@@ -25,6 +25,7 @@ import { CELL } from '../world/world.js';
 import { params } from '../core/params.js';
 import { QUALITY_ORDER } from '../core/engine.js';
 import * as visFan from './visfan.js';
+import { clipIntrusions } from './intrusions.js';
 
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
@@ -54,6 +55,9 @@ export class Visibility {
   init() {
     const t0 = performance.now();
     const { engine, world } = this.ctx;
+    // structures of other systems that pass through indoor spaces (Nankai viaduct deck in Namba
+    // CITY / Parks): removed once, before culling records are built
+    try { this.intrusions = clipIntrusions(this.ctx); } catch (e) { console.warn('[render] intrusion clip failed', e); }
     this._maskLevels = {};
     this.openings = {};
     for (const lv of LEVEL_ORDER) {
@@ -158,6 +162,11 @@ export class Visibility {
     const outdoor = !!((sp && sp.outdoor) || (s && s.sky > 0.45));
     const parks = zone === 'parks' || zone === 'parksGarden' || (outdoor && LEVELS[own].y >= 6);
     const vis = this._linkedLevels(b, parks);
+    // riding an escalator / stair: the level you are travelling to is drawn to the full own-level
+    // distance from the moment you step on, so nothing pops in when the level swaps at the top
+    const ramp = b.ramp >= 0 && world.layout ? world.layout.ramps[b.ramp] : null;
+    const dest = ramp ? (ramp.upper === own ? ramp.lower : ramp.upper) : null;
+    if (dest) vis.add(dest);
     this.visibleLevels = vis;
     // indoors the exp2 fog already swallows everything beyond ~130 m: draw less of it
     // draw-call governor: when the last frames needed more than the budget, pull the draw distance in
@@ -223,7 +232,7 @@ export class Visibility {
       if (!on && cull) { st.level += list.length; continue; }
       const ly = LEVELS[lv].y;
       const isOwn = lv === own;
-      const lim = isOwn ? dd : dd * 0.6;
+      const lim = isOwn || lv === dest ? dd : dd * 0.6;
       for (const rec of list) {
         const g = rec.g;
         let show = true;

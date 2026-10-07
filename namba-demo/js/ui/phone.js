@@ -15,16 +15,25 @@
 //             forced by pocket(true).
 // Apps: Maps (generic indoor map — ui/phone/mapapp.js), Lodestone (the
 // upgrade), Messages (Aya), Notes, Transit, home screen.
+// v3: a dock (Messages · Maps · Lodestone once installed · Apps) at the bottom
+// of the raised phone; Tab / Shift+Tab cycles apps while the phone is up; keys
+// 1 / 2 / 3 answer Aya's reply chips (Messages, chips showing) or else jump to
+// dock slot 1 / 2 / 3. Lodestone tracks your heading vs the route
+// (ui/phone/track.js) and emits 'nav:track'. Full contract: notes/v3-phone.md.
 //
 // API (ctx.phone):
-//   isOpen (= pose 'up'), app, open(app?), close(), toggle(), openApp(id)
+//   isOpen (= pose 'up'), app, open(app?), close(), toggle(), openApp(id) (emits 'phone:app' {app})
+//   message({id, from, text, link?, replies?: [{id,text}], expectReply?})   a text (= emit 'phone:message')
+//   showTyping(from, on) / 'phone:typing' {from, on}                      the "Aya is typing…" bubble
+//   reply(i)          answer the pending text with chip i (0-based)  → 'phone:reply' {msgId, replyId, text}
+//   pendingReply      the reply chips on screen ({msgId, from, replies}) or null
 //   pose, setPose('up'|'glance'|'down'), pocket(bool)
 //   pos            the phone's location belief {x,z,level,acc,heading,signal,noService}
 //   handlesMessages = true (HUD skips its fallback banner)
 //   search(q)      programmatic search (opens Maps)
 //   --- demo upgrade (Lodestone) ---
-//   offerLodestone()      Aya texts a link card (idempotent). Fallback: the phone does it itself
-//                         after ~150 s of play if the game never has
+//   offerLodestone()      Aya texts a link card (idempotent). v3: the phone never offers it by itself —
+//                         the story decides when (no timer fallback any more)
 //   installLodestone()    install (~1.8 s) -> calibration (~3 s) -> ready. Raises the phone.
 //   positioningMode       'gps' | 'lodestone' (flips to 'lodestone' when stage 'ready' starts)
 //   upgradeStage          'none' | 'offer' | 'installing' | 'calibrating' | 'ready'
@@ -32,7 +41,9 @@
 // Events: emits 'phone:pose' {pose, prev}, 'phone:open' / 'phone:close' {app},
 //   'phone:search' {query,count}, 'phone:select' {id,kind,slot,key}, 'phone:route' {id,level},
 //   'phone:arrive' {id}, 'phone:upgrade' {stage}, 'lodestone:arrive' {id}
-//   listens 'phone:message' {from,text,time,link?}, 'quest:update', 'demo:arrive'
+//   'phone:app' {app, prev}, 'phone:reply' {msgId, replyId, text, from}, 'phone:stack' {open},
+//   'nav:track' {state: 'on'|'drifting'|'off'|'rerouted', headingErr, lost}
+//   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
 import { Positioning } from './phone/positioning.js';
 import { MapApp } from './phone/mapapp.js';
@@ -40,6 +51,7 @@ import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js';
 import { LodestoneApp } from './phone/lodestone.js';
 import { PhoneStats } from './phone/stats.js';
 import { Glance } from './phone/glance.js';
+import { buzzSound } from './phone/track.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -65,12 +77,14 @@ export class Phone {
     this.isOpen = false;
     this.app = 'maps';
     this.handlesMessages = true;
+    // the final key bindings (for Story's hints): see notes/v3-phone.md
+    this.keys = { raise: 'Q', lower: 'Q', apps: 'Tab', reply: ['1', '2', '3'], appSlots: ['1', '2', '3'], stack: 'V', install: 'Enter' };
     this.battery = 64;
     this.typing = false;
     this.upgradeStage = 'none';
     this.sway = null;          // override while Lodestone calibrates (figure-of-8 wave)
     this._scale = 1;
-    this._play = 0;            // seconds of play (fallback offer timer)
+    this._play = 0;            // seconds of play
     this.pose = 'down';
     this._pocket = false;      // forced down (pocket(true))
     this._held = false;        // raised by the right mouse button (pointer stays locked)
@@ -86,11 +100,18 @@ export class Phone {
   // ---- demo upgrade API -------------------------------------------------------
   get positioningMode() { return this.pos ? this.pos.mode : 'gps'; }
   stats() { return this._stats ? this._stats.summary() : {}; }
-  offerLodestone() {
+  // opts (optional): { text, from, id, replies } — Aya's own line for the link card
+  offerLodestone(opts) {
     if (this.upgradeStage !== 'none') return false;
-    this.ctx.events.emit('phone:message', { id: 'aya_lodestone', from: 'Aya', text: 'you’re lost aren’t you 😂 install Lodestone — it actually works indoors', link: 'lodestone' });
+    const o = opts && typeof opts === 'object' ? opts : {};
+    this.ctx.events.emit('phone:message', { id: o.id || 'aya_lodestone', from: o.from || 'Aya', text: o.text || 'you’re lost aren’t you 😂 install Lodestone — it actually works indoors', link: 'lodestone', replies: o.replies });
     return true;
   }
+  // ---- v3 messages API (Story) ------------------------------------------------
+  message(m) { if (m && m.text) this.ctx.events.emit('phone:message', m); }
+  showTyping(from, on = true) { this.ctx.events.emit('phone:typing', { from: from || 'Aya', on: !!on }); }
+  reply(i) { return this.messages ? this.messages.reply(i) : false; }
+  get pendingReply() { return this.messages ? this.messages.pending : null; }
   _noteOffer() {                // called by Messages when a link:'lodestone' text lands
     if (this.upgradeStage !== 'none') return;
     this.upgradeStage = 'offer'; this._offerAt = this._play;
@@ -173,6 +194,13 @@ export class Phone {
               <div class="ph-view" data-v="home"></div><div class="ph-view" data-v="maps"></div><div class="ph-view" data-v="notes"></div>
               <div class="ph-view" data-v="messages"></div><div class="ph-view" data-v="transit"></div><div class="ph-view" data-v="lodestone"></div>
             </div>
+            <nav class="ph-dock" aria-label="Apps">
+              <button data-app="messages"><i class="ph-d-ic ic-msg"><b class="ph-d-badge" hidden></b></i><span>Messages</span></button>
+              <button data-app="maps"><i class="ph-d-ic ic-maps"></i><span>Maps</span></button>
+              <button data-app="lodestone" hidden><i class="ph-d-ic ic-lode"><svg viewBox="0 0 32 32"><path d="M16 4 21 16 16 28 11 16Z" fill="#10192b" stroke="#ffb02e" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 4 21 16H16Z" fill="#ffb02e"/><circle cx="16" cy="16" r="2" fill="#fff"/></svg></i><span>Lodestone</span></button>
+              <button data-app="home"><i class="ph-d-ic ic-apps"><u></u><u></u><u></u><u></u></i><span>Apps</span></button>
+              <kbd class="ph-d-k">Tab</kbd>
+            </nav>
             <div class="ph-notif" hidden></div>
             <div class="ph-toast" hidden></div>
             <div class="ph-homebar"><i></i></div>
@@ -190,7 +218,10 @@ export class Phone {
       time: r.querySelector('.ph-time'), sig: r.querySelectorAll('.ph-sig i'), net: r.querySelector('.ph-net'), bat: r.querySelector('.ph-bat'),
       batB: r.querySelector('.ph-bat b'), batI: r.querySelector('.ph-bat i'), notif: r.querySelector('.ph-notif'), toast: r.querySelector('.ph-toast'),
       peek: r.querySelector('.ph-peek'), isl: r.querySelector('.ph-isl'), sigBox: r.querySelector('.ph-sig'),
+      dock: r.querySelector('.ph-dock'), screen: r.querySelector('.ph-screen'),
     };
+    this.el.dock.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { this._lastPhoneInput = this._now; this._showApp(b.dataset.app); }));
+    if (this.ctx.input && this.ctx.input.touch) this.el.dock.querySelector('.ph-d-k').remove();
     r.querySelector('.ph-homebar').addEventListener('click', () => this._showApp(this.app === 'home' ? (this.upgradeStage === 'ready' ? 'lodestone' : 'maps') : 'home'));
     this.el.notif.addEventListener('click', () => { this.el.notif.hidden = true; this.openApp(this._notifApp || 'messages'); });
     // the glance card is a button when the cursor is free (paused-less touch / unlocked mouse)
@@ -224,6 +255,7 @@ export class Phone {
     this.maps._dirty = true;
     if (this.app === 'messages') this.messages.onShow();
     this.glance.clearNote(true);
+    this._badges();
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_open');
     this.ctx.events.emit('phone:open', { app: this.app });
     this._setPose('up');
@@ -245,6 +277,7 @@ export class Phone {
     }
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_close');
     this.ctx.events.emit('phone:close', { app: this.app });
+    this._badges();
     this._setPose(this._wantDown() ? 'down' : 'glance');
   }
   toggle() { this.isOpen ? this.close() : this.open(); }
@@ -278,11 +311,41 @@ export class Phone {
 
   _showApp(id) {
     if (!this.views[id]) return;
+    const prev = this.app;
     this.app = id;
     for (const k in this.views) this.views[k].classList.toggle('on', k === id);
-    this.root.querySelector('.ph-screen').dataset.app = id;
+    this.el.screen.dataset.app = id;
+    this.el.dock.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.app === id));
     const a = this.apps && this.apps[id];
     if (a && a.onShow) a.onShow();
+    this._badges();
+    if (prev !== id && this.apps) {
+      this._appAt = this._now;
+      if (id === 'messages' && this.el.notif) this.el.notif.hidden = true;
+      this.ctx.events.emit('phone:app', { app: id, prev });
+    }
+  }
+  // the dock's apps in order (Lodestone only once it is installed)
+  _dockApps() { return ['messages', 'maps'].concat(this.upgradeStage === 'ready' ? ['lodestone'] : []); }
+  _cycleApp(dir) {
+    const L = this._dockApps(); let i = L.indexOf(this.app);
+    i = i < 0 ? (dir > 0 ? 0 : L.length - 1) : (i + dir + L.length) % L.length;
+    this._showApp(L[i]);
+  }
+  // Lodestone joins the dock once it is installed (with a small arrival glow)
+  _dockAddLodestone() {
+    const b = this.el.dock.querySelector('[data-app="lodestone"]');
+    if (!b || !b.hidden) return;
+    b.hidden = false; b.classList.add('new');
+    setTimeout(() => b.classList.remove('new'), 4200);
+  }
+  // unread badges: home screen + dock (a reply waiting counts as 1 while you are not looking at the thread)
+  _badges() {
+    const M = this.messages; if (!M) return;
+    const n = M.unread || (M.pending && !(this.isOpen && this.app === 'messages') ? 1 : 0);
+    this.home && this.home.badge('messages', n);
+    const b = this.el.dock.querySelector('.ph-d-badge');
+    if (b) { b.hidden = !n; b.textContent = n; }
   }
 
   // in-phone notification banner (or, with the phone lowered, in the glance card)
@@ -290,16 +353,24 @@ export class Phone {
     if (app === 'messages' && msg) {
       this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('phone_buzz');
       this._notifApp = app;
-      const html = `<i class="ph-n-ic ic-msg"></i><div><b>${esc(msg.title)}</b><span>now</span><p>${esc(msg.text)}</p></div>`;
+      const html = `<i class="ph-n-ic ic-msg"></i><div><b>${esc(msg.title)}</b><span>${msg.reply ? 'tap to reply' : 'now'}</span><p>${esc(msg.text)}</p></div>`;
       if (this.isOpen && this.app !== 'messages') {
         this.el.notif.innerHTML = html; this.el.notif.hidden = false;
         clearTimeout(this._nT); this._nT = setTimeout(() => { this.el.notif.hidden = true; }, 5000);
       } else if (!this.isOpen) {
         this.glance.showNote(msg);
       }
-      this.home.badge('messages', this.messages.unread);
+      this._badges();
     }
     if (app === 'notes') this.home && this.home.badge('notes', '!');
+  }
+  // a short vibration (Lodestone off-route): the device rattles, the glance card flashes, a soft buzz
+  vibrate() {
+    this._buzzT = 0.62;
+    const isl = this.el.isl; isl.classList.remove('buzz'); void isl.offsetWidth; isl.classList.add('buzz');
+    clearTimeout(this._bzT); this._bzT = setTimeout(() => isl.classList.remove('buzz'), 900);
+    buzzSound(this.ctx);
+    try { const inp = this.ctx.input; if (inp && inp.touch && navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate([70, 60, 70]); } catch (e) { /* ignore */ }
   }
   toastIn(t) {
     this.el.toast.textContent = t; this.el.toast.hidden = false;
@@ -311,20 +382,39 @@ export class Phone {
     const { ctx } = this;
     const inp = ctx.input;
     this._now += dt;
+    // while the phone is up: Tab / Shift+Tab cycles the apps (instead of lowering it), 1/2/3 reply or switch apps
+    let tabbed = false;
+    if (this.isOpen && !this.typing && inp && this._canUse()) {
+      if (inp.pressed('Tab')) {
+        tabbed = true; this._lastPhoneInput = this._now;          // (never lowers the phone; ignored during the install)
+        if (!this._busyUpgrade()) this._cycleApp(inp.down && (inp.down('ShiftLeft') || inp.down('ShiftRight')) ? -1 : 1);
+      }
+      for (let k = 0; k < 3; k++) {
+        if (!(inp.pressed('Digit' + (k + 1)) || inp.pressed('Numpad' + (k + 1)))) continue;
+        this._lastPhoneInput = this._now;
+        // chips on screen answer; otherwise the number is a dock slot (a short guard after a switch: no accidental reply)
+        if (this.app === 'messages' && this.messages.pending && this._now - (this._appAt || -1e9) > 0.35) this.messages.reply(k);
+        else if (!this._busyUpgrade()) { const L = this._dockApps(); if (L[k]) this._showApp(L[k]); }
+        break;
+      }
+    }
     const pressed = inp && (typeof inp.action === 'function' ? inp.action('phone') : (inp.pressed('KeyQ') || inp.pressed('Tab')));
-    if (pressed && this._canUse()) {
+    if (pressed && !tabbed && this._canUse()) {
       this._lastPhoneInput = this._now;
+      const M = this.messages;
       if (this.isOpen && this._held) { this._held = false; this._unlockForUse(); }          // Q while holding: keep it up, free the cursor
-      else if (!this.isOpen && this.glance.note) { this.open('messages'); this._openTo = null; }
+      else if (!this.isOpen && (this.glance.note || (M.pending && M.unread > 0))) { this.open('messages'); this._openTo = null; }
       else this.toggle();
     }
     // V: expand / collapse Lodestone's 3D stack while the phone is up
     if (this.isOpen && !this.typing && inp && inp.pressed('KeyV') && this.app === 'lodestone') this.lodestone.toggleStack();
     this.pos.update(dt);
     this._stats.update(dt);
-    // the upgrade: keyboard (Enter / E while the offer is on screen) and the 150 s fallback
+    // the upgrade: keyboard (Enter / E while the offer is on screen). v3: no timer fallback — Story calls offerLodestone()
     if (ctx.started && !ctx.paused && !(ctx.game && ctx.game.paused)) this._play += dt;
-    if (this.upgradeStage === 'none' && this._play > 150) this.offerLodestone();
+    this.messages.update(dt);
+    if (this.el.screen.dataset.stage !== this.upgradeStage) this.el.screen.dataset.stage = this.upgradeStage;   // (the dock hides during install / calibration)
+    if (this._buzzT > 0) { this._buzzT -= dt; this._poseDirty = true; }
     if (this.isOpen && this.upgradeStage === 'offer' && !this.typing && inp && (inp.pressed('Enter') || inp.pressed('KeyE') || inp.pressed('KeyI'))) this.installLodestone();
     if (this._keepUpAfterHold && !this._busyUpgrade() && this._now - this._upAt > 1) { this._keepUpAfterHold = false; if (!this._held) this.close(true); }
     this._autoPose(dt);
@@ -348,7 +438,7 @@ export class Phone {
     }
     this._applyPose(dt);
     this.maps.update(dt, this.isOpen && this.app === 'maps');
-    this.lodestone.update(dt, this.isOpen && this.app === 'lodestone', this.pose === 'glance');
+    this.lodestone.update(dt, this.isOpen && this.app === 'lodestone', this.pose === 'glance', this.pose !== 'down');
     if (this.isOpen && this.app === 'transit') this.transit.update(dt);
     this.glance.update(dt, this.pose === 'glance');
   }
@@ -397,7 +487,11 @@ export class Phone {
       this._bob.x += (tx - this._bob.x) * k; this._bob.y += (ty - this._bob.y) * k;
       bx = this._bob.x; by = this._bob.y;
     }
-    const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway;
+    if (this._buzzT > 0) {                                            // vibration: a fast small rattle of the whole device
+      const k = Math.min(1, this._buzzT / 0.12), on = Math.sin(this._buzzT * 30) > -0.3 ? 1 : 0.25;  // two short pulses
+      bx += Math.sin(this._now * 170) * 2.6 * k * on; br += Math.sin(this._now * 150 + 1) * 0.9 * k * on;
+    }
+    const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway || this._buzzT > 0;
     if (settled && !moving && !this._poseDirty && !snap) return;
     this._poseDirty = false;
     const vw = innerWidth, s = this._scale, sg = s * GLANCE_S;

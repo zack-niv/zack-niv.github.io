@@ -1,9 +1,13 @@
 // =============================================================================
 // The demo director. One quest, three acts:
-//   1. the ordinary map  (arrival at Nankai Namba, Aya's text, a generic phone)
-//   2. the upgrade       (Lodestone is offered when the player is clearly lost
-//                         or after ~2 minutes, whichever comes first)
+//   1. the ordinary map  (arrival at Nankai Namba, Aya's texts, a generic phone)
+//   2. the upgrade       (Lodestone is offered when the player has engaged with
+//                         Aya — said they're lost, or answered her check-in while
+//                         clearly lost — with a fallback at DEMO.offerAt)
 //   3. arrival           (a short visible moment at Daikichi, then the end card)
+// v3: the conversation, the tutorial and every location-driven text live in
+// story.js (this.story); this file keeps the measurements ("am I lost?", nav
+// distance, positioning samples), the offer call, the arrival and the end card.
 // Everything here is timed in REAL seconds of play (pause-aware), never in
 // game minutes, so it does not matter how fast the world clock runs.
 //
@@ -15,7 +19,8 @@
 // =============================================================================
 import { businessBySlot } from '../world/directory.js';
 import { params } from '../core/params.js';
-import { DEMO, INTRO, NUDGES, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js';
+import { Story } from './story.js';
 import { makeLook, BIT } from '../npc/looks.js';
 import { showEndCard } from './endcard.js';
 
@@ -36,16 +41,16 @@ export class Demo {
     this.upgraded = false; this.readyT = null; this.readyDist = 0; this.installT = null;
     this.arrived = false; this.arriveT = null; this.arriveDist = 0;
     this.ended = false;
-    this._sent = new Set();
+    this._sent = new Set(); this._canyonSent = false;
     this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0, hist: [] };
     this.remReady = null; this.remArrive = null;     // nav distance to the door at the phase boundaries
-    this._canyonSent = false;
     this._acc = { before: { n: 0, e: 0, wf: 0 }, after: { n: 0, e: 0, wf: 0 } };
     this._sampleT = 0; this._tpGuard = 0;
     this._seeded = false;
     this._aya = null; this._wave = 0;
     this._offerAt = params.has('offerat') ? +params.get('offerat') : DEMO.offerAt;
     this._offerMin = params.has('offerat') ? Math.min(DEMO.offerMin, this._offerAt) : DEMO.offerMin;
+    this.story = new Story(ctx, game, this);
   }
 
   // ---------------------------------------------------------------------------
@@ -90,18 +95,8 @@ export class Demo {
     const hear = (a) => { if (a && (a.start || a.kind === 'arrive' || a.kind === 'platform' || a.speaker === 'PA' || a.distant)) heard = true; };
     ev.on('announce', hear); ev.on('caption', hear);
     game.after(1.8, () => { if (!heard && !game.paused) hud?.caption({ ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', en: 'Namba, Namba. This is the last stop. Please take all your belongings with you.', kind: 'announce', duration: 6 }); });
-    // Aya's texts
-    INTRO.forEach(([at, text]) => game.after(at, () => game.message(text)));
-    const lastAt = INTRO[INTRO.length - 1][0];
-    game.after(lastAt + 1.6, () => game.setQuest('tempura', 'active', null, true));
-    // v2 item 9: the controls & navigation walkthrough (4 skippable cards, once per session) starts as the hold ends,
-    // just before Aya's first text; when it has been seen (Replay) or is off, the plain hints stay as they were
-    const walk = game.walkthrough && game.walkthrough.plan(Math.max(tt + 0.7, 5.2));
-    if (!walk) {
-      game.after(Math.max(tt + 3, 7.5), () => hud?.hint('keys', 9));
-      game.after(lastAt + 6.5, () => hud?.hint('phone', 8));
-    }
-    this.nudges = NUDGES.map(([at, text]) => ({ at, text, sent: false }));
+    // v3: Aya's conversation + the tutorial woven into it (story.js): the phone buzzes as the opening look ends
+    this.story.begin(tt);
   }
 
   // ---------------------------------------------------------------------------
@@ -111,6 +106,7 @@ export class Demo {
     const { ctx, game } = this;
     this.t += dt;
     const b = ctx.player.body;
+    this.story.update(dt);
     // positioning samples: the phone's belief vs the truth (own fallback for phone.stats()). Never right after a
     // teleport (the phone needs a moment), and only in the phase the phone's own mode says we are in.
     this._sampleT -= dt; this._tpGuard -= dt;
@@ -133,20 +129,12 @@ export class Demo {
       this._lost.lastCheck = 0.5;
       this._checkRoute(0.5);
     }
-    // Aya's gentle, vague nudges while only the ordinary map is in hand
-    if (!this.offered && this.nudges && !game.busy && !game.intro) {
-      for (const n of this.nudges) if (!n.sent && this.t >= n.at && this.t < this._offerAt - 14) { n.sent = true; game.message(n.text); break; }
-    }
     // Lodestone's route runs through the Namba Parks canyon: Aya says so as the player reaches the bridge
     if (!this._canyonSent && !game.busy && !game.intro && !game.paused) {
       const sp = ctx.player.space && ctx.player.space.id;
       if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; game.message(CANYON_TEXT); }
     }
-    // the upgrade trigger
-    if (!this.offered && !game.busy && !game.intro && !game.paused && this.t >= this._offerMin) {
-      const lost = this._isLost();
-      if (lost || this.t >= this._offerAt) this.offer(lost || 'time');
-    }
+    // (v3: the upgrade offer is the story's call — it follows the player engaging with Aya, see story.js)
     // arrival
     if (!game.busy && !game.intro && !game.paused && this.biz && b.level === this.biz.level) {
       const d = Math.hypot(b.x - this.biz.door.ox, b.z - this.biz.door.oz);
@@ -199,9 +187,9 @@ export class Demo {
       if (num(d) != null) {
         L.rem = d;
         if (d < L.best) L.best = d;
-        // a short history for the "stalled" rule (no real progress for 25 s)
+        // a short history for the "stalled" rules (no real progress for 25-40 s); a minute is kept
         L.hist.push([this.t, d]);
-        while (L.hist.length > 2 && L.hist[1][0] < this.t - STALL_S) L.hist.shift();
+        while (L.hist.length > 2 && L.hist[1][0] < this.t - 62) L.hist.shift();
         // queue banter as the route shortens ("the noren" line only once you are on the dining floor)
         if (this.offered) for (const [at, text] of QUEUE_LINES) {
           if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); game.message(text); }
@@ -219,9 +207,18 @@ export class Demo {
     if (L.rem != null && L.init && walked > 250 && L.rem > L.init * 0.8) return 'far';
     // stalled: the nav distance to the door has not dropped by 8 m over the last 25 s (stuck at a gate, dithering in
     // a concourse, walking in circles). Peak frustration; the caller still enforces the 45 s minimum.
-    const H = L.hist;
-    if (H.length > 1 && this.t - H[0][0] >= STALL_S - 1 && H[0][1] - H[H.length - 1][1] < STALL_M) return 'stalled';
+    const p = this.progressOver(STALL_S);
+    if (p != null && p < STALL_M) return 'stalled';
     return null;
+  }
+  // metres of nav progress toward the door over the last `sec` seconds (null until that much history exists)
+  progressOver(sec) {
+    const H = this._lost.hist; if (H.length < 2) return null;
+    const t0 = this.t - sec;
+    if (H[0][0] > t0 + 1) return null;
+    let i = 0;
+    while (i < H.length - 2 && H[i + 1][0] <= t0) i++;
+    return H[i][1] - H[H.length - 1][1];
   }
 
   // ---------------------------------------------------------------------------
@@ -231,11 +228,10 @@ export class Demo {
     this.offered = true; this.offerT = this.t; this.offerWhy = why;
     const { ctx, game } = this;
     const ph = ctx.phone;
+    const fallback = () => this.story.aya.say({ id: 'aya_lodestone', text: UPGRADE.offer, link: 'lodestone' }, { typing: 0, wait: 0 });
     if (ph && typeof ph.offerLodestone === 'function') {
-      try { ph.offerLodestone(); } catch (e) { console.error('[demo] offerLodestone', e); game.message(UPGRADE.offer, 'Aya', 0, { link: 'lodestone' }); }
-    } else {
-      game.message(UPGRADE.offer, 'Aya', 0, { link: 'lodestone' });
-    }
+      try { ph.offerLodestone({ text: UPGRADE.offer, why }); } catch (e) { console.error('[demo] offerLodestone', e); fallback(); }
+    } else fallback();
     ctx.events.emit('demo:offer', { why, t: this.t });
   }
   _onUpgrade(e) {

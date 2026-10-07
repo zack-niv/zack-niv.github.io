@@ -13,6 +13,7 @@
 import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js';
 import { Stack3D } from './stack3d.js';
 import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
+import { Tracker } from './track.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -36,6 +37,7 @@ const ICONS = {
   down: '<path d="M3 4h5v5h5v5h5M12 20h8v-8M20 20l-9-9"/>',
   canyon: '<path d="M3 20 8 10l3 5 3-8 7 13M3 20h18M17 4.2a2 2 0 1 0 .01 0"/>',
   flag: '<path d="M6 21V4M6 5h11l-2.5 4L17 13H6"/>',
+  check: '<path d="M5 12.5 10 17.5 19 7"/>',
 };
 export const icon = (k, cls = '') => `<svg viewBox="0 0 24 24" class="ld-ic ${cls}" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${ICONS[k] || ICONS.straight}</svg>`;
 
@@ -77,6 +79,7 @@ export class LodestoneApp {
     this.guid = this.dest ? new Guidance(this.ctx, this.dest) : null;
     this.route = null; this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this.arrived = false;
+    this.track = new Tracker(this);  // v3: heading / progress vs the route ('nav:track')
     this.view = 'guide';           // 'guide' (one instruction, stack as a preview) | 'stack' (the 3D exploded stack, all steps)
     this.mode = 'overview';
     this._revealT = 0;
@@ -156,8 +159,8 @@ export class LodestoneApp {
   // the free band of the screen the 3D stack is framed into (px of the 316 x 676 screen)
   _bands(s = this.stack) {
     if (!s) return;
-    if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 266; s.bandRight = 46; }
-    else { s.bandTop = this._navBottom || 200; s.bandBottom = 214; s.bandRight = 0; }
+    if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 316; s.bandRight = 46; }      // (v3: + the dock)
+    else { s.bandTop = this._navBottom || 200; s.bandBottom = 264; s.bandRight = 0; }
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards
     try { this.el.c3d.style.setProperty('--ld-band-t', `${Math.round(s.bandTop) - 8}px`); this.el.c3d.style.setProperty('--ld-band-b', `${Math.round(s.bandBottom) - (this.view === 'stack' ? 6 : 40)}px`); } catch (e) { /* ignore */ }
@@ -174,6 +177,7 @@ export class LodestoneApp {
     this.view = v;
     this.el.main.dataset.view = v;
     if (v === 'guide') { this.setMode('overview'); this.stack && this.stack.recenter(); }
+    this.ctx.events.emit('phone:stack', { open: v === 'stack' });
     this._bands();
     this._guideKey = ''; this._renderGuide(true);
     this._syncLadder();
@@ -183,8 +187,9 @@ export class LodestoneApp {
   onShow() { this._guideKey = ''; }
 
   // --------------------------------------------------------------- update ---
-  // visible: the phone is up on Lodestone; glancing: the phone is lowered (the glance card needs the next step)
-  update(dt, visible, glancing) {
+  // visible: the phone is up on Lodestone; glancing: the phone is lowered (the glance card needs the next step);
+  // active: the phone is not pocketed (route + on-track checks keep running, e.g. with Messages up)
+  update(dt, visible, glancing, active = glancing) {
     // arrival is cheap and runs even with the phone down
     if (this.state === 'ready') this._arrivalCheck(dt);
     if (this._revealT > 0) { this._revealT -= dt; if (this._revealT <= 0) this.el.main.classList.remove('reveal'); }
@@ -192,8 +197,18 @@ export class LodestoneApp {
     if (this.state === 'installing') { this.t += dt; this._tickInstall(dt); }
     else if (this.state === 'calibrating') { this.t += dt; this._tickCalib(dt, visible); }
     else if (this.state === 'ready' && visible) { this.t += dt; this._tickMain(dt); }
-    else if (this.state === 'ready' && glancing) this._routeTick(dt);
+    else if (this.state === 'ready' && (glancing || active)) this._routeTick(dt);
+    if (this.state === 'ready' && (visible || glancing || active) && !this.arrived) this.track.update(dt, this.route);
   }
+  // a fresh route right now (the tracker's reroute)
+  forceRoute() {
+    this._lastPos = [1e9, 1e9, '']; this._rt = 0;
+    this._routeTick(0);
+    this._guideKey = '';
+  }
+  _trackChanged() { this._guideKey = ''; if (this.state === 'ready') this._renderGuide(true); this.phone.glance && this.phone.glance.refresh(true); }
+  // the angle the live arrow should show (deg, + = clockwise): the tracker's heading error
+  liveAngle() { return this.track.active ? this.track.err : this._relBearing(); }
 
   // -------------------------------------------------------------- install ---
   _tickInstall() {
@@ -285,6 +300,7 @@ export class LodestoneApp {
     ph.upgradeStage = 'ready';
     this._set('ready'); this.t = 0;
     ph.home && ph.home.addLodestone();
+    ph._dockAddLodestone && ph._dockAddLodestone();
     ph.messages && ph.messages.markInstalled();
     if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest); } catch (e) { console.error(e); } }
     this._rt = 0; this._lastPos = [1e9, 1e9, ''];
@@ -369,6 +385,9 @@ export class LodestoneApp {
     }
     if (this._cardT > 0) { this._cardT -= dt; if (this._cardT <= 0) this.el.card.classList.add('out'); }
     else if (!this.el.card.hidden && this.el.card.classList.contains('out')) { this._cardOutT = (this._cardOutT || 0) + dt; if (this._cardOutT > 0.5) { this.el.card.hidden = true; this.el.card.classList.remove('out'); this._cardOutT = 0; } }
+    // the on-track sign follows the heading (left / right / around) even while standing still
+    this._signT = (this._signT || 0) - dt;
+    if (this._signT <= 0) { this._signT = 0.2; if (this.track.state !== 'on') this._renderGuide(false); }
     // live arrow on the current instruction
     this._liveArrow();
   }
@@ -385,7 +404,7 @@ export class LodestoneApp {
   }
   _liveArrow() {
     const a = this._arrowEl; if (!a) return;
-    const ang = this._relBearing(); if (ang == null) return;
+    const ang = this.liveAngle(); if (ang == null) return;
     a.style.transform = `rotate(${ang.toFixed(1)}deg)`;
   }
 
@@ -414,8 +433,10 @@ export class LodestoneApp {
     const R = this.route;
     if (!R || !R.ok) return { kind: 'wait', icon: 'straight', title: 'Finding your route…', sub: here };
     const cur = R.steps[0], toGo = Math.max(0, Math.round(isFinite(cur && cur.at) ? cur.at : 0));
+    const sg = this.track.sign();
+    if (sg) return { kind: 'nav', trk: sg.cls, icon: sg.check ? 'check' : 'straight', live: sg.live, ang: sg.live ? this.liveAngle() : null, angFn: sg.live ? () => this.liveAngle() : null, title: sg.short, sub: sg.gsub || sg.sub };
     const live = isLive(cur, toGo), ph = phrase(cur, this.dest);
-    return { kind: 'nav', icon: cur ? cur.icon : 'straight', live, ang: live ? this._relBearing() : null, title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` };
+    return { kind: 'nav', trk: 'trk-on', icon: cur ? cur.icon : 'straight', live, ang: live ? this.liveAngle() : null, angFn: live ? () => this.liveAngle() : null, title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` };
   }
 
   // ---------------------------------------------------------------- guide ---
@@ -427,7 +448,7 @@ export class LodestoneApp {
       const key = 'arrived:' + st.secondsAfter + this.view;
       if (!force && key === this._guideKey) return; this._guideKey = key;
       const sec = Math.max(0, Math.round(st.secondsAfter || 0)), mm = Math.floor(sec / 60), ss = String(sec % 60).padStart(2, '0');
-      this.el.main.classList.add('arrived');
+      this.el.main.classList.add('arrived'); E.nav.dataset.trk = 'trk-on';
       E.navIc.className = 'ld-nav-ic ok'; E.navIc.innerHTML = CHECK;
       E.navD.textContent = `${dest.en} · ${lvl(dest.level)}`;
       E.navI.textContent = 'You’ve arrived';
@@ -438,7 +459,7 @@ export class LodestoneApp {
     }
     this.el.main.classList.remove('arrived');
     if (!R || !R.ok) {
-      if (!force && this._guideKey === 'noroute') return; this._guideKey = 'noroute';
+      if (!force && this._guideKey === 'noroute') return; this._guideKey = 'noroute'; E.nav.dataset.trk = 'trk-on';
       E.navIc.className = 'ld-nav-ic'; E.navIc.innerHTML = icon('straight');
       E.navD.textContent = 'One moment'; E.navI.textContent = 'Finding your route…'; E.then.hidden = true; E.toM.textContent = '';
       E.steps.innerHTML = ''; this._arrowEl = null;
@@ -448,10 +469,22 @@ export class LodestoneApp {
     const toGo = cur ? Math.max(0, Math.round(isFinite(cur.at) ? cur.at : 0)) : 0;
     const mins = !isFinite(R.eta) ? '' : R.eta < 45 ? '<1 min' : `${Math.max(1, Math.round(R.eta / 60))} min`;
     const ph = phrase(cur, dest), live = isLive(cur, toGo);
-    const key = [ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view].join('|');
+    const sg = this.track.sign();
+    const key = [ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on'].join('|');
     if (!force && key === this._guideKey) return; this._guideKey = key;
+    E.nav.dataset.trk = sg ? sg.cls : 'trk-on';
+    if (sg) {
+      // off the route: the sign replaces the step (the arrow points back to the route); the step list stays
+      E.navIc.className = `ld-nav-ic ${sg.cls} ${sg.live ? 'live' : ''}`;
+      E.navIc.innerHTML = sg.check ? CHECK : icon('straight', 'ld-arrow');
+      E.navD.textContent = sg.sub; E.navI.textContent = sg.title;
+      E.then.hidden = true; E.toM.textContent = mins;
+      this._arrowEl = sg.live ? E.navIc.querySelector('.ld-arrow') : null;
+      if (this._arrowEl) this._liveArrow();
+      return;
+    }
     // the ONE instruction: big plain words, a distance, a simple arrow
-    E.navIc.className = `ld-nav-ic ${live ? 'live' : ''}`;
+    E.navIc.className = `ld-nav-ic trk-on ${live ? 'live' : ''}`;
     E.navIc.innerHTML = live ? icon('straight', 'ld-arrow') : icon(cur ? cur.icon : 'straight');
     E.navD.textContent = toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
     E.navI.textContent = ph.long;

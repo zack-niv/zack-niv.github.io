@@ -107,7 +107,15 @@ export function footstep(sr, surface, seed, shoe = 'sneaker') {
   const hp = new Biquad('highpass', 70, 0.7, 0, sr);
   hp.run(out);
   // sneakers: ease the click's crest (~3 dB) so a step is a footfall, not a spike over a quiet bed
-  if (shoe === 'sneaker') { normalize(out, 0.9); softclip(out, 2.2); }
+  if (shoe === 'sneaker') {
+    normalize(out, 0.9); softclip(out, 2.2);
+    // v3 "a bit loud, more subtle": a softer attack (2.5 ms raised-cosine onset instead of a hard first sample, so the
+    // heel strike lands as a footfall rather than a tick) and the very top shaved off. The 1.5-4 kHz body of the click
+    // stays, so a step on tile / stone / metal is still clearly audible. Level is set where it is played (audio.js _step).
+    const on = Math.floor(0.0025 * sr);
+    for (let i = 0; i < on && i < out.length; i++) out[i] *= 0.5 - 0.5 * Math.cos(Math.PI * i / on);
+    new Biquad('lowpass', 6200, 0.6, 0, sr).run(out);
+  }
   return normalize(out, 0.9);
 }
 

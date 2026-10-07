@@ -72,6 +72,7 @@ export class PhoneStats {
       metresBefore: Math.round(B.dist), metresAfter: Math.round(A.dist),
       samplesBefore: B.n, samplesAfter: A.n,
       reroutes: this.reroutes, floorFlips: this.floorFlips, compassPrompts: this.compassPrompts,
+      lodestoneReroutes: this.lodestoneReroutes || 0,
       upgraded: this.phone.upgradeStage === 'ready', stage: this.phone.upgradeStage,
       finished: this.frozen, series: this.series,
     };

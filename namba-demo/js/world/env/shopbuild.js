@@ -562,8 +562,12 @@ export function shelfRun(S, P, o) {
       const kind = kinds[(lv + k * 3 + Math.floor(S.r() * 2)) % kinds.length];
       const reg = R.prod(kind, Math.floor(S.r() * 4));
       const u0 = k * sl + 0.03, u1 = (k + 1) * sl - 0.03;
-      boxF('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
-      face(reg, u0, u1, y, y + ph, depth - 0.029);
+      // v3 critic: shoes sit on open shelves (no printed product block behind them: with the upright packs in
+      // front it read as a bookcase - "Sneaker Lab Kansai is furnished with bookshelves")
+      if (kind !== 'shoes' && kind !== 'zakka') {
+        boxF('env_matte', u0, u1, y, y + ph, 0.05, depth - 0.03, [0.55, 0.52, 0.5]);
+        face(reg, u0, u1, y, y + ph, depth - 0.029);
+      }
       if (!P.isNull) packs(S, P, { a, d, ra, rd, na, nd, kind, u0, u1, y, ph, depth, key: `${a.toFixed(1)}|${d.toFixed(1)}|${na}|${nd}|${lv}|${k}` }, L);
       if (rail) face(R.rail(lv + k), u0, u1, y - 0.045, y - 0.003, depth + 0.012);
     }
@@ -593,6 +597,9 @@ function packs(S, P, o, L) {
   const pr = rng(hash(S.slot.id + '|' + key));
   const front = na !== 0 ? (na > 0 ? 'e' : 'w') : (nd > 0 ? 's' : 'n');
   const faces = front + 't';
+  if (kind === 'shoes') { shoePairs(P, o, L, pal, pr); return; }
+  if (kind === 'folded') { foldedStacks(P, o, L, pal, pr); return; }
+  if (kind === 'zakka') { zakkaItems(P, o, L, pal, pr); return; }
   const n0 = depth - 0.036, n1 = depth + 0.024;
   let u = u0 + 0.02;
   while (u < u1 - 0.08) {
@@ -607,6 +614,58 @@ function packs(S, P, o, L) {
       P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col, faces);
     }
     u = uu1 + 0.012;
+  }
+}
+
+// shoes: pairs side by side, toes to the aisle, low (a shoe wall, not a bookcase)
+const SOLE = [rgb('#f2f2ee'), rgb('#e8e2d4'), rgb('#3a3632'), rgb('#c9a56a')];
+function shoePairs(P, o, L, pal, pr) {
+  const { u0, u1, y, depth } = o;
+  const bx = (u, uu, y0, y1, n0, n1, col) => { const p = L(u, n0), q = L(uu, n1); P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y0, y1, Math.min(p.d, q.d), Math.max(p.d, q.d), col); };
+  const len = Math.min(0.27, depth - 0.07), nb = depth - 0.02 - len, nt = depth - 0.02;
+  let u = u0 + 0.05 + pr() * 0.06;
+  while (u < u1 - 0.24) {
+    const col = pal[Math.floor(pr() * pal.length)], sole = SOLE[Math.floor(pr() * SOLE.length)];
+    const hi = 0.085 + pr() * 0.04;                  // sneaker / boot-ish heel height
+    for (let k = 0; k < 2; k++) {
+      const a = u + k * 0.105, b = a + 0.09;
+      bx(a, b, y, y + 0.022, nb, nt, sole);                                  // sole
+      bx(a + 0.004, b - 0.004, y + 0.022, y + 0.055, nb, nt - 0.015, col);  // vamp + toe
+      bx(a + 0.004, b - 0.004, y + 0.055, y + hi, nb, nb + len * 0.55, col); // heel / collar
+    }
+    u += 0.21 + 0.1 + pr() * 0.08;
+  }
+}
+// folded clothes: wide, flat stacks
+function foldedStacks(P, o, L, pal, pr) {
+  const { u0, u1, y, ph, depth } = o;
+  let u = u0 + 0.04;
+  while (u < u1 - 0.28) {
+    const col = pal[Math.floor(pr() * pal.length)], w = 0.26 + pr() * 0.06;
+    const h = Math.min(ph * 0.8, 0.06 + pr() * 0.2);
+    const p = L(u, depth - 0.3), q = L(u + w, depth - 0.02);
+    P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col);
+    u += w + 0.05 + pr() * 0.05;
+  }
+}
+
+// zakka / lifestyle goods: candles, mugs, jars, small boxes - spaced out, not spines (they read as books)
+function zakkaItems(P, o, L, pal, pr) {
+  const { u0, u1, y, ph, depth } = o;
+  let u = u0 + 0.04 + pr() * 0.05;
+  while (u < u1 - 0.14) {
+    const col = pal[Math.floor(pr() * pal.length)];
+    if (pr() < 0.55) {
+      const r = 0.035 + pr() * 0.03, h = Math.min(ph * 0.75, 0.07 + pr() * 0.14);
+      const c = L(u + r, depth - 0.12);
+      P.cyl('env_gloss', c.a, y, y + h, c.d, r, col, 'cyl6');
+      u += 2 * r + 0.05 + pr() * 0.07;
+    } else {
+      const w = 0.1 + pr() * 0.1, h = Math.min(ph * 0.7, 0.05 + pr() * 0.14);
+      const p = L(u, depth - 0.2), q = L(u + w, depth - 0.04);
+      P.box('env_matte', Math.min(p.a, q.a), Math.max(p.a, q.a), y, y + h, Math.min(p.d, q.d), Math.max(p.d, q.d), col);
+      u += w + 0.05 + pr() * 0.07;
+    }
   }
 }
 
@@ -1028,7 +1087,7 @@ INTERIOR.zakka = (S, c) => {
   const wood = [0.75, 0.6, 0.42];
   for (const side of [0, 1]) {
     if (S.solid(side ? W - 0.45 : 0, side ? W : 0.45, 1.5, Dm - 1, { pocket: 4 }))
-      shelfRun(S, P, { a: side ? W : 0, d: 1.5, ra: 0, rd: 1, na: side ? -1 : 1, nd: 0, len: Dm - 2.5, depth: 0.42, h: 1.9, kinds: ['zakka', 'zakka', 'stationery'], levels: 4, frame: wood, rail: false });
+      shelfRun(S, P, { a: side ? W : 0, d: 1.5, ra: 0, rd: 1, na: side ? -1 : 1, nd: 0, len: Dm - 2.5, depth: 0.42, h: 1.9, kinds: ['zakka'], levels: 4, frame: wood, rail: false });
   }
   for (let d = 1.6; d < Dm - 2.5; d += 2.8) {
     const w = Math.min(1.8, W - 3.2);

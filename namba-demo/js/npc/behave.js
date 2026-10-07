@@ -385,7 +385,7 @@ export class Behave {
     this._calloutT = this.time + 6;
     const lines = [['いらっしゃいませ', 'Irasshaimase!'], ['いらっしゃいませー、どうぞー', 'Welcome, come in!'], ['ただいまお席ご案内できます', 'Seats available now']];
     const [ja, en] = lines[Math.floor(this.r() * lines.length)];
-    if (this.sim.events) this.sim.events.emit('crowd:callout', { level: a.level, x: a.x, y: a.y + 1.6, z: a.z, ja, en, kind: 'shop' });
+    if (this.sim.events) this.sim.events.emit('crowd:callout', { level: a.level, x: a.x, y: a.y + 1.6, z: a.z, ja, en, kind: 'shop', channel: d < 3 ? 'speech' : 'ambient' });   // staff greeting you at the door: speech; background calls: ambient
   }
 
   _followerTick(a, dt) {

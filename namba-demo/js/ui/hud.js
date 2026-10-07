@@ -4,7 +4,15 @@
 //   · toasts (discoveries, goals), subtitles (PA announcements, people)
 //   · ICOCA balance chip after a gate tap, cup-in-hand glyph, fades
 //   · fallback phone-notification banner if the phone doesn't render texts
-// API: hud.prompt(t|null) · hud.toast({kind,title,en,ja}) · hud.caption({en,ja,speaker,duration,kind})
+// API: hud.prompt(t|null) · hud.toast({kind,title,en,ja}) · hud.caption(textOrObj, {channel})
+//        caption object: {en, ja, speaker, duration, kind, distant, channel}
+//        channels (v3 item 8):
+//          'ambient'  station PA, background voices, shop callouts: small, top-left edge, low contrast, fades
+//                     on its own, never more than 2 at once
+//          'speech'   someone addressing YOU (すみません, staff, Aya): bottom centre, prominent
+//          'action'   what you just did / its result (E interactions, ordering, gates, your thoughts): bottom centre
+//        no channel → inferred: kind announce/platform/train, speaker 'PA' or distant → ambient;
+//        kind thought/machine/action → action; anything else (a speaker talking) → speech
 //      hud.ic({balance,fare,ok,reason}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
@@ -19,6 +27,15 @@ export function ensureGameCss() {
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const STATION_ZONES = new Set(['nankai', 'midosuji', 'sennichimae']);
 const yen = (n) => '¥' + Math.round(n).toLocaleString('en-US');
+const CHANNELS = new Set(['ambient', 'speech', 'action']);
+const PA_KINDS = new Set(['announce', 'platform', 'train', 'pa', 'ambient']);
+export function captionChannel(c) {
+  if (c && CHANNELS.has(c.channel)) return c.channel;
+  if (!c) return 'speech';
+  if (PA_KINDS.has(c.kind) || c.speaker === 'PA' || c.distant) return 'ambient';
+  if (c.kind === 'thought' || c.kind === 'machine' || c.kind === 'action') return 'action';
+  return 'speech';
+}
 
 export class Hud {
   constructor(ctx) { this.ctx = ctx; this._captions = []; this._t = 0; }
@@ -32,6 +49,7 @@ export class Hud {
       <div class="h-prompt"><div class="h-prompt-sub"></div><div class="h-prompt-main"><kbd class="g-key">E</kbd><span class="h-prompt-text"></span><span class="h-prompt-ja"></span></div></div>
       <div class="h-toasts"></div>
       <div class="h-captions"></div>
+      <div class="h-amb" aria-live="off"></div>
       <div class="h-ic"><div class="h-ic-card"><span class="h-ic-logo">ICOCA</span><span class="h-ic-chip"></span></div><div class="h-ic-info"><div class="h-ic-row h-ic-state"></div><div class="h-ic-row"><span>残額 Balance</span><b class="h-ic-bal"></b></div></div></div>
       <div class="h-cup" title="Coffee in hand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 11h14l-1.6 15.2a2 2 0 0 1-2 1.8h-6.8a2 2 0 0 1-2-1.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 8.5h16v2.5H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 6.5h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.6 16.5h10.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path class="h-steam" d="M13 4c-1-1.2 1-2 0-3.2M17 4c-1-1.2 1-2 0-3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
       <div class="h-hint"></div>
@@ -41,7 +59,7 @@ export class Hud {
     const q = (s) => root.querySelector(s);
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
-      toasts: q('.h-toasts'), captions: q('.h-captions'), ic: q('.h-ic'), icState: q('.h-ic-state'), icBal: q('.h-ic-bal'),
+      toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icBal: q('.h-ic-bal'),
       cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
@@ -55,13 +73,14 @@ export class Hud {
     const subsOn = () => !(this.ctx.settings && this.ctx.settings.subtitles === false);
     ev.on('announce', (a) => {
       if (!a || !subsOn() || !this.paAudible(a)) return;
-      this.caption({ ja: a.ja, en: a.text || a.en, kind: 'announce', duration: a.duration || Math.max(4.5, ((a.text || '').length + (a.ja || '').length) * 0.06) });
+      this.caption({ ja: a.ja, en: a.text || a.en, kind: 'announce', channel: a.channel || 'ambient', duration: a.duration || Math.max(4.5, ((a.text || '').length + (a.ja || '').length) * 0.06) });
     });
     ev.on('caption', (c) => {
       if (!c) return;
-      const pa = c.speaker === 'PA' || c.kind === 'announce' || c.kind === 'platform' || c.kind === 'train' || c.distant;
-      if (pa && (!subsOn() || !this.paAudible(c))) return;
-      this.caption(Object.assign({}, c, { en: c.en != null ? c.en : (c.ja ? '' : c.text), speaker: c.speaker === 'PA' ? '' : c.speaker, kind: pa ? 'announce' : (c.kind || 'say'), distant: !!c.distant }));
+      const pa = c.speaker === 'PA' || c.kind === 'announce' || c.kind === 'platform' || c.kind === 'train';
+      if ((pa || c.distant) && (!subsOn() || !this.paAudible(c))) return;
+      const channel = captionChannel(c);
+      this.caption(Object.assign({}, c, { en: c.en != null ? c.en : (c.ja ? '' : c.text), speaker: c.speaker === 'PA' ? '' : c.speaker, kind: pa ? 'announce' : (c.kind || 'say'), distant: !!c.distant, channel }));
     });
     ev.on('toast', (t) => t && this.toast(t));
     // shop staff call out as you pass: a quiet, distant subtitle (cooldown so a shopping street isn't a wall of text)
@@ -72,7 +91,7 @@ export class Hud {
       const now = performance.now();
       if (this._calloutT && now - this._calloutT < 26000) return;
       this._calloutT = now;
-      this.caption({ ja: c.ja, en: c.en || '', kind: 'say', distant: true, duration: 2.2 });
+      this.caption({ ja: c.ja, en: c.en || '', kind: 'say', distant: true, channel: c.channel || 'ambient', speaker: c.speaker || '', duration: 3.2 });
     });
     ev.on('phone:message', (m) => {
       if (this.ctx.phone && this.ctx.phone.handlesMessages) return;
@@ -133,32 +152,57 @@ export class Hud {
   }
 
   // ---- subtitles ----------------------------------------------------------------
-  caption({ en = '', ja = '', speaker = '', duration, kind = 'say', distant = false } = {}) {
-    if (this.quiet || (!en && !ja)) return;
+  caption(a, opts) {
+    if (this.quiet || a == null) return;
+    const c = typeof a === 'string' ? { en: a } : Object.assign({}, a);
+    if (opts) Object.assign(c, typeof opts === 'string' ? { channel: opts } : opts);
+    if (!c.en && !c.ja) return;
+    const channel = captionChannel(c);
+    if (channel === 'ambient') return this._ambient(c);
+    return this._prominent(c, channel);
+  }
+  // speech / action: bottom centre, prominent (max 2, a repeat refreshes the one on screen)
+  _prominent({ en = '', ja = '', speaker = '', duration, kind = 'say', distant = false }, channel) {
     if (this.arrival() && (kind === 'announce' || distant)) return;
     const dur = duration || Math.max(3.2, (en.length + ja.length * 1.6) * 0.055);
-    // never the same words twice at once: a repeat just keeps the one on screen alive a little longer
     const key = `${ja}|${en}`;
     for (const c of this.el.captions.children) {
-      if (c._key === key && !c._gone) {
-        clearTimeout(c._t);
-        c._t = setTimeout(() => { c._gone = true; c.classList.remove('on'); setTimeout(() => c.remove(), 600); }, dur * 1000);
-        return c;
-      }
+      if (c._key === key && !c._gone) { this._life(c, dur); return c; }
     }
     const d = document.createElement('div');
     d._key = key;
-    d.className = `h-cap k-${kind}${distant ? ' distant' : ''}`;
+    d.className = `h-cap ch-${channel} k-${kind}${distant ? ' distant' : ''}`;
     const who = speaker ? `<span class="h-cap-who">${esc(speaker)}</span>` : (kind === 'announce' ? '<span class="h-cap-who pa">案内</span>' : '');
     d.innerHTML = `${ja ? `<div class="h-cap-ja">${who}${esc(ja)}</div>` : ''}${en ? `<div class="h-cap-en">${ja ? '' : who}${esc(en)}</div>` : ''}`;
     this.el.captions.appendChild(d);
     while (this.el.captions.children.length > 2) this.el.captions.firstChild.remove();
     requestAnimationFrame(() => d.classList.add('on'));
-    clearTimeout(d._t);
-    d._t = setTimeout(() => { d._gone = true; d.classList.remove('on'); setTimeout(() => d.remove(), 600); }, dur * 1000);
+    this._life(d, dur);
     return d;
   }
-  clearCaptions() { this.el.captions.innerHTML = ''; }
+  // ambient: the station talking to everyone (and no one). Small, at the edge, low contrast, gone on its own.
+  _ambient({ en = '', ja = '', speaker = '', duration, kind = '' }) {
+    if (this.arrival()) return;
+    const box = this.el.amb;
+    const dur = Math.min(9, duration || Math.max(3.6, (en.length + ja.length * 1.6) * 0.05));
+    const key = `${ja}|${en}`;
+    for (const c of box.children) if (c._key === key && !c._gone) { this._life(c, dur); return c; }
+    const d = document.createElement('div');
+    d._key = key;
+    const pa = PA_KINDS.has(kind) || !speaker || speaker === 'PA';
+    d.className = `h-amb-i${pa ? ' pa' : ''}`;
+    const tag = pa ? '<span class="h-amb-tag">案内</span>' : `<span class="h-amb-tag who">${esc(speaker)}</span>`;
+    d.innerHTML = `${tag}<div class="h-amb-tx">${ja ? `<div class="h-amb-ja">${esc(ja)}</div>` : ''}${en ? `<div class="h-amb-en">${esc(en)}</div>` : ''}</div>`;
+    box.appendChild(d);
+    const live = [...box.children].filter(x => !x._gone);
+    for (let i = 0; i < live.length - 2; i++) this._retire(live[i]);
+    requestAnimationFrame(() => d.classList.add('on'));
+    this._life(d, dur);
+    return d;
+  }
+  _life(d, dur) { clearTimeout(d._t); d._t = setTimeout(() => this._retire(d), dur * 1000); }
+  _retire(d) { if (d._gone) return; d._gone = true; clearTimeout(d._t); d.classList.remove('on'); setTimeout(() => d.remove(), 700); }
+  clearCaptions() { this.el.captions.innerHTML = ''; this.el.amb.innerHTML = ''; }
 
   // ---- ICOCA chip -----------------------------------------------------------------
   ic({ balance = 0, fare = 0, ok = true, reason = '', label = '' } = {}) {

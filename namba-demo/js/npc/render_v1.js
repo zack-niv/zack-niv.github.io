@@ -204,7 +204,7 @@ export class CrowdRendererV1 {
     if (!moving && pose === POSE.WALK) pose = POSE.STAND;
     let amt = moving ? Math.min(1.15, 0.25 + spd * 0.62) : 0;
     if (riding && R.stairs) amt = Math.min(1, 0.45 + spd * 0.5);
-    T.headY = a.lookYaw;
+    T.headY = Math.max(-1.222, Math.min(1.222, isFinite(a.lookYaw) ? a.lookYaw % (2 * Math.PI) : 0));   // v3: +-70 deg relative to the body
     switch (pose) {
       case POSE.PHONE:
         T.aR[0] = 0.32; T.aR[1] = 0.0; T.aR[2] = 1.12; T.aR[3] = 1; T.inR = 0.5; T.headP = 0.46;

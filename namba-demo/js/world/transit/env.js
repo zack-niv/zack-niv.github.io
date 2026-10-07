@@ -261,15 +261,24 @@ export function buildTrackEnv(ctx, cfgs) {
         // between track rect end and viaduct: only the non-track strips are missing; cover all slightly lower
         b.rectH('ballast', xlo, z, xhi, z1, y - 1.112, true);
       }
-      // deck slab edge + underside
-      b.box('transit_concrete', (xlo + xhi) / 2, y - 1.75, zm, xhi - xlo + 1.2, 1.2, z1 - z, 0, { faces: 'b' });
+      // deck slab edge + underside. v3: the underside sits at y - 1.35 (10.65 m), above the Namba CITY 2F
+      // ceiling + plenum (10.0 + 0.6) it spans; it was at 9.65 and showed as a flat concrete ceiling in CITY 2F.
+      b.box('transit_concrete', (xlo + xhi) / 2, y - 1.24, zm, xhi - xlo + 1.2, 0.22, z1 - z, 0, { faces: 'b' });
       for (const [xx, sd] of [[xlo - 0.3, -1], [xhi + 0.3, 1]]) {
-        b.box('transit_concrete', xx, y - 1.2, zm, 0.6, 2.3, z1 - z, 0, { faces: sd < 0 ? 'wte' : 'ewt' });
+        b.box('transit_concrete', xx, y - 0.7, zm, 0.6, 1.3, z1 - z, 0, { faces: sd < 0 ? 'wte' : 'ewt' });
         b.box('transit_concrete', xx, y + 0.0, zm, 0.3, 0.3, z1 - z, 0, { faces: 'tew' });
       }
     }
-    // catenary portals along the viaduct + in the shed hung from the roof
-    for (let z = s0 + 8; z < vEnd; z += 30) {
+    // v3: the deck ends at vEnd (massing.js carries a narrower viaduct on): cap the cut with an end face
+    {
+      const b = CB.get('3F', (xlo + xhi) / 2, vEnd - 1);
+      b.box('transit_concrete', (xlo + xhi) / 2, y - 0.7, vEnd - 0.15, xhi - xlo + 1.2, 1.3, 0.3, 0, { faces: 'nstb' });
+    }
+    // catenary portals along the viaduct + in the shed hung from the roof (+ one at the deck end, where the wires stop)
+    const portalZ = [];
+    for (let z = s0 + 8; z < vEnd; z += 30) portalZ.push(z);
+    if (vEnd - portalZ[portalZ.length - 1] > 4) portalZ.push(vEnd - 1);
+    for (const z of portalZ) {
       const b = CB.get('3F', (xlo + xhi) / 2, z);
       const yTop = y + 6.6;
       if (z > sEnd + 2) {

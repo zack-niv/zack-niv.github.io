@@ -11,29 +11,46 @@ export const QUESTS = {
 // The demo's destination and pacing knobs.
 export const DEMO = {
   slot: 'parks_6Fdw03',
-  offerAt: 135,                     // real seconds of play: the Lodestone offer at the latest
+  offerAt: 165,                     // real seconds of play: Aya sends Lodestone anyway (nobody stays stuck forever)
   offerMin: 45,                     // ...and never before this (the generic map has to be felt)
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
 };
 
-// Opening texts: [seconds after the game starts, text]
-export const INTRO = [
-  [8.0, 'Landed?? Welcome to Osaka! 🛬'],
-  [10.8, 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤'],
-];
-
-// Vague, human, unhelpful-on-purpose nudges while only the ordinary map is in hand.
-export const NUDGES = [
-  [58, 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces'],
-  [96, 'Ask your phone! That\'s what it\'s for 😅'],
-];
+// Aya's texts (v2 words, unchanged). v3: they are gated on the player — a question carries reply chips and the
+// next beat waits for the answer (or for a location / state), see story.js. `lost: true` on a reply = the player
+// asked for help, which is what earns the Lodestone offer.
+export const AYA = {
+  hello: { id: 'hello', text: 'Landed?? Welcome to Osaka! 🛬',
+    replies: [{ id: 'yes', text: 'Just landed! 🙌' }, { id: 'huge', text: 'Yes! This station is HUGE 😵' }] },
+  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤' },
+  // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
+  // the second is her answer to "On my way!"
+  where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
+    replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'omw', text: 'On my way!' }] },
+  whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅' },
+};
 
 export const UPGRADE = {
-  // only used if the phone does not send its own offer text
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
   ready: 'see? 😌 6F, I\'m 3rd in line',
+};
+
+// v3: the in-game tutorial hints (one small line at a time, never a modal). {k:X} renders a key cap.
+export const TUTORIAL = {
+  look: 'Move the mouse to look around',
+  move: '{k:W}{k:A}{k:S}{k:D} to walk · hold {k:Shift} to hurry',
+  raise: 'Your phone buzzed — {k:Q} to raise it',
+  raiseHold: 'Your phone buzzed — {k:Q} or hold right-click',
+  reply: 'Answer Aya — press {k:1} {k:2} or click a reply',
+  replyDown: 'Aya asked you something — {k:Q} to answer',
+  maps: 'Open <b>Maps</b> — {k:Tab} switches apps (or click the dock)',
+  mapsDown: '{k:Q} then open <b>Maps</b>',
+  interact: '{k:E} interacts — machines, doors, café counters',
+  interactHere: '{k:E} — try it',
+  install: 'Aya sent a link — {k:Q}, then {k:Enter} or click <b>Lodestone</b>',
+  installUp: '{k:Enter} or click <b>Lodestone</b> in Aya\'s message',
 };
 
 // Queue banter as the route shortens (remaining metres → text), once each.

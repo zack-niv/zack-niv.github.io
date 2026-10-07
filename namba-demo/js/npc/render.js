@@ -33,6 +33,8 @@ const TIERS = {
 };
 const XFADE = 0.3;   // near <-> far hand-over (s)
 const BLEND = 0.28;  // clip cross-fade (s)
+const HEAD_YAW_MAX = 70 * Math.PI / 180, HEAD_PITCH_MAX = 25 * Math.PI / 180, HEAD_RATE = Math.PI;   // head look limits: +-70 / +-25 deg, 180 deg/s
+const wrapA = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a; };
 const ATTRS = ['iPos', 'iAnim', 'iColA', 'iColB', 'iMisc'];
 
 export class CrowdRenderer {
@@ -75,6 +77,7 @@ export class CrowdRenderer {
     this._list = [];
     this._q = new THREE.Quaternion(); this._q2 = new THREE.Quaternion(); this._v = new THREE.Vector3();
     this._Y = new THREE.Vector3(0, 1, 0);
+    this._P = new THREE.Quaternion(); this._R = new THREE.Quaternion(); this._ax = new THREE.Vector3();
     this._frame = 0;
   }
   setVisible(v) { if (this.group) this.group.visible = v; }
@@ -322,8 +325,22 @@ export class CrowdRenderer {
       if (a._aw >= 1) a._ap = null;
       else { const pd = rig.info[a._ap].dur; a._apt = (a._apt + dt * a._aprate) % pd; }
     }
-    // head turn (smoothed) for the near version
-    a.pHY += ((a.lookYaw || 0) - a.pHY) * (1 - Math.exp(-dt * 4));
+    // head look (near version only draws it): target relative to the BODY, wrapped to [-pi, pi], clamped to
+    // +-70 deg yaw / +-25 deg pitch, then smoothed and rate-limited (<= 180 deg/s). Never accumulates.
+    const dh = dt > 0.1 ? 0.1 : dt;
+    let ty = a.lookYaw, tp = a.lookPitch;
+    if (a.lookT > 0 && a.lookAbs !== undefined && a.lookRel === a.lookYaw) ty = a.lookAbs - a.yaw;   // keep looking at the spot while the body turns
+    ty = isFinite(ty) ? wrapA(ty) : 0; tp = isFinite(tp) ? tp : 0;
+    ty = ty > HEAD_YAW_MAX ? HEAD_YAW_MAX : ty < -HEAD_YAW_MAX ? -HEAD_YAW_MAX : ty;
+    tp = tp > HEAD_PITCH_MAX ? HEAD_PITCH_MAX : tp < -HEAD_PITCH_MAX ? -HEAD_PITCH_MAX : tp;
+    a.pHY = this._ease(isFinite(a.pHY) ? a.pHY : 0, ty, dh);
+    a.pHP = this._ease(isFinite(a.pHP) ? a.pHP : 0, tp, dh);
+  }
+  _ease(cur, tgt, dh) {
+    let step = (tgt - cur) * (1 - Math.exp(-dh * 5));
+    const m = HEAD_RATE * dh;
+    step = step > m ? m : step < -m ? -m : step;
+    return cur + step;
   }
   _frameOf(rig, id, t) {
     const I = rig.info[id];
@@ -367,24 +384,38 @@ export class CrowdRenderer {
       if (!s.on.has(prev)) { ap.enabled = true; ap.play(); s.on.add(prev); }
       ap.time = a._apt; ap.setEffectiveWeight(1 - a._aw);
     }
+    // Head look. THE BUG THIS REPLACES: the old code rotated the Neck / Head bones in place after the mixer had run.
+    // AnimationMixer only writes a bone when its animated value CHANGED since last frame, so for any clip whose
+    // Neck / Head track is constant (idle, phone, sit, ...) the previous frame's turn was still on the bone and the
+    // next turn was added on top: the yaw integrated every frame (up to ~60 x lookYaw per second) = the head spun.
+    // Now: put the bones back to the clean animated pose BEFORE the mixer runs (so it compares/writes against the
+    // clean state), run the mixer, remember the clean pose, then apply the (clamped, smoothed) look on top of it.
+    const neck = s.by.Neck, head = s.by.Head;
+    if (s.hClean) { if (neck) neck.quaternion.copy(s.nClean); if (head) head.quaternion.copy(s.hClean); }
     s.mixer.update(0);
-    // head: turn towards what they look at (split over neck and head)
-    const yawH = a.pHY || 0;
-    if (Math.abs(yawH) > 0.01) { this._turn(s.by.Neck, yawH * 0.4); this._turn(s.by.Head, yawH * 0.6); }
+    if (head) { if (!s.hClean) { s.hClean = new THREE.Quaternion(); s.nClean = new THREE.Quaternion(); } s.hClean.copy(head.quaternion); if (neck) s.nClean.copy(neck.quaternion); }
+    const yawH = a.pHY || 0, pitchH = a.pHP || 0;
+    if (Math.abs(yawH) > 0.005 || Math.abs(pitchH) > 0.005) {
+      this._look3(neck, s.root, yawH * 0.4, pitchH * 0.4);
+      this._look3(head, s.root, yawH * 0.6, pitchH * 0.6);
+    }
     // kids: bigger heads
     const kid = (lk.flags >> BIT.KID) & 1;
-    if (s.by.Head) s.by.Head.scale.setScalar(kid ? 1.16 : 1);
+    if (head) head.scale.setScalar(kid ? 1.16 : 1);
   }
-  _turn(b, ang) {
+  // Rotate bone `b` about the person's up axis (yaw, + = towards their left) and right axis (pitch, + = up), given in the
+  // root's frame (the root only turns about Y, so root-up == world-up). Uses local quaternions only (no matrix decomposition,
+  // so the root's non-uniform build scale cannot shear it).
+  _look3(b, root, yaw, pitch) {
     if (!b || !b.parent) return;
-    // rotate about the person's up axis, expressed in the bone's parent frame
-    b.parent.updateWorldMatrix(true, false);
-    const q = this._q, q2 = this._q2, q3 = this._q3 || (this._q3 = new THREE.Quaternion());
-    b.parent.getWorldQuaternion(q2);
-    q.setFromAxisAngle(this._Y, ang);
-    // local' = P^-1 * R * P * local
-    q3.copy(q2).invert().multiply(q).multiply(q2);
-    b.quaternion.premultiply(q3);
+    const P = this._P, R = this._R, ax = this._ax;
+    P.identity();
+    for (let o = b.parent; o && o !== root; o = o.parent) P.premultiply(o.quaternion);   // parent's orientation in the root frame
+    P.invert();
+    R.identity();
+    if (yaw) { ax.set(0, 1, 0).applyQuaternion(P); R.multiply(this._q.setFromAxisAngle(ax, yaw)); }
+    if (pitch) { ax.set(-1, 0, 0).applyQuaternion(P); R.multiply(this._q.setFromAxisAngle(ax, pitch)); }   // model faces +Z: about -X tips the face up
+    b.quaternion.premultiply(R);
   }
 
   dispose() {
