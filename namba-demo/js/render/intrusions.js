@@ -66,15 +66,23 @@ function clipStructures(ctx, res) {
       o.updateMatrixWorld();
       if (!o.matrixWorld.equals(IDENT)) return; // batches are built in world space
       const foreign = (x, y, z) => { const zn = zoneAt(x, y, z); return !!zn && !rule.keepZones.has(zn); };
-      // any foreign volume inside an AABB? (1 m sampling of the box)
+      const masks = rule._masks || (rule._masks = []);
+      // does an AABB touch a foreign indoor volume? (cell flags per level band, conservative)
       const boxHit = (b) => {
-        for (let y = b[1]; y <= b[4] + 1e-6; y += Math.max(0.5, (b[4] - b[1]) / 4 || 1)) {
-          for (let x = b[0]; x <= b[3] + 1e-6; x += 1) for (let z = b[2]; z <= b[5] + 1e-6; z += 1) if (foreign(x, y, z)) return true;
-          if (b[4] - b[1] < 1e-3) break;
+        for (let li = 0; li < LEVEL_ORDER.length; li++) {
+          const lo = ys[li] - 0.05, hi = li + 1 < ys.length ? ys[li + 1] - 0.05 : Infinity;
+          if (b[4] < lo || b[1] >= hi) continue;
+          if (masks[li] === undefined) { const tm = performance.now(); masks[li] = levelMask(world, LEVEL_ORDER[li], rule.keepZones, ys[li]); res.maskMs = (res.maskMs || 0) + performance.now() - tm; }
+          const m = masks[li]; if (!m) continue;
+          const yMin = Math.max(b[1], lo);
+          const g = m.g;
+          const cx0 = Math.max(0, Math.floor(b[0] - g.x0)), cx1 = Math.min(g.w - 1, Math.floor(b[3] - g.x0));
+          const cz0 = Math.max(0, Math.floor(b[2] - g.z0)), cz1 = Math.min(g.h - 1, Math.floor(b[5] - g.z0));
+          for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) if (m.top[cz * g.w + cx] >= yMin) return true;
         }
         return false;
       };
-      const g = o.geometry, names = Object.keys(g.attributes);
+      const g = o.geometry, names = Object.keys(g.attributes).sort((a, b) => (a === 'position' ? -1 : b === 'position' ? 1 : 0));
       const attrs = names.map(n => g.attributes[n]);
       if (attrs.some(a => a.isInterleavedBufferAttribute) || Object.keys(g.morphAttributes).length) return;
       const pos = g.attributes.position, n = pos.count / 3;
@@ -82,45 +90,64 @@ function clipStructures(ctx, res) {
       g.computeBoundingBox();
       const bb = g.boundingBox;
       if (!boxHit([bb.min.x, bb.min.y, bb.min.z, bb.max.x, bb.max.y, bb.max.z])) return;
-      const out = attrs.map(() => []);
+      // vertex = Float32Array of all attributes (stride S, position first)
+      const sizes = attrs.map(a => a.itemSize), S = sizes.reduce((x, y) => x + y, 0);
+      const out = [];
       let dropped = 0, kept = 0;
-      const emit = (V) => { for (let a = 0; a < attrs.length; a++) for (let k = 0; k < 3; k++) out[a].push(...V[k][a]); kept++; };
-      const P = (v) => v[0]; // vertex = [posArray, ...otherAttrArrays]
-      const proc = (V, depth) => {
-        const p0 = P(V[0]), p1 = P(V[1]), p2 = P(V[2]);
-        const e = [dist(p1, p2), dist(p2, p0), dist(p0, p1)];
-        const big = Math.max(e[0], e[1], e[2]);
-        const b = [Math.min(p0[0], p1[0], p2[0]), Math.min(p0[1], p1[1], p2[1]), Math.min(p0[2], p1[2], p2[2]), Math.max(p0[0], p1[0], p2[0]), Math.max(p0[1], p1[1], p2[1]), Math.max(p0[2], p1[2], p2[2])];
+      const emit = (A, B, C) => { for (const v of [A, B, C]) for (let j = 0; j < S; j++) out.push(v[j]); kept++; };
+      const d3 = (p, q) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+      const proc = (A, B, C, depth) => {
+        const eA = d3(B, C), eB = d3(C, A), eC = d3(A, B);
+        const big = Math.max(eA, eB, eC);
         if (big > MAX_EDGE && depth < 24) {
-          if (!boxHit(b)) { emit(V); return; }
-          // split the longest edge
-          const k = e[0] >= e[1] && e[0] >= e[2] ? 0 : e[1] >= e[2] ? 1 : 2; // edge opposite vertex k
-          const a = (k + 1) % 3, c = (k + 2) % 3;
-          const M = V[a].map((arr, i) => arr.map((v, j) => (v + V[c][i][j]) / 2));
-          const T1 = [], T2 = [];
-          T1[k] = V[k]; T1[a] = V[a]; T1[c] = M;
-          T2[k] = V[k]; T2[a] = M; T2[c] = V[c];
-          proc(T1, depth + 1); proc(T2, depth + 1);
+          const bx = [Math.min(A[0], B[0], C[0]), Math.min(A[1], B[1], C[1]), Math.min(A[2], B[2], C[2]), Math.max(A[0], B[0], C[0]), Math.max(A[1], B[1], C[1]), Math.max(A[2], B[2], C[2])];
+          if (!boxHit(bx)) { emit(A, B, C); return; }
+          // split the longest edge (keeps the winding)
+          const mid = (p, q) => { const m = new Float32Array(S); for (let j = 0; j < S; j++) m[j] = (p[j] + q[j]) / 2; return m; };
+          if (eA === big) { const M = mid(B, C); proc(A, B, M, depth + 1); proc(A, M, C, depth + 1); }
+          else if (eB === big) { const M = mid(C, A); proc(B, C, M, depth + 1); proc(B, M, A, depth + 1); }
+          else { const M = mid(A, B); proc(C, A, M, depth + 1); proc(C, M, B, depth + 1); }
           return;
         }
-        const cx = (p0[0] + p1[0] + p2[0]) / 3, cy = (p0[1] + p1[1] + p2[1]) / 3, cz = (p0[2] + p1[2] + p2[2]) / 3;
-        if (foreign(cx, cy, cz)) { dropped++; return; }
-        emit(V);
+        if (foreign((A[0] + B[0] + C[0]) / 3, (A[1] + B[1] + C[1]) / 3, (A[2] + B[2] + C[2]) / 3)) { dropped++; return; }
+        emit(A, B, C);
       };
-      for (let f = 0; f < n; f++) {
-        const V = [0, 1, 2].map(k => attrs.map(a => Array.from(a.array.subarray((f * 3 + k) * a.itemSize, (f * 3 + k + 1) * a.itemSize))));
-        proc(V, 0);
-      }
+      const vert = (i) => { const v = new Float32Array(S); let o = 0; for (let a = 0; a < attrs.length; a++) { const it = sizes[a]; v.set(attrs[a].array.subarray(i * it, (i + 1) * it), o); o += it; } return v; };
+      for (let f = 0; f < n; f++) proc(vert(f * 3), vert(f * 3 + 1), vert(f * 3 + 2), 0);
       if (!dropped) return;
       res.tris += dropped; res.added += Math.max(0, kept - (n - dropped));
       res.meshes.push(`${o.name}@${lv}: ${n} -> ${kept}`);
       if (!kept) { o.layers.disableAll(); o.visible = false; return; }
-      names.forEach((nm, a) => { const at = attrs[a]; g.setAttribute(nm, new THREE.BufferAttribute(new at.array.constructor(out[a]), at.itemSize, at.normalized)); });
+      const nv = out.length / S;
+      let off = 0;
+      names.forEach((nm, a) => {
+        const at = attrs[a], it = sizes[a], arr = new at.array.constructor(nv * it);
+        for (let i = 0; i < nv; i++) for (let j = 0; j < it; j++) arr[i * it + j] = out[i * S + off + j];
+        off += it;
+        g.setAttribute(nm, new THREE.BufferAttribute(arr, it, at.normalized));
+      });
       g.computeBoundingSphere(); g.computeBoundingBox();
     });
   }
 }
-const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+// one level: top[cell] = highest y (absolute) of a foreign indoor volume over that cell, -Inf if none
+function levelMask(world, lv, keepZones, y0) {
+  const L = world.layout;
+  const g = world.grids[lv]; if (!g) return null;
+  const top = new Float32Array(g.w * g.h).fill(-Infinity);
+  let any = false;
+  for (let i = 0; i < top.length; i++) {
+    const t = g.type[i];
+    let zone = null, y = -Infinity;
+    if (t === CELL.RAMP && g.ramp[i] >= 0) { zone = L.ramps[g.ramp[i]].zone; y = Infinity; }
+    else if (t === CELL.WALK || t === CELL.VOID) {
+      const sp = g.space[i] >= 0 ? L.spaces[g.space[i]] : null;
+      if (sp && !sp.outdoor) { zone = sp.zone; y = y0 + (sp.ceil || 3.5) + 0.6; }
+    }
+    if (zone && !keepZones.has(zone)) { top[i] = y; any = true; }
+  }
+  return any ? { g, top } : null;
+}
 
 // The city ground plane (a 1.5 km asphalt disc just under street level) is rebuilt with a hole over
 // every 1F cell that opens to B1 (street stair wells, voids), so wells descend to their landing.

@@ -28,7 +28,10 @@
 // Emits 'nav:track' {state, headingErr, lost} on every state change.
 // Nothing runs while riding an escalator, near the destination, or pocketed.
 // =============================================================================
+import { LEVELS } from '../../world/layout.js';
+
 const DEG = 180 / Math.PI;
+const lvl = (l) => (LEVELS[l] ? LEVELS[l].label : l).replace('B1F', 'B1').replace('B2F', 'B2');
 const LOOK = 6;              // m along the route for the heading target
 
 export class Tracker {
@@ -39,7 +42,7 @@ export class Tracker {
   }
   reset() {
     this.state = 'on'; this.err = 0; this.lost = 0; this.active = false;
-    this._r = null; this._minRem = Infinity; this._target = null;
+    this._r = null; this._minRem = Infinity; this._target = null; this._levels = null; this._wrongFloor = null; this._why = '';
     this._driftT = 0; this._okT = 0; this._offT = 0; this._stateT = 0; this._cool = 0; this._tgtT = 0;
     this._lastBuzz = -1e9; this._t = 0;
   }
@@ -92,6 +95,12 @@ export class Tracker {
     if (R !== this._r) {
       this._r = R; this._tgtT = 0;
       if (isFinite(R.total)) { this._minRem = Math.min(this._minRem, R.total); this.lost = Math.max(0, R.total - this._minRem); }
+      // the floors of the route we were following: stepping off onto another one is "wrong floor", even when the
+      // new floor happens to have an equally short way (judged before the new route's floors are adopted)
+      if (body.ramp < 0) {
+        if (this._levels && !this._levels.has(body.level) && this.state !== 'off') this._wrongFloor = body.level;
+        else if (!this._wrongFloor && R.legs) this._levels = new Set(R.legs.map(l => l.level));
+      }
     }
     this._tgtT -= dt;
     if (this._tgtT <= 0) { this._tgtT = 0.1; this._aim(R, body); }
@@ -115,7 +124,7 @@ export class Tracker {
     const a = Math.abs(this.err);
     const headBad = moving && a > thr, headGood = a < 40;
     const lostBad = moving && this.lost > 5;
-    const offNow = this.lost > 12;
+    const offNow = this.lost > 12 || !!this._wrongFloor;
     this._offT = offNow ? this._offT + dt : 0;
     const goOff = this._offT > 0.5 && this._cool <= 0;
 
@@ -141,6 +150,7 @@ export class Tracker {
   }
 
   _goOff() {
+    this._why = this._wrongFloor ? 'floor' : 'lost';
     this._set('off');
     if (this._t - this._lastBuzz > 20) { this._lastBuzz = this._t; this.phone.vibrate && this.phone.vibrate(); }
   }
@@ -149,6 +159,7 @@ export class Tracker {
     const R = this.app.route;
     this._minRem = R && R.ok && isFinite(R.total) ? R.total : Infinity;
     this.lost = 0; this._cool = 8;
+    this._wrongFloor = null; this._levels = R && R.ok && R.legs ? new Set(R.legs.map(l => l.level)) : null;
     const st = this.phone._stats; if (st) st.lodestoneReroutes = (st.lodestoneReroutes || 0) + 1;
     this._set('rerouted');
   }
@@ -157,7 +168,10 @@ export class Tracker {
   sign() {
     if (!this.active || this.state === 'on') return null;
     const a = Math.abs(this.err), side = this.err > 0 ? 'right' : 'left';
-    if (this.state === 'off') return { cls: 'trk-off', live: true, title: 'Rerouting…', short: 'Rerouting…', sub: 'Off the route · finding a new way', gsub: 'Off the route · new way…' };
+    if (this.state === 'off') {
+      const fl = this._why === 'floor' && this.ctx.player ? lvl(this.ctx.player.body.level) : '';
+      return { cls: 'trk-off', live: true, title: 'Rerouting…', short: 'Rerouting…', sub: fl ? `You’re on ${fl} · finding a new way` : 'Off the route · finding a new way', gsub: fl ? `You’re on ${fl}` : 'Off the route' };
+    }
     if (this.state === 'rerouted') {
       const R = this.app.route, eta = R && isFinite(R.eta) ? (R.eta < 45 ? '<1 min' : `${Math.max(1, Math.round(R.eta / 60))} min`) : '';
       return { cls: 'trk-re', live: false, check: true, title: 'Rerouted', short: 'Rerouted', sub: eta ? `New route · ${eta}` : 'New route' };
