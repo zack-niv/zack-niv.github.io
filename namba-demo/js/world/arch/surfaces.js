@@ -290,6 +290,15 @@ function buildSlabEdges(K) {
         face(b, st.fascia === 'wall_dark' ? 'wall_dark' : 'esc_cladding_white', ax, az, bx, bz, yb, y, -dx, -dz, 0);
         // bottom reveal + cove light strip on deep edges
         face(b, 'steel_dark', ax, az, bx, bz, yb, yb + 0.05, -dx, -dz, 0.01);
+        // v3: escalator / stair wells get a lit reveal along the opening's lower edge, so from the
+        // level below the opening in the ceiling reads at once (and matches the well exactly)
+        const here = K.cell(lv, X, Z);
+        const lowSp = bl ? K.cell(bl, nx0, nz0).sp : null;
+        if (here.t === CELL.RAMP && lowSp && !lowSp.outdoor && yb < y - 0.4) {
+          const md = styleOf(lowSp).mood;
+          const lm = md === 'metro' ? 'light_line_cool' : md === 'passage' || md === 'terminal' ? 'light_line_neutral' : 'light_line_warm';
+          face(b, lm, ax, az, bx, bz, yb + 0.06, yb + 0.12, -dx, -dz, 0.014);
+        }
       }
     }
   }

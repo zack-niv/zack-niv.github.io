@@ -1,4 +1,5 @@
-// Escalator stand-side check: warms the crowd, finds people riding escalators and screenshots them from behind
+// v3 crowd+sound check: (1) the PA speaks Japanese only (stubbed speechSynthesis with a ja and an en voice; then with an en
+// voice only => nothing spoken, caption + chime only), caption channels; (2) escalator stand-side: warms the crowd, finds people riding escalators and screenshots them from behind
 // (so "right of travel" is the right of the picture). Prints per-lane stats: standers vs walkers and their side.
 //   node tools/escshot.mjs [--out notes/v3-shots/crowd] [--n 3]
 import { chromium } from 'playwright';
@@ -17,11 +18,35 @@ const releaseSlot = await acquireSlot('escshot');
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
+await page.addInitScript(() => {
+  const spoken = []; window.__spoken = spoken; window.__voiceMode = 'both';
+  const V = { ja: { name: 'Kyoko', lang: 'ja-JP', localService: true }, en: { name: 'Samantha', lang: 'en-US', localService: true } };
+  const ss = { getVoices: () => window.__voiceMode === 'both' ? [V.ja, V.en] : window.__voiceMode === 'en' ? [V.en] : [], addEventListener() {}, cancel() {}, pause() {}, resume() {}, speaking: false,
+    speak(u) { spoken.push({ lang: u.lang, voice: u.voice && u.voice.name, text: u.text, vol: +(+u.volume).toFixed(2) }); setTimeout(() => u.onstart && u.onstart({}), 5); setTimeout(() => u.onend && u.onend({}), 120); } };
+  Object.defineProperty(window, 'speechSynthesis', { value: ss, configurable: true });
+  window.SpeechSynthesisUtterance = function (t) { this.text = t; this.volume = 1; this.lang = ''; };
+});
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text().slice(0, 200)); });
 page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
 try {
   await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=medium&time=12:10`);
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 300000 });
+  // ---- (1) speech: Japanese only ----
+  const speech = await page.evaluate(async () => {
+    const n = window.__namba, A = n.audio, caps = []; n.events.on('caption', c => caps.push({ en: c.en, ja: c.ja, kind: c.kind, channel: c.channel }));
+    n.teleport('start'); for (let i = 0; i < 20; i++) A.update(0.2);
+    const run = async (mode) => {
+      window.__voiceMode = mode; window.__spoken.length = 0; A.announcer.refreshVoices(); caps.length = 0;
+      A.say({ ja: 'まもなく、1番線に、関西空港行き、特急ラピートが、まいります。', en: 'The limited express Rapi:t bound for Kansai Airport is now arriving.', kind: 'station', gain: 1 });
+      const p = n.player.body;
+      A.announcer.say({ kind: 'escalator', parts: [{ lang: 'ja', text: 'エスカレーターをご利用の際は、手すりにおつかまりください。' }, { lang: 'en', text: 'Please hold the handrail.' }], gain: 1, chime: 'esc', caption: true, maxAge: 20 });
+      n.events.emit('crowd:excuse', { level: p.level, x: p.x + 1, z: p.z, y: 1.6, ja: 'すみません', en: 'Excuse me', kind: 'commuter' });
+      for (let i = 0; i < 150; i++) { A.update(0.1); if (i % 10 === 9) await new Promise(r => setTimeout(r, 5)); }
+      return { mode, spoken: window.__spoken.slice(), captions: caps.slice(), ja: A.announcer.debug().ja, en: A.announcer.debug().en, pa: A.debug().pa.last };
+    };
+    return [await run('both'), await run('en'), await run('none')];
+  });
+  for (const r of speech) console.log('SPEECH', JSON.stringify({ voices: r.mode, ja: r.ja, en: r.en, spoken: r.spoken, captions: r.captions }));
   const shots = [];
   for (const sp of (args.spawns || 'nankai_2f,nankai_gate,city_1f').split(',')) {
     await page.evaluate(s => window.__namba.teleport(s), sp);

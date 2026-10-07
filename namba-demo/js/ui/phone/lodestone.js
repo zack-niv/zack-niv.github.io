@@ -206,7 +206,7 @@ export class LodestoneApp {
     this._routeTick(0);
     this._guideKey = '';
   }
-  _trackChanged() { this._guideKey = ''; this.phone.glance && this.phone.glance.refresh(true); }
+  _trackChanged() { this._guideKey = ''; if (this.state === 'ready') this._renderGuide(true); this.phone.glance && this.phone.glance.refresh(true); }
   // the angle the live arrow should show (deg, + = clockwise): the tracker's heading error
   liveAngle() { return this.track.active ? this.track.err : this._relBearing(); }
 
@@ -385,6 +385,9 @@ export class LodestoneApp {
     }
     if (this._cardT > 0) { this._cardT -= dt; if (this._cardT <= 0) this.el.card.classList.add('out'); }
     else if (!this.el.card.hidden && this.el.card.classList.contains('out')) { this._cardOutT = (this._cardOutT || 0) + dt; if (this._cardOutT > 0.5) { this.el.card.hidden = true; this.el.card.classList.remove('out'); this._cardOutT = 0; } }
+    // the on-track sign follows the heading (left / right / around) even while standing still
+    this._signT = (this._signT || 0) - dt;
+    if (this._signT <= 0) { this._signT = 0.2; if (this.track.state !== 'on') this._renderGuide(false); }
     // live arrow on the current instruction
     this._liveArrow();
   }
@@ -431,7 +434,7 @@ export class LodestoneApp {
     if (!R || !R.ok) return { kind: 'wait', icon: 'straight', title: 'Finding your route…', sub: here };
     const cur = R.steps[0], toGo = Math.max(0, Math.round(isFinite(cur && cur.at) ? cur.at : 0));
     const sg = this.track.sign();
-    if (sg) return { kind: 'nav', trk: sg.cls, icon: sg.check ? 'check' : 'straight', live: sg.live, ang: sg.live ? this.liveAngle() : null, angFn: sg.live ? () => this.liveAngle() : null, title: sg.short, sub: sg.sub };
+    if (sg) return { kind: 'nav', trk: sg.cls, icon: sg.check ? 'check' : 'straight', live: sg.live, ang: sg.live ? this.liveAngle() : null, angFn: sg.live ? () => this.liveAngle() : null, title: sg.short, sub: sg.gsub || sg.sub };
     const live = isLive(cur, toGo), ph = phrase(cur, this.dest);
     return { kind: 'nav', trk: 'trk-on', icon: cur ? cur.icon : 'straight', live, ang: live ? this.liveAngle() : null, angFn: live ? () => this.liveAngle() : null, title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` };
   }

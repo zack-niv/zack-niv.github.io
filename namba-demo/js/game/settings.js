@@ -93,6 +93,8 @@ export const CONTROLS = [
   [['Shift'], 'Hurry', '急ぐ'],
   [['Q'], 'Phone up / down', 'スマホを出す・しまう'],
   [['Right-click'], 'Hold for a quick phone look', '長押しでちらっと確認'],
+  [['Tab'], 'Switch apps (phone up)', 'アプリ切り替え'],
+  [['1', '2', '3'], 'Reply to Aya (phone up)', '返信'],
   [['E'], 'Interact', '調べる'],
   [['Esc'], 'Pause', '一時停止'],
 ];

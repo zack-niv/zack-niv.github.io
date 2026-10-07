@@ -385,9 +385,9 @@ export class Phone {
     // while the phone is up: Tab / Shift+Tab cycles the apps (instead of lowering it), 1/2/3 reply or switch apps
     let tabbed = false;
     if (this.isOpen && !this.typing && inp && this._canUse()) {
-      if (inp.pressed('Tab') && !this._busyUpgrade()) {
-        tabbed = true; this._lastPhoneInput = this._now;
-        this._cycleApp(inp.down && (inp.down('ShiftLeft') || inp.down('ShiftRight')) ? -1 : 1);
+      if (inp.pressed('Tab')) {
+        tabbed = true; this._lastPhoneInput = this._now;          // (never lowers the phone; ignored during the install)
+        if (!this._busyUpgrade()) this._cycleApp(inp.down && (inp.down('ShiftLeft') || inp.down('ShiftRight')) ? -1 : 1);
       }
       for (let k = 0; k < 3; k++) {
         if (!(inp.pressed('Digit' + (k + 1)) || inp.pressed('Numpad' + (k + 1)))) continue;

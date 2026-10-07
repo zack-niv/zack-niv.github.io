@@ -181,7 +181,7 @@ export class Hud {
     return d;
   }
   // ambient: the station talking to everyone (and no one). Small, at the edge, low contrast, gone on its own.
-  _ambient({ en = '', ja = '', speaker = '', duration, kind = 'announce' }) {
+  _ambient({ en = '', ja = '', speaker = '', duration, kind = '' }) {
     if (this.arrival()) return;
     const box = this.el.amb;
     const dur = Math.min(9, duration || Math.max(3.6, (en.length + ja.length * 1.6) * 0.05));
@@ -189,7 +189,7 @@ export class Hud {
     for (const c of box.children) if (c._key === key && !c._gone) { this._life(c, dur); return c; }
     const d = document.createElement('div');
     d._key = key;
-    const pa = kind === 'announce' || kind === 'platform' || kind === 'train' || !speaker;
+    const pa = PA_KINDS.has(kind) || !speaker || speaker === 'PA';
     d.className = `h-amb-i${pa ? ' pa' : ''}`;
     const tag = pa ? '<span class="h-amb-tag">案内</span>' : `<span class="h-amb-tag who">${esc(speaker)}</span>`;
     d.innerHTML = `${tag}<div class="h-amb-tx">${ja ? `<div class="h-amb-ja">${esc(ja)}</div>` : ''}${en ? `<div class="h-amb-en">${esc(en)}</div>` : ''}</div>`;

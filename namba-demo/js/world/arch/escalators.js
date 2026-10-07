@@ -20,6 +20,7 @@ import { GeoBatch } from '../../render/geobatch.js';
 import { CELL } from '../world.js';
 import { LEVELS, rampProfile, rampLength, rampEnds, rampFlat, ESC_TRANSITION } from '../layout.js';
 import { styleOf } from './styles.js';
+import { KELVIN } from './kit.js';
 
 const STEP = 0.4;   // chain pitch along the step path (m)
 const SPEED = 0.5;  // m/s (= world.conveyor)
@@ -103,6 +104,7 @@ export class Ramps {
         else this._stairs(r, nb);
       }
       this._bankEnclosure(id, lanes);
+      this._landingLights(lanes);
       const escs = lanes.filter(r => r.kind === 'escalator');
       if (escs.length) this._bankSteps(id, escs);
     }
@@ -351,6 +353,27 @@ export class Ramps {
     K.light({ level: r.upper, x: pc[0], y: yc - 0.05, z: pc[2], color: 0xeef2fa, intensity: 0.6, range: 7, kind: 'strip', len: len - sEnd, axis: r.axis });
     this.exitCanopies = this.exitCanopies || [];
     this.exitCanopies.push({ ramp: r.id, level: r.upper, x: pc[0], z: pc[2], y: yc, axis: r.axis, signFace: P(len + 0.3, 0, yc - 0.3), dir: F.T });
+  }
+
+  // v3: a pool of light on the floor at the foot of every indoor bank. From the top of a down
+  // escalator the only part of the lower level you can see through the well is the floor just
+  // beyond the foot; lit, it reads as a landing (not as "the ground"). Bake only (no geometry).
+  _landingLights(lanes) {
+    const K = this.K;
+    const F = frameOf(lanes[0]);
+    let u0 = Infinity, u1 = -Infinity;
+    for (const r of lanes) {
+      const c = r.axis === 'x' ? (r.rect[1] + r.rect[3]) / 2 : (r.rect[0] + r.rect[2]) / 2;
+      const w = r.axis === 'x' ? r.rect[3] - r.rect[1] : r.rect[2] - r.rect[0];
+      u0 = Math.min(u0, c - w / 2 - F.cc); u1 = Math.max(u1, c + w / 2 - F.cc);
+    }
+    const um = (u0 + u1) / 2;
+    const p = F.P(-2.0, um, 0);
+    const c = K.cell(lanes[0].lower, p[0], p[2]);
+    if (c.t !== CELL.WALK || !c.sp || c.sp.outdoor) return;
+    const st = styleOf(c.sp);
+    const col = KELVIN[st.mood] || KELVIN.terminal;
+    K.light({ level: lanes[0].lower, x: p[0], y: F.yl + Math.min(c.sp.ceil, F.yu - F.yl - 0.6) - 0.1, z: p[2], color: col, intensity: 0.9, range: 8, kind: 'down' });
   }
 
   // enclosure faces at the high end under the upper slab (wedge zones)

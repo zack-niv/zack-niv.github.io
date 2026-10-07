@@ -243,21 +243,99 @@ export function buildCeilings(K) {
     }
     serviceKit(K, { lv, sp, H, has, raise, bx0, bz0, bx1, bz1 });
   });
-  // ---- ceilings over ramp wells on their upper level (indoor) -------------------------
-  for (const r of L.ramps) {
-    const lv = r.upper, y = K.y(lv);
-    const [x0, z0, x1, z1] = r.rect;
-    // the upper level's ceiling around the footprint
+  buildWellCeilings(K);
+}
+
+// ---- escalator / stair wells on their upper level: a lit lightwell ------------------------
+// v3: the well ceiling used to be a plain unlit continuation of the upper ceiling, so from the
+// foot of an escalator the steps rose into a flat, uniform plane. Now every bank's well gets a
+// raised coffer (as high as the slab above allows) with a lit cove on the rim, a line light over
+// every lane (declared to lighting: lights the top landing and, through the hole, the steps and
+// the bottom landing), and shaft walls wherever the upper level has no floor beside the well
+// (Parks 6F: the 5F->6F well starts 8 m before the dining floor does — it used to open onto black).
+function buildWellCeilings(K) {
+  const { L } = K;
+  const banks = new Map();
+  for (const r of L.ramps) { const k = r.bank || r.id; if (!banks.has(k)) banks.set(k, []); banks.get(k).push(r); }
+  for (const lanes of banks.values()) {
+    const r0 = lanes[0];
+    const lv = r0.upper, y = K.y(lv);
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (const r of lanes) { x0 = Math.min(x0, r.rect[0]); z0 = Math.min(z0, r.rect[1]); x1 = Math.max(x1, r.rect[2]); z1 = Math.max(z1, r.rect[3]); }
+    // the upper level's (highest) indoor ceiling around the footprint
     let best = null;
-    for (let x = x0 - 1; x <= x1; x++) for (const z of [z0 - 1, z1]) { const c = K.cell(lv, x + 0.5, z + 0.5); if (c.t === CELL.WALK && c.sp && !c.sp.outdoor) best = best && best.ceil >= c.sp.ceil ? best : c.sp; }
-    for (let z = z0 - 1; z <= z1; z++) for (const x of [x0 - 1, x1]) { const c = K.cell(lv, x + 0.5, z + 0.5); if (c.t === CELL.WALK && c.sp && !c.sp.outdoor) best = best && best.ceil >= c.sp.ceil ? best : c.sp; }
-    if (!best) continue;
+    const consider = (x, z) => { const c = K.cell(lv, x + 0.5, z + 0.5); if (c.t === CELL.WALK && c.sp && !c.sp.outdoor) best = best && best.ceil >= c.sp.ceil ? best : c.sp; };
+    for (let x = x0 - 1; x <= x1; x++) { consider(x, z0 - 1); consider(x, z1); }
+    for (let z = z0 - 1; z <= z1; z++) { consider(x0 - 1, z); consider(x1, z); }
+    if (!best) continue;                     // street exits etc.: open to the sky
     const st = styleOf(best);
-    if (!st.ceil || (best.style === 'terminal_concourse' && best.ceil >= 8)) continue;
+    if (!st.ceil || (best.style === 'terminal_concourse' && best.ceil >= 8)) continue; // trussed roof covers it
     const upl = K.above(lv);
+    const H = y + best.ceil;
+    const cap = upl ? K.y(upl) - H - 0.25 : 1.0;
+    const rise = cap >= 0.15 ? Math.min(0.7, cap) : 0;
+    const Hw = H + rise;
+    const inWell = (x, z) => x >= x0 && x < x1 && z >= z0 && z < z1 && !(upl && K.isHole(upl, x + 0.5, z + 0.5));
+    const mood = st.mood, col = KELVIN[mood] || 0xffffff;
+    const cove = mood === 'metro' || mood === 'passage' || mood === 'terminal' ? 'light_cove_cool' : 'light_cove_warm';
+    const lineMat = mood === 'metro' ? 'light_line_cool' : mood === 'passage' || mood === 'terminal' ? 'light_line_neutral' : 'light_line_warm';
+    // ceiling (row runs)
+    for (let z = z0; z < z1; z++) {
+      let a = null;
+      for (let x = x0; x <= x1; x++) {
+        const ok = x < x1 && inWell(x, z);
+        if (ok && a === null) a = x;
+        if (!ok && a !== null) { K.B(lv, (a + x) / 2, z + 0.5).rectH(st.ceil, a, z, x, z + 1, Hw, false); a = null; }
+      }
+    }
+    // rim: coffer step + cove where the neighbour has a ceiling, shaft wall where it has no floor
     for (let z = z0; z < z1; z++) for (let x = x0; x < x1; x++) {
-      if (upl && K.isHole(upl, x + 0.5, z + 0.5)) continue;
-      K.B(lv, x + 0.5, z + 0.5).rectH(st.ceil, x, z, x + 1, z + 1, y + best.ceil, false);
+      if (!inWell(x, z)) continue;
+      for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, nz = z + dz;
+        if (nx >= x0 && nx < x1 && nz >= z0 && nz < z1) continue; // inside the bank (or open above)
+        const c = K.cell(lv, nx + 0.5, nz + 0.5);
+        const ex = x + 0.5 + dx * 0.5, ez = z + 0.5 + dz * 0.5;
+        const [ax, az, bx, bz] = dx ? [ex, z, ex, z + 1] : [x, ez, x + 1, ez];
+        const b = K.B(lv, ex, ez);
+        // face looks back into the well (-dx, -dz)
+        if (c.t === CELL.WALK && c.sp && !c.sp.outdoor) {
+          if (upl && K.isHole(upl, nx + 0.5, nz + 0.5)) continue;
+          const Hn = K.ceilAt(lv, nx + 0.5, nz + 0.5) ?? (y + c.sp.ceil);
+          if (Hn >= Hw - 0.02) continue;
+          face(b, 'ceiling_plaster', ax, az, bx, bz, Hn, Hw, -dx, -dz, 0);
+          if (rise > 0.2) face(b, cove, ax, az, bx, bz, Hw - 0.14, Hw - 0.03, -dx, -dz, 0.03);
+        } else if (c.t === CELL.SOLID || c.t === CELL.TRACK) {
+          face(b, st.wall, ax, az, bx, bz, y, Hw, -dx, -dz, 0);
+          face(b, 'steel_dark', ax, az, bx, bz, y, y + 0.1, -dx, -dz, 0.012);
+        } else if (c.t === CELL.VOID || c.t === CELL.RAMP) {
+          if (rise > 0) face(b, 'ceiling_plaster', ax, az, bx, bz, H, Hw, -dx, -dz, 0);
+        }
+      }
+    }
+    // a line light over every lane, the length of the well (lights the landing and, through the
+    // hole, the steps and the floor at the bottom)
+    const yLow = K.y(r0.lower);
+    for (const r of lanes) {
+      const ax = r.axis === 'x';
+      const cc = ax ? (r.rect[1] + r.rect[3]) / 2 : (r.rect[0] + r.rect[2]) / 2;
+      const a0 = ax ? r.rect[0] : r.rect[1], a1 = ax ? r.rect[2] : r.rect[3];
+      const runs = []; let s = null;
+      for (let p = a0; p <= a1; p++) {
+        const ok = p < a1 && (ax ? inWell(p, Math.floor(cc)) : inWell(Math.floor(cc), p));
+        if (ok && s === null) s = p;
+        if (!ok && s !== null) { runs.push([s, p]); s = null; }
+      }
+      const w = r.kind === 'escalator' ? 0.12 : 0.16;
+      for (const [p0, p1] of runs) {
+        const q0 = p0 + 0.4, q1 = p1 - 0.4;
+        if (q1 - q0 < 1) continue;
+        const m = (q0 + q1) / 2;
+        const [lx0, lz0, lx1, lz1] = ax ? [q0, cc - w / 2, q1, cc + w / 2] : [cc - w / 2, q0, cc + w / 2, q1];
+        const b = K.B(lv, ax ? m : cc, ax ? cc : m);
+        b.rectH(lineMat, lx0, lz0, lx1, lz1, Hw - 0.004, false);
+        K.light({ level: lv, x: ax ? m : cc, y: Hw - 0.05, z: ax ? cc : m, color: col, intensity: Math.min(1.6, 0.16 * (q1 - q0)), range: Math.max(9, Hw - yLow + 2.5), kind: 'strip', len: q1 - q0, axis: r.axis });
+      }
     }
   }
 }

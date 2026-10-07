@@ -157,13 +157,16 @@ export class Tracker {
   sign() {
     if (!this.active || this.state === 'on') return null;
     const a = Math.abs(this.err), side = this.err > 0 ? 'right' : 'left';
-    if (this.state === 'off') return { cls: 'trk-off', live: true, title: 'Rerouting…', short: 'Rerouting…', sub: 'Off the route · finding a new way' };
+    if (this.state === 'off') return { cls: 'trk-off', live: true, title: 'Rerouting…', short: 'Rerouting…', sub: 'Off the route · finding a new way', gsub: 'Off the route · new way…' };
     if (this.state === 'rerouted') {
       const R = this.app.route, eta = R && isFinite(R.eta) ? (R.eta < 45 ? '<1 min' : `${Math.max(1, Math.round(R.eta / 60))} min`) : '';
       return { cls: 'trk-re', live: false, check: true, title: 'Rerouted', short: 'Rerouted', sub: eta ? `New route · ${eta}` : 'New route' };
     }
-    if (a >= 135) return { cls: 'trk-drift', live: true, title: 'Turn around', short: 'Turn around', sub: 'You’re heading the wrong way' };
-    if (a >= 45) return { cls: 'trk-drift', live: true, title: `Turn ${side}`, short: `Turn ${side}`, sub: `The route is to your ${side}` };
+    // (hysteresis on the wording too: no flicker between "Turn around" and "Turn right" at ~135°)
+    const k = this._signK;
+    this._signK = a > (k === 'around' ? 122 : 140) ? 'around' : a >= (k === 'side' || k === 'around' ? 38 : 50) ? 'side' : 'back';
+    if (this._signK === 'around') return { cls: 'trk-drift', live: true, title: 'Turn around', short: 'Turn around', sub: 'You’re heading the wrong way', gsub: 'Wrong way' };
+    if (this._signK === 'side') return { cls: 'trk-drift', live: true, title: `Turn ${side}`, short: `Turn ${side}`, sub: `The route is to your ${side}` };
     return { cls: 'trk-drift', live: true, title: 'Back to the route', short: 'Back to the route', sub: 'Follow the arrow' };
   }
 }

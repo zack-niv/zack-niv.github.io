@@ -80,4 +80,27 @@ tutorial`); the title click provides the user gesture audio + pointer lock need.
 
 ## Status / results
 
-(filled in below after the verification run)
+* **Story probe** (`?quality=low&noaudio&nocrowd`, real key presses Q / 1 / Tab, mouse-turn + nav-field walking):
+  look ✓ → move ✓ (8 m) → "Landed??" arrives with chips, hint *Q to raise it* above the glance strip → Q → chips + hint
+  beside the phone → **1** → "Meet me at Tempura Daikichi…" → hint *Open Maps — Tab* → **Tab** → Maps → *E interacts*
+  hint → walked through the gate; "Where are you??" fired at ~100 s (player stalled in the 3F concourse) with chips →
+  "I'm lost 😭" → offer (phone link card) → *Aya sent a link — Q and tap Lodestone* hint. Pause → Restart → confirm
+  → reload to the title, `namba.tutorial.v3 = done`, next run `teach = false`. **ctx.errors [] · 0 console issues.**
+  Shots: `notes/v3-shots/story/full-*.png`.
+* **Captions / restart** (`caps-channels.png`, `restart-confirm.png`): ambient top-left small + low contrast; "すみません"
+  (speech) and "One latte, please." (action) bottom centre; Cancel returns to the pause overview. 0 console issues.
+* **Full walk bot** (critic's `walk.mjs`, now answering Aya): see the hand-back report for how far it got (the first
+  attempt was killed by the machine — "Target crashed" with 4 headless browsers running; the rerun was answering Aya and
+  walking the route at the time of writing).
+
+## What I'm unsure about
+
+* Timing feel on real hardware: the hello waits for 8 m of walking (or 8 s); "Where are you??" waits for the
+  director's lost/stalled verdict (or 100 s). A confident player who walks the right way gets the offer by the 100 s
+  question → "On my way!" → "Ask your phone!" → offer once lost, or the 165 s fallback.
+* Headless caveat: HUD caption lifetimes are real-time `setTimeout`s; under SwiftShader a screenshot can take longer than
+  a caption lives, so live-flow shots rarely catch them (the captions shot pins them).
+* The "E" step can only validate where something is interactable; on the direct route that's the ticket machines by the
+  Nankai gate or a café counter. If the player never presses E it retires after its nudges (not counted against completion).
+* `paAudible` still decides whether a PA is captioned at all (unchanged from v2); with `?noaudio` platform PAs are not
+  captioned.
