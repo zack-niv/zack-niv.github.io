@@ -103,7 +103,7 @@ ctx.phone.message({ id, from, text, place: 'city_1e12' })   // any destination i
 | 15_canyon_stairs_full | canyon floor, the garden stairs ahead; glance `Stairs up — straight ahead · In 15 m · to 3F` |
 | 16_garden3_bridge_full / 17_on_bridge_full | 3F garden → `Over the glass bridge · In 20 m`; on the bridge → `Escalators up to 6F · In 45 m` |
 | 14_lodestone_canyon_step | card: `In 45 m · Through the canyon garden — the scenic way up` · THEN `Stairs up to 3F` |
-| 05 / 20_lodestone_* | trip card with New place / End route; Next chip clear of it (20 = after the lift fix; re-shot pending, see below) |
+| 05 / 20_lodestone_* | trip card with New place / End route; 20 = Next chip sitting clear above it (after the lift fix) |
 | 06 / 07 | after X: "Where to?" list (Aya's pick row 1) · glance `No route · Where to? · Aya: Café Mitsubachi` |
 | 08 / 09 | `/` + "ramen" → Enter → new route (Tonkotsu Kamikaze 6F), `PAST Drug Hikari · 25 m` |
 | 10 | arrived at the café after replacing the route (/ Esc 1) |
@@ -113,3 +113,25 @@ ctx.phone.message({ id, from, text, place: 'city_1e12' })   // any destination i
 | walk `w-p1a-list-full` | v4.3 tutorial hint sits left of the raised phone (not over it) |
 Event log of the cycle: `nav:end` → `nav:destination` (ramen, list) → `nav:destination` (café, list) → `nav:arrived`
 → `phone:link` → `nav:destination {via:'link', suggested:true}`. `ctx.errors []`, 0 console issues. loadprobe READY 16.3 s [].
+
+## Full playthrough (`node tools/walk.mjs`, crowd on, quality low)
+Pick 1 (Maps, key 1) café 24.7 s → offer 108.6 s → Lodestone 122 s → `nav:arrived city_1e12` 256.8 s → order → Aya's
+"NOW come" text (with a Daikichi link card) → pick 2 (Lodestone, key 1) 283.8 s → Parks bridge, Aya's new canyon text
+348.6 s → canyon 372 s (`discover canyon`) → **garden stairs 2F→3F @53,225 404 s** → glass bridge → 3F→6F escalators
+→ arrive 502 s → end card "Whole trip 8:22 · 661 m · 1 iced latte delivered". `ctx.errors []`; the 2 console lines
+are the bot's own `dbg` warnings. Copied shots: `walk_w-09b-glass-bridge` (on the bridge, glance `Escalators up to 6F ·
+In 55 m`), `walk_w-09-canyon`, `walk_w-p2a-list-*`, `walk_w-10b-lodestone-near-dev`, `walk_w-14-endcard`.
+Bot trip 7:04 (v4) → 8:22: the loop is +98 m (~+25 s on foot vs the v4 out-and-back) and the bot lost ~20 s stuck at
+the garden-stairs foot (52.5, 225.6) and ~15 s at the 3F escalator foot; a player walks it in ~30 s more than v4.
+
+## Unsure / for the lead
+- **Trip length:** the canyon loop costs ~+35 m / ~25 s more than v4's out-and-back. It is purposeful now (you climb
+  out of the canyon and cross it on the glass bridge), but if the 5–10 min budget gets tight, the fallback is
+  `VIAS = []` (indoor escalators only) — one line in `guidance.js`.
+- **Maps place card:** Directions sits under the photo (Maps realism); `Enter` / `1` work but the key cap is below the
+  fold on a short sheet. Lodestone's preview has the big Go.
+- **Milestone wording for "Turn left" under 30 m** has no extra side (the word is the side). Turn steps come from the
+  v3 DP-simplified path; I did not touch which turns get announced.
+- The `nav:milestone` event fires on milestone identity change only (kind / dir / level / name / position), not per metre.
+- `player:teleport` resets the Tracker, but teleport-back in probes still produced a "Rerouted" card once (05) —
+  harness artifact, not seen in the walk.
