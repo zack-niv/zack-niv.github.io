@@ -17,7 +17,7 @@
 //   window.__namba.perf.snapshot()           -> the same numbers for the last 2 s, synchronously
 //   window.__namba.perf.show(true|false)     -> toggle from code
 // Draw calls / triangles are the main scene pass (engine.stats), the number the call budget is tuned against.
-// A frame gap over 5 s (tab hidden, debugger) is ignored.
+// The meter restarts when the tab is hidden / shown, so a backgrounded tab never pollutes the numbers.
 // =============================================================================
 import { params } from '../core/params.js';
 
@@ -38,6 +38,7 @@ export class Perf {
     this._txtT = 0;
     this._key = (e) => this._onKey(e);
     addEventListener('keydown', this._key, true);
+    document.addEventListener('visibilitychange', () => { this._last = 0; });
     if (params.has('perf')) this.show(true);
   }
 
@@ -98,7 +99,7 @@ export class Perf {
   _frame(t) {
     if (this._last) {
       const d = (t - this._last) * 1000;
-      if (d < 5000) {
+      if (d < 120000) {
         this._ts.push(t); this._dt.push(d);
         for (const s of this._samplers) s.dts.push(d);
       }
@@ -111,7 +112,7 @@ export class Perf {
     if (this._samplers.length) {
       for (let i = this._samplers.length - 1; i >= 0; i--) {
         const s = this._samplers[i];
-        if (t - s.t0 >= s.secs) { this._samplers.splice(i, 1); s.done(this._stats(s.dts, s.dts.length / Math.max(1e-3, t - s.t0))); }
+        if ((t - s.t0 >= s.secs && s.dts.length >= 2) || t - s.t0 >= Math.max(120, s.secs * 4)) { this._samplers.splice(i, 1); s.done(this._stats(s.dts, null)); }
       }
       this._stopIfIdle();
     }
@@ -128,6 +129,7 @@ export class Perf {
       const s = dts.slice().sort((a, b) => a - b);
       p95 = s[Math.min(s.length - 1, Math.floor(s.length * 0.95))];
     }
+    if (fps == null) fps = avg ? 1000 / avg : 0;
     const vis = ctx.visibility && ctx.visibility.visibleLevels;
     return {
       fps: +fps.toFixed(1), avgMs: +avg.toFixed(2), p95Ms: +p95.toFixed(2), maxMs: +max.toFixed(2), frames: dts.length,
@@ -136,9 +138,12 @@ export class Perf {
     };
   }
   snapshot() {
-    const t = this._last, lim = t - FPS_WINDOW;
-    let n = 0; for (let i = this._ts.length - 1; i >= 0 && this._ts[i] >= lim; i--) n++;
-    return this._stats(this._dt, n / FPS_WINDOW);
+    // fps = 1 / mean frame interval over the last second (a frame slower than 1 s reports its own rate)
+    const dts = this._dt, ts = this._ts, lim = this._last - FPS_WINDOW;
+    let sum = 0, n = 0;
+    for (let i = ts.length - 1; i >= 0 && ts[i] >= lim; i--) { sum += dts[i]; n++; }
+    const fps = n ? 1000 / (sum / n) : dts.length ? 1000 / dts[dts.length - 1] : 0;
+    return this._stats(dts, fps);
   }
   // measure for `seconds` of real time; resolves with the numbers (works whether or not the overlay is on)
   sample(seconds = 3) {
@@ -153,7 +158,7 @@ export class Perf {
     const s = this.snapshot();
     const k = (v) => v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(0) + 'k' : String(v);
     this.el.textContent =
-      `${s.fps.toFixed(0).padStart(3)} fps   ${s.avgMs.toFixed(1)} ms avg   ${s.p95Ms.toFixed(1)} ms p95\n` +
+      `${(s.fps < 10 ? s.fps.toFixed(1) : s.fps.toFixed(0)).padStart(3)} fps   ${s.avgMs.toFixed(1)} ms avg   ${s.p95Ms.toFixed(1)} ms p95\n` +
       `${s.calls} calls   ${k(s.tris)} tris\n` +
       `${s.quality}${s.drs < 0.995 ? ' @' + s.drs.toFixed(2) : ''}   levels ${s.levels == null ? '-' : s.levels}` +
       (s.gpuMs != null ? `   gpu ${s.gpuMs.toFixed(1)} ms` : '');

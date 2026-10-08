@@ -174,8 +174,11 @@ export class Announcer {
 
   _speak(c, p, voice, vol) {
     const text = spokenText(p.say || p.text, p.lang);
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = voice;
+    let u;
+    try {
+      u = new SpeechSynthesisUtterance(text);
+      u.voice = voice;
+    } catch (e) { c.step++; this._note('utterance threw: ' + e.message); return; }   // a bad voice object must not wedge the PA slot (and its duck)
     u.lang = 'ja-JP'; u.rate = 0.95; u.pitch = 1.05;
     const mv = this.mixer.volumes;
     // station PA is part of the soundscape: on the platform it goes out at the browser's maximum (the master slider
