@@ -72,7 +72,7 @@ export class Destinations {
     const metres = this._metres();
     this.legs.push({ slotId: d.slotId, name: d.name, app, suggested: d.suggested, t0: ph._play || 0, t1: null, m0: metres, m1: null, arrived: false, mode: ph.positioningMode });
     this._route(d, app, opts);
-    this.ctx.events.emit('nav:destination', { slotId: d.slotId, name: d.name, app, suggested: d.suggested });
+    this.ctx.events.emit('nav:destination', { slotId: d.slotId, name: d.name, app, suggested: d.suggested, via: opts.via || 'list' });
     this._changed();
     return true;
   }

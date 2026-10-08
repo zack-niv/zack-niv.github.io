@@ -92,7 +92,7 @@ export class Story {
     E.state = 'done'; E.got = { slotId: e.slotId, name: e.name, item: e.item }; E.at = this.t;
     this.game.setQuest('coffee', 'done', mine ? `${e.item} from ${E.name}, to go` : `${e.item} from ${e.name || 'a café'} (close enough)`, true);
     if (was === 'skipped') { this.aya.say('wait is that a coffee?? for ME?? 🥹', { wait: 2.6 }); return; }
-    this.aya.say(mine ? AYA.gotCoffee : AYA.gotOtherCoffee.replace('{cafe}', E.name), { wait: 2.6, run: () => this._leg2Start() });
+    this.aya.say({ text: mine ? AYA.gotCoffee : AYA.gotOtherCoffee.replace('{cafe}', E.name), place: DEMO.slot }, { wait: 2.6, run: () => this._leg2Start() });
   }
   // the second leg: Daikichi becomes Aya's pick and a short "next stop" hint shows (not the full tutorial again)
   _leg2Start() {
@@ -114,7 +114,7 @@ export class Story {
   _sendCoffee() {
     const E = this.errand;
     if (!E.slot || E.state !== 'none') return;
-    this.aya.say({ id: 'coffee', text: AYA.coffee.text.replace('{cafe}', E.name) }, { wait: 1.4, run: () => {
+    this.aya.say({ id: 'coffee', text: AYA.coffee.text.replace('{cafe}', E.name), place: E.slot }, { wait: 1.4, run: () => {
       E.state = 'asked';
       this._suggest(E.slot);
       this.game.setQuest('coffee', 'active', null, true);
@@ -148,7 +148,7 @@ export class Story {
     E.state = 'skipped';
     this.game.setQuest('coffee', 'hidden', null, true);
     if (this._skipPicked) { this._leg2Start(); return; }      // she already teased you when you picked Daikichi
-    this.aya.say(AYA.noCoffee, { run: () => this._leg2Start() });
+    this.aya.say({ text: AYA.noCoffee, place: DEMO.slot }, { run: () => this._leg2Start() });
   }
   _sendHello() {
     if (this.helloT != null) return;
@@ -186,6 +186,7 @@ export class Story {
         hint: () => {
           if (!up()) return { html: this.dests ? TUTORIAL.pickDown : TUTORIAL.mapsDown, at: 'phone' };
           const app = ph().app;
+          if (this.dests && app === 'messages' && ph().messages && ph().messages.lastPlace) return { html: TUTORIAL.pickMsg, at: 'phoneup' };
           return this.dests && (app === 'maps' || app === 'lodestone') ? { html: TUTORIAL.pick, at: 'phoneup' } : { html: TUTORIAL.maps, at: 'phoneup' };
         } },
       { id: 'interact', delay: 1.5,

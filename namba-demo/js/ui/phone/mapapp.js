@@ -702,6 +702,7 @@ export class MapApp {
   // the list the keyboard drives (1–9, ↑↓ Enter) while Maps is up; on a route: the "Next (from Aya)" chip
   activeList() {
     if (this.sheet === 'route') return this._next || null;
+    if (this.sheet === 'place') return this._placeList || null;
     return (this.sheet === 'home' || this.sheet === 'results') && this.list && this.list.items.length ? this.list : null;
   }
   focusSearch() { this.input.focus(); return true; }
@@ -734,6 +735,7 @@ export class MapApp {
       // v4: nothing routes until the player picks a place
       const D = this.phone.dest, C = D && D.current, nx = D && D.next(), sug = nx && D.name(nx);
       if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : here, warn: '' };
+      if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: sug ? `Where to? · Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
       return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
     }
     return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
@@ -780,12 +782,14 @@ export class MapApp {
       const b = p.b, open = isOpen(b, mins);
       const st = b.cat === 'closed' ? `<span class="mp-closed">Closed for renovation</span>` : open ? `<span class="mp-open">Open now</span> · until ${hm(b.hours[1])}` : `<span class="mp-closed">Closed</span> · opens ${hm(b.hours[0])}`;
       const revs = reviewsFor(b).map(r => `<div class="mp-rev"><div class="mp-rev-h"><i>${r.who[0]}</i><b>${esc(r.who)}</b><span class="mp-st">${'★'.repeat(r.stars)}<u>${'★'.repeat(5 - r.stars)}</u></span><small>${r.when}</small></div><p>${esc(r.text)}</p></div>`).join('');
-      body = `<img class="mp-photo" src="${placeArt(b)}" alt="">
-        <div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
+      // v5 critic: Google-Maps order — name, rating, status, the action row, THEN the photo, so Directions (the primary
+      // action, Enter) is visible on the half-height sheet without scrolling (it used to sit under a 118 px photo).
+      body = `<div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
         <div class="mp-pc-meta"><span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> <span class="mp-dim">(${b.reviews.toLocaleString('en')})</span> · ${esc(CATEGORIES[b.cat].en)} · ¥${'¥'.repeat(1 + (b.rating > 4.3 ? 1 : 0))}</div>
         <div class="mp-pc-meta">${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-fl">${LEVELS[b.level].label}</span> · ${fmtDist(crow)} · 🚶 ${Math.max(1, Math.round(crow / 1.4 / 60))} min</div>
         <div class="mp-pc-meta">${st}</div>${floorNote}
         <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button><button>⇪ Share</button></div>
+        <img class="mp-photo mp-photo-in" src="${placeArt(b)}" alt="">
         ${b.blurb ? `<p class="mp-blurb">${esc(b.blurb)}</p>` : ''}
         ${this._popularHtml(b)}
         <div class="mp-hours">🕘 Hours <b>${hm(b.hours[0])} – ${hm(b.hours[1])}</b></div>
@@ -806,8 +810,18 @@ export class MapApp {
     this._setSheet('place', `<button class="mp-x">×</button>${body}`, false);
     this.sheetIn.querySelector('.mp-x').addEventListener('click', () => { this.selected = null; this.route ? this._routeSheet() : this.results.length > 1 ? this.showResults() : this.showHome(); });
     const go = this.sheetIn.querySelector('.mp-go');
-    if (go) go.addEventListener('click', () => { if (!this.phone.setDestination(destIdOf(p), { app: 'maps' })) this.startRoute(p); });
+    if (go) {
+      if (!(this.ctx.input && this.ctx.input.touch)) go.insertAdjacentHTML('beforeend', ' <kbd class="mp-k">Enter</kbd>');
+      go.addEventListener('click', () => this._goPlace(p));
+    }
+    // (keyboard: the place card is a one-row list — 1 / Enter = Directions)
+    this._placeList = { items: [{ id: destIdOf(p) }], sel: 0, armed: true, move() {}, pick: () => { this._goPlace(p); return true; } };
     this.ctx.events.emit('phone:select', { id: p.id, kind: p.kind, slot: p.b && p.b.slot, key: p.b && p.b.key });
+  }
+  _goPlace(p) {
+    const via = this._linkGo && this._linkGo.p === p ? 'link' : undefined;
+    this._linkGo = null; this.phone._lastPhoneInput = this.phone._now;
+    if (!this.phone.setDestination(destIdOf(p), { app: 'maps', via })) this.startRoute(p);
   }
   _popularHtml(b) {
     if (b.cat === 'closed') return '';
@@ -910,7 +924,37 @@ export class MapApp {
     const nb = this.sheetIn.querySelector('.dl-next'); if (nb) nb.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
   }
   // End / × on the route = no destination any more (both apps back to their list)
-  endRoute() { this.route = null; this.banner.hidden = true; this.selected = null; this.results = []; if (this.phone.dest && this.phone.dest.current) this.phone.clearDestination(); else this.showHome(); }
+  endRoute() {
+    this.route = null; this.banner.hidden = true; this.selected = null; this.results = [];
+    const C = this.phone.dest && this.phone.dest.current;
+    if (C && !C.arrived && this.phone.endRoute) this.phone.endRoute('maps');      // v5: 'nav:end', calm "No route" (same as Lodestone)
+    else if (C) this.phone.clearDestination(); else this.showHome();
+  }
+  // v5: the next milestone as Maps believes it (its one-floor leg: the first escalator, or the place itself)
+  milestone() {
+    const R = this.route, p = this.pos;
+    if (!R || R.failed || R.arrived || !R.target) return null;
+    if (R.leg && R.legs.length > 1 && R.leg.ramp >= 0 && R.leg.pts.length) {
+      const r = LAYOUT.ramps[R.leg.ramp], e = R.leg.pts[R.leg.pts.length - 1];
+      return { kind: r.kind === 'escalator' ? 'escalator' : 'stairs', dir: R.leg.dir > 0 ? 'up' : 'down', toLevel: R.leg.dir > 0 ? r.upper : r.lower,
+        dist: Math.round(Math.hypot(e[0] - p.x, e[1] - p.z)), level: R.leg.level, x: e[0], z: e[1], side: null, app: 'maps' };
+    }
+    const t = R.target;
+    return { kind: 'arrive', dir: null, toLevel: t.level, dist: Math.round(this._crow(t)), name: t.en, level: t.level, x: t.x, z: t.z, side: null, app: 'maps' };
+  }
+  // v5: a place link from a text — its place card, Directions = Go (click / Enter / 1)
+  preview(id) {
+    const p = this.placeById(id); if (!p) return false;
+    this._linkGo = { id: destIdOf(p) || id, p };
+    this.select(p);
+    return true;
+  }
+  closePreview() {
+    if (this.sheet !== 'place') return false;
+    this.selected = null; this._linkGo = null;
+    this.route ? this._routeSheet() : this.results.length > 1 ? this.showResults() : this.showHome();
+    return true;
+  }
   _flashBanner(t) {
     this.banner.hidden = false;
     this.banner.innerHTML = `<div class="mp-bn-ic mp-spin">⟳</div><div><b>${t}</b></div>`;

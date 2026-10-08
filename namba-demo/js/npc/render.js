@@ -269,9 +269,15 @@ export class CrowdRenderer {
     const riding = a.ramp >= 0;
     const R = riding ? this.sim.places.ramps[a.ramp] : null;
     let spd = a.spd;
-    if (riding && R.esc) spd = a.walkLane ? Math.max(0, (a.curRideSpd != null ? a.curRideSpd : a.rspd) - 0.5) : 0;
+    // v5: boardK (0 -> 1 over ~0.55 s after stepping on) blends the walk into the ride: a stander keeps walking until boardK 0.4, then the
+    // ride clip cross-fades in (BLEND); a walker's foot speed slides from its ground speed to the speed relative to the belt
+    const bk = riding && a.boardK !== undefined ? a.boardK : 1;
+    if (riding && R.esc) {
+      const g = a.curRideSpd != null ? a.curRideSpd : a.rspd;
+      spd = a.walkLane ? g + (Math.max(0, g - 0.5) - g) * bk : (bk < 0.4 ? a.spd : 0);
+    }
     let pose = a.pose;
-    if (riding && R.esc && !a.walkLane) pose = a.phoneUser > 0.55 ? POSE.PHONE : POSE.RIDE;
+    if (riding && R.esc && !a.walkLane && bk >= 0.4) pose = a.phoneUser > 0.55 ? POSE.PHONE : POSE.RIDE;
     if (riding && (R.stairs || a.walkLane)) pose = POSE.WALK;
     const flags = a.flags | a.dyn;
     const moving = spd > 0.18;
@@ -287,7 +293,7 @@ export class CrowdRenderer {
       case POSE.PHONE: return moving ? 'phonewalk' : 'phone';
       case POSE.SIT: case POSE.EAT: {
         // v4: a seated clip only ever plays on a real seat (a.seatH); anything else stands instead of showing a broken sit
-        if (!a.seatH) return moving ? loco() : 'idle';
+        if (!a.seatH || a.seatK < 0.35) return moving ? loco() : 'idle';   // v5: sit clip only once the person has turned / stepped onto the seat
         const base = pose === POSE.EAT ? 'eat' : a.seatPhone ? 'sitphone' : 'sit';
         return a.seatStool ? base + '2' : base;
       }

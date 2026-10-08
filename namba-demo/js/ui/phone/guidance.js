@@ -23,6 +23,16 @@ export const ZONE_SHORT = {
 };
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
 
+// v5: the scenic loop up into Namba Parks (see Guidance constructor)
+export const VIAS = [
+  { id: 'canyon', level: '2F', x: 33, z: 222, icon: 'canyon', mark: 'Canyon', name: 'Namba Parks canyon',
+    title: 'Out into the canyon garden', sub: 'The scenic way up · 2F',
+    long: 'Through the canyon garden — the scenic way up', short: 'Into the canyon garden' },
+  { id: 'bridge3', level: '3F', x: 46, z: 239, icon: 'bridge', mark: 'Bridge', name: 'the glass bridge',
+    title: 'Cross the glass bridge', sub: 'Over the canyon · 3F',
+    long: 'Cross the glass bridge over the canyon', short: 'Over the glass bridge' },
+];
+
 // Douglas–Peucker returning kept indices
 function dpIdx(pts, eps) {
   const n = pts.length; if (n < 3) return pts.map((_, i) => i);
@@ -44,34 +54,49 @@ export class Guidance {
   constructor(ctx, dest, via) {
     this.ctx = ctx;
     this.dest = dest;       // { id, en, ja, level, x, z (door outside), nx, nz (door normal), slot, transit? }
-    this._viaState = via || { done: false };   // v4: shared by every destination's Guidance (the detour is offered once)
+    this._viaState = via || { done: false, i: 0 };   // v4: shared by every destination's Guidance (the scenic way is offered once)
+    if (this._viaState.i == null) this._viaState.i = 0;
     this.field = null;
     this.goal = -1;
-    // Scenic via-point: the Namba Parks canyon (2F). The guided route goes
-    // start -> canyon -> destination until the player has been out in the canyon.
-    this.via = { id: 'canyon', level: '2F', x: 33, z: 222, node: -1, field: null,
-      title: 'Walk out into the Namba Parks canyon', sub: 'Open air · 2F' };
-    // the canyon detour only makes sense on the way up into Namba Parks (3F and above)
-    this.viaUseful = !!(dest && dest.zone === 'parks' && LEVELS[dest.level] && LEVELS['2F'] && LEVELS[dest.level].y > LEVELS['2F'].y + 1);
+    // v5: the scenic way up into Namba Parks is a LOOP, not an out-and-back (v4 sent you into the canyon and straight
+    // back to the indoor escalators). Out into the canyon (2F) → the canyon's own garden stairs up to the 3F terrace →
+    // back over the canyon on the 3F glass bridge → Parks 3F → the escalators. Nav probe: +98 m vs the indoor way,
+    // with no step walked twice (notes/v5-nav.md).
+    this.vias = VIAS.map(v => ({ ...v, node: -1, field: null }));
+    this.via = this.vias[0];
+    // the scenic way only makes sense on the way up into Namba Parks (4F and above: it lands you on 3F)
+    this.viaUseful = !!(dest && dest.zone === 'parks' && LEVELS[dest.level] && LEVELS['3F'] && LEVELS[dest.level].y > LEVELS['3F'].y + 1);
   }
   get viaDone() { return this._viaState.done || !this.viaUseful; }
   set viaDone(v) { if (v) this._viaState.done = true; }
 
-  // Has the player reached the canyon (or gone up into Parks by the indoor
-  // escalators, which makes the detour pointless)? Cheap O(1): called at 2.5 Hz
-  // from the Lodestone arrival check even while the phone is down.
+  // Where is the player along the scenic loop (or have they gone up indoors, which makes it pointless)? Cheap O(1):
+  // called at 2.5 Hz from Lodestone even while the phone is down. Stages only move forward.
   noteBody(body) {
-    if (this._viaState.done || !body || body.ramp >= 0) return;
+    const S = this._viaState;
+    if (S.done || !body || body.ramp >= 0) return;
     const W = this.ctx.world, sp = W.spaceAt(body.level, body.x, body.z);
-    if (sp && (sp.zone === 'parks' || sp.zone === 'parksGarden') && (sp.outdoor || body.level !== '2F')) this.viaDone = true;
-    else if (body.level === this.via.level && Math.hypot(body.x - this.via.x, body.z - this.via.z) < 5) this.viaDone = true;
+    const parks = sp && (sp.zone === 'parks' || sp.zone === 'parksGarden');
+    const near = (v) => body.level === v.level && Math.hypot(body.x - v.x, body.z - v.z) < 5;
+    const y = LEVELS[body.level] ? LEVELS[body.level].y : 0, y3 = LEVELS['3F'].y;
+    if (near(VIAS[1]) || (sp && sp.id === 'parks_bridge_3f')) { S.i = 2; }
+    else if (body.level === '2F') { if (near(VIAS[0]) || (sp && (sp.id === 'parks_canyon' || sp.id === 'parks_stage'))) S.i = Math.max(S.i, 1); }
+    else if (body.level === '3F' && sp && sp.zone === 'parksGarden') S.i = Math.max(S.i, 1);     // came up the canyon stairs
+    else if (parks && y >= y3 - 0.1) S.i = 2;                                                    // up indoors (or higher): no detour
+    if (S.i >= VIAS.length) S.done = true;
   }
-  _viaField() {
-    const V = this.via, nav = this.ctx.nav;
+  _viaField(V = this.via) {
+    const nav = this.ctx.nav;
     if (V.field) return V.field;
     V.node = nav.nodeAtPoint(V.level, V.x, V.z);
     if (V.node < 0) return null;
     return (V.field = fieldNoEntry(nav, 'lodestone:via:' + V.id, [V.node]));
+  }
+  // the field the route follows right now (the next via-point's, or the destination's) — for test bots
+  leadField(body) {
+    if (body) this.noteBody(body);
+    if (!this.viaDone) { const V = this.vias[this._viaState.i]; const f = V && this._viaField(V); if (f) return f; }
+    return this.prepare();
   }
 
   // Heavy part (a few hundred ms): the cost field to the destination.
@@ -110,14 +135,24 @@ export class Guidance {
     this.noteBody(body);
     let legs = null, viaOn = false;
     if (!this.viaDone) {
-      const fv = this._viaField();
-      // the canyon is only a detour worth announcing when it is not behind us
-      if (fv && isFinite(fv.dist[v]) && isFinite(f.dist[this.via.node])) {
-        const l1 = routeLegs(nav, fv, v), l2 = routeLegs(nav, f, this.via.node);
-        if (l1.length && l2.length && l1[l1.length - 1].ramp < 0) {
-          l1[l1.length - 1].via = true;
-          if (l2[0].pts.length > 2 && l1[l1.length - 1].level === l2[0].level) l2[0].pts.shift();
-          legs = l1.concat(l2); viaOn = true;
+      // chain: here → each remaining via-point → the destination (every hop the shortest path; a hop that is
+      // unreachable drops the scenic way for this route)
+      const chain = this.vias.slice(this._viaState.i);
+      let from = v, out = [], ok = chain.length > 0;
+      for (const V of chain) {
+        const fv = this._viaField(V);
+        if (!fv || !isFinite(fv.dist[from]) || !isFinite(f.dist[V.node])) { ok = false; break; }
+        const l = routeLegs(nav, fv, from);
+        if (!l.length || l[l.length - 1].ramp >= 0) { ok = false; break; }
+        l[l.length - 1].via = V;
+        if (out.length && l[0].pts.length > 2 && out[out.length - 1].level === l[0].level) l[0].pts.shift();
+        out = out.concat(l); from = V.node;
+      }
+      if (ok) {
+        const l2 = routeLegs(nav, f, from);
+        if (l2.length) {
+          if (l2[0].pts.length > 2 && out[out.length - 1].level === l2[0].level) l2[0].pts.shift();
+          legs = out.concat(l2); viaOn = true;
         }
       }
     }
@@ -217,9 +252,14 @@ export class Guidance {
         const rideDir = [(s1.x - s0.x) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1), (s1.z - s0.z) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1)];
         prevDir = rideDir;
         const prev = leg.onRamp ? null : man[man.length - 1];
+        // v5 critic: brushing the mouth of a ramp's LAST metre (e.g. the bottom of the Parks 3F DOWN lane, right beside
+        // the up lane's foot) made the body "ride" it for a frame or two and the card flashed "Escalator down · 4F → 3F".
+        // Nothing to announce there: keep the geometry, skip the maneuver.
+        const tail = leg.onRamp && rl < 2.5;
         // chain of escalators with a short connecting walk collapses into one step
         const word = r.kind === 'escalator' ? 'Escalator' : 'Stairs';
-        if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
+        if (tail) { /* nothing to announce */ }
+        else if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
           prev.count++; prev.to = to; prev.endCum = cum + rl; prev.mark.text = `${up ? '▲' : '▼'} ${lvl(to)}`;
           prev.title = `${prev.word}${prev.count > 1 ? (prev.word === 'Stairs' ? '' : 's') : ''} ${up ? 'up' : 'down'}`;
           prev.sub = `${lvl(prev.from)} → ${lvl(to)} · ${prev.count} flights`;
@@ -232,10 +272,12 @@ export class Guidance {
         // the walk that follows starts at the upper end: its turn is relative to the ride direction
       }
       if (leg.via) {
-        // canyon waypoint: a landmark step; the walk that follows is not a "turn" relative to it
-        const E = lp[lp.length - 1];
-        man.push({ kind: 'via', at: cum, x: E[0], z: E[1], level: leg.level, icon: 'canyon', title: this.via.title, sub: this.via.sub });
-        marks.push({ x: E[0], z: E[1], y: yOf(leg.level), text: 'Canyon', up: true, level: leg.level, via: true });
+        // scenic waypoint (canyon floor, then the glass bridge): a landmark step; the walk that follows is not a "turn" relative to it
+        const E = lp[lp.length - 1], V = leg.via;
+        // the waypoint IS the instruction there: drop a turn / zone entry ("Turn right across the bridge") right at it
+        for (let k = man.length - 1; k >= 0; k--) if (man[k].kind !== 'ramp' && man[k].kind !== 'via' && Math.abs(man[k].at - cum) < 14) man.splice(k, 1);
+        man.push({ kind: 'via', via: V.id, at: cum, x: E[0], z: E[1], level: leg.level, icon: V.icon, title: V.title, sub: V.sub, long: V.long, short: V.short, name: V.name });
+        marks.push({ x: E[0], z: E[1], y: yOf(leg.level), text: V.mark, up: true, level: leg.level, via: true });
         prevDir = null;
       }
       lastWalkEnd = cum;

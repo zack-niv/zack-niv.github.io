@@ -3,6 +3,9 @@
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
 import { LINES } from './places.js';
+import { businessBySlot } from '../../world/directory.js';
+import { placeArt } from './art.js';
+import { bizSub, levelLabel, zoneShort } from './destinations.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -95,6 +98,7 @@ export class MessagesApp {
     // tap (or Enter / Space on the focused button) on the Lodestone link card, or on a reply chip
     root.addEventListener('click', (e) => {
       if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
+      const pl = e.target.closest('.ms-place'); if (pl) { this.phone.openPlace(pl.dataset.id); return; }
       const c = e.target.closest('.ms-chip'); if (c) this.reply(+c.dataset.i);
     });
     this.render();
@@ -107,7 +111,7 @@ export class MessagesApp {
     const time = m.time || this.ctx.clock.hhmm;
     const id = m.id != null ? m.id : 'm' + (++this._autoId);
     if (this.typingFrom === from) { this.typingFrom = null; this._typT = 0; }
-    this.msgs.push({ id, from, text: m.text, time, me: false, link: m.link || null });
+    this.msgs.push({ id, from, text: m.text, time, me: false, link: m.link || null, place: m.place || null });
     const reps = Array.isArray(m.replies) ? m.replies.filter(r => r && r.text).slice(0, 3) : [];
     if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text) })), at: this.phone._now || 0 };
     if (m.link === 'lodestone') this.phone._noteOffer();
@@ -148,7 +152,36 @@ export class MessagesApp {
       <span class="ms-l-t"><b>Lodestone</b><small>Indoor positioning that works inside buildings · lodestone.app</small></span><em>${label}</em></button>
       ${st === 'offer' ? `<span class="ms-l-hint">Tap the card${this.phone.ctx.input && this.phone.ctx.input.touch ? '' : ', or press <kbd>Enter</kbd>'}</span>` : ''}`;
   }
-  onShow() { this.unread = 0; this.phone._badges && this.phone._badges(); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
+  // v5: the newest place link (Enter opens it while Messages is up)
+  get lastPlace() { for (let i = this.msgs.length - 1; i >= 0; i--) if (this.msgs[i].place) return this.msgs[i].place; return null; }
+  // a link-preview card for a place (like a maps share link): photo tile, name, floor · area · distance, "Open in …"
+  _placeCard(id, newest) {
+    const ph = this.phone, D = ph.dest, d = D && D.resolve(id); if (!d) return '';
+    const b = businessBySlot[id], ld = ph.upgradeStage === 'ready';
+    const sub = b ? bizSub(b, this.ctx.clock.minutes) : null;
+    const tile = b ? `<img class="ms-p-ph" src="${placeArt(b, 240, 240)}" alt="">` : `<i class="ms-p-ph ms-p-gl">${esc(d.icon || '📍')}</i>`;
+    const meta = [levelLabel(d.level), zoneShort(d.zone)].filter(Boolean).join(' · ');
+    const st = sub ? (sub.closed ? '<u class="cl">Closed</u>' : '<u class="op">Open</u>') : '';
+    const kb = newest && !(this.ctx.input && this.ctx.input.touch) && ph.upgradeStage !== 'offer' ? '<kbd>Enter</kbd>' : '';
+    return `<button class="ms-place ${ld ? 'ld' : 'mp'}" data-id="${esc(id)}" aria-label="${esc(d.name)}: open in ${ld ? 'Lodestone' : 'Maps'}">
+      ${tile}<span class="ms-p-t"><b>${esc(d.name)}</b><small>${esc(meta)} · <span class="ms-p-d">${esc(this._placeDist(id))}</span></small>
+      <em>${ld ? 'Open in Lodestone' : 'Open in Maps'} ›${kb}</em></span></button>`;
+  }
+  // the distance as the active app sees it: Maps' crow-flies from where it THINKS you are, Lodestone's true path
+  _placeDist(id) {
+    const ph = this.phone;
+    try {
+      if (ph.upgradeStage === 'ready' && ph.lodestone) {
+        const d = ph.dest.resolve(id), g = d && ph.lodestone._guidFor(d), m = g && g.remaining(this.ctx.player.body);
+        if (isFinite(m)) return `${Math.max(5, Math.round(m / 5) * 5)} m`;
+      }
+      const M = ph.maps, p = M && M.placeById(id);
+      if (p) { const m = M._crow(p); return m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`; }
+    } catch (e) { /* distance is decoration */ }
+    return '';
+  }
+  _refreshPlaces() { this.root.querySelectorAll('.ms-place').forEach(el => { const t = el.querySelector('.ms-p-d'); const v = this._placeDist(el.dataset.id); if (t && t.textContent !== v) t.textContent = v; }); }
+  onShow() { this._refreshPlaces(); this.unread = 0; this.phone._badges && this.phone._badges(); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
   _chips() {
     const P = this.pending; if (!P) return '';
     const kb = !(this.ctx.input && this.ctx.input.touch);
@@ -165,10 +198,12 @@ export class MessagesApp {
   }
   render(sentNow) {
     const last = this.msgs.length - 1;
+    let lastPlI = -1; for (let i = last; i >= 0; i--) if (this.msgs[i].place) { lastPlI = i; break; }
+    const lastPl = lastPlI >= 0 ? this.msgs[lastPlI].place : null;
     const bubble = (m, i) => {
       if (m.day) return `<div class="ms-day">${esc(m.day)}</div>`;
       const fresh = sentNow && i === last && m.me ? ' ms-sent' : '';
-      return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
+      return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}${m.place ? ' ms-has-place' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}${m.place ? this._placeCard(m.place, m.place === lastPl && i === lastPlI) : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
       <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>

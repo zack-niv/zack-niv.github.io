@@ -92,7 +92,7 @@ export class Behave {
         if (a.followers) for (const f of a.followers) {
           const fs = P.takeSpot(B); if (!fs) continue;
           f.fstate = 'dine'; f.spot = fs; f.biz = B; f.mode = MODE.PATH;
-          if (L.inside) { S.setPos(f, B.level, fs.sx ?? fs.x, fs.sz ?? fs.z); f.mode = MODE.STAND; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._seatOn(f, fs, B); this._reveal(f); }
+          if (L.inside) { S.setPos(f, B.level, fs.sx ?? fs.x, fs.sz ?? fs.z); f.mode = MODE.STAND; f.faceYaw = fs.real ? fs.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5); f.faceSet = true; f.yaw = f.faceYaw; this._seatOn(f, fs, B, true); this._reveal(f); }
           else S.goTo(f, fs.sx ?? fs.x, fs.sz ?? fs.z, B.rect, fs.real ? 0.12 : 0.3);
         }
         return;
@@ -591,13 +591,16 @@ export class Behave {
   }
   // v4: sit only ON a real seat (a.seatH = seat-top height, drives the sit clip variant and the hip height in render.js); on a
   // sampled floor cell nobody sits: they stand and eat / look at their phone instead
-  _seatOn(a, sp, B) {
+  _seatOn(a, sp, B, instant) {
     const real = !!(sp && sp.real && !sp.bad);
     a.seatDone = true;
     if (real) {
       a.seatH = sp.h; a.seatStool = !!sp.stool;
-      if (sp.sx !== undefined) { a.x = sp.sx; a.z = sp.sz; }
-      a.yaw = sp.yaw; a.faceYaw = sp.yaw; a.faceSet = true;
+      // v5: a person sitting down walks the last step onto the seat and turns into it (sim.js _move, STAND + seatH); only an agent
+      // placed already seated (initial fill, `instant`) is put there directly
+      a.faceYaw = sp.yaw; a.faceSet = true;
+      if (instant) { if (sp.sx !== undefined) { a.x = sp.sx; a.z = sp.sz; } a.yaw = sp.yaw; a.seatK = 1; a.seatTx = NaN; }
+      else { a.seatK = 0; if (sp.sx !== undefined) { a.seatTx = sp.sx; a.seatTz = sp.sz; } else a.seatTx = NaN; }
       const r = this.r();
       a.seatPhone = !!(B.cafe && r < 0.3);
       a.pose = a.seatPhone ? POSE.SIT : (B.counter || (B.restaurant && r < 0.55) ? POSE.EAT : POSE.SIT);
@@ -615,7 +618,7 @@ export class Behave {
     // face into the room (towards the back / counter) with some variety
     const real = a.spot && a.spot.real && !a.spot.bad;
     const yaw = real ? a.spot.yaw : Math.atan2(B.door.nx, B.door.nz) + Math.PI + (this.r() - 0.5) * (counter ? 0.6 : 2.4);
-    S.stand(a, yaw); a.yaw = yaw;
+    S.stand(a, yaw);
     a.seatDone = false;
     this._seatOn(a, a.spot, B);
   }
