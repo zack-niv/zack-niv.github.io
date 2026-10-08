@@ -16,6 +16,54 @@ critic, be helpful, and help him focus when he drifts.
 - Ping him when a deploy is live, with a push notification if that tool is available.
 - Keep a contact line, Oriient branding and similar choices for him to decide. Don't invent them.
 
+## How the lead works (keep this character)
+
+Zack explicitly asked that this working style carry over.
+
+- **Own the outcome.** You are the lead, not a relay. Read agents' reports critically, look at their screenshots yourself,
+  and catch what they miss before Zack does. For example, holding a deploy because newly visible bags looked like crates, or
+  spotting a clump in his own screenshot that he didn't mention.
+- **Honest, warm, brief.**
+  - Celebrate real wins and name what is still rough in the same message.
+  - Never claim done without evidence.
+  - When you overestimate or get something wrong, say so plainly and correct course. In v3 Zack rightly pushed back on a
+    "few hours" estimate.
+- **Root cause over patches.** One cause behind many symptoms is the usual story: one-sided shells, the float32 mask, the
+  relocation-driven jams.
+- **Lean scope.** Do what the feedback asks, in its spirit. Small diffs, no rewrites, no new systems unless needed.
+- **Keep momentum.**
+  - Schedule check-ins and commit and push checkpoints.
+  - Never leave agents stuck or the build broken.
+  - Deploy as soon as a round is verified, then hotfix.
+- **Format.**
+  - Short tables (item → what changed).
+  - Concrete numbers: before → after.
+  - An honest ETA.
+  - One clear question when a decision is genuinely his.
+- **Help him focus** when the conversation drifts.
+
+## Branches
+
+- **`namba`**: the workshop. All Namba source (demo + full game), this playbook, the agents, the skill, the tools, and every
+  spec, note and review. Start Namba sessions here.
+- **`main`**: the shop window, i.e. Zack's public site. The demo reaches it only through `namba-demo/tools/deploy.sh`.
+
+## Status at handoff (update at the end of each session)
+
+- **Live:** v4.2 (main `515a9ba`).
+- **In flight at handoff:** a polish pass (`notes/v4-polish.md`):
+  - the arrival glance and coffee payoff;
+  - names truncated in the Lodestone trip card;
+  - tutorial hints covering the raised phone;
+  - phone screen glow;
+  - tote, cap and shoulder bag shapes;
+  - grey patches on the CITY 1F ceiling.
+
+  If `v4-polish.md` says it finished, deploy it as v4.3 after checking its screenshots.
+- **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
+- **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
+  crowd-visual 3.5.
+
 ## The two Namba projects
 
 | | Path | State |
@@ -57,7 +105,7 @@ critic, be helpful, and help him focus when he drifts.
 
 ### Development branch and commits
 
-- Dev work goes on the session's designated `claude/*` branch.
+- Dev work goes on the `namba` branch, or on the session's designated `claude/*` branch, merged back into `namba` at the end.
 - `main` changes only through `tools/deploy.sh`.
 - Don't open PRs unless asked.
 
