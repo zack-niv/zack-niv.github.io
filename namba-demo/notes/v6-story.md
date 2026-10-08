@@ -1,6 +1,6 @@
 # v6 — Story (items 1, 2-tutorial/IC, 8, 9-pacing) · owner: js/game/*, js/ui/hud.js, js/ui/title.js, css/game.css, index.html
 
-Status: **built; verifying with the walk bot.** (contract below is implemented as written, adapted to notes/v6-gates.md)
+Status: **done** (walk 2 verifying the bot/row fixes). (contract below is implemented as written, adapted to notes/v6-gates.md)
 
 ## Contract: shared IC purchases (Story → everyone)
 
@@ -47,14 +47,34 @@ Status: **built; verifying with the walk bot.** (contract below is implemented a
 | engaged offer earliest | 45 s | 100 s |
 | Lodestone offer fallback | 165 s | **195 s** (3:15) |
 
-## End card (items 8 + 9)
+## End card (items 8 + 9) — implemented
 
-- Actions: **Chat with my AI career agent** · **Book a call** — `<a target="_blank" rel="noopener noreferrer">`, tabbable,
-  a secondary row under Keep exploring / Replay. One-line invitation above them.
-- Metrics (fair per-unit, before vs after; a row only shows when both phases have enough data): mean position error
-  (p90 in the caption), % of time on the wrong floor, metres walked per metre of real progress (detour factor),
-  wrong turns per km — from `ctx.phone.stats()` when the Phone agent provides them, own measurement otherwise.
-  "Whole trip" line stays.
+- Under the note: one line *"I'd love to hear what you think."* + two quiet pill links **Chat with my AI career agent ↗**
+  and **Book a call ↗** (`<a target="_blank" rel="noopener noreferrer">`, a visually hidden "(opens in a new tab)").
+  Tab order: agent → call → Keep exploring → Replay (native Tab; the card no longer hijacks it). E / Enter / Space still
+  confirm the highlighted game button, ← → switch it; with focus on a link the keys are left to the browser.
+- Rows (fair per-unit, every number this player's own):
+  1. **Position error**: mean, caption *"mean · 90% within ±24 m"* (p90 from the phone's `errP90*`).
+  2. **On the wrong floor**: % of the phase's time (`wrongFloorPct*`).
+  3–4. Up to two more, in this order, **only when the two phases genuinely differ** (equal numbers say nothing, whichever
+     side they favour): detour factor (≥ 0.15 apart), wrong turns /km (≥ 0.5), **Reroutes** "Recalculating…" /km (≥ 1),
+     **Compass error** ° (≥ 5). A perfect walker (the bot) gets reroutes + compass; a lost human gets detour + wrong turns.
+  - Never upgraded: rows 1–2 before-only (+ net progress row when it tells the story). "Whole trip" line kept.
+- Data: `demo.summary()` adds `p90, wrongPct, detour, gained, turnsPerKm, reroutesPerKm, headingErr` per phase. The
+  phone's own field wins whenever it publishes it (including its `null` = not enough data); own fallbacks otherwise.
+
+## Results
+
+- **Gate probe (real Gates API)** `g2-*`: 8 m out *"Tap your IC card at the gate — walk up to a lane, then E"* (center) →
+  at the channel prompt **E Tap your ICOCA · タッチ** + tip *"E interacts — here, it taps your IC card"* → E →
+  `ic:pay fare 970`, chip *"運賃 Fare −¥970 · 関西空港 → なんば · Kansai Airport → Namba · 残額 ¥2,030"*, `gate:tap`,
+  tutorial `gate` done, prompt *"Open — walk through"* → `gate:pass {player:true}`. `ctx.errors []`, 0 console issues.
+- **Blocked probe** `g3-04-blocked.png`: `gate:blocked notap` → *"Tap your IC card first — E"* ✓ (but see the Gates
+  finding below: the player is not physically stopped).
+- **Full walk** (walk1, before the row/bot fixes): gate tap at 63 s (¥970), "Where are you??" at **175 s** (bot always
+  progressing → the `whereLatest` fallback), offer 183 s (`lost`), Lodestone ready ~190 s, café order 270 s (`ic:pay
+  purchase 520`, balance 1,510), arrival 496 s, end card shown. `ctx.errors []`; console: only the bot's own dbg warnings.
+  End card (real numbers): ±15 m (p90 24) vs ±0.5 m · 16% vs 0% wrong floor · 27 vs 0 reroutes/km · 16° vs 0° compass.
 
 ## Requests / findings for other agents
 

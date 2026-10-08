@@ -85,15 +85,20 @@ try {
         if (t && t.id === 'order:' + cslot && Math.abs(d) < 0.3 && !W.ordered) { W.ordered = true; L.ev.push([T(), 'bot:E', t.id]); c.events.emit('interact', { target: t.id }); try { t.onUse(t); } catch (e) { console.error('bot use', e.message); } }
         return;
       }
-      // v6: at a gate, press E like a player (the game's own 'gatetap' interactable: exactly what the key does)
-      const it = c.game.interactions, tg = it && it.target, gtT = c.game._gateTgt;
-      if (tg && tg.id === 'gatetap' && gtT && gtT.ok && !gtT.open && (W.tapT == null || T() - W.tapT > 1.5)) {
-        W.tapT = T(); L.ev.push([T(), 'bot:E', `gatetap ${gtT.gate} lane=${gtT.lane}.${gtT.sub} in=${gtT.entering}`]);
-        c.events.emit('interact', { target: tg.id }); try { tg.onUse(tg); } catch (e) { console.error('bot gate', e.message); }
-      }
       const v = c.nav.nodeAt(b);
       if (v < 0) { c.input.setScript({ x: 0, y: 1, jog: JOG }); return; }
       const path = c.nav.path(F, v, 10);
+      // v6: at a gate the route goes THROUGH, press E like a player (the game's own 'gatetap' interactable: exactly
+      // what the key does). Walking past a gate line (the 3F->2F escalator is right beside it) is not a reason to tap.
+      const it = c.game.interactions, tg = it && it.target, gtT = c.game._gateTgt;
+      if (tg && tg.id === 'gatetap' && gtT && gtT.ok && !gtT.open && (W.tapT == null || T() - W.tapT > 1.5) && path.length > 1) {
+        const gt = gtT.g.gt, ahead = path[path.length - 1];
+        const s0 = (gt.axis === 'x' ? b.z : b.x) - gt.at, s1 = (gt.axis === 'x' ? c.nav.z[ahead] : c.nav.x[ahead]) - gt.at;
+        if (s0 * s1 < 0) {
+          W.tapT = T(); L.ev.push([T(), 'bot:E', `gatetap ${gtT.gate} lane=${gtT.lane}.${gtT.sub} in=${gtT.entering}`]);
+          c.events.emit('interact', { target: tg.id }); try { tg.onUse(tg); } catch (e) { console.error('bot gate', e.message); }
+        }
+      }
       if (W.near > 0) W.near -= dt;
       let k = Math.min(path.length - 1, W.near > 0 ? 1 : 4);
       const t = path[k];

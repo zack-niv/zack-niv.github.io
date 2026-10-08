@@ -26,6 +26,12 @@ Suggested end-card picks (Story decides): **p90 error** (e.g. `28 m → 1 m`), *
 **detour factor** (`2.4× → 1.1×`), **wrong turns per km** (`9 → 0`).
 
 Also: `series` gains a 5th column: `[t, err, wrongFloor, phase, distToGoal]`.
+Also `stats().fair = { before: {...}, after: {...}|null }` (same fields without the suffix), `walkedNav…`, `progress…`,
+`turns…` (turn count behind headingSettle), `hopsBefore`.
+
+**Milestone contract addition (v5 `ctx.phone.nextMilestone` / `nav:milestone`):** while you are ON an escalator / stairs
+the milestone is the ride: `{ kind: 'escalator'|'stairs', dir, toLevel, riding: true, dist: metres of ride left,
+x, z: the landing, side: 'ahead', then: { kind, turn?, name?, gap: metres after the landing } | undefined }`.
 
 ## Item 7 — "the app says the escalator is behind me" (root cause → fix)
 

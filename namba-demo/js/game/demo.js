@@ -462,10 +462,12 @@ export class Demo {
     before.p90 = P('errP90Before', SB && SB.p90);
     before.wrongPct = P('wrongFloorPctBefore', pick(SB && SB.wrongPct, own4(A.before)));
     before.turnsPerKm = P('wrongWaysPerKmBefore', null);
+    before.reroutesPerKm = P('reroutesPerKmBefore', null); before.headingErr = P('headingErrBefore', null);
     if (after) {
       after.p90 = P('errP90After', SA && SA.p90);
       after.wrongPct = P('wrongFloorPctAfter', pick(SA && SA.wrongPct, own4(A.after)));
       after.turnsPerKm = P('wrongWaysPerKmAfter', null);
+      after.reroutesPerKm = P('reroutesPerKmAfter', null); after.headingErr = P('headingErrAfter', null);
     }
     const gain = (r0x, r1x) => (num(r0x) != null && num(r1x) != null ? r0x - r1x : null);
     const detour = (m, g) => (num(m) != null && g != null && g >= 20 ? m / g : null);

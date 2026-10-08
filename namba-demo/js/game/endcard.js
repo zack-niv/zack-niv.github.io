@@ -32,13 +32,12 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const b = s.before, a = s.after;
   const pg = s.progress || {};
   const ok = (v) => v != null && isFinite(v);
-  // Rows: fair per-unit comparisons only (a mean, a share of the time, a ratio, a rate), never raw totals that depend on
-  // how much of the route each phase happened to cover. A row shows only when it has real numbers for its phases.
-  //   1. Position error: the mean, with the p90 (what you get on a bad 10% of the walk) in the caption
-  //   2. Wrong floor: share of the phase's time the phone had you on another floor
-  //   3. Detour: metres walked per metre the walking distance to Daikichi actually dropped; or, when one phase gained
-  //      too little to rate (< 20 m), net progress per minute (shown only when it tells the real story, see below)
-  //   4. Wrong turns per km, when the phone measures them
+  // Rows: fair per-unit comparisons only (a mean, a share of the time, a ratio, a rate per km), never raw totals that
+  // depend on how much of the route each phase happened to cover. Every number is measured on this player's own trip.
+  //   always: 1. position error (mean; p90 in the caption)  2. share of the time on the wrong floor
+  //   then up to two more, in this order, each only when its two phases genuinely differ (equal numbers say nothing,
+  //   whichever side they favour): detour factor, wrong turns per km, "Recalculating…" per km, compass error.
+  //   Without a Lodestone phase (never upgraded) only rows 1-2 + net progress show, before only.
   const p90 = (v) => (ok(v) ? `mean · 90% within ${err(v)} m` : null);
   const rows = [
     { k: 'Position error', cap: [(v, x) => p90(x.p90) || 'mean, by the phone', (v, x) => p90(x.p90) || 'mean, by the phone'], b: b.err, a: a && a.err, fmt: (v) => `${err(v)}<small>m</small>` },
@@ -46,16 +45,20 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
       ? { k: 'On the wrong floor', cap: ['of the time, by the phone', (v) => (v < 0.5 ? 'right floor, every time' : 'of the time')], b: b.wrongPct, a: a && a.wrongPct, fmt: pct }
       : { k: 'Wrong-floor seconds', cap: ['phone put you on the wrong floor', (v) => (v < 1 ? 'right floor, every time' : 'corrected in a heartbeat')], b: b.wrongFloorS, a: a && a.wrongFloorS, fmt: (v) => `${Math.round(v)}<small>s</small>` },
   ];
-  if (ok(b.detour) && (!a || ok(a.detour))) {
-    rows.push({ k: 'Walked per metre of progress', cap: ['on foot, per metre closer', (v) => (v < 1.25 ? 'close to the shortest way' : 'on foot, per metre closer')], b: b.detour, a: a && a.detour, fmt: times, lowGood: true });
-  } else {
+  const extra = a ? [
+    { k: 'Walked per metre of progress', cap: ['on foot, per metre closer', (v) => (v < 1.25 ? 'close to the shortest way' : 'on foot, per metre closer')], b: b.detour, a: a.detour, fmt: times, diff: 0.15 },
+    { k: 'Wrong turns', cap: ['per km walked', (v) => (v < 0.05 ? 'none' : 'per km walked')], b: b.turnsPerKm, a: a.turnsPerKm, fmt: perKm, diff: 0.5 },
+    { k: 'Reroutes', cap: ['“Recalculating…”, per km walked', (v) => (v < 0.05 ? 'never lost the thread' : 'per km walked')], b: b.reroutesPerKm, a: a.reroutesPerKm, fmt: perKm, diff: 1 },
+    { k: 'Compass error', cap: ['mean, while walking', (v) => (v < 2 ? 'heading true' : 'mean, while walking')], b: b.headingErr, a: a.headingErr, fmt: (v) => `${Math.round(v)}<small>°</small>`, diff: 5 },
+  ].filter(r => ok(r.b) && ok(r.a) && Math.abs(r.b - r.a) >= r.diff) : [];
+  rows.push(...extra.slice(0, 2));
+  if (rows.length < 3) {
     // Net progress only says something when the "before" phase was genuinely lost; for a player who happened to walk
     // the right way anyway, the per-minute pace is about equal and the row would be noise. Show it only when it tells
     // the real story (Lodestone clearly faster), never fabricate it.
     const r = { k: 'Net progress toward Daikichi', cap: [(v) => (v < 10 ? 'wandering: barely any closer' : 'closer to the door, per minute'), 'closer to the door, per minute'], b: pg.before, a: a && pg.after, fmt: mpm };
     if (ok(r.b) && ok(r.a) && r.a >= 1.3 * Math.max(r.b, 5)) rows.push(r);
   }
-  if (ok(b.turnsPerKm) && a && ok(a.turnsPerKm)) rows.push({ k: 'Wrong turns', cap: ['per km walked', (v) => (v < 0.05 ? 'none' : 'per km walked')], b: b.turnsPerKm, a: a.turnsPerKm, fmt: perKm });
   const total = [
     s.totalSeconds != null && isFinite(s.totalSeconds) ? `${mmss(s.totalSeconds)} min` : null,
     s.totalMeters != null && isFinite(s.totalMeters) ? `${metres(s.totalMeters)} m on foot` : null,
