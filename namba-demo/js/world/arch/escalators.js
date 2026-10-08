@@ -296,7 +296,11 @@ export class Ramps {
       }
     }
     // stairwell soffit + street cover + canopy for exits that rise to the street
-    if (outdoorTop) this._exitWell(r, F, hw, lineY);
+    // v6: only for a flight that climbs OUT of an indoor / underground space. The canyon -> garden stairs and the
+    // terrace-to-terrace stairs (outdoor at both ends) got the street-exit kit too: a white grid-ceiling soffit with a
+    // line light hanging in the open air over the flight, a paving "street cover" on the garden and a canopy.
+    const bottomSp = this._nearSpace(r);
+    if (outdoorTop && !(bottomSp && bottomSp.outdoor)) this._exitWell(r, F, hw, lineY);
   }
 
   _nearSpace(r) {

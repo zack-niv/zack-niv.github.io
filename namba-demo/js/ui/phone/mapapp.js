@@ -1003,7 +1003,7 @@ export class MapApp {
     // figure-8 compass prompt: underground, every ~70 s, for 5 s
     this._calT = (this._calT == null ? 40 + Math.random() * 15 : this._calT) - dt;
     if (this._calT <= 0) {
-      if (bad && p.env !== 'outdoor' && this.phone.isOpen && this.phone.app === 'maps') {
+      if (bad && p.env !== 'outdoor' && p.env !== 'canyon' && this.phone.isOpen && this.phone.app === 'maps') {
         this.calEl.hidden = false; this._calShow = 5; this._calT = 70 + Math.random() * 25;
         if (this.phone._stats) this.phone._stats.compassPrompts++;
       } else this._calT = 5;

@@ -13,13 +13,16 @@
 //   trackInfo(trackId)           static info about a track
 //   trackState(trackId)          { state, svc, open, front, speed } or null
 //   gatePass(gateId, lane, dir, ok=true)   animate a gate lane (crowd / game)
+//   gateLaneNear(x, z, level)    the gate channel the player is in / approaching (v6, notes/v6-gates.md)
+//   tapGate(gate, lane, opts)    the player's IC tap: opens that channel (~3 s) -> { ok, reason }
+//   setGateHint(gate|null, lane?, sub?)   pulse the IC reader pads (tutorial)
 //   gateLanes(gateId)            [{i, x, z, policy, width}]
 //   laneAt(gateId, x, z)         lane index at a world point or -1
 //   boardingSpot(trackId, body)  nearest open door + aboard point + yaw
 //   ticketMachines()             [{level, x, z, gate, kind, facing}]
 //   now()                        service-day minutes
 // Events: train:approach, train:arrive, train:closing, train:depart, announce,
-//         gate:pass
+//         gate:pass, gate:tap, gate:blocked
 // =============================================================================
 import * as THREE from 'three';
 import { LEVELS, spaceById } from './layout.js';
@@ -79,8 +82,8 @@ export class Transit {
     // boards
     this.boards = new Boards(ctx, this);
     this._buildBoards();
-    // the player's own taps (game emits ic:tap)
-    ctx.events.on('ic:tap', (e) => this._onTap(e));
+    // v6: the player taps through tapGate() (Story's E prompt); untapped walk-ins are stopped by the flaps.
+    // The old ic:tap -> _onTap hook is gone (it double-animated the lane).
     this.boards.update(true);
   }
 
@@ -486,13 +489,6 @@ export class Transit {
     }
   }
 
-  _onTap(e) {
-    const p = this.ctx.player && this.ctx.player.body; if (!p || !e || !e.gate) return;
-    const gt = this.ctx.layout.gates.find(g => g.id === e.gate); if (!gt) return;
-    const lane = this.laneAt(e.gate, p.x, p.z);
-    if (lane >= 0) this.gatePass(e.gate, lane, 0, e.ok !== false);
-  }
-
   // ---- public API ---------------------------------------------------------------------------
   nextDepartures(trackId, n = 3, t) {
     if (t == null) t = this.now();
@@ -551,6 +547,10 @@ export class Transit {
     const g = this.gates.gates.find(g => g.gt.id === gateId); if (!g) return [];
     return g.lanes.map(ln => { const [x, z] = ln.axis === 'x' ? [ln.centre, ln.at] : [ln.at, ln.centre]; return { i: ln.i, x, z, policy: ln.policy, width: ln.width - 0.26, paidSign: g.ps }; });
   }
+  // v6 (notes/v6-gates.md): the player's IC tap.
+  gateLaneNear(x, z, level) { return this.gates.laneNear(x, z, level); }
+  tapGate(gateId, lane, opts) { return this.gates.tap(gateId, lane, opts); }
+  setGateHint(gateId, lane, sub) { this.gates.setHint(gateId, lane, sub); }
   laneAt(gateId, x, z) {
     const gt = this.ctx.layout.gates.find(g => g.id === gateId); if (!gt) return -1;
     return this.gates.laneAt(gateId, gt.axis === 'x' ? x : z);

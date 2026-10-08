@@ -13,7 +13,7 @@
 //          'action'   what you just did / its result (E interactions, ordering, gates, your thoughts): bottom centre
 //        no channel → inferred: kind announce/platform/train, speaker 'PA' or distant → ambient;
 //        kind thought/machine/action → action; anything else (a speaker talking) → speech
-//      hud.ic({balance,fare,ok,reason}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
+//      hud.ic({balance,fare,ok,reason,label,note}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
 import { params } from '../core/params.js';
@@ -50,7 +50,7 @@ export class Hud {
       <div class="h-toasts"></div>
       <div class="h-captions"></div>
       <div class="h-amb" aria-live="off"></div>
-      <div class="h-ic"><div class="h-ic-card"><span class="h-ic-logo">ICOCA</span><span class="h-ic-chip"></span></div><div class="h-ic-info"><div class="h-ic-row h-ic-state"></div><div class="h-ic-row"><span>残額 Balance</span><b class="h-ic-bal"></b></div></div></div>
+      <div class="h-ic"><div class="h-ic-card"><span class="h-ic-logo">ICOCA</span><span class="h-ic-chip"></span></div><div class="h-ic-info"><div class="h-ic-row h-ic-state"></div><div class="h-ic-note"></div><div class="h-ic-row"><span>残額 Balance</span><b class="h-ic-bal"></b></div></div></div>
       <div class="h-cup" title="Coffee in hand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M8 11h14l-1.6 15.2a2 2 0 0 1-2 1.8h-6.8a2 2 0 0 1-2-1.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 8.5h16v2.5H7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 6.5h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M9.6 16.5h10.8" stroke="currentColor" stroke-width="1.2" opacity=".6"/><path class="h-steam" d="M13 4c-1-1.2 1-2 0-3.2M17 4c-1-1.2 1-2 0-3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
       <div class="h-hint"></div>
       <div class="h-notify"></div>
@@ -59,7 +59,7 @@ export class Hud {
     const q = (s) => root.querySelector(s);
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
-      toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icBal: q('.h-ic-bal'),
+      toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icNote: q('.h-ic-note'), icBal: q('.h-ic-bal'),
       cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
@@ -205,9 +205,11 @@ export class Hud {
   clearCaptions() { this.el.captions.innerHTML = ''; this.el.amb.innerHTML = ''; }
 
   // ---- ICOCA chip -----------------------------------------------------------------
-  ic({ balance = 0, fare = 0, ok = true, reason = '', label = '' } = {}) {
+  // v6: driven by game.icCharge (gates, cafés, vignettes); note = a small line (the route of a fare, the shop's name)
+  ic({ balance = 0, fare = 0, ok = true, reason = '', label = '', note = '' } = {}) {
     if (this.quiet) return;
     const e = this.el;
+    if (e.icNote) { e.icNote.textContent = note || ''; e.icNote.style.display = note ? '' : 'none'; }
     e.ic.classList.toggle('ng', !ok);
     e.icState.innerHTML = ok
       ? (fare ? `<span>${esc(label || '運賃 Fare')}</span><b>−${yen(fare)}</b>` : `<span class="ok">ピッ</span><b>${esc(reason || '')}</b>`)
@@ -215,7 +217,7 @@ export class Hud {
     e.icBal.textContent = yen(balance);
     e.ic.classList.remove('on'); void e.ic.offsetWidth; e.ic.classList.add('on');
     clearTimeout(this._icT);
-    this._icT = setTimeout(() => e.ic.classList.remove('on'), ok ? 2600 : 4200);
+    this._icT = setTimeout(() => e.ic.classList.remove('on'), ok ? (fare ? 3400 : 2600) : 4200);
   }
   // the cup icon that stays after ordering; label = tooltip ("☕ latte — Pine Tree Coffee"), n = how many so far
   cup(on, label, n) {

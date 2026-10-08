@@ -55,6 +55,10 @@ try {
     on('nav:track', e => `${e.state} herr=${Math.round(e.headingErr||0)} lost=${(e.lost||0).toFixed?.(1)} @${c.player.body.level},${c.player.body.x.toFixed(0)},${c.player.body.z.toFixed(0)} ramp=${c.player.body.ramp}`); on('phone:pose', e => e.pose); on('phone:app', e => e.app); on('phone:typing', e => e.on); on('tutorial:start'); on('demo:lost', e => JSON.stringify(e).slice(0,80));
     on('caption', e => (e.en || '').slice(0, 70)); on('announce', e => e.kind || '');
     c.events.on('ic:tap', (e) => { if (e && !e.ok) { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; L.ev.push([T(), 'gate-refused', `try#${W.refused} side=${W.side}`]); } });
+    // v6: reactive gates — the bot taps with E (game's 'gatetap' interactable); a wrong-way channel makes it side-step
+    on('gate:tap', e => `${e.gate} lane=${e.lane}.${e.sub} dir=${e.dir}`); on('gate:blocked', e => `${e.gate} lane=${e.lane}.${e.sub} ${e.reason}`); on('ic:pay', e => `${e.kind} ${e.amount} ok=${e.ok} bal=${e.balance}`); on('story:where', e => `${e.t} ${e.why}`);
+    c.events.on('gate:pass', (e) => { if (e && e.player) L.ev.push([T(), 'gate:pass', `${e.gate} lane=${e.lane} dir=${e.dir} (player)`]); });
+    c.events.on('gate:blocked', (e) => { if (e && e.reason && e.reason !== 'notap') { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; } });
     const W = { F, last: null, lastT: 0, stuckT: 0, unstick: 0, lastLvl: null, lastTitle: null, odo: 0, prev: null, maxStuck: 0, blocked: 0 };
     window.__W = W;
     window.__steer = (dt) => {
@@ -80,6 +84,12 @@ try {
         const t = c.game.interactions && c.game.interactions.target;
         if (t && t.id === 'order:' + cslot && Math.abs(d) < 0.3 && !W.ordered) { W.ordered = true; L.ev.push([T(), 'bot:E', t.id]); c.events.emit('interact', { target: t.id }); try { t.onUse(t); } catch (e) { console.error('bot use', e.message); } }
         return;
+      }
+      // v6: at a gate, press E like a player (the game's own 'gatetap' interactable: exactly what the key does)
+      const it = c.game.interactions, tg = it && it.target, gtT = c.game._gateTgt;
+      if (tg && tg.id === 'gatetap' && gtT && gtT.ok && !gtT.open && (W.tapT == null || T() - W.tapT > 1.5)) {
+        W.tapT = T(); L.ev.push([T(), 'bot:E', `gatetap ${gtT.gate} lane=${gtT.lane}.${gtT.sub} in=${gtT.entering}`]);
+        c.events.emit('interact', { target: tg.id }); try { tg.onUse(tg); } catch (e) { console.error('bot gate', e.message); }
       }
       const v = c.nav.nodeAt(b);
       if (v < 0) { c.input.setScript({ x: 0, y: 1, jog: JOG }); return; }

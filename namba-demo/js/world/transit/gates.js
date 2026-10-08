@@ -3,17 +3,119 @@
 // fences, ticket vending / fare charge machines with the backlit fare chart
 // above them, and fare adjustment machines on the paid side.
 //
-// Japanese gates are normally OPEN: the flaps sit retracted in the machine
-// and only snap shut when a card is refused. gatePass() animates the reader
-// flash + the flaps (refusals close them for ~1.2 s).
+// v6: real-size gate channels. The layout's lanes are 3-5 m apart (the crowd
+// sim and the nav graph are built on them); each one is drawn as 3 (or 5)
+// channels on a ~1 m pitch, ~0.75 m clear, the way a real gate line looks.
+// The crowd always uses the centre channel; the player can use any.
+//
+// Cabinet: slim, rounded plan, two-tone (light shell, dark glossy top), line
+// colour band, IC reader pad (lit blue) tilted towards each entry end, ticket
+// slot, small LCD, end-face LED (green arrow / red no-entry) under the lane
+// number, and the flaps (orange) that live inside the cabinet.
+//
+// Japanese gates are normally OPEN: the flaps sit retracted and only snap out
+// when someone walks in without a valid tap. The player has to tap (E, via
+// Story -> tapGate); walking in untapped snaps the flaps shut with the buzzer,
+// and a collision segment on the flap line stops the player until they step
+// back or tap. NPCs auto-tap (gatePass) and are never stopped.
 // =============================================================================
 import * as THREE from 'three';
 import { GeoBatch } from '../../render/geobatch.js';
 import { CELL, EDGE } from '../world.js';
 import { LEVELS } from '../layout.js';
-import { canvas, canvasTex, JP, EN, fitText, ICON, eswUV } from './textures.js';
+import { canvas, canvasTex, JP, EN, fitText } from './textures.js';
+import { roundRectPath } from './mesh.js';
 
-const MACH_LEN = 1.45, MACH_W = 0.26, MACH_H = 1.0;
+const MACH_LEN = 1.45, MACH_W = 0.26;
+const CAB_W = 0.24;              // drawn cabinet width
+const CAB_TOP = 0.955;           // top of the dark top plate
+const FLAP_Y = 0.70, FLAP_H = 0.40, FLAP_L = 0.42;
+const SUB_PITCH = 1.0;           // target channel pitch (m)
+const ARM_S = 3.5;               // a tap keeps the channel open this long (and while the player is in it)
+const NEAR_V = 2.4;              // gateLaneNear: how far in front of the line counts
+const nSubFor = (pitch) => Math.max(1, 2 * Math.round((pitch / SUB_PITCH - 1) / 2) + 1); // odd: the crowd's centre line is a channel
+const Y = new THREE.Vector3(0, 1, 0);
+
+// ---- shared geometry (built once) -------------------------------------------------------------
+let GEO = null;
+function gateGeos() {
+  if (GEO) return GEO;
+  const plan = (w, l, r) => roundRectPath(new THREE.Shape(), -w / 2, -l / 2, w / 2, l / 2, r);
+  const ext = (shape, depth, bevel = 0, y0 = 0) => {
+    const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelOffset: -bevel, bevelSegments: 2, curveSegments: 3 });
+    g.rotateX(-Math.PI / 2); // shape XY -> plan XZ, extrusion -> +Y
+    g.translate(0, y0 + bevel, 0);
+    return g;
+  };
+  GEO = {
+    plinth: ext(plan(CAB_W - 0.04, MACH_LEN - 0.04, 0.06), 0.07, 0, 0),
+    body: ext(plan(CAB_W, MACH_LEN, 0.08), 0.84, 0, 0.065),
+    band: ext(plan(CAB_W + 0.008, MACH_LEN + 0.008, 0.084), 0.04, 0, 0.72),
+    top: ext(plan(CAB_W + 0.014, MACH_LEN + 0.014, 0.087), 0.03, 0.0125, 0.9),
+  };
+  // flap: rounded leading edge (x = protrusion 0..FLAP_L), thin, centred on z
+  const s = new THREE.Shape();
+  const r = 0.11, h = FLAP_H / 2;
+  s.moveTo(0, -h); s.lineTo(FLAP_L - r, -h); s.quadraticCurveTo(FLAP_L, -h, FLAP_L, -h + r);
+  s.lineTo(FLAP_L, h - r); s.quadraticCurveTo(FLAP_L, h, FLAP_L - r, h); s.lineTo(0, h); s.lineTo(0, -h);
+  const fg = new THREE.ExtrudeGeometry(s, { depth: 0.032, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelOffset: -0.006, bevelSegments: 1, curveSegments: 4 });
+  fg.translate(0, 0, -0.016);
+  GEO.flap = fg;
+  return GEO;
+}
+
+// ---- gate atlas: LED arrow / no-entry, IC pad, idle LCD, lane numbers -----------------------------
+const AW = 1024, AH = 512;
+const cellUV = (x, y, w, h) => [x / AW, 1 - (y + h) / AH, (x + w) / AW, 1 - y / AH];
+const UV = {
+  arrow: cellUV(0, 0, 128, 128), noentry: cellUV(128, 0, 128, 128), pad: cellUV(256, 0, 128, 128),
+  lcd: cellUV(384, 0, 256, 128), num: (n) => cellUV((n % 16) * 64, 128 + Math.floor(n / 16) * 64, 64, 64),
+};
+function buildGateAtlas() {
+  const c = canvas(AW, AH), g = c.getContext('2d');
+  g.fillStyle = '#05070a'; g.fillRect(0, 0, AW, AH);
+  // green arrow (LED matrix look)
+  const led = (x0, y0, fn, col) => {
+    g.save(); g.translate(x0, y0); g.fillStyle = '#0a0d0f'; g.fillRect(0, 0, 128, 128);
+    const m = document.createElement('canvas'); m.width = m.height = 128; const mg = m.getContext('2d'); fn(mg);
+    const d = mg.getImageData(0, 0, 128, 128).data;
+    g.fillStyle = col;
+    for (let y = 4; y < 128; y += 8) for (let x = 4; x < 128; x += 8) if (d[(y * 128 + x) * 4 + 3] > 100) { g.beginPath(); g.arc(x, y, 3.4, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  };
+  led(0, 0, (m) => { m.fillStyle = '#fff'; m.beginPath(); m.moveTo(64, 10); m.lineTo(112, 62); m.lineTo(80, 62); m.lineTo(80, 118); m.lineTo(48, 118); m.lineTo(48, 62); m.lineTo(16, 62); m.closePath(); m.fill(); }, '#38ff78');
+  led(128, 0, (m) => { m.fillStyle = '#fff'; m.beginPath(); m.arc(64, 64, 56, 0, Math.PI * 2); m.fill(); m.globalCompositeOperation = 'destination-out'; m.fillRect(18, 52, 92, 24); }, '#ff2a1e');
+  // IC pad: neutral white (instance colour tints it), rounded square, contactless arcs, "IC"
+  { const x = 256, y = 0;
+    g.fillStyle = '#9aa4ae'; g.beginPath(); g.roundRect ? g.roundRect(x + 6, y + 6, 116, 116, 22) : g.rect(x + 6, y + 6, 116, 116); g.fill();
+    g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect ? g.roundRect(x + 14, y + 14, 100, 100, 16) : g.rect(x + 14, y + 14, 100, 100); g.fill();
+    g.strokeStyle = '#6d7680'; g.lineWidth = 5;
+    for (const r of [18, 30, 42]) { g.beginPath(); g.arc(x + 40, y + 64, r, -0.7, 0.7); g.stroke(); }
+    g.fillStyle = '#56606a'; g.font = `800 40px ${EN}`; g.textAlign = 'center'; g.fillText('IC', x + 88, y + 78); g.textAlign = 'left'; }
+  // idle LCD: dark navy screen
+  { const x = 384, y = 0;
+    g.fillStyle = '#0b1830'; g.fillRect(x, y, 256, 128);
+    g.fillStyle = '#123a74'; g.fillRect(x + 6, y + 6, 244, 30);
+    g.fillStyle = '#cfe6ff'; g.font = `700 22px ${JP}`; fitText(g, 'ICカード  IC card', x + 128, y + 29, 236, 'center');
+    g.fillStyle = '#8fc3ff'; g.font = `700 30px ${JP}`; fitText(g, 'タッチしてください', x + 128, y + 76, 236, 'center');
+    g.font = `600 20px ${EN}`; g.fillStyle = '#6f9fd8'; fitText(g, 'Touch your card here', x + 128, y + 108, 236, 'center'); }
+  // lane numbers 1..80 (white on dark navy plate)
+  for (let n = 0; n < 80; n++) {
+    const x = (n % 16) * 64, y = 128 + Math.floor(n / 16) * 64;
+    g.fillStyle = '#1d2733'; g.fillRect(x + 2, y + 2, 60, 60);
+    g.fillStyle = '#fff'; g.font = `800 ${n + 1 >= 10 ? 36 : 42}px ${EN}`; g.textAlign = 'center'; g.fillText(String(n + 1), x + 32, y + 47); g.textAlign = 'left';
+  }
+  return canvasTex(c, { aniso: 8 });
+}
+function quadGeo(uv) {
+  const g = new THREE.PlaneGeometry(1, 1);
+  const a = g.attributes.uv;
+  for (let i = 0; i < a.count; i++) a.setXY(i, uv[0] + a.getX(i) * (uv[2] - uv[0]), uv[1] + a.getY(i) * (uv[3] - uv[1]));
+  return g;
+}
+
+const _m = new THREE.Matrix4(), _s = new THREE.Matrix4(), _c = new THREE.Color();
+const _X = new THREE.Vector3(), _Z = new THREE.Vector3(), _P = new THREE.Vector3(), _T = new THREE.Vector3(), _N = new THREE.Vector3();
 
 export class Gates {
   constructor(ctx, emissiveTex) {
@@ -21,50 +123,39 @@ export class Gates {
     this.emTex = emissiveTex;
     this.gates = [];
     this.machines = [];     // ticket / charge / adjust machines {level,x,z,gate,kind,facing}
-    this.flapMeshes = {};   // level -> InstancedMesh
-    this.lanes = [];        // flat list: {gate, i, level, along, at, axis, flapIdx:[a,b], t, ext}
+    this.lanes = [];        // flat list of the layout lanes (crowd lanes)
+    this.subs = [];         // flat list of drawn channels
+    this.inst = {};         // level -> { flaps, pads, arrows, crosses, list }
+    this.autoTap = !!(ctx.params && ctx.params.has && ctx.params.has('autotap'));
+    this._t = 0;
+    this.pl = { S: null, side: 0 };
+    this.hint = null;
   }
 
   build() {
     const { ctx } = this;
     const M = ctx.materials;
     const std = (o) => () => new THREE.MeshStandardMaterial(o);
-    M.define('transit_gate_body', std({ color: 0xd9dcdf, roughness: 0.32, metalness: 0.55 }));
-    M.define('transit_gate_side', std({ color: 0x9aa0a6, roughness: 0.4, metalness: 0.6 }));
+    M.define('transit_gate_shell', std({ color: 0xe3e5e7, roughness: 0.36, metalness: 0.22 }));
+    M.define('transit_gate_plinth', std({ color: 0x3a3e44, roughness: 0.6, metalness: 0.3 }));
     M.define('transit_gate_top', std({ color: 0x15171a, roughness: 0.18, metalness: 0.2 }));
+    M.define('transit_gate_reader', std({ color: 0x2a2f36, roughness: 0.25, metalness: 0.35 }));
     M.define('transit_gate_metro', std({ color: 0xe5171f, roughness: 0.4, metalness: 0.1 }));
     M.define('transit_gate_pink', std({ color: 0xe44d93, roughness: 0.4, metalness: 0.1 }));
     M.define('transit_gate_nankai', std({ color: 0xf08300, roughness: 0.4, metalness: 0.1 }));
     M.define('transit_machine_body', std({ color: 0xc9ccd0, roughness: 0.38, metalness: 0.5 }));
     M.define('transit_booth_frame', std({ color: 0xe7e8e9, roughness: 0.45, metalness: 0.2 }));
     M.define('transit_booth_counter', std({ color: 0x8c7155, roughness: 0.6, metalness: 0.0 }));
-    const ic = new THREE.MeshBasicMaterial({ map: this.emTex, color: new THREE.Color(1.6, 1.6, 1.6) });
-    ic.name = 'transit_gate_icons';
-    this.iconMat = ic;
-    this.icPad = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.25, 0.6, 1.0).multiplyScalar(2.2) });
-    this.icPad.name = 'transit_ic_pad';
+    this.atlas = buildGateAtlas();
+    this.atlasMat = new THREE.MeshBasicMaterial({ map: this.atlas, color: new THREE.Color(1.25, 1.25, 1.25) });
+    this.atlasMat.name = 'transit_gate_atlas';
     this.machineTex = buildMachineAtlas();
     this.machineMat = new THREE.MeshStandardMaterial({ map: this.machineTex.color, emissiveMap: this.machineTex.emit, emissive: 0xffffff, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0.1 });
     this.machineMat.name = 'transit_machine_face';
     this.charts = {};
     for (const gt of ctx.layout.gates) this._gate(gt);
-    // flap instanced meshes (one per level)
-    const flapGeo = new THREE.BoxGeometry(1, 1, 1);
-    const flapMat = new THREE.MeshStandardMaterial({ color: 0xff5a1f, roughness: 0.35, metalness: 0.05, transparent: true, opacity: 0.88 });
-    flapMat.name = 'transit_flap';
-    const byLevel = {};
-    for (const ln of this.lanes) (byLevel[ln.level] = byLevel[ln.level] || []).push(ln);
-    for (const lv in byLevel) {
-      const list = byLevel[lv];
-      const im = new THREE.InstancedMesh(flapGeo, flapMat, list.length * 2);
-      im.name = 'transit_flaps:' + lv;
-      im.frustumCulled = false;
-      list.forEach((ln, k) => { ln.flapBase = k * 2; ln.flapMesh = im; });
-      ctx.engine.levelRoot(lv).add(im);
-      this.flapMeshes[lv] = { im, list };
-      for (const ln of list) this._setFlaps(ln, 0);
-      im.instanceMatrix.needsUpdate = true;
-    }
+    this._buildInstances();
+    this._buildLcd();
   }
 
   _paidSign(gt) {
@@ -73,9 +164,11 @@ export class Gates {
     const probe = (d) => gt.axis === 'x' ? w.spaceAt(gt.level, mid, gt.at + d) : w.spaceAt(gt.level, gt.at + d, mid);
     const a = probe(2.5), b = probe(-2.5);
     if (a && a.paid) return 1; if (b && b.paid) return -1;
-    if (gt.line === 'nankai') return 1;
     return 1;
   }
+
+  // world unit vectors of the gate frame: U along the line, V across it (U x Y = V... right-handed: U = Y x V)
+  _frame(ax) { return ax === 'x' ? { U: new THREE.Vector3(1, 0, 0), V: new THREE.Vector3(0, 0, 1) } : { U: new THREE.Vector3(0, 0, 1), V: new THREE.Vector3(1, 0, 0) }; }
 
   _gate(gt) {
     const { ctx } = this;
@@ -83,64 +176,107 @@ export class Gates {
     const ps = this._paidSign(gt);
     const gb = new GeoBatch();
     const ax = gt.axis; // 'x': line runs along x at z = at
-    // world position from (along u, across v)
     const W = (u, v) => ax === 'x' ? [u, v + gt.at] : [gt.at + v, u];
     const boxUV = (mat, u, yy, v, su, sy, sv, opt) => { const [x, z] = W(u, v); if (ax === 'x') gb.box(mat, x, yy, z, su, sy, sv, 0, opt); else gb.box(mat, x, yy, z, sv, sy, su, 0, opt); };
     const quadW = (mat, pts, opt) => gb.quad(mat, ...pts.map(([u, yy, v]) => { const [x, z] = W(u, v); return [x, yy, z]; }), opt);
     const accent = gt.line === 'midosuji' ? 'transit_gate_metro' : gt.line === 'sennichimae' ? 'transit_gate_pink' : 'transit_gate_nankai';
     const machines = gt.machines || [];
-    const g = { gt, ps, lanes: [], booth: null };
+    const { U, V } = this._frame(ax);
+    const Ub = new THREE.Vector3().crossVectors(Y, V); // right-handed basis x-axis (== U or -U)
+    const g = { gt, ps, lanes: [], subs: [], cabs: [], booth: null, U, V };
     this.gates.push(g);
-    // lane policy
     const nL = machines.length - 1;
     // lane policy (demo: the Nankai central gate is two-way everywhere — every player crosses it in the first minute)
     const policy = (i) => (gt.id === 'g_nk_central' || i === 0 || i === nL - 1) ? 'both' : (i % 4 === 1 ? 'in' : i % 4 === 3 ? 'out' : 'both');
-    machines.forEach((u, mi) => {
-      const h = MACH_H;
-      // body: cabinet with raised reader heads at both ends, dark glossy top
-      boxUV('transit_gate_body', u, y + 0.46, 0, MACH_W, 0.92, MACH_LEN - 0.02);
-      boxUV('transit_gate_side', u, y + 0.06, 0, MACH_W + 0.02, 0.12, MACH_LEN + 0.02, { faces: 'nsew' });
-      boxUV('transit_gate_top', u, y + 0.935, 0, MACH_W + 0.03, 0.03, MACH_LEN - 0.62);
-      for (const e of [-1, 1]) {
-        const vc = e * (MACH_LEN / 2 - 0.17);
-        boxUV('transit_gate_body', u, y + 0.52, vc, MACH_W + 0.02, 1.04, 0.34);
-        boxUV('transit_gate_top', u, y + 1.055, vc, MACH_W + 0.05, 0.03, 0.36);
-      }
-      boxUV(accent, u, y + 0.8, 0, MACH_W + 0.026, 0.045, MACH_LEN + 0.004, { faces: 'nsew' });
-      // centre display (balance / fare)
-      { const ic = ICON.lcd; quadW(this.iconMat, [[u - 0.08, y + 0.952, -0.13], [u + 0.08, y + 0.952, -0.13], [u + 0.08, y + 0.952, 0.13], [u - 0.08, y + 0.952, 0.13]], { uv: [[ic[0], ic[1]], [ic[0], ic[3]], [ic[2], ic[3]], [ic[2], ic[1]]] }); }
-      // ends: IC readers on the heads + LED indicators
-      for (const e of [-1, 1]) {
-        const v0 = e * MACH_LEN / 2;
-        const vr = e * (MACH_LEN / 2 - 0.17);
-        const yy = y + 1.072;
-        const ic = ICON.ic;
-        quadW(this.iconMat, [[u - 0.11, yy, vr - 0.13], [u + 0.11, yy, vr - 0.13], [u + 0.11, yy, vr + 0.13], [u - 0.11, yy, vr + 0.13]], { uv: [[ic[0], ic[1]], [ic[2], ic[1]], [ic[2], ic[3]], [ic[0], ic[3]]] });
-        // ticket slot (dark) in the middle of the top
-        boxUV('rubber_black', u, y + h * 0.975, e * 0.25, 0.04, 0.01, 0.12, { faces: 't' });
-        // LED direction indicator on the end face (serves the lanes either side)
-        const enterDir = -e; // walking from this end into the machine length means moving towards -e
-        const lanePol = [policy(mi - 1), policy(mi)].filter((p, k) => (k === 0 ? mi > 0 : mi < nL));
-        const allowsFromThisEnd = lanePol.some(p => p === 'both' || (p === 'in' ? Math.sign(enterDir) === ps : Math.sign(enterDir) === -ps));
-        const icn = allowsFromThisEnd ? ICON.arrow : ICON.noentry;
-        const fv = v0 + e * 0.005;
-        const yA = y + 0.8, yB = y + 0.98;
-        // quad facing outward (direction e along v)
-        const uvs = [[icn[0], icn[1]], [icn[2], icn[1]], [icn[2], icn[3]], [icn[0], icn[3]]];
-        // orientation: seen from outside the end, right-hand is -u for e>0 (axis x) — keep arrow pointing "into" the gate
-        if ((e > 0) === (ax === 'x')) quadW(this.iconMat, [[u + 0.1, yA, fv], [u - 0.1, yA, fv], [u - 0.1, yB, fv], [u + 0.1, yB, fv]], { uv: uvs });
-        else quadW(this.iconMat, [[u - 0.1, yA, fv], [u + 0.1, yA, fv], [u + 0.1, yB, fv], [u - 0.1, yB, fv]], { uv: uvs });
-      }
-      // small LCD on the top centre
-      const ls = ICON.lcd;
-      void ls;
-    });
-    // lanes + flaps
+    // cabinets (layout machines + the channel dividers between them) and channels
     for (let i = 0; i < nL; i++) {
       const a = machines[i], b = machines[i + 1];
-      const ln = { gate: gt.id, i, level: lv, axis: ax, at: gt.at, a, b, centre: (a + b) / 2, width: b - a, policy: policy(i), t: 0, ext: 0, target: 0, timer: 0, y };
-      this.lanes.push(ln);
-      g.lanes.push(ln);
+      const ln = { gate: gt.id, i, level: lv, axis: ax, at: gt.at, a, b, centre: (a + b) / 2, width: b - a, policy: policy(i), y, subs: [] };
+      this.lanes.push(ln); g.lanes.push(ln);
+      const n = nSubFor(b - a), p = (b - a) / n;
+      for (let j = 0; j < n; j++) {
+        g.cabs.push({ u: a + j * p, layout: j === 0 });
+        const S = { g, ln, j, n, idx: g.subs.length, level: lv, lo: a + j * p, hi: a + (j + 1) * p, c: a + (j + 0.5) * p, clear: p - CAB_W, centre: j === (n - 1) / 2,
+          ext: 0, target: 0, npcClose: 0, flash: [0, 0], flashOk: [true, true], okT: [0, 0], blocked: false, blockSide: 0, releaseT: 0, arm: null, hint: false, active: true, seg: null, segReal: null };
+        ln.subs.push(S); g.subs.push(S); this.subs.push(S);
+      }
+    }
+    if (nL >= 0 && machines.length) g.cabs.push({ u: machines[nL], layout: true });
+    // ---- static cabinets ----
+    const G = gateGeos();
+    const place = (u, v, yy) => { const [x, z] = W(u, v); return _m.makeBasis(Ub, Y, V).setPosition(x, y + yy, z); };
+    const icons = this.atlasMat;
+    const quadF = (mat, C, X, Yv, w, h, uv) => {
+      const P = (sx, sy) => [C.x + X.x * sx * w / 2 + Yv.x * sy * h / 2, C.y + X.y * sx * w / 2 + Yv.y * sy * h / 2, C.z + X.z * sx * w / 2 + Yv.z * sy * h / 2];
+      gb.quad(mat, P(-1, -1), P(1, -1), P(1, 1), P(-1, 1), { uv: [[uv[0], uv[1]], [uv[2], uv[1]], [uv[2], uv[3]], [uv[0], uv[3]]] });
+    };
+    g.cabs.forEach((cab, k) => {
+      const u = cab.u;
+      gb.geometry('transit_gate_plinth', G.plinth, place(u, 0, 0));
+      gb.geometry('transit_gate_shell', G.body, place(u, 0, 0));
+      gb.geometry(accent, G.band, place(u, 0, 0));
+      gb.geometry('transit_gate_top', G.top, place(u, 0, 0));
+      // flap slots on both side faces (where the flaps come out)
+      for (const sd of [-1, 1]) boxUV('rubber_black', u + sd * (CAB_W / 2 + 0.001), y + FLAP_Y, 0, 0.004, FLAP_H + 0.04, 0.05);
+      // player collision for the channel dividers (thin, so the 0.75 m channels stay easy to walk;
+      // NOT a nav obstacle — the crowd's lanes and flow fields are unchanged)
+      if (!cab.layout) { const [bx, bz] = W(u, 0); this._addBox(lv, bx, bz, ax === 'x' ? 0.09 : 0.7, ax === 'x' ? 0.7 : 0.09); }
+      // each end: reader housing + ticket slot + LCD + LED housing + lane number, for the channel this cabinet
+      // is the right-hand side of when approached from that end
+      for (const e of [-1, 1]) {
+        const sIdx = ((ax === 'x') === (e > 0)) ? k - 1 : k;
+        const S = g.subs[sIdx];
+        const d = sIdx === k - 1 ? -1 : 1;             // along-direction from this cabinet towards that channel
+        const F = V.clone().multiplyScalar(e);         // outward (towards the approacher)
+        // reader housing: dark wedge tilted towards the approacher
+        const vr = e * (MACH_LEN / 2 - 0.2);
+        const [rx, rz] = W(u + d * 0.012, vr);
+        const tilt = 0.26;
+        _N.copy(Y).multiplyScalar(Math.cos(tilt)).addScaledVector(F, Math.sin(tilt)).normalize();
+        _T.copy(F).multiplyScalar(-Math.cos(tilt)).addScaledVector(Y, Math.sin(tilt)).normalize();
+        _X.crossVectors(_T, _N);
+        const housing = new THREE.BoxGeometry(0.205, 0.04, 0.25);
+        _m.makeBasis(_X, _N, _T.clone().negate()).setPosition(rx, y + CAB_TOP + 0.012, rz);
+        gb.geometry('transit_gate_reader', housing, _m); housing.dispose();
+        const padC = new THREE.Vector3(rx, y + CAB_TOP + 0.034, rz);
+        // LCD (towards the middle of the cabinet), tilted like the reader
+        // (flat, in a dark bezel; reads upright for the person standing at this end)
+        const [lx, lz] = W(u + d * 0.012, e * (MACH_LEN / 2 - 0.43));
+        const lcdC = new THREE.Vector3(lx, y + CAB_TOP + 0.0175, lz);
+        const lT = F.clone().negate(), lX = new THREE.Vector3().crossVectors(lT, Y);
+        boxUV('transit_gate_reader', u + d * 0.012, y + CAB_TOP + 0.006, e * (MACH_LEN / 2 - 0.43), 0.17, 0.02, 0.1);
+        quadF(icons, lcdC, lX, lT, 0.15, 0.075, UV.lcd);
+        // ticket slot (entry) between the LCD and the middle
+        boxUV('rubber_black', u, y + CAB_TOP + 0.002, e * (MACH_LEN / 2 - 0.6), 0.03, 0.006, 0.11, { faces: 't' });
+        // end face: LED housing with lane number on top
+        const vE = e * (MACH_LEN / 2 + 0.016);
+        boxUV('transit_gate_top', u, y + 0.75, e * (MACH_LEN / 2 - 0.004), 0.17, 0.27, 0.035);
+        const [ex, ez] = W(u, vE);
+        _X.crossVectors(Y, F);
+        if (S) {
+          quadF(icons, new THREE.Vector3(ex, y + 0.845, ez), _X, Y, 0.085, 0.07, UV.num(Math.min(79, S.idx)));
+          const ei = e > 0 ? 1 : 0;
+          S.pad = S.pad || []; S.led = S.led || [];
+          S.pad[ei] = { C: padC, N: _N.clone(), T: _T.clone(), X: new THREE.Vector3().crossVectors(_T, _N) };
+          S.led[ei] = { C: new THREE.Vector3(ex, y + 0.715, ez), F: F.clone(), X: _X.clone() };
+          S.lcd = S.lcd || []; S.lcd[ei] = { C: lcdC.clone().add(new THREE.Vector3(0, 0.002, 0)), N: Y.clone(), T: lT.clone(), X: lX.clone() };
+        }
+      }
+    });
+    // flap anchors + flap-line collision segments (parked until a block)
+    for (const S of g.subs) {
+      S.flapA = [];
+      for (const sd of [-1, 1]) { // -1: from the cabinet at lo (protrudes +U), +1: from the cabinet at hi (protrudes -U)
+        const base = sd < 0 ? S.lo + CAB_W / 2 - 0.03 : S.hi - CAB_W / 2 + 0.03;
+        const [x, z] = W(base, 0);
+        const Pd = U.clone().multiplyScalar(-sd);
+        S.flapA.push({ x, z, P: Pd, Zb: new THREE.Vector3().crossVectors(Pd, Y) });
+      }
+      S.reach = Math.max(0.1, S.clear / 2 + 0.03 - 0.012);
+      const [x0, z0] = W(S.lo, 0), [x1, z1] = W(S.hi, 0);
+      S.segReal = [x0, z0, x1, z1];
+      S.seg = this._addSeg(lv, [1e7, 1e7, 1e7, 1e7], S.segReal);
+      const [cx, cz] = W(S.c, 0); S.x = cx; S.z = cz;
     }
     // fences (stainless + glass) along gt.fence
     for (const [f0, f1] of gt.fence || []) {
@@ -356,50 +492,340 @@ export class Gates {
     return t;
   }
 
-  // ---- runtime ---------------------------------------------------------------------------
+  // ---- collision helpers (player only: world.segs / world.hash; the nav grid is untouched) --------------
+  _addSeg(lv, s, real) {
+    const w = this.ctx.world;
+    if (!w.segs || !w.segs[lv] || !w.hash || !w.hash[lv] || typeof w._hashSeg !== 'function') return null;
+    // hash at the real position, then park it far away until it is needed
+    const r = real || s;
+    const arr = [r[0], r[1], r[2], r[3]];
+    w.segs[lv].push(arr); w._hashSeg(w.hash[lv], arr, w.segs[lv].length - 1);
+    arr[0] = s[0]; arr[1] = s[1]; arr[2] = s[2]; arr[3] = s[3];
+    return arr;
+  }
+  _addBox(lv, cx, cz, hx, hz) {
+    const w = this.ctx.world;
+    if (typeof w._insertBox !== 'function' || !w.hash || !w.hash[lv] || !w.segs[lv]) return;
+    w._insertBox(lv, { cx, cz, hx, hz, rot: 0 });
+  }
+  _setSeg(S, on) {
+    const s = S.seg; if (!s) return;
+    const r = on ? S.segReal : [1e7, 1e7, 1e7, 1e7];
+    s[0] = r[0]; s[1] = r[1]; s[2] = r[2]; s[3] = r[3];
+  }
+
+  // ---- instanced dynamic parts: flaps, IC pads, LED arrows, LED no-entry ---------------------------------
+  _buildInstances() {
+    const G = gateGeos();
+    const flapMat = new THREE.MeshStandardMaterial({ color: 0xff6418, roughness: 0.42, metalness: 0.0, emissive: 0x521400, emissiveIntensity: 1.0 });
+    flapMat.name = 'transit_flap';
+    const basic = (name) => { const m = new THREE.MeshBasicMaterial({ map: this.atlas, color: 0xffffff }); m.name = name; return m; };
+    const padGeo = quadGeo(UV.pad), arrowGeo = quadGeo(UV.arrow), crossGeo = quadGeo(UV.noentry);
+    const padMat = basic('transit_gate_pad'), ledMat = basic('transit_gate_led');
+    const byLevel = {};
+    for (const S of this.subs) (byLevel[S.level] = byLevel[S.level] || []).push(S);
+    for (const lv in byLevel) {
+      const list = byLevel[lv], n = list.length * 2;
+      const mk = (geo, mat, name) => {
+        const im = new THREE.InstancedMesh(geo, mat, n);
+        im.name = name + ':' + lv; im.frustumCulled = false;
+        im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        im.setColorAt(0, _c.setRGB(1, 1, 1));
+        this.ctx.engine.levelRoot(lv).add(im);
+        return im;
+      };
+      const I = { list, flaps: mk(G.flap, flapMat, 'transit_flaps'), pads: mk(padGeo, padMat, 'transit_gate_pads'), arrows: mk(arrowGeo, ledMat, 'transit_gate_arrows'), crosses: mk(crossGeo, ledMat, 'transit_gate_noentry') };
+      I.flaps.castShadow = false;
+      list.forEach((S, k) => { S.ii = k * 2; S.I = I; });
+      this.inst[lv] = I;
+      for (const S of list) { this._writeFlaps(S); this._writeLights(S); }
+      for (const k of ['flaps', 'pads', 'arrows', 'crosses']) { I[k].instanceMatrix.needsUpdate = true; if (I[k].instanceColor) I[k].instanceColor.needsUpdate = true; }
+    }
+  }
+  _writeFlaps(S) {
+    const im = S.I.flaps, y = LEVELS[S.level].y;
+    const sx = Math.max(0.004, S.ext * S.reach / FLAP_L);
+    for (let k = 0; k < 2; k++) {
+      const A = S.flapA[k];
+      _m.makeBasis(A.P, Y, A.Zb).setPosition(A.x, y + FLAP_Y, A.z);
+      _s.makeScale(sx, 1, 1);
+      im.setMatrixAt(S.ii + k, _m.multiply(_s));
+    }
+  }
+  // allowed to walk through from side `side` (+1/-1 across the line)?
+  _allowed(S, side) {
+    const pol = S.ln.policy;
+    if (pol === 'both') return true;
+    const entering = -side === S.g.ps;
+    return pol === 'in' ? entering : !entering;
+  }
+  _writeLights(S) {
+    const I = S.I, t = this._t;
+    for (let ei = 0; ei < 2; ei++) {
+      const side = ei ? 1 : -1;
+      const ok = this._allowed(S, side);
+      const pad = S.pad && S.pad[ei], led = S.led && S.led[ei];
+      if (!pad || !led) { for (const im of [I.pads, I.arrows, I.crosses]) im.setMatrixAt(S.ii + ei, _m.makeScale(0, 0, 0)); continue; }
+      // IC pad: blue, pulses for the tutorial hint, flashes on a tap
+      _m.makeBasis(pad.X, pad.T, pad.N).setPosition(pad.C.x, pad.C.y, pad.C.z);
+      I.pads.setMatrixAt(S.ii + ei, _m.multiply(_s.makeScale(0.17, 0.2, 1)));
+      if (S.flash[ei] > 0) {
+        const k = Math.min(1, S.flash[ei] / 0.25);
+        if (S.flashOk[ei]) _c.setRGB(0.55 + 0.6 * k, 1.0 + 0.9 * k, 0.75 + 0.7 * k); else _c.setRGB(1.6 + 1.2 * k, 0.18, 0.12);
+      } else if (S.hint && (this._hintSide == null || this._hintSide === side)) {
+        const k = 0.5 + 0.5 * Math.sin(t * 7);
+        _c.setRGB(0.35 + 0.5 * k, 0.8 + 0.9 * k, 1.4 + 1.0 * k);
+      } else if (ok) _c.setRGB(0.32, 0.72, 1.45);
+      else _c.setRGB(0.12, 0.2, 0.32);
+      I.pads.setColorAt(S.ii + ei, _c);
+      // LEDs
+      const red = S.blocked || S.npcClose > 0 || S.flash[ei] > 0 && !S.flashOk[ei];
+      const showArrow = ok && !red, showCross = !ok || red;
+      _m.makeBasis(led.X, Y, led.F).setPosition(led.C.x, led.C.y, led.C.z);
+      _s.makeScale(0.115, 0.115, 1);
+      const mm = _m.clone().multiply(_s);
+      I.arrows.setMatrixAt(S.ii + ei, showArrow ? mm : _m.makeScale(0, 0, 0));
+      I.crosses.setMatrixAt(S.ii + ei, showCross ? mm : _m.makeScale(0, 0, 0));
+      const boost = S.okT[ei] > 0 ? 1.9 : 1.15;
+      I.arrows.setColorAt(S.ii + ei, _c.setRGB(boost, boost, boost));
+      const blink = red ? (Math.sin(t * 16) > -0.2 ? 1.9 : 0.35) : 1.1;
+      I.crosses.setColorAt(S.ii + ei, _c.setRGB(blink, blink, blink));
+    }
+  }
+
+  // the player's little "IC card" readout on the gate LCD (balance / fare), for ~3.5 s after a tap
+  _buildLcd() {
+    const c = canvas(256, 128);
+    this._lcdCanvas = c; this._lcdTex = canvasTex(c, { mips: false });
+    const mat = new THREE.MeshBasicMaterial({ map: this._lcdTex, color: new THREE.Color(1.3, 1.3, 1.3) });
+    mat.name = 'transit_gate_lcd_live';
+    this.lcdMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.075), mat);
+    this.lcdMesh.name = 'transit_gate_lcd_live';
+    this.lcdMesh.visible = false; this.lcdMesh.frustumCulled = false;
+    this._lcdT = 0;
+  }
+  _showLcd(S, ei, o) {
+    const L = S.lcd && S.lcd[ei]; if (!L || !this.lcdMesh) return;
+    const g = this._lcdCanvas.getContext('2d');
+    const col = S.g.gt.line === 'midosuji' ? '#E5171F' : S.g.gt.line === 'sennichimae' ? '#E44D93' : '#F08300';
+    g.fillStyle = '#071226'; g.fillRect(0, 0, 256, 128);
+    g.fillStyle = col; g.fillRect(0, 0, 256, 26);
+    g.fillStyle = '#fff'; g.font = `700 18px ${JP}`; fitText(g, o.ok ? 'IC  ありがとうございました' : 'IC  もう一度タッチしてください', 128, 20, 244, 'center');
+    if (o.ok) {
+      g.fillStyle = '#9fd0ff'; g.font = `600 18px ${JP}`; g.fillText('残額', 12, 62);
+      g.fillStyle = '#ffffff'; g.font = `800 36px ${EN}`; g.textAlign = 'right';
+      g.fillText(o.balance != null ? '¥' + Math.round(o.balance).toLocaleString('en-US') : '— — —', 244, 68);
+      g.font = `700 22px ${EN}`; g.fillStyle = o.fare ? '#ffd27a' : '#7fe0a0';
+      g.fillText(o.fare ? '−¥' + Math.round(o.fare) + '  運賃 fare' : (o.dir > 0 ? '入場  IN' : '出場  OUT'), 244, 112);
+      g.textAlign = 'left';
+    } else {
+      g.fillStyle = '#ff6b5e'; g.font = `800 30px ${JP}`; fitText(g, o.reason === 'balance' ? '残額不足' : '入場できません', 128, 74, 236, 'center');
+      g.fillStyle = '#ffb4ab'; g.font = `600 18px ${EN}`; fitText(g, o.reason === 'balance' ? 'Insufficient balance' : 'Please use another gate', 128, 108, 236, 'center');
+    }
+    this._lcdTex.needsUpdate = true;
+    const m = this.lcdMesh;
+    this.ctx.engine.levelRoot(S.level).add(m);
+    _m.makeBasis(L.X, L.T, L.N).setPosition(L.C.x, L.C.y, L.C.z);
+    m.matrixAutoUpdate = false; m.matrix.copy(_m); m.matrixWorldNeedsUpdate = true;
+    m.visible = true; this._lcdT = 3.5;
+  }
+
+  // ---- queries ----------------------------------------------------------------------------------------------
+  _gateById(id) { return this.gates.find(g => g.gt.id === id); }
+  _uv(g, x, z) { const gt = g.gt; return gt.axis === 'x' ? [x, z - gt.at] : [z, x - gt.at]; }
+  _subAt(g, u) {
+    const subs = g.subs; if (!subs.length || u < subs[0].lo || u >= subs[subs.length - 1].hi) return null;
+    let lo = 0, hi = subs.length - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (subs[m].lo <= u) lo = m; else hi = m - 1; }
+    return subs[lo];
+  }
   laneAt(gateId, along) {
-    const g = this.gates.find(g => g.gt.id === gateId); if (!g) return -1;
+    const g = this._gateById(gateId); if (!g) return -1;
     for (const ln of g.lanes) if (along >= ln.a && along <= ln.b) return ln.i;
     return -1;
   }
+  laneNear(x, z, level) {
+    for (const g of this.gates) {
+      if (g.gt.level !== level) continue;
+      const [u, v] = this._uv(g, x, z);
+      if (Math.abs(v) > NEAR_V) continue;
+      const S = this._subAt(g, u); if (!S) continue;
+      const side = v >= 0 ? 1 : -1;
+      const dir = -side === g.ps ? 1 : -1;
+      const ei = side > 0 ? 1 : 0;
+      const pad = S.pad && S.pad[ei];
+      const gt = g.gt;
+      return { gate: gt.id, lane: S.ln.i, sub: S.j, dir, ok: this._allowed(S, side), open: !!(S.arm && S.arm.side === side && this._t < S.arm.until), policy: S.ln.policy, line: gt.line, name: gt.name, ja: gt.ja, dist: Math.abs(v), reader: pad ? { x: pad.C.x, y: pad.C.y, z: pad.C.z } : { x: S.x, y: LEVELS[level].y + 1, z: S.z }, x: S.x, z: S.z, level };
+    }
+    return null;
+  }
+  _playerSide(g) {
+    const p = this.ctx.player && this.ctx.player.body;
+    if (!p || p.level !== g.gt.level) return null;
+    const [, v] = this._uv(g, p.x, p.z);
+    if (Math.abs(v) > 12) return null;
+    return v >= 0 ? 1 : -1;
+  }
+  _sound(name, S) {
+    const a = this.ctx.audio; if (!a || typeof a.play !== 'function') return;
+    try { a.play(name, { pos: { x: S.x, z: S.z, level: S.level, y: LEVELS[S.level].y + 1.0 } }); } catch (e) { /* audio optional */ }
+  }
+
+  // ---- the player's tap (Story calls this on E) ---------------------------------------------------------------
+  tap(gateId, lane, opts = {}) {
+    if (typeof opts === 'number') opts = { sub: opts };
+    const g = this._gateById(gateId); if (!g) return { ok: false, reason: 'none' };
+    const ln = g.lanes[lane]; if (!ln) return { ok: false, reason: 'none' };
+    const p = this.ctx.player && this.ctx.player.body;
+    let S = opts.sub != null ? ln.subs[opts.sub] : null;
+    if (!S) {
+      const u = p ? this._uv(g, p.x, p.z)[0] : ln.centre;
+      S = ln.subs.reduce((b, s) => Math.abs(s.c - u) < Math.abs(b.c - u) ? s : b, ln.subs[0]);
+    }
+    let side = this._playerSide(g);
+    if (S.blocked) side = S.blockSide;
+    if (side == null) side = -g.ps;
+    const ei = side > 0 ? 1 : 0;
+    const dir = -side === g.ps ? 1 : -1;
+    const deny = opts.deny || (!this._allowed(S, side) ? 'lane' : null);
+    if (deny) {
+      S.flash[ei] = 0.6; S.flashOk[ei] = false; S.npcClose = Math.max(S.npcClose, 1.1); S.active = true;
+      if (!opts.quiet) this._sound('gate_fail', S);
+      this._showLcd(S, ei, { ok: false, reason: deny });
+      this.ctx.events.emit('gate:blocked', { gate: gateId, lane: ln.i, sub: S.j, dir, level: S.level, x: S.x, z: S.z, reason: deny });
+      return { ok: false, reason: deny };
+    }
+    S.arm = { side, until: this._t + ARM_S, passed: false };
+    if (S.blocked) { S.blocked = false; S.releaseT = 0; this._setSeg(S, false); }
+    S.npcClose = 0;
+    S.flash[ei] = 0.55; S.flashOk[ei] = true; S.okT[ei] = 1.2; S.active = true;
+    if (!opts.quiet) this._sound(opts.balance != null && opts.balance < 300 ? 'gate_low' : 'gate_ok', S);
+    this._showLcd(S, ei, { ok: true, balance: opts.balance, fare: opts.fare, dir });
+    this.ctx.events.emit('gate:tap', { gate: gateId, lane: ln.i, sub: S.j, dir, line: g.gt.line, level: S.level, x: S.x, z: S.z, player: true, auto: !!opts.auto });
+    return { ok: true, reason: null, dir };
+  }
+  setHint(gateId, lane, sub) {
+    this.hint = gateId ? { gate: gateId, lane: lane == null ? null : lane, sub: sub == null ? null : sub } : null;
+    for (const S of this.subs) {
+      const on = !!this.hint && S.g.gt.id === gateId && (this.hint.lane == null || S.ln.i === this.hint.lane) && (this.hint.sub == null || S.j === this.hint.sub);
+      if (on !== S.hint) { S.hint = on; S.active = true; }
+    }
+  }
+
+  // ---- NPC (and legacy) passes: reader flash + LED on the crowd's centre channel ----------------------------------
   pass(gateId, laneIndex, dir = 1, ok = true) {
-    const g = this.gates.find(g => g.gt.id === gateId); if (!g) return false;
+    const g = this._gateById(gateId); if (!g) return false;
     const ln = g.lanes[laneIndex]; if (!ln) return false;
-    ln.timer = ok ? 0.9 : 1.4;
-    ln.ok = ok;
-    ln.flash = 0.5;
-    if (!ok) ln.target = 1;
+    let S = ln.subs[(ln.subs.length - 1) >> 1];
+    // the player's own channel if they are in this lane (legacy game.js calls for the player)
+    const ps = this.pl.S;
+    if (ps && ps.ln === ln) S = ps;
+    let side = dir ? -Math.sign(dir) : (this._playerSide(g) || -g.ps);
+    const ei = side > 0 ? 1 : 0;
+    if (S === ps && ok) return true; // the player's channel animates itself
+    S.flash[ei] = 0.32; S.flashOk[ei] = ok; S.okT[ei] = ok ? 0.5 : 0; S.active = true;
+    if (!ok) S.npcClose = 1.3;
     return true;
   }
-  _setFlaps(ln, ext) {
-    const im = ln.flapMesh; if (!im) return;
-    const m = new THREE.Matrix4();
-    const len = Math.min(0.55, ln.width / 2 - 0.1);
-    const out = 0.02 + ext * (len - 0.02);
-    for (let k = 0; k < 2; k++) {
-      const u = k === 0 ? ln.a + MACH_W / 2 - 0.02 + out / 2 : ln.b - MACH_W / 2 + 0.02 - out / 2;
-      const [x, z] = ln.axis === 'x' ? [u, ln.at] : [ln.at, u];
-      const sx = ln.axis === 'x' ? out : 0.03, sz = ln.axis === 'x' ? 0.03 : out;
-      m.compose(new THREE.Vector3(x, ln.y + 0.62, z), new THREE.Quaternion(), new THREE.Vector3(sx, 0.45, sz));
-      im.setMatrixAt(ln.flapBase + k, m);
+
+  // ---- per frame -------------------------------------------------------------------------------------------------
+  _player(dt) {
+    const p = this.ctx.player && this.ctx.player.body;
+    const pl = this.pl;
+    let inS = null, side = 0;
+    if (p && !(p.ramp >= 0)) {
+      for (const g of this.gates) {
+        if (g.gt.level !== p.level) continue;
+        const [u, v] = this._uv(g, p.x, p.z);
+        if (Math.abs(v) > MACH_LEN / 2 + 0.02) continue;
+        const S = this._subAt(g, u); if (!S) continue;
+        if (u < S.lo + CAB_W / 2 - 0.08 || u > S.hi - CAB_W / 2 + 0.08) continue;
+        inS = S; side = v >= 0 ? 1 : -1; break;
+      }
     }
+    // hint pulses the player's side
+    if (this.hint) { const g = this._gateById(this.hint.gate); this._hintSide = g ? this._playerSide(g) : null; }
+    // left a channel
+    if (pl.S && pl.S !== inS) {
+      const S = pl.S;
+      if (S.arm && S.arm.passed) S.arm = null;
+      if (S.blocked) S.releaseT = 0.45;
+      pl.S = null;
+    }
+    if (!inS) return;
+    const S = inS;
+    if (pl.S !== S) {
+      // just walked into this channel (from the end on `side`)
+      pl.S = S; pl.side = side; pl.lastSide = side;
+      const armed = S.arm && S.arm.side === side && this._t < S.arm.until;
+      if (!armed && !S.blocked) {
+        if (this.autoTap && this._allowed(S, side)) this.tap(S.g.gt.id, S.ln.i, { sub: S.j, auto: true });
+        else this._block(S, side, this._allowed(S, side) ? 'notap' : 'lane');
+      }
+      if (S.blocked) S.releaseT = 0;
+    }
+    if (S.arm) {
+      S.arm.until = Math.max(S.arm.until, this._t + 0.6);
+      if (side !== pl.lastSide && !S.arm.passed) {
+        S.arm.passed = true;
+        const g = S.g;
+        this.ctx.events.emit('gate:pass', { gate: g.gt.id, lane: S.ln.i, sub: S.j, dir: -pl.lastSide === g.ps ? 1 : -1, ok: true, level: S.level, x: S.x, z: S.z, player: true });
+      }
+    }
+    if (S.blocked) S.releaseT = 0;
+    pl.lastSide = side;
+  }
+  _block(S, side, reason) {
+    const ei = side > 0 ? 1 : 0, g = S.g;
+    S.blocked = true; S.blockSide = side; S.releaseT = 0; S.active = true;
+    S.flash[ei] = 0.6; S.flashOk[ei] = false;
+    this._setSeg(S, true);
+    const now = this._t;
+    if (!this._lastBlock || now - this._lastBlock > 0.8) this._sound('gate_fail', S);
+    this._lastBlock = now;
+    this.ctx.events.emit('gate:blocked', { gate: g.gt.id, lane: S.ln.i, sub: S.j, dir: -side === g.ps ? 1 : -1, level: S.level, x: S.x, z: S.z, reason });
   }
   update(dt) {
-    for (const lv in this.flapMeshes) {
-      const { im, list } = this.flapMeshes[lv];
-      let dirty = false;
-      for (const ln of list) {
-        if (ln.timer > 0) { ln.timer -= dt; if (ln.timer <= 0) ln.target = 0; }
-        if (ln.flash > 0) ln.flash -= dt;
-        const prev = ln.ext;
-        const sp = ln.target > ln.ext ? 9 : 3;
-        ln.ext += Math.sign(ln.target - ln.ext) * Math.min(Math.abs(ln.target - ln.ext), sp * dt);
-        if (ln.ext !== prev || ln._init !== true) { this._setFlaps(ln, ln.ext); dirty = true; ln._init = true; }
+    this._t += dt;
+    this._player(dt);
+    if (this._lcdT > 0) { this._lcdT -= dt; if (this._lcdT <= 0 && this.lcdMesh) this.lcdMesh.visible = false; }
+    for (const lv in this.inst) {
+      const I = this.inst[lv];
+      let flapsDirty = false, lightsDirty = false;
+      for (const S of I.list) {
+        if (!S.active) continue;
+        let busy = S.hint;
+        if (S.flash[0] > 0) { S.flash[0] -= dt; busy = true; } if (S.flash[1] > 0) { S.flash[1] -= dt; busy = true; }
+        if (S.okT[0] > 0) { S.okT[0] -= dt; busy = true; } if (S.okT[1] > 0) { S.okT[1] -= dt; busy = true; }
+        if (S.npcClose > 0) { S.npcClose -= dt; busy = true; }
+        if (S.blocked) {
+          busy = true;
+          if (S.releaseT > 0) { S.releaseT -= dt; if (S.releaseT <= 0) { S.blocked = false; this._setSeg(S, false); } }
+        }
+        if (S.arm) { busy = true; if (this._t > S.arm.until && this.pl.S !== S) S.arm = null; }
+        S.target = (S.blocked || S.npcClose > 0) ? 1 : 0;
+        if (S.ext !== S.target) {
+          const sp = S.target > S.ext ? 11 : 3.2;
+          S.ext += Math.sign(S.target - S.ext) * Math.min(Math.abs(S.target - S.ext), sp * dt);
+          this._writeFlaps(S); flapsDirty = true; busy = true;
+        }
+        this._writeLights(S); lightsDirty = true;
+        S.active = busy; // one last write after it goes idle
       }
-      if (dirty) im.instanceMatrix.needsUpdate = true;
+      if (flapsDirty) I.flaps.instanceMatrix.needsUpdate = true;
+      if (lightsDirty) for (const k of ['pads', 'arrows', 'crosses']) { I[k].instanceMatrix.needsUpdate = true; if (I[k].instanceColor) I[k].instanceColor.needsUpdate = true; }
     }
   }
+  // test helper: snap the flaps of the channel the player is looking into
+  _debugBlock() {
+    const p = this.ctx.player.body;
+    const n = this.laneNear(p.x, p.z, p.level); if (!n) return null;
+    const g = this._gateById(n.gate), S = g.lanes[n.lane].subs[n.sub];
+    this._block(S, n.dir === 1 ? -g.ps : g.ps, 'debug');
+    return n;
+  }
 }
+
 
 // ---------------------------------------------------------------------------------------------
 function buildMachineAtlas() {

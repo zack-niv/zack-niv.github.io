@@ -10,8 +10,9 @@ import { yen, esc } from './panel.js';
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 
-// Pay with the ICOCA card. Returns true if paid by card (else coins).
-function payIC(game, price) {
+// Pay with the ICOCA card. Returns true if paid by card (else coins). v6: the one IC mechanism (game.icCharge).
+function payIC(game, price, note) {
+  if (typeof game.icCharge === 'function') return game.icCharge({ amount: price, kind: 'purchase', label: 'お支払い Paid', note: note || '', orCoins: true }).ok;
   const ic = game.ic;
   if (ic.balance >= price) {
     ic.balance -= price;
@@ -91,7 +92,7 @@ export async function orderCoffee(game, b) {
   });
   if (choice == null || choice < 0) { game.hud.caption({ en: 'Maybe later.', kind: 'thought', duration: 2 }); return; }
   const [ja, en, price] = menu[choice];
-  payIC(game, price);
+  payIC(game, price, b.en);
   await sleep(700);
   await say(game, lines[1] || lines[0], key === 'coffee_kissa' ? 'Mama-san' : 'Barista');
   ctx.audio?.play?.('grinder'); setTimeout(() => ctx.audio?.play?.('cup'), 1800);
