@@ -270,9 +270,57 @@ export class HumanLibrary {
       }
       bend('Abdomen', X, 0.05);
     };
+    // palm normal of each hand in its wrist bone's frame (idle: palms face the body's midline; the phone is authored on that side)
+    const palmAx = {};
+    for (const sd of ['L', 'R']) { B['Wrist' + sd].getWorldQuaternion(qb); palmAx[sd] = new THREE.Vector3(sd === 'R' ? 1 : -1, 0, 0).applyQuaternion(qb.clone().invert()); }
+    const eyes = new THREE.Vector3(), eyeOff = new THREE.Vector3(0, 0.08, 0.1);
+    // roll the forearm (60%) and wrist (40%) about the forearm's own axis so the palm (and what it holds) faces the eyes, or the
+    // model-space direction `dir`; the wrist does not move, only the hand turns
+    const palmTo = (s, tilt = 0, dir = null) => {
+      const lo = B['LowerArm' + s], wr = B['Wrist' + s]; if (!lo || !wr || !B.Head) return;
+      eyes.setFromMatrixPosition(B.Head.matrixWorld).add(eyeOff);   // of THIS pose (seated clips sit ~0.4 m lower)
+      const ax = new THREE.Vector3().setFromMatrixPosition(wr.matrixWorld);
+      const want = dir ? dir.clone() : eyes.clone().sub(ax);
+      ax.sub(va.setFromMatrixPosition(lo.matrixWorld)).normalize();
+      wr.getWorldQuaternion(qb);
+      const n = palmAx[s].clone().applyQuaternion(qb);
+      n.addScaledVector(ax, -n.dot(ax)); want.addScaledVector(ax, -want.dot(ax));
+      if (n.lengthSq() < 1e-8 || want.lengthSq() < 1e-8) return;
+      n.normalize(); want.normalize();
+      let ang = Math.acos(Math.max(-1, Math.min(1, n.dot(want))));
+      if (vb.crossVectors(n, want).dot(ax) < 0) ang = -ang;
+      bend('LowerArm' + s, ax, ang * 0.6); bend('Wrist' + s, ax, ang * 0.4);
+      // then bend the hand at the wrist (capped) so the palm faces its target squarely rather than only as far as the roll allows
+      if (!tilt) return;
+      wr.getWorldQuaternion(qb); n.copy(palmAx[s]).applyQuaternion(qb);
+      if (dir) want.copy(dir); else want.setFromMatrixPosition(wr.matrixWorld).negate().add(eyes).normalize();
+      const t = Math.acos(Math.max(-1, Math.min(1, n.dot(want))));
+      vb.crossVectors(n, want); if (vb.lengthSq() < 1e-8) return;
+      bend('Wrist' + s, vb.normalize(), Math.min(0.75, t * tilt));
+    };
+    // close the fingers round the far long edge of what the palm holds (the thumb a little over its face): flex each joint about
+    // finger x palm-normal, so the fingertips move towards the palm side whatever the arm pose
+    const grip = (s, a2, a3, th) => {
+      const wr = B['Wrist' + s]; if (!wr) return;
+      wr.getWorldQuaternion(qb); const n = palmAx[s].clone().applyQuaternion(qb);
+      const flex = (bn, cn, ang) => {
+        const b = B[bn], c = B[cn]; if (!b || !c) return;
+        va.setFromMatrixPosition(b.matrixWorld); vb.setFromMatrixPosition(c.matrixWorld).sub(va);
+        if (vb.lengthSq() < 1e-8) return;
+        vb.normalize().cross(n); if (vb.lengthSq() < 1e-6) return;
+        bend(bn, vb.normalize(), ang);
+      };
+      for (const f of ['Index', 'Middle', 'Ring', 'Pinky']) { flex(f + '2' + s, f + '3' + s, a2); flex(f + '3' + s, f + '4' + s, a3); }
+      flex('Thumb2' + s, 'Thumb3' + s, th);
+    };
+    // v4 critic ROOT CAUSE of "empty hand": the old forearm aim (0.42, 0.62, 0.66) brought the hand up against the chin with the
+    // palm (and the phone on it) turned to the face, so the phone was sandwiched between hand and face, invisible from anywhere.
+    // Now: elbow by the side, forearm forward, in across the body and a little up, hand in front of the chest, palm rolled up to
+    // the eyes and fingers loosely closed: the phone lies ON the hand and pokes out past it, so it reads from every side.
     const phoneArm = (k = 1) => {
-      aim('UpperArmR', 'LowerArmR', V(-0.12, -1, 0.32), k);
-      aim('LowerArmR', 'WristR', V(0.42, 0.62, 0.66), k);
+      aim('UpperArmR', 'LowerArmR', V(-0.1, -1, 0.18), k);
+      aim('LowerArmR', 'WristR', V(0.5, 0.35, 1), k);
+      if (k > 0) { palmTo('R', 0.3); grip('R', 0.4, 0.35, 0.3); }
     };
     const caseArm = () => { aim('UpperArmL', 'LowerArmL', V(0.32, -1, -0.28)); aim('LowerArmL', 'WristL', V(0.3, -1, -0.38)); };
     const eatLoop = (u) => {
@@ -290,8 +338,13 @@ export class HumanLibrary {
     seatMake('sitphone2', 'stool', () => { phoneArm(); head(0.32); });
     make('phone', C.idle, C.idle.duration, 8, () => { phoneArm(); aim('UpperArmL', 'LowerArmL', V(0.1, -1, 0.15)); head(0.32); });
     make('phonewalk', C.walk, C.walk.duration, 16, () => { phoneArm(); head(0.28); });
+    // v4 critic: both hands used to meet (and cross) in front of the chin, burying the phone. Now a one-handed shot: the right hand
+    // holds the phone up in front of the face, palm (and phone) turned OUT to what is photographed, so the phone shows landscape
+    // to everyone in front (a palm turned to the eyes would put the hand between the phone and every onlooker); fingers barely
+    // closed so they do not cover it; the left arm stays relaxed.
     make('photo', C.idle, C.idle.duration, 8, () => {
-      for (const s of ['L', 'R']) { const sx = s === 'L' ? 1 : -1; aim('UpperArm' + s, 'LowerArm' + s, V(0.12 * sx, -0.35, 1)); aim('LowerArm' + s, 'Wrist' + s, V(-0.42 * sx, 0.45, 0.8)); }
+      aim('UpperArmR', 'LowerArmR', V(-0.1, -0.05, 1)); aim('LowerArmR', 'WristR', V(0.1, 0.45, 0.9));
+      palmTo('R', 1, V(0, 0.15, 1)); grip('R', 0.12, 0.1, 0.2);
       head(0.05);
     });
     make('bow', C.idle, 1.3, 14, (u) => {
@@ -429,12 +482,14 @@ export class HumanLibrary {
     paperBag(BIT.SHOPBAG2, 'WristR', hR, -1);
     // v4 critic: the phone sat 5 mm off the hand's centre line, i.e. INSIDE the 3 cm-thick hand mesh, so it never showed. Hold it
     // against the palm (the palm faces the body's midline in the idle pose the parts are authored in), a bit proud of the fingers.
-    // v4 hotfix: with the box's long side ALONG the fingers the whole phone hid behind the (mitten) hand in every phone pose, and
-    // a near-black phone vanished against dark suits. A phone is gripped across the palm (fingers round one long edge, thumb on
-    // the other), so its long side runs across the palm (+-z in the idle pose) and pokes out ~3 cm on both sides of the hand;
-    // graphite-silver case.
+    // v4 hotfix: with the box's long side ALONG the fingers the whole phone hid behind the (mitten) hand, and a near-black phone
+    // vanished against dark suits. A phone is gripped across the palm (fingers round one long edge, thumb on the other), so its
+    // long side runs across the palm (+-z in the idle pose) and pokes out ~3 cm on both sides of the hand.
+    // v4 critic, pass 2: the phone was always drawn; it was the old phone POSE (hand at the chin, palm to the face) that buried it
+    // between hand and face, see phoneArm. Graphite case + a black screen face on the side away from the palm.
     const palm = hR.x < 0 ? 1 : -1;
-    box(BIT.PHONE, 'WristR', A.phone, hR.x + palm * 0.028, hR.y - 0.025, hR.z + 0.005, 0.016, 0.075, 0.152);
+    box(BIT.PHONE, 'WristR', A.phone, hR.x + palm * 0.028, hR.y - 0.025, hR.z + 0.005, 0.014, 0.078, 0.16);
+    box(BIT.PHONE, 'WristR', A.dark, hR.x + palm * 0.0355, hR.y - 0.025, hR.z + 0.005, 0.002, 0.07, 0.148);
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);
@@ -594,7 +649,7 @@ const ACC_MATS = [
   { name: 'dark', color: '#141416', tint: TINT.KEEP },
   { name: 'white', color: '#e9e9e6', tint: TINT.KEEP },
   { name: 'cup', color: '#efe9df', tint: TINT.KEEP },
-  { name: 'phone', color: '#8e949c', tint: TINT.KEEP },
+  { name: 'phone', color: '#5d6168', tint: TINT.KEEP },
   { name: 'pack', color: '#3a3f48', tint: TINT.PACK },     // backpack: muted palette pick (shader crowdColour)
   { name: 'case', color: '#2b1c13', tint: TINT.CASE },     // briefcase: black / dark brown leather
   { name: 'cord', color: '#3a2a1e', tint: TINT.CORD },     // paper-bag handles: contrast with the bag

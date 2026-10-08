@@ -31,7 +31,7 @@ const TIERS = {
   high: { near: 32, nearD: 16, lod1D: 34 },
   ultra: { near: 44, nearD: 20, lod1D: 44 },
 };
-const PHONE_CLIPS = new Set(['phone', 'phonewalk', 'photo', 'browse', 'sitphone', 'sitphone2']);   // clips with a hand up at a phone
+const PHONE_CLIPS = new Set(['phone', 'phonewalk', 'photo', 'sitphone', 'sitphone2']);   // clips with a hand up at a phone ('browse' reaches for a shelf: no phone)
 const XFADE = 0.3;   // near <-> far hand-over (s)
 const BLEND = 0.28;  // clip cross-fade (s)
 const HEAD_YAW_MAX = 70 * Math.PI / 180, HEAD_PITCH_MAX = 25 * Math.PI / 180, HEAD_RATE = Math.PI;   // head look limits: +-70 / +-25 deg, 180 deg/s
