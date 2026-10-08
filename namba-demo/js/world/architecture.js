@@ -18,17 +18,17 @@
 //   hangPoints, wallItems (hose cabinets, doors, lockers... {level,type,x,z,nx,nz,w}), isClear(level, x, z, r), stats
 // =============================================================================
 import * as THREE from 'three';
-import { Kit, CHUNK, PARKS_MERGE } from './arch/kit.js?v=5f764cf';
-import { STYLE, styleOf } from './arch/styles.js?v=5f764cf';
-import { buildSurfaces } from './arch/surfaces.js?v=5f764cf';
-import { buildCeilings } from './arch/ceilings.js?v=5f764cf';
-import { buildColumns } from './arch/columns.js?v=5f764cf';
-import { buildTactile } from './arch/tactile.js?v=5f764cf';
-import { buildStations } from './arch/stations.js?v=5f764cf';
-import { Ramps } from './arch/escalators.js?v=5f764cf';
-import { wallKit, wearKit } from './arch/details.js?v=5f764cf';
-import { buildPortals } from './arch/portals.js?v=5f764cf';
-import { buildShells } from './arch/shells.js?v=5f764cf';
+import { Kit, CHUNK, PARKS_MERGE } from './arch/kit.js?v=6c67dba';
+import { STYLE, styleOf } from './arch/styles.js?v=6c67dba';
+import { buildSurfaces } from './arch/surfaces.js?v=6c67dba';
+import { buildCeilings } from './arch/ceilings.js?v=6c67dba';
+import { buildColumns } from './arch/columns.js?v=6c67dba';
+import { buildTactile } from './arch/tactile.js?v=6c67dba';
+import { buildStations } from './arch/stations.js?v=6c67dba';
+import { Ramps } from './arch/escalators.js?v=6c67dba';
+import { wallKit, wearKit } from './arch/details.js?v=6c67dba';
+import { buildPortals } from './arch/portals.js?v=6c67dba';
+import { buildShells } from './arch/shells.js?v=6c67dba';
 
 export { STYLE, styleOf };
 

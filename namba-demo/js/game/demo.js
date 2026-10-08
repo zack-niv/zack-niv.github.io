@@ -17,12 +17,12 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=5f764cf';
-import { params } from '../core/params.js?v=5f764cf';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=5f764cf';
-import { Story } from './story.js?v=5f764cf';
-import { makeLook, BIT } from '../npc/looks.js?v=5f764cf';
-import { showEndCard } from './endcard.js?v=5f764cf';
+import { businessBySlot } from '../world/directory.js?v=6c67dba';
+import { params } from '../core/params.js?v=6c67dba';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=6c67dba';
+import { Story } from './story.js?v=6c67dba';
+import { makeLook, BIT } from '../npc/looks.js?v=6c67dba';
+import { showEndCard } from './endcard.js?v=6c67dba';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -464,12 +464,14 @@ export class Demo {
     before.dotWithin5 = P('dotWithin5Before', SB && SB.within5);       // v7.2: % of walking time the phone's dot was within 5 m of you
     before.turnsPerKm = P('wrongWaysPerKmBefore', null);
     before.reroutesPerKm = P('reroutesPerKmBefore', null); before.headingErr = P('headingErrBefore', null); before.headingSettle = P('headingSettleBefore', null);
+    before.onTrackPct = P('onTrackPctBefore', null); before.offRouteSec = P('offRouteSecBefore', null);   // v7.3
     if (after) {
       after.p90 = P('errP90After', SA && SA.p90);
       after.wrongPct = P('wrongFloorPctAfter', pick(SA && SA.wrongPct, own4(A.after)));
       after.dotWithin5 = P('dotWithin5After', SA && SA.within5);
       after.turnsPerKm = P('wrongWaysPerKmAfter', null);
       after.reroutesPerKm = P('reroutesPerKmAfter', null); after.headingErr = P('headingErrAfter', null); after.headingSettle = P('headingSettleAfter', null);
+      after.onTrackPct = P('onTrackPctAfter', null); after.offRouteSec = P('offRouteSecAfter', null);
     }
     const gain = (r0x, r1x) => (num(r0x) != null && num(r1x) != null ? r0x - r1x : null);
     const detour = (m, g) => (num(m) != null && g != null && g >= 20 ? m / g : null);

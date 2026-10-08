@@ -12,8 +12,8 @@
 // down after a short benchmark if the machine can't hold the frame rate.
 // Dynamic resolution (engine.drs, 0.5..1) scales the internal render size.
 import * as THREE from 'three';
-import { LEVEL_ORDER } from '../world/layout.js?v=5f764cf';
-import { params } from './params.js?v=5f764cf';
+import { LEVEL_ORDER } from '../world/layout.js?v=6c67dba';
+import { params } from './params.js?v=6c67dba';
 
 // post: HDR pipeline on/off; bloom/ssao/ssr/fxaa/msaa: post passes;
 // specLights: real specular fixtures in the light-field shader; envSize: PMREM size

@@ -25,6 +25,11 @@
 //   heading error         mean |phone heading − true heading| while walking
 //   heading settle        median seconds after a ≥ 60° turn until the phone
 //                         heading is within 20° of the truth (cap 10 s)
+//   on track / off route  v7.3: each WALKING second with a destination (not riding, not standing) is 'on track' when,
+//                         over the last 3 s, the true path to the destination got >= 1 m shorter by EITHER the direct
+//                         way OR Aya's canyon way; else 'off route'. One app-independent yardstick for both phases
+//                         (neither app's own route), so Maps' short directions and Lodestone's scenic loop are
+//                         judged alike. onTrackPct = on / (on + off); offRouteSec = off seconds. null under 20 s.
 // Nothing is reported from too little data (null), never a fake number.
 //
 // phase 'before' = the generic maps phone (GPS-ish), 'after' = Lodestone.
@@ -41,7 +46,7 @@ export class PhoneStats {
   constructor(phone) {
     this.phone = phone; this.ctx = phone.ctx;
     const phaseObj = () => ({ t: 0, gameMin: 0, dist: 0, sumErr: 0, n: 0, maxErr: 0, wrongFloor: 0, errWrongFloor: 0,
-      errs: [], within5: 0, navDist: 0, progress: 0, wrongWays: 0, reroutes: 0, headSum: 0, headN: 0, settle: [] });
+      errs: [], within5: 0, onTrack: 0, offRoute: 0, navDist: 0, progress: 0, wrongWays: 0, reroutes: 0, headSum: 0, headN: 0, settle: [] });
     this.before = phaseObj(); this.after = phaseObj();
     this.reroutes = 0; this.floorFlips = 0; this.compassPrompts = 0;
     this.frozen = false;
@@ -52,9 +57,10 @@ export class PhoneStats {
     // progress bookkeeping (re-based on destination / phase change and teleports)
     this._g = { key: '', D: null, minD: Infinity, minAt: 0, inEp: false, peak: 0, walked: 0 };
     this._yawHist = []; this._turn = null; this._headAcc = 0;
+    this._walkCum = 0; this._trk = { key: '', hist: [] };     // v7.3 on-track window
     this._rr = 0;
     // a teleport (test harness, cutscene, vignette) is not a positioning error: drop ~2 s of samples around it
-    this.ctx.events.on('player:teleport', () => { this._skip = 2.0; this._lx = null; this._g.key = ''; this._turn = null; this._yawHist.length = 0; });
+    this.ctx.events.on('player:teleport', () => { this._skip = 2.0; this._lx = null; this._g.key = ''; this._trk.key = ''; this._turn = null; this._yawHist.length = 0; });
     this.ctx.events.on('demo:arrive', () => { this.frozen = true; this.arrivedAt = this._t; });
   }
 
@@ -73,7 +79,7 @@ export class PhoneStats {
       const d = Math.hypot(b.x - this._lx, b.z - this._lz);
       // (riding an escalator / stairs is neither walking nor progress for the detour factor: the ride's graph cost and
       //  its horizontal metres differ, which would bias the phase with more rides. Excluded from both sides.)
-      if (d < 2.5) { ph.dist += d; if (hasDest && b.ramp < 0) { ph.navDist += d; this._g.walked += d; } } else this._skip = 2.0;   // a jump of > 2.5 m in one frame is a teleport
+      if (d < 2.5) { ph.dist += d; if (b.ramp < 0) this._walkCum += d; if (hasDest && b.ramp < 0) { ph.navDist += d; this._g.walked += d; } } else this._skip = 2.0;   // a jump of > 2.5 m in one frame is a teleport
     }
     this._lx = b.x; this._lz = b.z;
     const pos = this.phone.pos;
@@ -88,7 +94,7 @@ export class PhoneStats {
     this._acc += dt;
     if (this._acc >= 1) {
       this._acc -= 1;
-      if (this._skip > 0 || pos._lsSnap > 0 || ph.skipSample) { this._g.key = ''; return; }   // teleport / the one-off snap to the truth
+      if (this._skip > 0 || pos._lsSnap > 0 || ph.skipSample) { this._g.key = ''; this._trk.key = ''; return; }   // teleport / the one-off snap to the truth
       const err = Math.hypot(pos.x - b.x, pos.z - b.z);
       const wrong = b.ramp < 0 && pos.level !== b.level ? 1 : 0;
       ph.sumErr += err; ph.n++; ph.maxErr = Math.max(ph.maxErr, err);
@@ -96,6 +102,7 @@ export class PhoneStats {
       if (wrong) { ph.wrongFloor++; ph.errWrongFloor += err; }
       else if (err <= 5) ph.within5++;       // 'dot within 5 m of you': right floor AND horizontally within 5 m
       const D = this._progress(ph, b);
+      this._track(ph, b);
       if (this.series.length < 1500) this.series.push([+this._t.toFixed(1), +err.toFixed(1), wrong, this.phase === 'after' ? 1 : 0, D == null ? -1 : Math.round(D)]);
     }
   }
@@ -124,6 +131,29 @@ export class PhoneStats {
       if (D <= G.peak - 6) { G.inEp = false; G.minD = D; G.walked = 0; }   // turned back toward it
     }
     return D;
+  }
+
+  // v7.3: on track vs off route, one second at a time (see the header). Same rule, same yardstick, both phases.
+  _track(ph, b) {
+    const T = this._trk, C = this.phone.dest && this.phone.dest.current;
+    let g = null;
+    try { const L = this.phone.lodestone; g = C && !C.arrived && L && L._guidFor ? L._guidFor(C) : null; } catch (e) { g = null; }
+    if (!g || b.ramp >= 0) { T.key = ''; return; }
+    let d1 = Infinity, d2 = Infinity;
+    try { g.noteBody(b); d1 = g.remainingRoute(b, false); d2 = g.remainingRoute(b, true); } catch (e) { /* unknown = no sample */ }
+    if (!isFinite(d1)) { T.key = ''; return; }
+    if (!isFinite(d2)) d2 = d1;
+    const key = C.id + '|' + this.phase;
+    if (T.key !== key) { T.key = key; T.hist = []; }
+    const H = T.hist; H.push([this._walkCum, d1, d2]);
+    if (H.length > 4) H.shift();
+    if (H.length < 2) return;
+    const [w0] = H[H.length - 2], [wA, a1, a2] = H[0];
+    if (this._walkCum - w0 < 0.5) return;                    // standing / browsing this second: not walking time
+    const shorter = Math.max(a1 - d1, a2 - d2);
+    if (shorter > 60) { T.hist = [H[H.length - 1]]; return; } // the scenic loop dropped / a re-plan: not walking
+    if (shorter >= 1 || this._walkCum - wA < 2) ph.onTrack++;  // (a slow shuffle is not 'off route')
+    else ph.offRoute++;
   }
 
   // heading: mean error while walking; time for the phone's heading to catch up after a real turn
@@ -160,6 +190,8 @@ export class PhoneStats {
       headingErr: P.headN >= 20 ? Math.round(P.headSum / P.headN) : null,
       headingSettle: P.settle.length >= 2 ? r1(pct(P.settle, 0.5)) : null,
       turns: P.settle.length,
+      onTrackPct: P.onTrack + P.offRoute >= 20 ? Math.round(P.onTrack / (P.onTrack + P.offRoute) * 100) : null,
+      offRouteSec: P.onTrack + P.offRoute >= 20 ? P.offRoute : null,
     };
   }
 
@@ -187,7 +219,7 @@ export class PhoneStats {
     // v6 flat fair metrics: <name>Before / <name>After (notes/v6-phone.md)
     const names = { errMean: 'errMean', errP50: 'errP50', errP90: 'errP90', wrongFloorPct: 'wrongFloorPct', dotWithin5: 'dotWithin5', walked: 'walked', walkedNav: 'walkedNav',
       progress: 'progress', detour: 'detour', wrongWays: 'wrongWays', wrongWaysPerKm: 'wrongWaysPerKm', reroutesPerKm: 'reroutesPerKm',
-      headingErr: 'headingErr', headingSettle: 'headingSettle', turns: 'turns' };
+      headingErr: 'headingErr', headingSettle: 'headingSettle', turns: 'turns', onTrackPct: 'onTrackPct', offRouteSec: 'offRouteSec' };
     for (const k in names) { out[names[k] + 'Before'] = fb[k]; out[names[k] + 'After'] = A.t > 0 ? fa[k] : null; }
     out.fair = { before: fb, after: A.t > 0 ? fa : null };
     return out;

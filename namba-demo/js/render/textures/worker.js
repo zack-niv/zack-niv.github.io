@@ -1,6 +1,6 @@
 // Texture generation worker: builds procedural texture families off the main
 // thread and transfers raw RGBA arrays back (see materials.js).
-import { TEX } from './library.js?v=5f764cf';
+import { TEX } from './library.js?v=6c67dba';
 self.onmessage = (e) => {
   const { id, key, N } = e.data;
   try {

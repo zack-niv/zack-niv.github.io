@@ -22,8 +22,8 @@
 //  Never broken: the dot stays on a plausible walkable spot, and the floor
 //  always comes back.
 // =============================================================================
-import { LEVEL_ORDER } from '../../world/layout.js?v=5f764cf';
-import { rng } from '../../core/rng.js?v=5f764cf';
+import { LEVEL_ORDER } from '../../world/layout.js?v=6c67dba';
+import { rng } from '../../core/rng.js?v=6c67dba';
 
 const gauss = (R) => { let u = 0, v = 0; while (u === 0) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 

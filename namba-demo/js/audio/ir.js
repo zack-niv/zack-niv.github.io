@@ -5,7 +5,7 @@
 // discrete slapback from building faces outdoors), pre-delay and build-up.
 // Worker-safe.
 // =============================================================================
-import { rng, Biquad, clamp } from './dsp.js?v=5f764cf';
+import { rng, Biquad, clamp } from './dsp.js?v=6c67dba';
 
 // rt: mid RT60 (s); lo/hi: RT multipliers for <300 Hz and >3 kHz bands;
 // ceil: ceiling height (flutter echoes); pre: pre-delay; gain: wet level

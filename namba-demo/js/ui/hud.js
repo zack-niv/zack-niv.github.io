@@ -16,12 +16,12 @@
 //      hud.ic({balance,fare,ok,reason,label,note}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
-import { params } from '../core/params.js?v=5f764cf';
-import { LEVEL_ORDER } from '../world/layout.js?v=5f764cf';
+import { params } from '../core/params.js?v=6c67dba';
+import { LEVEL_ORDER } from '../world/layout.js?v=6c67dba';
 
 export function ensureGameCss() {
-  if (document.querySelector('link[data-game-css]') || document.querySelector('link[href$="css/game.css?v=5f764cf"]')) return;
-  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/game.css?v=5f764cf'; l.dataset.gameCss = '1';
+  if (document.querySelector('link[data-game-css]') || document.querySelector('link[href$="css/game.css?v=6c67dba"]')) return;
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/game.css?v=6c67dba'; l.dataset.gameCss = '1';
   document.head.appendChild(l);
 }
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

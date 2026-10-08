@@ -5,7 +5,7 @@
 //   make(N) -> { albedo, normal, orm } canvases (see procedural.js)
 // Real-world references noted per entry. Texel density ≈ 200–430 px/m at high.
 // =============================================================================
-import { build, fbm, at, tileAt, hash3, scatterChips, clamp, mix, smooth, rgb } from './procedural.js?v=5f764cf';
+import { build, fbm, at, tileAt, hash3, scatterChips, clamp, mix, smooth, rgb } from './procedural.js?v=6c67dba';
 
 const TAU = Math.PI * 2;
 

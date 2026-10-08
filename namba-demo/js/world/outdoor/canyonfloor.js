@@ -5,9 +5,9 @@
 // and crowd nav match. Keeps >= 6 m clear walking width.
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=5f764cf';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=5f764cf';
-import { PALETTE } from './canyon.js?v=5f764cf';
+import { rng } from '../../core/rng.js?v=6c67dba';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=6c67dba';
+import { PALETTE } from './canyon.js?v=6c67dba';
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const M4 = () => new THREE.Matrix4();

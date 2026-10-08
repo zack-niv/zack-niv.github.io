@@ -5,10 +5,11 @@
 //   showEndCard(ctx, summary, { onRoam, onReplay }) -> { close() }
 // summary = { upgraded, before:{err,p90,wrongPct,dotWithin5,headingSettle,...}, after:{...}|null, ... }
 // v7.2: a fixed set of four rows, each defined identically in both phases; primary buttons above two contact cards.
+// v7.3: 'On track' (with time off route) replaces 'arrow catches up' as the headline row.
 // Brand rule: never Oriient's logo or colours. The only colours are ours
 // (warm amber = guesswork, cool blue = Lodestone's own).
 // =============================================================================
-import { ENDCARD } from './script.js?v=5f764cf';
+import { ENDCARD } from './script.js?v=6c67dba';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -30,23 +31,28 @@ const link = (L, icon, tone) => (L && L.url
   ? `<a class="e-link ${tone}" href="${esc(L.url)}" target="_blank" rel="noopener noreferrer"><span class="e-ic">${ICON[icon]}</span><span class="e-tx"><b>${esc(L.label)}</b><small>${esc(L.sub || SUB[icon])}</small></span><i aria-hidden="true">↗</i><em class="e-sr"> (opens in a new tab)</em></a>`
   : '');
 
+// v7.3: the same two contact cards in the pause menu (players who leave mid-way never see the end card)
+export const contactLinks = () => `${link(ENDCARD.agent, 'chat', 'agent')}${link(ENDCARD.call, 'cal', 'call')}`;
+
 export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const b = s.before, a = s.after;
   const ok = (v) => v != null && isFinite(v);
   // v7.2: a FIXED set of four rows, each defined identically in both phases (same samples, same formula), so the
   // columns are comparable and the card never changes shape with how the player happened to walk. (The old
   // detour / wrong-turn rows were measured against different routes after the upgrade: dropped from the card.)
-  //   1. position error: mean metres between the phone's dot and you (+ p90 in the caption)   lower is better
-  //   2. on the wrong floor: % of the time the dot was on another floor                       lower is better
-  //   3. blue dot within 5 m of you: % of walking time (right floor and <= 5 m)               higher is better
-  //   4. arrow catches up: median seconds for the heading to settle after a >= 60° turn       lower is better
+  //   1. on track: % of walking seconds that got you closer to where you were going, by the   higher is better
+  //      direct way or Aya's canyon way (same yardstick both phases); caption = time off route
+  //   2. position error: mean metres between the phone's dot and you (+ p90 in the caption)   lower is better
+  //   3. on the wrong floor: % of the time the dot was on another floor                       lower is better
+  //   4. blue dot within 5 m of you: % of walking time (right floor and <= 5 m)               higher is better
   // A phase with no data shows "—" and says why (never a made-up number).
   const p90 = (x) => (x && ok(x.p90) ? `mean · 90% within ${err(x.p90)} m` : 'mean, by the phone');
+  const off = (x) => (x && ok(x.offRouteSec) ? `${mmss(x.offRouteSec)} min off route` : 'of your walking time');
   const rows = [
+    { k: 'On track', dir: 'higher', get: (x) => x.onTrackPct, fmt: pct, abs: 100, cap: (v, x) => off(x) },
     { k: 'Position error', dir: 'lower', get: (x) => x.err, fmt: (v) => `${err(v)}<small>m</small>`, cap: (v, x) => p90(x) },
     { k: 'On the wrong floor', dir: 'lower', get: (x) => x.wrongPct, fmt: pct, cap: (v) => (v < 0.5 ? 'right floor, every time' : 'of the time, by the phone') },
     { k: 'Blue dot within 5 m of you', dir: 'higher', get: (x) => x.dotWithin5, fmt: pct, abs: 100, cap: () => 'of your walking time' },
-    { k: 'Arrow catches up after a turn', dir: 'lower', get: (x) => x.headingSettle, fmt: (v) => `${v.toFixed(1)}<small>s</small>`, cap: (v) => (v < 0.5 ? 'turns with you' : 'seconds after you turn') },
   ];
   const total = [
     s.totalSeconds != null && isFinite(s.totalSeconds) ? `${mmss(s.totalSeconds)} min` : null,

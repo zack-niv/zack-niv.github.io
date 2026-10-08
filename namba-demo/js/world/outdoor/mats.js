@@ -1,7 +1,7 @@
 // Material definitions for the outdoors (registered in the shared library,
 // names prefixed parks_ / out_).
 import * as THREE from 'three';
-import * as TX from './textures.js?v=5f764cf';
+import * as TX from './textures.js?v=6c67dba';
 
 let done = false;
 export function defineOutdoorMaterials(ctx) {

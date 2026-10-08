@@ -579,3 +579,24 @@ body:has(.g-pause:not([hidden])) .h-amb, body:has(.g-end) .h-amb { opacity: 0; }
 .g-btn.danger:hover { background: rgba(229, 23, 31, .22); border-color: rgba(255, 123, 110, .9); }
 .g-btn.danger small { color: rgba(255, 214, 209, .6); }
 .g-pause.leaving { opacity: 0; }
+
+/* v7.3: what the mouse is doing right now (game.js _mouseChip). Never catches clicks: the click reaches the scene. */
+.g-mouse { position: absolute; left: 50%; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .25s ease; font-family: var(--g-sans); color: var(--g-ink); }
+.g-mouse.on { opacity: 1; }
+.g-mouse.free { top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; padding: 18px 26px 16px; border-radius: 16px; text-align: center;
+  background: rgba(10, 10, 14, .62); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .12); box-shadow: 0 18px 50px rgba(0, 0, 0, .4); }
+.g-mouse.free b { font: 600 17px/1.2 var(--g-sans); }
+.g-mouse.free small { font: 400 12.5px/1.4 var(--g-sans); color: var(--g-dim); }
+.g-mouse.phone { top: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; padding: 7px 14px 7px 10px; border-radius: 999px; white-space: nowrap;
+  font: 400 12.5px/1 var(--g-sans); color: var(--g-dim); background: rgba(10, 10, 14, .5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, .08); }
+.g-mouse.phone b { color: var(--g-ink); font-weight: 600; }
+.g-mouse .g-key { margin: 0 2px; vertical-align: middle; }
+.g-mouse-ic { position: relative; width: 16px; height: 24px; border: 1.6px solid currentColor; border-radius: 9px; opacity: .9; }
+.g-mouse.phone .g-mouse-ic { width: 11px; height: 16px; border-width: 1.3px; border-radius: 6px; }
+.g-mouse-ic::after { content: ''; position: absolute; left: 50%; top: 4px; width: 2px; height: 5px; margin-left: -1px; border-radius: 1px; background: currentColor; animation: g-wheel 1.6s ease-in-out infinite; }
+.g-mouse.phone .g-mouse-ic::after { top: 2.5px; height: 3.5px; }
+@keyframes g-wheel { 0%, 100% { transform: translateY(0); opacity: 1; } 60% { transform: translateY(4px); opacity: .3; } }
+.p-esc { margin: 28px 2vw 0 0; max-width: 17em; font: 400 12.5px/1.55 var(--g-sans); color: var(--g-faint); }
+.p-esc b { color: var(--g-dim); font-weight: 600; }
+.p-talk .e-links { max-width: none; }
+.g-pause { --e-before: #f0b45a; --e-after: #6fb6ff; }
