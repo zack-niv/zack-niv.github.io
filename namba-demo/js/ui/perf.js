@@ -17,7 +17,7 @@
 //   window.__namba.perf.snapshot()           -> the same numbers for the last 2 s, synchronously
 //   window.__namba.perf.show(true|false)     -> toggle from code
 // Draw calls / triangles are the main scene pass (engine.stats), the number the call budget is tuned against.
-// A frame gap over 1 s (tab hidden, debugger) is ignored.
+// A frame gap over 5 s (tab hidden, debugger) is ignored.
 // =============================================================================
 import { params } from '../core/params.js';
 
@@ -61,6 +61,7 @@ export class Perf {
       this.el.style.display = 'block';
       this._txtT = 0;
       this._start();
+      this._render();
     } else {
       if (this.el) this.el.style.display = 'none';
       this._stopIfIdle();
@@ -97,7 +98,7 @@ export class Perf {
   _frame(t) {
     if (this._last) {
       const d = (t - this._last) * 1000;
-      if (d < 1000) {
+      if (d < 5000) {
         this._ts.push(t); this._dt.push(d);
         for (const s of this._samplers) s.dts.push(d);
       }
