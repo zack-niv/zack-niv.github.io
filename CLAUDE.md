@@ -50,7 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v4.2 (main `515a9ba`).
+- **Live:** v4.3 (main `00a97a6`). v5 round in progress (see `namba-demo/V5.md`).
 - **In flight at handoff:** a polish pass (`notes/v4-polish.md`):
   - the arrival glance and coffee payoff;
   - names truncated in the Lodestone trip card;
