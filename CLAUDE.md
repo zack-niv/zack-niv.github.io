@@ -50,8 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v6. Open items for v6.1 are in `notes/v6-critique.md` "Left for v6.1": shop-interior z-fighting (likely shared offsets in `env/shopbuild.js`), a glance flicker at two escalator feet, and real-GPU frame rate.
-- **In flight at handoff:** v7 hotfix round (`namba-demo/V7.md`).
+- **Live:** v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). Pending: NPC gate-tap gesture (v7 Crowd), cache-busting stamp in deploy.sh, and Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
 - **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
 - **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
   crowd-visual 3.5.
@@ -129,6 +128,10 @@ Zack explicitly asked that this working style carry over.
 - The budget: zero console errors (ignore the sandbox's Google Fonts `ERR_CERT_AUTHORITY_INVALID`) and an empty `ctx.errors`.
 
 ### Known lessons
+
+- Test like a human. Bots must press real keys (keydown on window) and keep the phone up the way players do; v6 shipped a
+  dead E because the bot called `onUse()` directly and always lowered the phone.
+- World interactions must keep working with the phone raised (only E acts on the world; the phone keeps its own keys).
 
 - When something "isn't drawn", check data and precision before blaming shaders. A float32 `int(x + 0.5)` hid every NPC
   accessory.

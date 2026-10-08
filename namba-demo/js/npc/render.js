@@ -430,7 +430,7 @@ export class CrowdRenderer {
     if (s.tapBones) for (let i = 0; i < s.tapBones.length; i++) if (s.tapBones[i]) s.tapBones[i].quaternion.copy(s.tapClean[i]);
     s.mixer.update(0);
     s.tapBones = null;
-    if (a.tapAt > -5) this._tap(s, a);
+    if (false && a.tapAt > -5) this._tap(s, a);
     if (head) { if (!s.hClean) { s.hClean = new THREE.Quaternion(); s.nClean = new THREE.Quaternion(); } s.hClean.copy(head.quaternion); if (neck) s.nClean.copy(neck.quaternion); }
     const yawH = a.pHY || 0, pitchH = a.pHP || 0;
     if (Math.abs(yawH) > 0.005 || Math.abs(pitchH) > 0.005) {
