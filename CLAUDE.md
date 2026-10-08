@@ -50,7 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). Pending: NPC gate-tap gesture (v7 Crowd), cache-busting stamp in deploy.sh, and Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
+- **Live:** v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). v7.1 adds the NPC gate-tap gesture and cache-busting (`tools/stamp.mjs`, run by deploy.sh). Pending: Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
 - **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
 - **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
   crowd-visual 3.5.
@@ -118,6 +118,7 @@ Zack explicitly asked that this working style carry over.
 | `node tools/leakprobe.mjs` | Ray probe for see-through / back-face leaks |
 | `node tools/zfightprobe.mjs` | Coplanar z-fighting surfaces along the route (24 poses; `--poses`, `--shot`) |
 | `node tools/headtest.mjs` | NPC head-turn sanity |
+| `node tools/stamp.mjs <dir> <v>` | Cache-busting `?v=` on every module/CSS URL (deploy.sh runs it on the deploy copy only) |
 | `node tools/boardprobe.mjs` | Node-only per-frame step / yaw / sideways checks around escalators (`--js DIR` compares old code) |
 | `node tools/browserprobe.mjs` | The same per-frame check in the real browser, plus a boarding screenshot |
 | `node js/npc/flowprobe.mjs --max 1500` | Escalator congestion (Node only) |

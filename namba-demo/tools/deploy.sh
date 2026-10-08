@@ -13,6 +13,9 @@ rm -rf "$DST/namba-demo" && mkdir -p "$DST/namba-demo"
 cp -r "$SRC/index.html" "$SRC/og.jpg" "$SRC/css" "$SRC/js" "$SRC/vendor" "$SRC/assets" "$DST/namba-demo/"
 rm -rf "$DST"/namba-demo/assets/*/tools
 find "$DST/namba-demo" -name '*.md' ! -name 'LICENSE.md' -delete
+# cache-busting: every module/CSS URL gets ?v=<source sha> so browsers never mix old and new files after a deploy
+STAMP=$(git -C "$REPO" rev-parse --short HEAD)$( [ -n "$(git -C "$REPO" status --porcelain -- namba-demo/js namba-demo/css namba-demo/index.html)" ] && echo "-dirty$(date +%s)" )
+node "$SRC/tools/stamp.mjs" "$DST/namba-demo" "$STAMP"
 du -sh "$DST/namba-demo"
 git -C "$DST" add -A namba-demo
 git -C "$DST" commit -q -m "${1:-Deploy Lost in Namba demo}" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
