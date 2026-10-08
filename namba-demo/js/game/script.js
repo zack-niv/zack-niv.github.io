@@ -57,7 +57,7 @@ export const UPGRADE = {
 
 // v3: the in-game tutorial hints (one small line at a time, never a modal). {k:X} renders a key cap.
 export const TUTORIAL = {
-  look: 'Move the mouse to look around',
+  look: 'Move the mouse to look around · {k:Esc} frees it',
   move: '{k:W}{k:A}{k:S}{k:D} to walk · hold {k:Shift} to hurry',
   raise: 'Your phone buzzed — {k:Q} to raise it',
   raiseHold: 'Your phone buzzed — {k:Q} or hold right-click',

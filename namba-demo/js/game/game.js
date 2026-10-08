@@ -16,8 +16,9 @@ import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } fr
 import { Title } from '../ui/title.js';
 import { Demo } from './demo.js';
 import * as V from './vignettes.js';
-import { QUESTS, DEMO } from './script.js';
+import { QUESTS, DEMO, ENDCARD } from './script.js';
 import { orderItem, hasCounter } from './order.js';
+import { contactLinks } from './endcard.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -199,6 +200,7 @@ export class Game {
           <button type="button" data-a="controls">Controls <small>操作</small></button>
           <button type="button" data-a="restart" class="p-restart">Restart <small>最初から</small></button>
         </nav>
+        <p class="p-esc"><b>Esc</b> frees your mouse and opens this menu. <b>Click Resume</b>, or anywhere outside the menu, and the mouse steers your view again.</p>
       </div>
       <div class="p-body"></div>`;
     (this.ctx.ui.overlay || document.body).appendChild(el);
@@ -214,6 +216,8 @@ export class Game {
       this._pauseView = a;
     };
     this._pauseShow = show;
+    // v7.3: a click on the empty backdrop resumes (a click is the user gesture pointer lock needs; Esc is not one)
+    el.addEventListener('click', (e) => { if (e.target === el || e.target === body) this.resume(); });
     el.querySelectorAll('.p-nav button').forEach(b => b.addEventListener('click', (e) => {
       e.stopPropagation();
       const a = b.dataset.a;
@@ -229,7 +233,9 @@ export class Game {
     d.innerHTML = `<h3>Today <small>今日の予定</small></h3>
       <ul>${qs.map(q => `<li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li>`).join('')}</ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
-      <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>`;
+      <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>
+      ${ENDCARD.agent || ENDCARD.call ? `<div class="p-talk"><h3 class="p-sub">Built by Zack Niv <small>${esc(ENDCARD.invite || '')}</small></h3><div class="e-links">${contactLinks()}</div></div>` : ''}`;
+    d.querySelectorAll('.e-link').forEach(x => x.addEventListener('click', (ev) => ev.stopPropagation()));
     return d;
   }
   // v3 item 6: "Restart" asks first. Confirm = a clean reload to the title (the title click is the user gesture
@@ -632,6 +638,7 @@ export class Game {
     if (this.titleUp) { this.title.update(dt); return; }
     if (!this.started || !ctx.player) return;
     this._menuInput();
+    this._mouseChip();
     if (!this.paused) this._stepLook(dt);
     if (!this.paused) {
       this._rt = (this._rt || 0) + dt;      // real seconds of play (pause-aware): gate tap windows
@@ -658,6 +665,28 @@ export class Game {
     const canUse = !this.paused && !this.busy && !this.intro && !this.ended && !this.panels.open && !phoneBusy;
     if (canUse && !this.quiet) this.interactions.update(dt, true, phoneUp ? { keyOnly: true, lowerPhone: true } : null);
     else if (this.hud) this.hud.prompt(null);
+  }
+  // v7.3: say which job the mouse has right now. Locked = it steers the view (no chip). Free with nothing open = the
+  // view is NOT steering (after Esc→Esc, a refused lock, a lost focus): a clear centre chip, click to look again.
+  // Free with the phone up = the cursor is for the phone: a quiet chip that says how to get the view back.
+  _mouseChip() {
+    const inp = this.ctx.input;
+    let mode = '';
+    if (this.started && !this.titleUp && !this.paused && !this._endCard && !this.ended && !this.intro && !this.busy && inp && !inp.touch && !inp.locked && !this.panels.open) {
+      const ph = this.ctx.phone;
+      mode = this.phoneOpen || (ph && ph.isOpen) ? 'phone' : 'free';
+    }
+    if (mode === this._chipMode) return;
+    this._chipMode = mode;
+    if (!this._chip) {
+      this._chip = document.createElement('div');
+      this._chip.className = 'g-mouse';
+      (this.ctx.ui.overlay || document.body).appendChild(this._chip);
+    }
+    const c = this._chip;
+    c.className = 'g-mouse' + (mode ? ' on ' + mode : '');
+    if (mode === 'free') c.innerHTML = '<span class="g-mouse-ic"></span><b>Click to look around</b><small>The mouse steers your view again · <kbd class="g-key wide">Esc</kbd> menu</small>';
+    else if (mode === 'phone') c.innerHTML = '<span class="g-mouse-ic"></span><span>Cursor is on your phone · <b>click the scene</b> or <kbd class="g-key">Q</kbd> to look around</span>';
   }
   // Esc / gamepad Start toggles the pause menu when the pointer isn't locked
   // (a locked pointer is released by the browser on Esc -> pointerlockchange).

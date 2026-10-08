@@ -31,6 +31,9 @@ const link = (L, icon, tone) => (L && L.url
   ? `<a class="e-link ${tone}" href="${esc(L.url)}" target="_blank" rel="noopener noreferrer"><span class="e-ic">${ICON[icon]}</span><span class="e-tx"><b>${esc(L.label)}</b><small>${esc(L.sub || SUB[icon])}</small></span><i aria-hidden="true">↗</i><em class="e-sr"> (opens in a new tab)</em></a>`
   : '');
 
+// v7.3: the same two contact cards in the pause menu (players who leave mid-way never see the end card)
+export const contactLinks = () => `${link(ENDCARD.agent, 'chat', 'agent')}${link(ENDCARD.call, 'cal', 'call')}`;
+
 export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const b = s.before, a = s.after;
   const ok = (v) => v != null && isFinite(v);
