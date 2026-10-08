@@ -55,3 +55,11 @@ Status: **built; verifying with the walk bot.** (contract below is implemented a
   (p90 in the caption), % of time on the wrong floor, metres walked per metre of real progress (detour factor),
   wrong turns per km — from `ctx.phone.stats()` when the Phone agent provides them, own measurement otherwise.
   "Whole trip" line stays.
+
+## Requests / findings for other agents
+
+- **Gates (13:50 probe, `notes/v6-shots/story/g3-04-blocked.png`):** walking into channel 12.1 of `g_nk_central` from the
+  platform side without tapping fires `gate:blocked {reason:'notap'}` (Story's "Tap your IC card first — E" shows), but
+  the player is **not stopped**: 2.5 s of forward input later they stand at z −67.4 (flap line −66) and keep going to
+  −71.7, i.e. through the gate without paying. Probe: player stepped with `ctx.systems[*].update(0.05)` (same as
+  walk.mjs), `input.setScript({x:0,y:1})`. The tapped path works (g2: E → ¥970 → `gate:tap` → `gate:pass {player:true}`).

@@ -81,6 +81,20 @@ function thenWords(n) {
   else w = t.title.charAt(0).toLowerCase() + t.title.slice(1);
   return n.gap >= 8 ? `${w} in ${Math.round(n.gap / 5) * 5 || n.gap} m` : w;
 }
+// the same, compact enough for the one-line glance strip (≤ ~26 characters): "70 m to the bridge"
+function thenShort(n) {
+  if (!n) return '';
+  const g = n.gap >= 8 ? `${Math.round(n.gap / 5) * 5 || n.gap} m` : '';
+  const nm = (n.name || 'your destination').replace(/^Tempura /, '');
+  if (n.kind === 'turn') return thenWords(n);
+  if (n.kind === 'arrive') return g ? `${g} to ${nm}` : `${nm} on the ${n.doorSide === 'left' ? 'left' : n.doorSide === 'right' ? 'right' : 'ahead'}`.replace('on the ahead', 'ahead');
+  if (n.kind === 'escalator' || n.kind === 'stairs' || n.kind === 'lift') return g ? `${g} to the ${n.kind}` : thenWords(n);
+  if (!g) return thenWords(n);
+  if (n.via) return `${g} to ${n.name || 'the next stop'}`;
+  if (/bridge/i.test(n.title || '')) return `${g} to the bridge`;
+  const into = /^Continue into (.+?)(\s+(B\d|\d+F))?$/.exec(n.title || '');
+  return into ? `${g} to ${into[1]}` : thenWords(n);
+}
 
 const SIDE = { ahead: 'straight ahead', left: 'on your left', right: 'on your right', behind: 'behind you' };
 
@@ -90,9 +104,9 @@ export function milestoneText(m) {
   const near = m.dist < NEAR_M;
   const side = SIDE[m.side] || '';
   if ((m.kind === 'escalator' || m.kind === 'stairs' || m.kind === 'lift') && m.riding) {
-    const to = lvl(m.toLevel), th = thenWords(m.then);
+    const to = lvl(m.toLevel), th = thenWords(m.then), ts = thenShort(m.then);
     const title = m.kind === 'stairs' ? `${m.dir === 'up' ? 'Up' : 'Down'} the stairs to ${to}` : m.kind === 'lift' ? `Lift ${m.dir} to ${to}` : `Riding ${m.dir} to ${to}`;
-    return { icon: m.dir === 'up' ? 'up' : 'down', title, long: title, sub: th ? `Then ${th}` : `${m.dist} m to go`, then: th, riding: true };
+    return { icon: m.dir === 'up' ? 'up' : 'down', title, long: title, sub: ts ? `Then ${ts}` : `${m.dist} m to go`, then: th, riding: true };
   }
   if (m.kind === 'escalator' || m.kind === 'stairs' || m.kind === 'lift') {
     const W = m.kind === 'stairs' ? 'Stairs' : m.kind === 'lift' ? 'Lift' : m.count > 1 ? 'Escalators' : 'Escalator';

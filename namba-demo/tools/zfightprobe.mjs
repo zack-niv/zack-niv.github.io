@@ -1,6 +1,6 @@
 // Z-fight probe: finds coplanar, overlapping, opaque surfaces around poses along the route.
 //   node tools/zfightprobe.mjs [--poses "L,x,z,yaw,pitch;..."] [--radius 30] [--frames 4] [--shot] [--out DIR]
-//                              [--exact 0.0003] [--near 0.003] [--min 0.0004] [--top 12] [--root DIR] [--q high]
+//                              [--exact 0.0003] [--near 0.003] [--min 0.0004] [--top 12] [--root DIR] [--q high] [--hook FILE]
 // Default poses: the demo route (Nankai -> CITY -> Parks bridge -> escalators / canyon loop -> 6F dining) + gardens.
 //
 // For each pose the page is teleported there and rendered from 4 yaws (lazy builders run, the visibility system
@@ -66,6 +66,8 @@ try {
   await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=${args.q || 'high'}${args.extra != null ? args.extra : '&nocrowd'}`);
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 900000, polling: 500 });
   console.log('READY', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+  // --hook FILE: an ES module whose default export async (page, { out }) runs first in the same session (extra shots)
+  if (args.hook) { const h = await import(path.resolve(String(args.hook))); await h.default(page, { out }); }
   for (const v of poses) {
     const [lv, x, z, yaw, pitch] = v.split(',');
     const base = { level: lv, x: +x, z: +z, yaw: (+yaw || 0) * Math.PI / 180, pitch: (+pitch || 0) * Math.PI / 180 };

@@ -13,8 +13,8 @@
 //  * hops: every ~12–30 s indoors the fix jumps to a whole new wrong spot
 //    (a parallel corridor, across the hall) — the dot visibly snaps there.
 //    Underground the fix only refreshes every ~1.5–2.5 s.
-//  * floor: lags 6–22 s behind real level changes, and indoors it now and then
-//    guesses an adjacent floor for 8–20 s.
+//  * floor: lags 5–18 s behind real level changes, and indoors it now and then
+//    (every ~1–2 min) guesses an adjacent floor for 7–16 s.
 //  * heading: true yaw + slowly drifting bias (steel, trains, escalator
 //    motors) + jitter, smoothed with a lag of ~0.6 s (open air) to ~2 s (B2):
 //    after a turn the map arrow takes seconds to come round.
@@ -100,13 +100,13 @@ export class Positioning {
     //  wf = rate of wrong-floor guesses, per second)
     if (outdoor && (zone === 'parks' || zone === 'parksGarden')) return { env: 'canyon', sigma: 7, bias: 8, fix: 0.6, sig: 4, hop: 0.35, lag: 0.7, wf: 0 };
     if (outdoor) return { env: 'outdoor', sigma: 4, bias: 5, fix: 0.4, sig: 4, hop: 0.2, lag: 0.6, wf: 0 };
-    if (zone === 'parks' || zone === 'parksGarden' || (sp && sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 12, bias: 12, fix: 0.9, sig: 4, hop: 0.55, lag: 0.95, wf: 1 / 80 };
+    if (zone === 'parks' || zone === 'parksGarden' || (sp && sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 12, bias: 12, fix: 0.9, sig: 4, hop: 0.55, lag: 0.95, wf: 1 / 110 };
     // the concourses under the Nankai viaduct and the Namba CITY mall below it: the worst of indoors above ground
     const via = zone === 'nankai' || zone === 'city' ? 1.12 : 1;
-    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 15.5 * via, bias: 22, fix: 1.2, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 50 };
-    if (lv === '1F') return { env: 'ground', sigma: 17 * via, bias: 22, fix: 1.3, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 50 };
-    if (lv === 'B1') return { env: 'under', sigma: 22, bias: 28, fix: 1.7, sig: 2, hop: 0.75, lag: 1.6, wf: 1 / 45 };
-    if (lv === 'B2') return { env: 'deep', sigma: 27, bias: 36, fix: 2.4, sig: 0, hop: 0.8, lag: 2.0, wf: 1 / 45 };
+    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 15.5 * via, bias: 22, fix: 1.2, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 70 };
+    if (lv === '1F') return { env: 'ground', sigma: 17 * via, bias: 22, fix: 1.3, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 70 };
+    if (lv === 'B1') return { env: 'under', sigma: 22, bias: 28, fix: 1.7, sig: 2, hop: 0.75, lag: 1.6, wf: 1 / 60 };
+    if (lv === 'B2') return { env: 'deep', sigma: 27, bias: 36, fix: 2.4, sig: 0, hop: 0.8, lag: 2.0, wf: 1 / 60 };
     return { env: 'indoor', sigma: 14, bias: 16, fix: 1.0, sig: 3, hop: 0.6, lag: 1.1, wf: 1 / 60 };
   }
 
@@ -162,7 +162,7 @@ export class Positioning {
     // --- floor detection: lag + occasional wrong guess ------------------------
     if (b.ramp < 0) {
       if (b.level !== this.level && b.level !== this._pendingLevel && !this._wrongTimer) {
-        this._pendingLevel = b.level; this._levelTimer = 6 + R() * 16;
+        this._pendingLevel = b.level; this._levelTimer = 5 + R() * 13;
       }
       if (this._pendingLevel) {
         this._levelTimer -= dt;
@@ -178,7 +178,7 @@ export class Positioning {
       const i = LEVEL_ORDER.indexOf(b.level);
       const opts = [LEVEL_ORDER[i - 1], LEVEL_ORDER[i + 1]].filter(lv => lv && this.ctx.world.grids[lv] && this._matchToFloor(lv, b.x, b.z));
       const lv = opts.length ? opts[Math.floor(R() * opts.length)] : null;
-      if (lv) { this.level = lv; this._wrongTimer = 8 + R() * 12; this.wrongFloorEpisodes = (this.wrongFloorEpisodes || 0) + 1; }
+      if (lv) { this.level = lv; this._wrongTimer = 7 + R() * 9; this.wrongFloorEpisodes = (this.wrongFloorEpisodes || 0) + 1; }
     }
     this._signal(E, dt);
   }

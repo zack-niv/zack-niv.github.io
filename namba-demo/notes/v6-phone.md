@@ -59,3 +59,46 @@ garden stairs, 3F→4F→5F→6F). The same point made the side flip left/right/
   depending on the metre. Fix (`guidance.js`): the angle at each simplified vertex is measured on the raw path over
   ±7 m around it — a property of the corner, not of the start point. Both flickers gone; real corners (café exit
   "Turn right", top of the garden stairs "Turn right") unchanged. A 90° corner cut into two 45° vertices is now caught.
+
+## Item 9 — the ordinary Maps phase, realistically bad (`positioning.js`)
+
+Before (v5): σ 8.5 m in the concourses, 4.5 m under the Parks glass → end card "±6 m mean, 13 s on the wrong floor".
+Now, calibrated to phone location inside a multi-level station (GNSS through concrete + Wi-Fi/cell fallback):
+
+| where (true position) | env | measured mean / p50 / p90 error (m) | heading err | wrong floor |
+|---|---|---|---|---|
+| Nankai 2F concourse (under the viaduct) | terminal ×1.12 | 22.3 / 23.5 / 30.5 | 21° | episodes |
+| Namba CITY 2F | terminal ×1.12 | 15.8 / 15.2 / 27.8 | 29° | |
+| Namba CITY 1F | ground ×1.12 | 19.1 / 19.2 / 29.3 | 21° | |
+| B1 NAMBAWALK | under | 18.2 / 17.9 / 27.3 | 29° | |
+| Parks 6F (glass) | glass | 13.9 / 11.8 / 25.3 | 18° | rare |
+| Parks canyon (open air, tall walls) | canyon | 6.2 / 6.1 / 10.8 | 13° | never |
+
+(`scratchpad/p6/mapsprobe.mjs`: 145 s of looping walk per spot, Maps mode, quality low.)
+
+- **Error:** OU random walk, τ 22 s, σ by environment (table above); still map-matched onto a walkable cell of the floor
+  the phone believes (within 9 m), so the dot sits in a plausible corridor — often the parallel one.
+- **Hops:** every 12–30 s a re-fix lands somewhere new with probability 0.35 (canyon) … 0.8 (B2), and the dot SNAPS
+  there (0.12 s ease instead of the 0.9 s glide). Underground fixes refresh every 1.7–2.4 s.
+- **Floor:** lag 5–18 s after a real level change; wrong-floor episodes (7–16 s, an adjacent floor that exists there)
+  every ~70 s above ground indoors, ~60 s underground, ~110 s under the Parks glass, never outdoors.
+- **Heading:** drifting bias (12–36° scale by env) + lag 0.6 s (open air) … 2.0 s (B2): after a turn the arrow takes
+  ~2–4 s to come round (measured median settle 3.6 s in the walk; Lodestone 0.1 s).
+- Unchanged: Maps directions stop at the first escalator ("Directions for the remaining floors will appear once we
+  detect you on 2F"), crow-flies distances, the GPS-weak banner, the compass prompt (no longer in the open-air canyon).
+- `mapapp.js`: only Maps-mode "Recalculating…" counts as a Maps reroute (it kept counting a stale background route after
+  the upgrade).
+
+Shot: `notes/v6-shots/phone/maps_b1_dot_dev.png` / `_full.png` — B1 NAMBAWALK, true (46, −212), phone (34, −225):
+18.6 m off, ±25 m circle, "Walk 460 m to the escalator · Take escalator up to 1F · directions for the remaining floors
+will appear…".
+
+### Metric definitions (honest by construction)
+- Per-second samples, same code in both phases; teleports and the 1.4 s Lodestone snap are dropped.
+- **Detour factor** = metres walked *with a destination set, off escalators* ÷ metres of real progress (the drop in
+  the remaining length of the route being followed — true nav path; with Lodestone through the pending scenic canyon
+  loop Aya asked for, so taking the scenic way is not counted as a detour). Rides are excluded from both sides (a ride's
+  graph cost and its horizontal metres differ, which biased the phase with more rides). Destination switches re-base.
+- **Wrong ways** = an episode of ≥ 8 m walked that left you ≥ 6 m farther from the goal on the true path; it ends when
+  you win 6 m back. Per km of walking with a destination.
+- **Heading settle** = after a ≥ 60° yaw change within 1.2 s, seconds until the phone heading is within 20° (cap 10 s).

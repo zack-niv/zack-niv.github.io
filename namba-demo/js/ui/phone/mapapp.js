@@ -873,7 +873,7 @@ export class MapApp {
     R.level = p.level;
     R.recalc = 0;
     R.offCount = 0;
-    if (!first) { this._flashBanner('Recalculating…'); if (this.phone._stats) this.phone._stats.reroutes++; }
+    if (!first) { this._flashBanner('Recalculating…'); if (this.phone._stats && this.pos.mode === 'gps') this.phone._stats.reroutes++; }
     if (R.leg && R.leg.level !== this.view.level) { this.view.level = R.leg.level; this._renderFloors(); }
     this.follow = true;
     this._routeSheet();

@@ -89,9 +89,9 @@ function buildGateAtlas() {
   { const x = 256, y = 0;
     g.fillStyle = '#9aa4ae'; g.beginPath(); g.roundRect ? g.roundRect(x + 6, y + 6, 116, 116, 22) : g.rect(x + 6, y + 6, 116, 116); g.fill();
     g.fillStyle = '#ffffff'; g.beginPath(); g.roundRect ? g.roundRect(x + 14, y + 14, 100, 100, 16) : g.rect(x + 14, y + 14, 100, 100); g.fill();
-    g.strokeStyle = '#6d7680'; g.lineWidth = 5;
-    for (const r of [18, 30, 42]) { g.beginPath(); g.arc(x + 40, y + 64, r, -0.7, 0.7); g.stroke(); }
-    g.fillStyle = '#56606a'; g.font = `800 40px ${EN}`; g.textAlign = 'center'; g.fillText('IC', x + 88, y + 78); g.textAlign = 'left'; }
+    g.strokeStyle = '#7d8790'; g.lineWidth = 4;
+    for (const r of [9, 18, 27]) { g.beginPath(); g.arc(x + 64, y + 60, r, -2.4, -0.74); g.stroke(); }
+    g.fillStyle = '#3c4650'; g.font = `900 52px ${EN}`; g.textAlign = 'center'; g.fillText('IC', x + 64, y + 108); g.textAlign = 'left'; }
   // idle LCD: dark navy screen
   { const x = 384, y = 0;
     g.fillStyle = '#0b1830'; g.fillRect(x, y, 256, 128);
@@ -275,7 +275,7 @@ export class Gates {
       S.reach = Math.max(0.1, S.clear / 2 + 0.03 - 0.012);
       const [x0, z0] = W(S.lo, 0), [x1, z1] = W(S.hi, 0);
       S.segReal = [x0, z0, x1, z1];
-      S.seg = this._addSeg(lv, [1e7, 1e7, 1e7, 1e7], S.segReal);
+      S.seg = null; // registered on the first update (main.js rebuilds the collision hash after the build phase)
       const [cx, cz] = W(S.c, 0); S.x = cx; S.z = cz;
     }
     // fences (stainless + glass) along gt.fence
@@ -493,6 +493,14 @@ export class Gates {
   }
 
   // ---- collision helpers (player only: world.segs / world.hash; the nav grid is untouched) --------------
+  // Player-only collision (channel dividers + parked flap-line segments). main.js rebuilds world.hash from
+  // world.obstacles after every build system, so anything we insert during build() is dropped: register here,
+  // on the first update, once the hash is final. Not added to world.obstacles, so nav / the crowd never see it.
+  _registerCollision() {
+    this._colDone = true;
+    for (const [lv, cx, cz, hx, hz] of this._pendingBoxes || []) this._insertBox(lv, cx, cz, hx, hz);
+    for (const S of this.subs) { S.seg = this._addSeg(S.level, [1e7, 1e7, 1e7, 1e7], S.segReal); S.segI = S.seg ? this.ctx.world.segs[S.level].length - 1 : -1; }
+  }
   _addSeg(lv, s, real) {
     const w = this.ctx.world;
     if (!w.segs || !w.segs[lv] || !w.hash || !w.hash[lv] || typeof w._hashSeg !== 'function') return null;
@@ -503,12 +511,16 @@ export class Gates {
     arr[0] = s[0]; arr[1] = s[1]; arr[2] = s[2]; arr[3] = s[3];
     return arr;
   }
-  _addBox(lv, cx, cz, hx, hz) {
+  _addBox(lv, cx, cz, hx, hz) { (this._pendingBoxes = this._pendingBoxes || []).push([lv, cx, cz, hx, hz]); }
+  _insertBox(lv, cx, cz, hx, hz) {
     const w = this.ctx.world;
     if (typeof w._insertBox !== 'function' || !w.hash || !w.hash[lv] || !w.segs[lv]) return;
     w._insertBox(lv, { cx, cz, hx, hz, rot: 0 });
   }
   _setSeg(S, on) {
+    if (!this._colDone) this._registerCollision();
+    const w = this.ctx.world;
+    if (S.seg && w.segs[S.level] && w.segs[S.level][S.segI] !== S.seg) this._registerCollision(); // hash rebuilt under us
     const s = S.seg; if (!s) return;
     const r = on ? S.segReal : [1e7, 1e7, 1e7, 1e7];
     s[0] = r[0]; s[1] = r[1]; s[2] = r[2]; s[3] = r[3];
@@ -786,6 +798,7 @@ export class Gates {
     this.ctx.events.emit('gate:blocked', { gate: g.gt.id, lane: S.ln.i, sub: S.j, dir: -side === g.ps ? 1 : -1, level: S.level, x: S.x, z: S.z, reason });
   }
   update(dt) {
+    if (!this._colDone) this._registerCollision();
     this._t += dt;
     this._player(dt);
     if (this._lcdT > 0) { this._lcdT -= dt; if (this._lcdT <= 0 && this.lcdMesh) this.lcdMesh.visible = false; }

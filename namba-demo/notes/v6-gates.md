@@ -75,4 +75,13 @@ player's direction. `setGateHint(null)` clears it.
 
 ## Status
 
-(see below; updated as work lands)
+- **14:00 built and installed** (gates.js rewritten; transit.js has the API). Close-ups: `notes/v6-shots/gates/`.
+- **14:40 fix: the player wasn't physically stopped** (Story saw this too, `v6-story.md` 13:50). Root cause: main.js
+  rebuilds `world.hash` from `world.obstacles` after the build phase (`main.js:120`), which dropped the flap-line segments
+  and the divider boxes I'd inserted in `build()`. Now they're registered on the first `update()` (and re-registered if
+  the hash is ever rebuilt again). They're still player-only: not in `world.obstacles`, so nav and the crowd (GridCollider) are
+  untouched.
+- NPC throughput at `g_nk_central` (120 sim-s, manual stepping): base **39.5/min**, new **43.0/min**, i.e. not reduced
+  (the crowd code path is unchanged; the difference is noise).
+- Draw calls at the Nankai close-up: 940 → 944 (+4 instanced meshes per level). Tris: 1059k → 1093k.
+- `&autotap` URL param: an untapped walk-in auto-taps (the v5 feel). For bots and debugging only.

@@ -69,13 +69,17 @@ export class PhoneStats {
     const hasDest = !!(this.phone.dest && this.phone.dest.current && !this.phone.dest.current.arrived);
     if (this._lx != null) {
       const d = Math.hypot(b.x - this._lx, b.z - this._lz);
-      if (d < 2.5) { ph.dist += d; if (hasDest) { ph.navDist += d; this._g.walked += d; } } else this._skip = 2.0;   // a jump of > 2.5 m in one frame is a teleport
+      // (riding an escalator / stairs is neither walking nor progress for the detour factor: the ride's graph cost and
+      //  its horizontal metres differ, which would bias the phase with more rides. Excluded from both sides.)
+      if (d < 2.5) { ph.dist += d; if (hasDest && b.ramp < 0) { ph.navDist += d; this._g.walked += d; } } else this._skip = 2.0;   // a jump of > 2.5 m in one frame is a teleport
     }
     this._lx = b.x; this._lz = b.z;
     const pos = this.phone.pos;
     if (this._lastBelieved !== pos.level) { if (this._lastBelieved != null && this.phase === 'before') this.floorFlips++; this._lastBelieved = pos.level; }
-    // reroutes per phase (Maps counts into this.reroutes, Lodestone into this.lodestoneReroutes)
-    const rr = this.reroutes + (this.lodestoneReroutes || 0);
+    // reroutes per phase: Maps "Recalculating…" before, Lodestone's reroutes after (Maps keeps a stale route
+    // ticking in the background after the upgrade; that is not the app the player is using)
+    const rr = this.phase === 'before' ? this.reroutes : (this.lodestoneReroutes || 0);
+    if (this._rrPhase !== this.phase) { this._rrPhase = this.phase; this._rr = rr; }
     if (rr > this._rr) { ph.reroutes += rr - this._rr; this._rr = rr; }
     if (this._skip > 0) this._skip -= dt;
     this._heading(dt, ph, p, pos);
@@ -103,7 +107,8 @@ export class PhoneStats {
       if (g) D = g.remainingRoute(b, this.phase === 'after');
     } catch (e) { D = null; }
     if (D == null || !isFinite(D)) { G.key = ''; return null; }
-    const key = C.id + '|' + this.phase;
+    const key = C.id + '|' + this.phase + '|' + (b.ramp >= 0 ? 'ride' : 'walk');     // re-based on boarding / landing
+    if (b.ramp >= 0) { G.key = key; G.D = D; return D; }
     if (G.key !== key) { G.key = key; G.D = D; G.minD = D; G.walked = 0; G.inEp = false; G.peak = D; return D; }
     const dD = G.D - D;
     if (Math.abs(dD) < 60) ph.progress += dD;               // (a bigger jump is a re-plan, not walking)

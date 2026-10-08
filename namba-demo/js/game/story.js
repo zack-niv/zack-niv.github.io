@@ -210,12 +210,12 @@ export class Story {
       return aimed() ? { html: TUTORIAL.gateHere, at: 'prompt' } : base ? { html: base, at: 'center' } : null;
     };
     this.tut.add({ id: 'gate', late: true, delay: 0.3,
-      available: () => (this._nearGate() || aimed() || blocked()) && g._newGates && g._newGates(),
+      available: () => !ph().isOpen && (this._nearGate() || aimed() || blocked()) && g._newGates && g._newGates(),   // phone up: its own hint wins
       done: () => this.f.gateTapped,
       hint: hint(TUTORIAL.gate) });
     // after the lesson: walking into a lane untapped again brings back the one-liner for a few seconds
     this.tut.add({ id: 'gateAgain', late: true, delay: 0,
-      available: () => this.f.gateTapped && blocked(),
+      available: () => this.f.gateTapped && blocked() && !ph().isOpen,
       done: () => false,
       hint: hint(null) });
   }
