@@ -107,7 +107,13 @@ try {
       const t = path[k];
       let dx = c.nav.x[t] - b.x, dz = c.nav.z[t] - b.z;
       if (Math.hypot(dx, dz) < 0.2 && path.length > 1) { dx = c.nav.x[path[path.length - 1]] - b.x; dz = c.nav.z[path[path.length - 1]] - b.z; }
-      const want = Math.atan2(-dx, -dz);
+      let want = Math.atan2(-dx, -dz);
+      // v7.3 '&wander': a lost Maps player — with a destination picked, walk the wrong way for the first ~25 s (the
+      // end card's 'On track' row must show it as off-route time before the upgrade, and nothing after it)
+      if (/wander/.test(location.search) && c.phone.pos.mode !== 'lodestone' && c.phone.destination && b.ramp < 0) {
+        if (W.wander == null) W.wander = 25;
+        if (W.wander > 0) { W.wander -= dt; want += Math.PI; }
+      }
       let d = want - c.player.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
       c.player.yaw += d * Math.min(1, dt * 8);      // a quick mouse turn, not a snap
       c.player.pitch = 0;

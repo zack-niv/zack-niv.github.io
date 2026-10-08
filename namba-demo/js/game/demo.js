@@ -464,12 +464,14 @@ export class Demo {
     before.dotWithin5 = P('dotWithin5Before', SB && SB.within5);       // v7.2: % of walking time the phone's dot was within 5 m of you
     before.turnsPerKm = P('wrongWaysPerKmBefore', null);
     before.reroutesPerKm = P('reroutesPerKmBefore', null); before.headingErr = P('headingErrBefore', null); before.headingSettle = P('headingSettleBefore', null);
+    before.onTrackPct = P('onTrackPctBefore', null); before.offRouteSec = P('offRouteSecBefore', null);   // v7.3
     if (after) {
       after.p90 = P('errP90After', SA && SA.p90);
       after.wrongPct = P('wrongFloorPctAfter', pick(SA && SA.wrongPct, own4(A.after)));
       after.dotWithin5 = P('dotWithin5After', SA && SA.within5);
       after.turnsPerKm = P('wrongWaysPerKmAfter', null);
       after.reroutesPerKm = P('reroutesPerKmAfter', null); after.headingErr = P('headingErrAfter', null); after.headingSettle = P('headingSettleAfter', null);
+      after.onTrackPct = P('onTrackPctAfter', null); after.offRouteSec = P('offRouteSecAfter', null);
     }
     const gain = (r0x, r1x) => (num(r0x) != null && num(r1x) != null ? r0x - r1x : null);
     const detour = (m, g) => (num(m) != null && g != null && g >= 20 ? m / g : null);
