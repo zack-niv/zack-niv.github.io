@@ -181,9 +181,9 @@ export class Announcer {
     } catch (e) { c.step++; this._note('utterance threw: ' + e.message); return; }   // a bad voice object must not wedge the PA slot (and its duck)
     u.lang = 'ja-JP'; u.rate = 0.95; u.pitch = 1.05;
     const mv = this.mixer.volumes;
-    // station PA is part of the soundscape: on the platform it goes out at the browser's maximum (the master slider
-    // still scales it, but the 0.85 default no longer costs anything); other voices keep the plain mix
-    const k = c.platform ? Math.min(1, mv.master * 1.2) : mv.master;
+    // station PA is part of the soundscape: on the platform it goes out at (nearly) the browser's maximum. The master slider
+    // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
+    const k = c.platform ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
     u.onstart = () => { if (c.utter === u) c.uStarted = true; };
     u.onend = () => { if (c.utter === u) c.uDone = true; };

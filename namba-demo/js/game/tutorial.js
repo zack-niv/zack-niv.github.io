@@ -12,9 +12,10 @@
 // The hint always belongs to the first undone, available step (side steps such as "E to interact" only show
 // while nothing else does). Nothing here ever freezes the player or blocks movement.
 //
-// Teaching: the first time (per browser session) the hints show as soon as a step is current. Once the player has
-// completed the tutorial, a restart / replay keeps the story but hides the hints unless a step stalls (first nudge).
-//   ?tutorial   force the hints     ?notutorial   no hints at all (the conversation still plays)
+// Teaching: every run shows the hints as soon as a step is current (v7: a replay used to hide them all behind a
+// sessionStorage flag that every later load in the tab inherited — Zack's "most of the tutorial is missing").
+// A player who knows the ropes clears each step in a second, so its hint barely flashes.
+//   ?notutorial   no hints at all (the conversation still plays)
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
 import { params } from '../core/params.js';
@@ -38,7 +39,7 @@ export class Tutorial {
     this.active = false; this.finished = false;
     this.cur = null; this.age = 0; this.t = 0;
     this.off = params.has('notutorial');
-    this.teach = params.has('tutorial') || !tutorialStore.completed();
+    this.teach = true;                 // v7: always (see the header); tutorialStore only records completion
     this.el = null; this._html = ''; this._at = '';
   }
   start(steps) {

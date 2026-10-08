@@ -136,7 +136,8 @@ export class Story {
       return Math.hypot(p.x - b.door.ox, p.z - b.door.oz) < 13;
     };
     this.tut.add({ id: 'order', late: true, delay: 2.5,
-      available: () => E.state === 'asked' && near() && !(this.ctx.phone && this.ctx.phone.isOpen),
+      // v7: E works with the phone up (it lowers the phone and orders), so the hint shows then too once you face the counter
+      available: () => { if (E.state !== 'asked' || !near()) return false; if (!(this.ctx.phone && this.ctx.phone.isOpen)) return true; const t = this.game.interactions && this.game.interactions.target; return !!(t && !t.passive && /^order:/.test(t.id)); },
       done: () => E.state !== 'asked',
       hint: () => { const t = this.game.interactions && this.game.interactions.target; return { html: TUTORIAL.order, at: t && !t.passive ? 'prompt' : 'center' }; } });
   }
@@ -202,20 +203,22 @@ export class Story {
   // moment you reach the gate line, and is always taught, even on a replay: you cannot get through without it).
   _gateSteps() {
     const g = this.game, ph = () => this.ctx.phone || {};
-    const aimed = () => { const t = g.interactions && g.interactions.target; return !!(t && t.id === 'gatetap' && g._gateTgt && !ph().isOpen); };
+    // v7: E works with the phone raised (game.js), so the gate lesson shows with it up too — at the channel or after the
+    // flaps stopped you (the tip steps aside to the left of the phone). Merely "near the gate" with the phone up stays
+    // the phone's own hint (reply / pick), so walking towards the gate behind Maps isn't nagged.
+    const aimed = () => { const t = g.interactions && g.interactions.target; return !!(t && t.id === 'gatetap' && g._gateTgt); };
     const blocked = () => this.f.blockedT != null && this.t - this.f.blockedT < 5;
     const hint = (base) => () => {
-      if (ph().isOpen) return null;
       if (blocked()) return { html: TUTORIAL.gateBlocked, at: aimed() ? 'prompt' : 'center' };
-      return aimed() ? { html: TUTORIAL.gateHere, at: 'prompt' } : base ? { html: base, at: 'center' } : null;
+      return aimed() ? { html: TUTORIAL.gateHere, at: 'prompt' } : base && !ph().isOpen ? { html: base, at: 'center' } : null;
     };
     this.tut.add({ id: 'gate', late: true, delay: 0.3,
-      available: () => !ph().isOpen && (this._nearGate() || aimed() || blocked()) && g._newGates && g._newGates(),   // phone up: its own hint wins
+      available: () => (aimed() || blocked() || (!ph().isOpen && this._nearGate())) && g._newGates && g._newGates(),
       done: () => this.f.gateTapped,
       hint: hint(TUTORIAL.gate) });
     // after the lesson: walking into a lane untapped again brings back the one-liner for a few seconds
     this.tut.add({ id: 'gateAgain', late: true, delay: 0,
-      available: () => this.f.gateTapped && blocked() && !ph().isOpen,
+      available: () => this.f.gateTapped && blocked(),
       done: () => false,
       hint: hint(null) });
   }

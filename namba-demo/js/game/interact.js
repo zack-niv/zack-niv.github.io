@@ -100,7 +100,10 @@ export class Interactions {
     return best;
   }
 
-  update(dt, allowUse) {
+  // opts.keyOnly: the phone is raised — only the E key (or gamepad A / touch E, which raise KeyE too) uses the target;
+  //   Enter belongs to the phone then. opts.lowerPhone: lower the phone first, unless the target keeps it up
+  //   (it: { keepPhone: true }, e.g. tapping your IC card at a gate with Maps still in your hand).
+  update(dt, allowUse, opts) {
     const t = this.pick();
     this.target = t;
     const hud = this.ctx.hud;
@@ -115,8 +118,10 @@ export class Interactions {
     hud && hud.prompt(show);
     if (allowUse && !t.passive && !disabled) {
       const inp = this.ctx.input;
-      const use = typeof inp.action === 'function' ? inp.action('interact') : (inp.pressed('KeyE') || inp.pressed('Enter'));
+      const use = opts && opts.keyOnly ? inp.pressed('KeyE') : typeof inp.action === 'function' ? inp.action('interact') : (inp.pressed('KeyE') || inp.pressed('Enter'));
       if (use) {
+        const ph = this.ctx.phone;
+        if (opts && opts.lowerPhone && !t.keepPhone && ph && ph.isOpen && typeof ph.close === 'function') { try { ph.close(); } catch (e) { /* cosmetic */ } }
         this.ctx.events.emit('interact', { target: t.id });
         try { t.onUse && t.onUse(t); } catch (e) { console.error('[interact]', t.id, e); }
         return t;

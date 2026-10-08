@@ -59,6 +59,9 @@ try {
     on('gate:tap', e => `${e.gate} lane=${e.lane}.${e.sub} dir=${e.dir}`); on('gate:blocked', e => `${e.gate} lane=${e.lane}.${e.sub} ${e.reason}`); on('ic:pay', e => `${e.kind} ${e.amount} ok=${e.ok} bal=${e.balance}`); on('story:where', e => `${e.t} ${e.why}`);
     c.events.on('gate:pass', (e) => { if (e && e.player) L.ev.push([T(), 'gate:pass', `${e.gate} lane=${e.lane} dir=${e.dir} (player)`]); });
     c.events.on('gate:blocked', (e) => { if (e && e.reason && e.reason !== 'notap') { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; } });
+    // v7: the bot presses E through the real keyboard path (window keydown -> Input -> Interactions.update), exactly
+    // like a player — no direct onUse() calls, no &autotap
+    window.__pressE = () => { dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'e' })); dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyE', key: 'e' })); };
     const W = { F, last: null, lastT: 0, stuckT: 0, unstick: 0, lastLvl: null, lastTitle: null, odo: 0, prev: null, maxStuck: 0, blocked: 0 };
     window.__W = W;
     window.__steer = (dt) => {
@@ -82,7 +85,7 @@ try {
         c.player.yaw += d * Math.min(1, dt * 8); c.player.pitch = 0;
         c.input.setScript({ x: 0, y: 0 });
         const t = c.game.interactions && c.game.interactions.target;
-        if (t && t.id === 'order:' + cslot && Math.abs(d) < 0.3 && !W.ordered) { W.ordered = true; L.ev.push([T(), 'bot:E', t.id]); c.events.emit('interact', { target: t.id }); try { t.onUse(t); } catch (e) { console.error('bot use', e.message); } }
+        if (t && t.id === 'order:' + cslot && Math.abs(d) < 0.3 && !c.game.busy && (W.orderT == null || T() - W.orderT > 2.5)) { W.ordered = true; W.orderT = T(); L.ev.push([T(), 'bot:E', t.id]); window.__pressE(); }
         return;
       }
       const v = c.nav.nodeAt(b);
@@ -96,7 +99,7 @@ try {
         const s0 = (gt.axis === 'x' ? b.z : b.x) - gt.at, s1 = (gt.axis === 'x' ? c.nav.z[ahead] : c.nav.x[ahead]) - gt.at;
         if (s0 * s1 < 0) {
           W.tapT = T(); L.ev.push([T(), 'bot:E', `gatetap ${gtT.gate} lane=${gtT.lane}.${gtT.sub} in=${gtT.entering}`]);
-          c.events.emit('interact', { target: tg.id }); try { tg.onUse(tg); } catch (e) { console.error('bot gate', e.message); }
+          window.__pressE();
         }
       }
       if (W.near > 0) W.near -= dt;
