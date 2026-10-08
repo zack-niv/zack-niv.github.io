@@ -976,7 +976,9 @@ export class MapApp {
       return;
     }
     // off route? (distance of the estimate from the drawn leg)
-    if (R.leg && R.leg.draw && p.level === R.leg.level && R.recalc > 6) {
+    // v6 critic: 24 m for 4 s, at most every 12 s — with the ±10–30 m indoor dot the old 18 m / 6 s flashed
+    // "Recalculating…" every ~15 s, which read as noise rather than frustration
+    if (R.leg && R.leg.draw && p.level === R.leg.level && R.recalc > 12) {
       let best = 1e9;
       const pts = R.leg.draw;
       for (let i = 0; i + 1 < pts.length; i++) {
@@ -985,7 +987,7 @@ export class MapApp {
         let u = ((p.x - ax) * ex + (p.z - az) * ez) / l2; u = Math.max(0, Math.min(1, u));
         best = Math.min(best, Math.hypot(p.x - ax - ex * u, p.z - az - ez * u));
       }
-      if (best > 18) { R.offCount += dt; if (R.offCount > 3) this._computeRoute(false); }
+      if (best > 24) { R.offCount += dt; if (R.offCount > 4) this._computeRoute(false); }
       else R.offCount = 0;
     }
   }
