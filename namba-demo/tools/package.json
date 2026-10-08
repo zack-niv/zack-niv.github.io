@@ -1,0 +1,7 @@
+{
+  "name": "namba-demo-tools",
+  "private": true,
+  "type": "module",
+  "description": "Headless test harness for Lost in Namba. Run `npm install` here once per fresh session (Chromium is preinstalled in cloud sessions; PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1).",
+  "dependencies": { "playwright": "1.56" }
+}
