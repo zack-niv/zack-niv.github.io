@@ -51,15 +51,7 @@ Zack explicitly asked that this working style carry over.
 ## Status at handoff (update at the end of each session)
 
 - **Live:** v6. Open items for v6.1 are in `notes/v6-critique.md` "Left for v6.1": shop-interior z-fighting (likely shared offsets in `env/shopbuild.js`), a glance flicker at two escalator feet, and real-GPU frame rate.
-- **In flight at handoff:** a polish pass (`notes/v4-polish.md`):
-  - the arrival glance and coffee payoff;
-  - names truncated in the Lodestone trip card;
-  - tutorial hints covering the raised phone;
-  - phone screen glow;
-  - tote, cap and shoulder bag shapes;
-  - grey patches on the CITY 1F ceiling.
-
-  If `v4-polish.md` says it finished, deploy it as v4.3 after checking its screenshots.
+- **In flight at handoff:** v7 hotfix round (`namba-demo/V7.md`).
 - **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
 - **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
   crowd-visual 3.5.
