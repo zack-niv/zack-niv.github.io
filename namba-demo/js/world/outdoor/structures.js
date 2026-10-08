@@ -43,7 +43,8 @@ export function buildStructures(ctx, parks) {
       box(stone, (xa + x1) / 2, y - 0.3, z0 - 0.1, x1 - xa, 0.6, 0.1, cream);
       box(stone, (xa + x1) / 2, y - 0.3, z1 + 0.1, x1 - xa, 0.6, 0.1, cream);
       // roof slab (visible from the terraces above) — planted sedum roof
-      box(stone, (xa + x1) / 2, y + H + 0.3, (z0 + z1) / 2, x1 - xa, 0.6, z1 - z0 + 0.4, cream);
+      // v6 critic: bottom 2 cm above the skywalk's own ceiling (y + H) — coplanar, it z-fought the wood ceiling (276 m2 on 6F)
+      box(stone, (xa + x1) / 2, y + H + 0.31, (z0 + z1) / 2, x1 - xa, 0.58, z1 - z0 + 0.4, cream);
       roof.quadAuto([xa + 0.3, y + H + 0.62, z1 - 0.2], [x1 - 0.3, y + H + 0.62, z1 - 0.2], [x1 - 0.3, y + H + 0.62, z0 + 0.2], [xa + 0.3, y + H + 0.62, z0 + 0.2]);
       // mullions outside the glass
       for (let x = xa + 0.8; x < x1; x += 1.6) for (const zz of [z0 - 0.05, z1 + 0.05]) box(steel, x, y + H / 2, zz, 0.08, H, 0.1, null);
