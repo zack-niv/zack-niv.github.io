@@ -102,3 +102,30 @@ will appear…".
 - **Wrong ways** = an episode of ≥ 8 m walked that left you ≥ 6 m farther from the goal on the true path; it ends when
   you win 6 m back. Per km of walking with a destination.
 - **Heading settle** = after a ≥ 60° yaw change within 1.2 s, seconds until the phone heading is within 20° (cap 10 s).
+
+### Sample values (full `tools/walk.mjs`-equivalent run, final code: `scratchpad/p6/walk6.mjs`, quality low, crowd on)
+
+The bot follows the TRUE shortest path even in the Maps phase (it never gets lost), so its detour / wrong-turn rows
+are a floor, not what a player sees. A deliberately lost Maps walk (`rideprobe.mjs`: 20 s the wrong way, then the right
+way) gives `wrongWays 1 · 7.6 /km · detour 1.8×` — the metrics do move when a player wanders.
+
+| field | before (Maps, 192 s, 264 m) | after (Lodestone, 306 s, 393 m) |
+|---|---|---|
+| errMean / errP50 / errP90 | 18.4 / 18.8 / 28.7 m | 0.4 / 0.4 / 0.7 m |
+| wrongFloorPct (seconds) | 25 % (47 s, 4 episodes) | 0 % |
+| detour (bot) | 1.0× (222 m walked / 221 m progress) | 1.0× (289 / 279) |
+| wrongWaysPerKm (bot) | 0 | 0 |
+| reroutesPerKm | **58.6** (13 × "Recalculating…") | **0** |
+| headingErr (mean, walking) | 12° | 0° |
+| headingSettle (median after a turn) | **4.5 s** | **0.1 s** |
+| hops | 8 | — |
+
+Run 1 (before the last tuning) had 43 % wrong floor and 1.0× / 1.1× detour (rides counted; fixed).
+
+### For Story (end card) — recommendation, your call
+- Rows that do not differ for this player make Lodestone look no better (the walk's card shows `1.0× → 1.0×` and
+  `0/km → none`). Show a row only when it separates the phases, e.g. `detourBefore ≥ detourAfter + 0.15`,
+  `wrongWaysPerKmBefore > 0`.
+- Two rows that separate for EVERY player (bot included), measured the same way in both phases:
+  **"Recalculating…" per km** `reroutesPerKmBefore → reroutesPerKmAfter` (58.6 → 0), and
+  **"Arrow caught up after a turn"** `headingSettleBefore → headingSettleAfter` (4.5 s → 0.1 s).
