@@ -50,7 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v7.2 (fair 4-row end-card stats: error, wrong floor, dot within 5 m, arrow catch-up; buttons above the contact cards). Before that, v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). v7.1 adds the NPC gate-tap gesture and cache-busting (`tools/stamp.mjs`, run by deploy.sh). Pending: Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
+- **Live:** v7.3: end card leads with **On track** (% of walking seconds that got you closer by the direct or Aya's canyon way, plus time off route; one yardstick for both phases; replaces arrow catch-up). Also a mouse-mode chip ("Click to look around" when the camera isn't steering, e.g. after Esc→Esc, which can't re-lock; "Cursor is on your phone" with the phone up), a pause-menu Esc explainer with backdrop click to resume, and the contact cards in the pause menu. Verify with `tools/mouseshot.mjs` and `walk.mjs` with `&wander` (25 s lost → 0:26 off, 83%). Before that, v7.2 (fair 4-row end-card stats; buttons above the contact cards). Before that, v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). v7.1 adds the NPC gate-tap gesture and cache-busting (`tools/stamp.mjs`, run by deploy.sh). Pending: Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
 - **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
 - **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
   crowd-visual 3.5.
