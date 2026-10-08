@@ -691,6 +691,24 @@ function vendMachine(P, R, ac, kind, seed) {
   P.tq(R.vending(kind, seed % 3), a0 + 0.035, a1 - 0.035, 0.1, 1.8, d0 - 0.004, -1);
 }
 
+// v6: planter boxes drew a full top face at the rim height AND the soil quad in the same plane (same material,
+// different vertex colour): the soil z-fought with the stone lid (Zack's item 4, every planter / planter bench).
+// Now the box has no lid: a stone rim ring at the top, short inner walls and the soil SOIL_DROP below the rim.
+const SOIL_DROP = 0.04;
+function planterTop(P, a0, a1, d0, d1, y, rim) {
+  const ia0 = a0 + rim, ia1 = a1 - rim, id0 = d0 + rim, id1 = d1 - rim, ys = y - SOIL_DROP;
+  const inner = [0.5, 0.48, 0.45];
+  P.qh('env_matte', a0, a1, d0, id0, y, true, stone);
+  P.qh('env_matte', a0, a1, id1, d1, y, true, stone);
+  P.qh('env_matte', a0, ia0, id0, id1, y, true, stone);
+  P.qh('env_matte', ia1, a1, id0, id1, y, true, stone);
+  P.qd('env_matte', ia0, ia1, ys, y, id0, 1, inner);
+  P.qd('env_matte', ia0, ia1, ys, y, id1, -1, inner);
+  P.qa('env_matte', id0, id1, ys, y, ia0, 1, inner);
+  P.qa('env_matte', id0, id1, ys, y, ia1, -1, inner);
+  P.qh('env_matte', ia0, ia1, id0, id1, ys, true, [0.2, 0.14, 0.1]);
+}
+
 const BUILD = {
   vend(S, P, R, it) {
     const n = it.count || 1; let a = -(n * 0.82 + 0.1) / 2 + 0.41 + 0.05;
@@ -718,14 +736,14 @@ const BUILD = {
   },
   plant(S, P, R, it) {
     const h = (it.len || 1.3) / 2;
-    P.box('env_matte', -h, h, 0, 0.5, -0.6, -0.02, stone);
-    P.qh('env_matte', -h + 0.05, h - 0.05, -0.55, -0.07, 0.5, true, [0.2, 0.14, 0.1]);
+    P.box('env_matte', -h, h, 0, 0.5, -0.6, -0.02, stone, 'nsew');
+    planterTop(P, -h, h, -0.6, -0.02, 0.5, 0.05);
     const r = rng(it.seed);
     const nn = r() < 0.5 ? 2 : 3;
     for (let i = 0; i < nn; i++) {
       const a = -h + 0.4 + (2 * h - 0.8) * (nn === 1 ? 0.5 : i / (nn - 1));
       const tall = r() < 0.5;
-      P.geo('env_matte', tall ? 'tallplant' : 'plant', a, 0.5, -0.31, r() * 6, 0.9 + r() * 0.5, [0.2 + r() * 0.1, 0.45 + r() * 0.25, 0.2 + r() * 0.1]);
+      P.geo('env_matte', tall ? 'tallplant' : 'plant', a, 0.5 - SOIL_DROP, -0.31, r() * 6, 0.9 + r() * 0.5, [0.2 + r() * 0.1, 0.45 + r() * 0.25, 0.2 + r() * 0.1]);
     }
   },
   plantpot(S, P, R, it) {
@@ -778,11 +796,11 @@ const BUILD = {
   },
   planterbench(S, P, R, it) {
     const hx = it.hx || 1.3, hz = it.hz || 0.85, wood = [0.62, 0.43, 0.26];
-    P.box('env_matte', -hx, hx, 0, 0.5, -0.45, 0.45, stone);
-    P.qh('env_matte', -hx + 0.05, hx - 0.05, -0.4, 0.4, 0.5, true, [0.2, 0.14, 0.1]);
+    P.box('env_matte', -hx, hx, 0, 0.5, -0.45, 0.45, stone, 'nsew');
+    planterTop(P, -hx, hx, -0.45, 0.45, 0.5, 0.05);
     const r = rng(it.seed);
-    P.geo('env_matte', 'tallplant', -hx * 0.4, 0.5, 0, r() * 6, 1.5, [0.2, 0.5, 0.2]);
-    P.geo('env_matte', 'tallplant', hx * 0.4, 0.5, 0, r() * 6, 1.3, [0.25, 0.5, 0.2]);
+    P.geo('env_matte', 'tallplant', -hx * 0.4, 0.5 - SOIL_DROP, 0, r() * 6, 1.5, [0.2, 0.5, 0.2]);
+    P.geo('env_matte', 'tallplant', hx * 0.4, 0.5 - SOIL_DROP, 0, r() * 6, 1.3, [0.25, 0.5, 0.2]);
     P.box('env_wood', -hx, hx, 0.4, 0.45, -hz, -0.45, wood); P.box('env_wood', -hx, hx, 0.4, 0.45, 0.45, hz, wood);
     P.box('env_metal', -hx, hx, 0, 0.4, -hz + 0.05, -hz + 0.1, steel); P.box('env_metal', -hx, hx, 0, 0.4, hz - 0.1, hz - 0.05, steel);
   },

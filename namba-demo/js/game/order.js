@@ -106,7 +106,7 @@ function exchange(game, c, b, isCafe, drink, name) {
       const rec = { slotId: c.slotId, name, item: drink.label, icon: drink.icon, at: ctx.clock.hhmm, price: drink.price };
       orders.push(rec);
       if (game.journal) game.journal.coffees = (game.journal.coffees || 0) + (drink.icon === '☕' || drink.errand ? 1 : 0);
-      pay(game, drink.price);
+      pay(game, drink.price, name);
       hud?.toast({ kind: 'done', title: 'Ordered', en: `${drink.icon} ${drink.label} — ${name}`, ja: drink.ja, duration: 3.4 });
       hud?.cup(true, `${drink.icon} ${drink.label} — ${name}`, orders.length);
       ctx.events.emit('demo:order', { slotId: c.slotId, name, item: drink.label, kind: 'cafe', errand: !!drink.errand, t: ctx.clock.minutes });
@@ -127,8 +127,9 @@ function errandDrink(game, slotId) {
   try { const st = game.story; return st && st.errandDrink ? st.errandDrink(slotId) : null; } catch (e) { return null; }
 }
 
-// pay with the ICOCA card if there is enough on it (quiet chip), else coins (no chip)
-function pay(game, price) {
+// pay with the ICOCA card if there is enough on it, else coins (v6: through the one IC mechanism, game.icCharge)
+function pay(game, price, name, ja) {
+  if (typeof game.icCharge === 'function') { game.icCharge({ amount: price, kind: 'purchase', label: 'お支払い Paid', note: name || '', ja: ja || '', orCoins: true }); return; }
   const ic = game.ic;
   if (ic && ic.balance >= price) {
     ic.balance -= price;

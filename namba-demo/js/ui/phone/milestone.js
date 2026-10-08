@@ -26,13 +26,26 @@ export function relBearing(pos, x, z) {
   return -Math.atan2(Math.sin(d), Math.cos(d)) * 180 / Math.PI;
 }
 
-export function milestoneOf(s, dest, pos, prevSide) {
+// next: the step after s (v6: what comes after the ride, "Riding up to 3F · then turn right")
+export function milestoneOf(s, dest, pos, prevSide, next) {
   if (!s) return null;
   const dist = Math.max(0, Math.round(isFinite(s.at) ? s.at : 0));
   const m = { kind: 'turn', dir: null, toLevel: null, dist, level: s.level, x: s.x, z: s.z, icon: s.icon || 'straight' };
+  let bx = s.x, bz = s.z;                       // the point the side is judged by
   if (s.kind === 'ramp') {
     m.kind = s.word === 'Stairs' ? 'stairs' : s.word === 'Lift' ? 'lift' : 'escalator';
     m.dir = s.up ? 'up' : 'down'; m.toLevel = s.to; m.count = s.count || 1;
+    if (isFinite(s.ax)) { bx = s.ax; bz = s.az; }
+    if (s.riding) {
+      // v6 (item 7): you are ON it. The milestone is the ride itself: its landing, the metres of ride left, and
+      // what comes right after it. Never "behind you" (the foot you just stepped off is behind you by definition).
+      m.riding = true; m.x = s.ex; m.z = s.ez; bx = s.ex; bz = s.ez;
+      m.dist = Math.max(0, Math.round(isFinite(s.endCum) ? s.endCum : dist));
+      if (next) {
+        const n = milestoneOf(next, dest, null, null);
+        if (n) { n.gap = Math.max(0, Math.round((isFinite(next.at) ? next.at : 0) - (isFinite(s.endCum) ? s.endCum : 0))); m.then = n; }
+      }
+    }
   } else if (s.kind === 'arrive') {
     m.kind = 'arrive'; m.toLevel = dest ? dest.level : s.level; m.name = dest ? dest.en || dest.name : undefined;
     const sd = (String(s.sub || '').split(' · ')[0] || '');
@@ -48,12 +61,39 @@ export function milestoneOf(s, dest, pos, prevSide) {
     m.title = s.title;
   }
   // where it is relative to where you face (with a little hysteresis: no left/ahead flicker)
-  if (pos && isFinite(m.x) && isFinite(m.z)) {
-    const a = relBearing(pos, m.x, m.z), A = Math.abs(a), k = prevSide;
+  if (pos && isFinite(bx) && isFinite(bz)) {
+    const a = relBearing(pos, bx, bz), A = Math.abs(a), k = prevSide;
     m.bearing = Math.round(a);
     m.side = A > (k === 'behind' ? 115 : 125) ? 'behind' : A < (k === 'ahead' ? 32 : 24) ? 'ahead' : a > 0 ? 'right' : 'left';
+    if (m.riding) m.side = 'ahead';
   } else m.side = null;
   return m;
+}
+
+// "then turn right" / "then Daikichi on your right" / "then over the glass bridge" — what comes after a ride
+function thenWords(n) {
+  if (!n) return '';
+  const t = milestoneText({ ...n, dist: 999, side: null });
+  if (!t) return '';
+  let w;
+  if (n.kind === 'turn') w = n.turn === 'around' ? 'turn around' : `turn ${n.turn}`;
+  else if (n.kind === 'arrive') { const ds = { left: 'on your left', right: 'on your right', ahead: 'straight ahead' }[n.doorSide] || 'ahead'; w = `${(n.name || 'your destination').replace(/^Tempura /, '')} ${ds}`; }
+  else w = t.title.charAt(0).toLowerCase() + t.title.slice(1);
+  return n.gap >= 8 ? `${w} in ${Math.round(n.gap / 5) * 5 || n.gap} m` : w;
+}
+// the same, compact enough for the one-line glance strip (≤ ~26 characters): "70 m to the bridge"
+function thenShort(n) {
+  if (!n) return '';
+  const g = n.gap >= 8 ? `${Math.round(n.gap / 5) * 5 || n.gap} m` : '';
+  const nm = (n.name || 'your destination').replace(/^Tempura /, '');
+  if (n.kind === 'turn') return thenWords(n);
+  if (n.kind === 'arrive') return g ? `${g} to ${nm}` : `${nm} on the ${n.doorSide === 'left' ? 'left' : n.doorSide === 'right' ? 'right' : 'ahead'}`.replace('on the ahead', 'ahead');
+  if (n.kind === 'escalator' || n.kind === 'stairs' || n.kind === 'lift') return g ? `${g} to the ${n.kind}` : thenWords(n);
+  if (!g) return thenWords(n);
+  if (n.via) return `${g} to ${n.name || 'the next stop'}`;
+  if (/bridge/i.test(n.title || '')) return `${g} to the bridge`;
+  const into = /^Continue into (.+?)(\s+(B\d|\d+F))?$/.exec(n.title || '');
+  return into ? `${g} to ${into[1]}` : thenWords(n);
 }
 
 const SIDE = { ahead: 'straight ahead', left: 'on your left', right: 'on your right', behind: 'behind you' };
@@ -63,9 +103,16 @@ export function milestoneText(m) {
   if (!m) return null;
   const near = m.dist < NEAR_M;
   const side = SIDE[m.side] || '';
+  if ((m.kind === 'escalator' || m.kind === 'stairs' || m.kind === 'lift') && m.riding) {
+    const to = lvl(m.toLevel), th = thenWords(m.then), ts = thenShort(m.then);
+    const title = m.kind === 'stairs' ? `${m.dir === 'up' ? 'Up' : 'Down'} the stairs to ${to}` : m.kind === 'lift' ? `Lift ${m.dir} to ${to}` : `Riding ${m.dir} to ${to}`;
+    return { icon: m.dir === 'up' ? 'up' : 'down', title, long: title, sub: ts ? `Then ${ts}` : `${m.dist} m to go`, then: th, riding: true };
+  }
   if (m.kind === 'escalator' || m.kind === 'stairs' || m.kind === 'lift') {
     const W = m.kind === 'stairs' ? 'Stairs' : m.kind === 'lift' ? 'Lift' : m.count > 1 ? 'Escalators' : 'Escalator';
     const w = m.kind === 'stairs' ? 'the stairs' : m.kind === 'lift' ? 'the lift' : m.count > 1 ? 'the escalators' : 'the escalator';
+    // v6: the path walks past the mouth and doubles back onto it (CITY 2F → 1F by the café): not "behind you · in 4 m"
+    if (near && m.side === 'behind') return { icon: m.dir === 'up' ? 'up' : 'down', title: `${W} ${m.dir} — U-turn onto it`, long: `${W} ${m.dir} — U-turn onto it`, sub: `to ${lvl(m.toLevel)}` };
     return near && side
       ? { icon: m.dir === 'up' ? 'up' : 'down', title: `${W} ${m.dir} — ${side}`, long: `${W} ${m.dir} — ${side}`, sub: `to ${lvl(m.toLevel)}` }
       : { icon: m.dir === 'up' ? 'up' : 'down', title: `${W} ${m.dir} to ${lvl(m.toLevel)}`, long: `Take ${w} ${m.dir} to ${lvl(m.toLevel)}` };

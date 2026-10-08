@@ -25,7 +25,7 @@
 //      map only updated near outdoors; sky irradiance follows ctx.exterior.sun.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER, ZONES } from '../world/layout.js';
+import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js';
 import { CELL } from '../world/world.js';
 import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js';
 import { installMaterialHook, U, NB_DYN } from './lighting/inject.js';
@@ -362,13 +362,29 @@ export class Lighting {
     return Math.pow(2, sum / wsum); // mean scene radiance (shader units)
   }
 
+  // the space just beyond the nearer end of a ramp (falls back to the other end)
+  _rampLoc(r, b) {
+    const w = this.ctx.world, e = rampEnds(r);
+    const dl = Math.hypot(b.x - e.low.x, b.z - e.low.z), dh = Math.hypot(b.x - e.high.x, b.z - e.high.z);
+    const ends = dl <= dh ? [[e.low, r.lower], [e.high, r.upper]] : [[e.high, r.upper], [e.low, r.lower]];
+    for (const [p, lv] of ends) {
+      const s = w.spaceAt(lv, p.x + p.dx * 1.5, p.z + p.dz * 1.5);
+      if (s) return { zone: s.zone, space: s, ramp: r, level: lv };
+    }
+    return null;
+  }
+
   // ---------------------------------------------------------------------------
   update(dt) {
     const { player, engine, events } = this.ctx;
     if (!player) return;
     const b = player.body;
     // ---- mood (env map, fog, grading) ----
-    const loc = this.ctx.world.locate(b);
+    let loc = this.ctx.world.locate(b);
+    // v6: on an escalator / stair the body has no space (locate -> space null), so the Parks banks fell back to the
+    // zone mood 'parks' = the OUTDOOR sky env map + sky fog: the brushed-steel decking turned blue/silver the moment
+    // you boarded and back to dark at the landing. A ramp takes the mood of the floor at its nearer end instead.
+    if (loc.ramp) loc = this._rampLoc(loc.ramp, b) || loc;
     const sp = loc.space;
     let mood = loc.zone && ZONES[loc.zone] ? ZONES[loc.zone].mood : this.mood;
     if (mood === 'plaza') mood = 'street';

@@ -25,6 +25,7 @@ export const TERRACE_Z = [[204, 252, 12, 50], [252, 290, 18, 52], [290, 320, 24,
 export function terraceAt(z) { for (const t of TERRACE_Z) if (z >= t[0] && z < t[1]) return t; return z < 204 ? TERRACE_Z[0] : TERRACE_Z[TERRACE_Z.length - 1]; }
 
 const GROUND = 6, GROUND_TOP = 10.2;
+const ZF = 0.02; // v6: offset that keeps strata caps / sills / soffits out of the plane of floors, ceilings and roofs
 
 // ---------------------------------------------------------------------------
 function resample(poly, tags, step) {
@@ -226,10 +227,13 @@ export function buildCanyon(ctx, parks) {
           }
         } else if (op && !opN) { // soffit (opening top)
           const d = op.depth;
-          acc.quadAuto(V(fa, oa2, y), V(fb, ob2, y), V(fb, ob2 - d, y), V(fa, oa2 - d, y), null, mulc(PALETTE.cream, 0.8));
+          // v6: the opening's soffit / sill lay exactly in the plane of the indoor ceiling / bridge deck it runs into
+          // (2F canyon-view ceilings at 10.2, the 3F/5F bridge decks): they z-fought (Zack's item 5, the bridge/floor
+          // seam). Tuck them 2 cm behind those surfaces; the band faces still reach y, so the lip stays closed.
+          acc.quadAuto(V(fa, oa2, y + ZF), V(fb, ob2, y + ZF), V(fb, ob2 - d, y + ZF), V(fa, oa2 - d, y + ZF), null, mulc(PALETTE.cream, 0.8));
         } else if (!op && opN) { // sill
           const d = opN.depth;
-          acc.quadAuto(V(fa, oa - d, y), V(fb, ob - d, y), V(fb, ob, y), V(fa, oa, y), null, PALETTE.cream);
+          acc.quadAuto(V(fa, oa - d, y - ZF), V(fb, ob - d, y - ZF), V(fb, ob, y - ZF), V(fa, oa, y - ZF), null, PALETTE.cream);
         }
       }
       // jambs at opening ends
@@ -246,7 +250,9 @@ export function buildCanyon(ctx, parks) {
       const oa = bandOff(top, fa), ob = bandOff(top, fb);
       const bridgeLanding = fa.rim && ups.some(u => u.y0 <= fa.rim[2] + 0.1 && u.y0 >= fa.rim[2] - 0.1 && fa.z > u.z0 - 0.3 && fa.z < u.z1 + 0.3);
       if (!bridgeLanding) {
-        acc.quadAuto(V(fa, -fa.cap, H), V(fb, -fb.cap, H), V(fb, ob, H), V(fa, oa, H), null, PALETTE.cream);
+        // v6: the west cap (H 30) ran under the Parks mall roof (massing.js, y 30) = coplanar; keep it just below
+        const Hc = fa.side === 'w' ? H - ZF : H;
+        acc.quadAuto(V(fa, -fa.cap, Hc), V(fb, -fb.cap, Hc), V(fb, ob, Hc), V(fa, oa, Hc), null, PALETTE.cream);
         if (fa.rim || fa.ledge) parks.planters.push({ kind: fa.rim ? 'rim' : 'ledge', a: V(fa, oa - 0.35, H), b: V(fb, ob - 0.35, H), a2: V(fa, -fa.cap + (fa.rim ? 0.3 : 0.2), H), b2: V(fb, -fb.cap + (fb.rim ? 0.3 : 0.2), H), n: [fa.nx, fa.nz], y: H });
       }
     }

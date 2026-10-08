@@ -57,6 +57,7 @@ export function phrase(s, dest) {
   if (s.kind === 'ramp') {
     const st = s.word === 'Stairs', dir = s.up ? 'up' : 'down';
     const what = st ? 'the stairs' : s.count > 1 ? 'the escalators' : 'the escalator';
+    if (s.riding) return { long: st ? `${s.up ? 'Up' : 'Down'} the stairs to ${lvl(s.to)}` : `Riding ${dir} to ${lvl(s.to)}`, short: st ? `Stairs ${dir} to ${lvl(s.to)}` : `Riding ${dir} to ${lvl(s.to)}` };
     return { long: `Take ${what} ${dir} to ${lvl(s.to)}`, short: `${st ? 'Stairs' : 'Escalator'} ${dir} to ${lvl(s.to)}` };
   }
   if (s.kind === 'arrive') {
@@ -367,10 +368,13 @@ export class LodestoneApp {
 
   // route / guidance at ~2 Hz when the player moved (runs with the phone up OR lowered to a glance)
   _routeTick(dt) {
+    const body = this.ctx.player.body;
+    // v6: stepping on / off an escalator or stairs re-plans at once ("Riding up to 3F" from the first step, not 0.5 s on)
+    const onRamp = body.ramp >= 0;
+    if (onRamp !== this._onRamp) { this._onRamp = onRamp; this._rt = 0; this._lastPos = [1e9, 1e9, '']; }
     this._rt -= dt;
     if (this._rt > 0) return false;
     this._rt = 0.5;
-    const body = this.ctx.player.body;
     const moved = Math.hypot(body.x - this._lastPos[0], body.z - this._lastPos[1]);
     if (!(moved > 0.9 || body.level !== this._lastPos[2] || !this.route)) return false;
     this._lastPos = [body.x, body.z, body.level];
@@ -389,7 +393,7 @@ export class LodestoneApp {
   milestone() {
     const R = this.route;
     if (this.state !== 'ready' || !this.dest || this.arrived || !R || !R.ok || !R.steps.length) return null;
-    const m = milestoneOf(R.steps[0], this.dest, this.phone.pos, this._mSide);
+    const m = milestoneOf(R.steps[0], this.dest, this.phone.pos, this._mSide, R.steps[1]);
     if (!m) return null;
     this._mSide = m.side;
     m.app = 'lodestone';
@@ -639,6 +643,8 @@ export class LodestoneApp {
     if (!m || !tx) { const ph = phrase(cur, this.dest); return { kind: 'nav', trk: 'trk-on', icon: 'straight', live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` }; }
     const fc = this._faceCue(m, tx);
     if (fc) return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: fc.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: fc.title, sub: `Then ${fc.then}` };
+    // v6 (item 7): on the escalator / stairs: "Riding up to 3F" · "Then turn right" (the arrow points along the ride)
+    if (m.riding) return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: tx.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: tx.title, sub: tx.sub };
     const d = Math.round(m.dist), dt = d < 3 ? 'Now' : 'In ' + fm(d);
     const sub =m.dist < NEAR_M ? [dt, tx.sub].filter(Boolean).join(' · ') : m.pass ? `${dt} · past ${m.pass.name}` : `${dt} · ${tx.sub || here}`;
     return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: tx.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: tx.title, sub };
@@ -688,7 +694,7 @@ export class LodestoneApp {
     const ph = phrase(cur, dest), live = isLive(cur, toGo);
     const sg = this.track.sign();
     const mk = this.milestone(), mt = milestoneText(mk), fc = sg ? null : this._faceCue(mk, mt);
-    const key = [fc ? fc.title + fc.then : '', ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on', mt && mt.long, mk && mk.pass && mk.pass.name, mk && mk.pass && Math.round(mk.pass.dist / 5)].join('|');
+    const key = [fc ? fc.title + fc.then : '', ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on', mt && mt.long, mt && mt.sub, mk && mk.riding ? Math.round(mk.dist / 5) : '', mk && mk.pass && mk.pass.name, mk && mk.pass && Math.round(mk.pass.dist / 5)].join('|');
     if (!force && key === this._guideKey) return; this._guideKey = key;
     E.nav.dataset.trk = sg ? sg.cls : 'trk-on';
     if (sg) {
@@ -706,14 +712,17 @@ export class LodestoneApp {
     this._msNear = !!(m && m.dist < NEAR_M);
     E.navIc.className = 'ld-nav-ic trk-on live';
     E.navIc.innerHTML = icon('straight', 'ld-arrow');
-    E.navD.textContent = fc ? 'Now' : toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
+    const ride = !!(m && m.riding);
+    E.navD.textContent = ride ? `${m.kind === 'stairs' ? 'On the stairs' : 'On the escalator'} · ${fm(m.dist).replace(' ', '\u00a0')}\u00a0to\u00a0go` : fc ? 'Now' : toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
     E.navI.innerHTML = `<i class="ld-mi">${icon(fc ? fc.icon : tx.icon, 'sm')}</i>${esc(fc ? fc.title : tx.long)}`;
     // under it: the shop you'll walk past on a long leg, else "then" when the next step comes soon after
     // (v5.1: facing away from the path, the arrow's word is the title and the milestone itself is the "then")
+    // (v6: riding, the "then" is what comes right after the landing: "Then turn right")
     const soon = nxt && isFinite(nxt.at) && nxt.at - toGo < 30;
     const pass = m && m.pass;
-    E.then.hidden = !fc && !pass && !soon;
-    if (fc) E.then.innerHTML = `<em>Then</em>${icon(fc.ticon, 'sm')}<span>${esc(fc.then.charAt(0).toUpperCase() + fc.then.slice(1))}</span>`;
+    E.then.hidden = !fc && !pass && !soon && !(ride && tx.then);
+    if (ride && tx.then) E.then.innerHTML = `<em>Then</em>${icon(m.then ? (m.then.kind === 'arrive' ? 'flag' : m.then.icon || 'straight') : 'straight', 'sm')}<span>${esc(tx.then.charAt(0).toUpperCase() + tx.then.slice(1))}</span>`;
+    else if (fc) E.then.innerHTML = `<em>Then</em>${icon(fc.ticon, 'sm')}<span>${esc(fc.then.charAt(0).toUpperCase() + fc.then.slice(1))}</span>`;
     else if (pass) E.then.innerHTML = `<em>Past</em>${icon('straight', 'sm')}<span>${esc(pass.name)} · ${fm(pass.dist)}</span>`;
     else if (soon) E.then.innerHTML = `<em>Then</em>${icon(nxt.icon, 'sm')}<span>${esc(phrase(nxt, dest).short)}</span>`;
     E.toM.textContent = mins;

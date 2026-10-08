@@ -1,16 +1,26 @@
 // =============================================================================
 // The phone's belief about where you are — deliberately, plausibly wrong.
 //
-//  * position: true position + a slowly wandering error (Ornstein–Uhlenbeck),
-//    sigma by environment (≈2 m outdoors, 6–9 m under glass, 12–25 m
-//    underground), occasional snaps to a new fix, map-matched onto a walkable
-//    cell of the floor the phone *thinks* you are on; underground the fix
-//    only refreshes every ~1–2 s, so the dot hops.
-//  * floor: lags 5–20 s behind real level changes, and underground it now and
-//    then guesses an adjacent floor for a while.
-//  * heading: true yaw + slowly drifting bias (magnetic interference from
-//    steel and trains underground) + jitter, smoothed with lag.
+// v6 (item 9): calibrated to what phone location really does inside a
+// multi-level station complex (GNSS through concrete + Wi-Fi/cell fallback):
+//
+//  * position: true position + a slowly wandering error (Ornstein–Uhlenbeck,
+//    tau ~22 s). Typical error (mean / p90): open air ~4 / 7 m, the Parks
+//    canyon (an urban canyon: tall walls, multipath) ~6 / 10 m, under the
+//    Parks glass ~10 / 18 m, the station concourses under the Nankai viaduct
+//    ~15 / 26 m, 1F ~17 / 29 m, B1 ~19 / 33 m, B2 ~24 / 40 m. Map-matched onto
+//    a walkable cell of the floor the phone *thinks* you are on (within 9 m).
+//  * hops: every ~12–30 s indoors the fix jumps to a whole new wrong spot
+//    (a parallel corridor, across the hall) — the dot visibly snaps there.
+//    Underground the fix only refreshes every ~1.5–2.5 s.
+//  * floor: lags 5–18 s behind real level changes, and indoors it now and then
+//    (every ~1–2 min) guesses an adjacent floor for 7–16 s.
+//  * heading: true yaw + slowly drifting bias (steel, trains, escalator
+//    motors) + jitter, smoothed with a lag of ~0.6 s (open air) to ~2 s (B2):
+//    after a turn the map arrow takes seconds to come round.
 //  * signal: bars by level/zone; B2 platforms drop to 圏外 (no service).
+//  Never broken: the dot stays on a plausible walkable spot, and the floor
+//  always comes back.
 // =============================================================================
 import { LEVEL_ORDER } from '../../world/layout.js';
 import { rng } from '../../core/rng.js';
@@ -84,15 +94,20 @@ export class Positioning {
   _env(body) {
     const { world } = this.ctx;
     const sp = world.spaceAt(body.level, body.x, body.z);
-    const outdoor = sp && sp.outdoor;
+    const outdoor = sp && sp.outdoor, zone = sp && sp.zone;
     const lv = body.level;
-    if (outdoor) return { env: 'outdoor', sigma: 2.2, bias: 4, fix: 0.3, sig: 4 };
-    if (sp && (sp.zone === 'parks' || sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 4.5, bias: 9, fix: 0.6, sig: 4 };
-    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 8.5, bias: 18, fix: 1.0, sig: 3 };
-    if (lv === '1F') return { env: 'ground', sigma: 9, bias: 18, fix: 1.1, sig: 3 };
-    if (lv === 'B1') return { env: 'under', sigma: 8, bias: 26, fix: 1.4, sig: 2 };
-    if (lv === 'B2') return { env: 'deep', sigma: 11, bias: 34, fix: 2.2, sig: 0 };
-    return { env: 'indoor', sigma: 8, bias: 12, fix: 0.8, sig: 3 };
+    // (fix = seconds between fixes; hop = chance that a periodic re-fix lands somewhere new; lag = heading smoothing s;
+    //  wf = rate of wrong-floor guesses, per second)
+    if (outdoor && (zone === 'parks' || zone === 'parksGarden')) return { env: 'canyon', sigma: 7, bias: 8, fix: 0.6, sig: 4, hop: 0.35, lag: 0.7, wf: 0 };
+    if (outdoor) return { env: 'outdoor', sigma: 4, bias: 5, fix: 0.4, sig: 4, hop: 0.2, lag: 0.6, wf: 0 };
+    if (zone === 'parks' || zone === 'parksGarden' || (sp && sp.style === 'parks_skywalk')) return { env: 'glass', sigma: 12, bias: 12, fix: 0.9, sig: 4, hop: 0.55, lag: 0.95, wf: 1 / 110 };
+    // the concourses under the Nankai viaduct and the Namba CITY mall below it: the worst of indoors above ground
+    const via = zone === 'nankai' || zone === 'city' ? 1.12 : 1;
+    if (lv === '3F' || lv === '2F') return { env: 'terminal', sigma: 15.5 * via, bias: 22, fix: 1.2, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 70 };
+    if (lv === '1F') return { env: 'ground', sigma: 17 * via, bias: 22, fix: 1.3, sig: 3, hop: 0.7, lag: 1.3, wf: 1 / 70 };
+    if (lv === 'B1') return { env: 'under', sigma: 22, bias: 28, fix: 1.7, sig: 2, hop: 0.75, lag: 1.6, wf: 1 / 60 };
+    if (lv === 'B2') return { env: 'deep', sigma: 27, bias: 36, fix: 2.4, sig: 0, hop: 0.8, lag: 2.0, wf: 1 / 60 };
+    return { env: 'indoor', sigma: 14, bias: 16, fix: 1.0, sig: 3, hop: 0.6, lag: 1.1, wf: 1 / 60 };
   }
 
   update(dt) {
@@ -109,15 +124,15 @@ export class Positioning {
     if (!this._seeded) { this._seeded = true; this.ex = gauss(R) * E.sigma * 0.7; this.ez = gauss(R) * E.sigma * 0.7; }   // the error does not start at zero
     if (this.mode === 'lodestone') { this._updateLodestone(dt, b, p, E); this._signal(E, dt); return; }
     // --- error random walk (OU process, tau ~ 25 s) ---------------------------
-    const tau = 25;
+    const tau = 22;
     const k = Math.sqrt(2 / tau) * E.sigma * Math.sqrt(dt);
     this.ex += -this.ex / tau * dt + k * gauss(R) * 0.7;
     this.ez += -this.ez / tau * dt + k * gauss(R) * 0.7;
-    // occasional snap to a whole new (wrong) fix — underground mostly
+    // a hop: the fix jumps to a whole new (wrong) spot — a parallel corridor, the far side of the hall
     this._snapTimer -= dt;
     if (this._snapTimer <= 0) {
-      this._snapTimer = 20 + R() * 40;
-      if (E.sigma > 8 && R() < 0.65) { const a = R() * Math.PI * 2, m = E.sigma * (0.7 + R() * 0.9); this.ex = Math.cos(a) * m; this.ez = Math.sin(a) * m; }
+      this._snapTimer = 12 + R() * 18;
+      if (R() < E.hop) { const a = R() * Math.PI * 2, m = E.sigma * (0.8 + R() * 0.9); this.ex = Math.cos(a) * m; this.ez = Math.sin(a) * m; this._fixTimer = 0; this._hop = 0.6; this.hops = (this.hops || 0) + 1; }
     }
     // --- fixes: refresh rate by environment ----------------------------------
     this._fixTimer -= dt;
@@ -130,8 +145,9 @@ export class Positioning {
       // accuracy circle "breathes" around sigma
       this.accTarget = Math.max(3, E.sigma * (0.75 + R() * 0.6));
     }
-    // displayed estimate eases to the fix (and outdoors it just follows)
-    const ease = 1 - Math.exp(-dt / (E.env === 'outdoor' ? 0.35 : 0.9));
+    // displayed estimate eases to the fix (and outdoors it just follows); a hop snaps (no glide)
+    if (this._hop > 0) this._hop -= dt;
+    const ease = 1 - Math.exp(-dt / (this._hop > 0 ? 0.12 : E.env === 'outdoor' || E.env === 'canyon' ? 0.35 : 0.9));
     this.x += (this.fixX - this.x) * ease; this.z += (this.fixZ - this.z) * ease;
     this.acc += ((this.accTarget || E.sigma) - this.acc) * (1 - Math.exp(-dt / 1.5));
     // --- heading: drifting bias + jitter + lag -------------------------------
@@ -142,11 +158,11 @@ export class Positioning {
     if (!isFinite(this.heading)) this.heading = p.yaw || 0;
     const target = (p.yaw || 0) + this.hBias + gauss(R) * (E.bias * Math.PI / 180) * 0.12;
     let d = target - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.heading += d * (1 - Math.exp(-dt / 0.45));
+    this.heading += d * (1 - Math.exp(-dt / (E.lag || 0.45)));
     // --- floor detection: lag + occasional wrong guess ------------------------
     if (b.ramp < 0) {
       if (b.level !== this.level && b.level !== this._pendingLevel && !this._wrongTimer) {
-        this._pendingLevel = b.level; this._levelTimer = 5 + R() * 15;
+        this._pendingLevel = b.level; this._levelTimer = 5 + R() * 13;
       }
       if (this._pendingLevel) {
         this._levelTimer -= dt;
@@ -157,11 +173,12 @@ export class Positioning {
     if (this._wrongTimer > 0) {
       this._wrongTimer -= dt;
       if (this._wrongTimer <= 0) { this._wrongTimer = 0; this.level = this._pendingLevel || b.level; this._pendingLevel = null; }
-    } else if (!this._pendingLevel && this.level === b.level && (E.env === 'under' || E.env === 'deep' || E.env === 'ground' || E.env === 'terminal') && R() < dt / 85) {
-      // barometer/Wi-Fi confusion: an adjacent floor for 8–20 s
-      const i = LEVEL_ORDER.indexOf(b.level), j = i + (R() < 0.5 ? -1 : 1);
-      const lv = LEVEL_ORDER[j];
-      if (lv && this.ctx.world.grids[lv]) { this.level = lv; this._wrongTimer = 8 + R() * 12; }
+    } else if (!this._pendingLevel && this.level === b.level && b.ramp < 0 && E.wf > 0 && R() < dt * E.wf) {
+      // barometer/Wi-Fi confusion: an adjacent floor for 8–20 s (only one that exists here)
+      const i = LEVEL_ORDER.indexOf(b.level);
+      const opts = [LEVEL_ORDER[i - 1], LEVEL_ORDER[i + 1]].filter(lv => lv && this.ctx.world.grids[lv] && this._matchToFloor(lv, b.x, b.z));
+      const lv = opts.length ? opts[Math.floor(R() * opts.length)] : null;
+      if (lv) { this.level = lv; this._wrongTimer = 7 + R() * 9; this.wrongFloorEpisodes = (this.wrongFloorEpisodes || 0) + 1; }
     }
     this._signal(E, dt);
   }
@@ -175,7 +192,7 @@ export class Positioning {
       if (E.env === 'under') s = R() < 0.25 ? 1 : R() < 0.7 ? 2 : 3;
       if (E.env === 'deep') s = R() < 0.45 ? 0 : 1;
       if (E.env === 'terminal' || E.env === 'ground') s = R() < 0.3 ? 2 : 3;
-      if (E.env === 'outdoor' || E.env === 'glass') s = R() < 0.2 ? 3 : 4;
+      if (E.env === 'outdoor' || E.env === 'canyon' || E.env === 'glass') s = R() < 0.2 ? 3 : 4;
       this.signal = s;
       this.noService = s === 0;
       this.net = s === 0 ? '圏外' : s === 1 ? 'LTE' : s === 2 ? '4G' : '5G';

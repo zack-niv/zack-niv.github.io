@@ -440,6 +440,43 @@ export class Demo {
     const progress = upgraded && this.readyT != null
       ? { before: rate(r0, this.remReady, this.readyT), after: rate(this.remReady, rEnd, tEnd - this.readyT) }
       : { before: rate(r0, rEnd, tEnd), after: null };
+    // v6 (item 9): fair per-unit metrics for the end card, all measured, nothing fabricated.
+    //  · p90 error and % of time on the wrong floor from the phone's own once-a-second samples (stats().series), or the
+    //    Phone agent's ready-made fields when it publishes them (notes/v6-phone.md); our 4 Hz samples as the fallback
+    //  · detour = metres walked per metre the nav distance to Daikichi actually dropped (null when < 20 m was gained)
+    //  · wrong turns per km, when the phone measures them (Phone: wrongWaysPerKm*, errP90*, wrongFloorPct*, detour*)
+    const ser = Array.isArray(ps.series) ? ps.series : null;
+    const fromSeries = (ph) => {
+      if (!ser) return null;
+      const e = [], n = { w: 0 };
+      for (const r of ser) if (r && r[3] === ph && isFinite(r[1])) { e.push(r[1]); if (r[2]) n.w++; }
+      if (e.length < 15) return null;
+      e.sort((x, y) => x - y);
+      return { p90: e[Math.min(e.length - 1, Math.floor(e.length * 0.9))], wrongPct: (n.w / e.length) * 100, n: e.length };
+    };
+    const pick = (...v) => { for (const x of v) if (num(x) != null) return x; return null; };
+    // the phone's own field wins whenever the phone publishes it — including its null ("not enough data to rate")
+    const P = (k, own) => (ps && Object.prototype.hasOwnProperty.call(ps, k) ? num(ps[k]) : num(own));
+    const SB = fromSeries(0), SA = fromSeries(1);
+    const own4 = (X) => (X.n >= 40 ? (X.wf / (X.n * 0.25)) * 100 : null);
+    before.p90 = P('errP90Before', SB && SB.p90);
+    before.wrongPct = P('wrongFloorPctBefore', pick(SB && SB.wrongPct, own4(A.before)));
+    before.turnsPerKm = P('wrongWaysPerKmBefore', null);
+    before.reroutesPerKm = P('reroutesPerKmBefore', null); before.headingErr = P('headingErrBefore', null); before.headingSettle = P('headingSettleBefore', null);
+    if (after) {
+      after.p90 = P('errP90After', SA && SA.p90);
+      after.wrongPct = P('wrongFloorPctAfter', pick(SA && SA.wrongPct, own4(A.after)));
+      after.turnsPerKm = P('wrongWaysPerKmAfter', null);
+      after.reroutesPerKm = P('reroutesPerKmAfter', null); after.headingErr = P('headingErrAfter', null); after.headingSettle = P('headingSettleAfter', null);
+    }
+    const gain = (r0x, r1x) => (num(r0x) != null && num(r1x) != null ? r0x - r1x : null);
+    const detour = (m, g) => (num(m) != null && g != null && g >= 20 ? m / g : null);
+    if (upgraded && this.readyT != null) {
+      before.gained = gain(this._lost.init, this.remReady); before.detour = P('detourBefore', detour(before.meters, before.gained));
+      if (after) { after.gained = gain(this.remReady, this.remArrive != null ? this.remArrive : this._lost.rem); after.detour = P('detourAfter', detour(after.meters, after.gained)); }
+    } else {
+      before.gained = gain(this._lost.init, this.remArrive != null ? this.remArrive : this._lost.rem); before.detour = P('detourBefore', detour(before.meters, before.gained));
+    }
     const E = this.story.errand;
     const errand = E.state === 'none' ? null : { delivered: !!E.got, item: E.got ? E.got.item : null, cafe: E.got ? E.got.name : E.name, mine: !!(E.got && E.got.slotId === E.slot) };
     return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm, errand };

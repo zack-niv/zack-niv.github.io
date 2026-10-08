@@ -109,6 +109,21 @@ export class Guidance {
     return this.field;
   }
 
+  // v6 (stats): metres of the route being FOLLOWED still to go — through the remaining scenic waypoints when
+  // `scenic` and the loop is still pending (Aya's canyon way), else the plain shortest path. Infinity when unknown.
+  remainingRoute(body, scenic) {
+    const f = this.prepare(), nav = this.ctx.nav;
+    const v = nav.nodeAt(body); if (v < 0) return Infinity;
+    if (!scenic || this.viaDone) return f.dist[v];
+    let from = v, sum = 0;
+    for (const V of this.vias.slice(this._viaState.i)) {
+      const fv = this._viaField(V); if (!fv || V.node < 0) return f.dist[v];
+      sum += fv.dist[from]; from = V.node;
+    }
+    sum += f.dist[from];
+    return isFinite(sum) ? sum : f.dist[v];
+  }
+
   // metres of path to go (graph cost; ≈ metres, escalators weigh a little less)
   remaining(body) {
     const f = this.prepare(), nav = this.ctx.nav;
@@ -200,13 +215,30 @@ export class Guidance {
       // ---- turns ------------------------------------------------------------
       let dirIn = prevDir;
       const turns = [];
+      // v6 (nav QA): a corner's angle is measured on the raw path over ±7 m around the simplified vertex, not between
+      // the simplified segments. The simplification depends on where the path starts (= where you stand), so a ~55°
+      // bend flickered in and out as you walked ("Turn right · in 31 m" for one metre on Nankai 3F), and a 90° corner
+      // cut into two 45° vertices was never announced. The windowed angle is a property of the corner itself.
+      const legLen0 = lp.length ? cl[lp.length - 1] : 0;
+      const ptAt = (m) => {
+        m = Math.max(0, Math.min(legLen0, m));
+        let lo = 0, hi = lp.length - 1;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (cl[mid] <= m) lo = mid; else hi = mid; }
+        const t = cl[hi] > cl[lo] ? (m - cl[lo]) / (cl[hi] - cl[lo]) : 0;
+        return [lp[lo][0] + (lp[hi][0] - lp[lo][0]) * t, lp[lo][1] + (lp[hi][1] - lp[lo][1]) * t];
+      };
+      const dirOf = (a, b) => { const l = Math.hypot(b[0] - a[0], b[1] - a[1]); return l < 0.5 ? null : [(b[0] - a[0]) / l, (b[1] - a[1]) / l]; };
+      const angOf = (u, w) => Math.atan2(u[0] * w[1] - u[1] * w[0], u[0] * w[0] + u[1] * w[1]) * 180 / Math.PI;   // + right, − left
       for (let j = 0; j < idx.length - 1; j++) {
         const a = lp[idx[j]], b = lp[idx[j + 1]];
-        const l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 0.5) continue;
-        const dir = [(b[0] - a[0]) / l, (b[1] - a[1]) / l];
+        const dir = dirOf(a, b); if (!dir) continue;
         if (dirIn) {
-          const cross = dirIn[0] * dir[1] - dirIn[1] * dir[0], dot = dirIn[0] * dir[0] + dirIn[1] * dir[1];
-          const deg = Math.atan2(cross, dot) * 180 / Math.PI;     // + right, − left
+          let deg = angOf(dirIn, dir);
+          const c = cl[idx[j]];
+          if (j > 0 && c >= 3 && legLen0 - c >= 3) {
+            const V = lp[idx[j]], u = dirOf(ptAt(c - 7), V), w = dirOf(V, ptAt(c + 7));
+            if (u && w) deg = angOf(u, w);
+          }
           if (Math.abs(deg) >= 55) turns.push({ i: idx[j], deg });
         }
         dirIn = dir;
@@ -258,14 +290,20 @@ export class Guidance {
         const tail = leg.onRamp && rl < 2.5;
         // chain of escalators with a short connecting walk collapses into one step
         const word = r.kind === 'escalator' ? 'Escalator' : 'Stairs';
+        // v6 (item 7): the point a ramp step is judged by. The mouth itself (s0) sits beside / behind you in the last
+        // metres of the approach and is BEHIND you the moment you step on ("Escalator up — behind you" for a whole
+        // ride). Aim a few metres into the ramp instead; while riding, the step is the ride itself and its point is
+        // the landing you are riding to (ex, ez).
+        const rlen = Math.hypot(s1.x - s0.x, s1.z - s0.z), aimK = Math.min(3, rlen * 0.4);
+        const ax = s0.x + rideDir[0] * aimK, az = s0.z + rideDir[1] * aimK;
         if (tail) { /* nothing to announce */ }
         else if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
-          prev.count++; prev.to = to; prev.endCum = cum + rl; prev.mark.text = `${up ? '▲' : '▼'} ${lvl(to)}`;
+          prev.count++; prev.to = to; prev.endCum = cum + rl; prev.ex = s1.x; prev.ez = s1.z; prev.mark.text = `${up ? '▲' : '▼'} ${lvl(to)}`;
           prev.title = `${prev.word}${prev.count > 1 ? (prev.word === 'Stairs' ? '' : 's') : ''} ${up ? 'up' : 'down'}`;
           prev.sub = `${lvl(prev.from)} → ${lvl(to)} · ${prev.count} flights`;
         } else {
           const mark = { x: s0.x, z: s0.z, y: yOf(leg.level), text: `${up ? '▲' : '▼'} ${lvl(to)}`, up, level: leg.level }; marks.push(mark);
-          man.push({ kind: 'ramp', mark, at: cum, x: s0.x, z: s0.z, level: leg.level, icon: up ? 'up' : 'down', up, from: leg.level, to, count: 1, word, endCum: cum + rl,
+          man.push({ kind: 'ramp', mark, at: cum, x: s0.x, z: s0.z, ax, az, ex: s1.x, ez: s1.z, riding: !!leg.onRamp, level: leg.level, icon: up ? 'up' : 'down', up, from: leg.level, to, count: 1, word, endCum: cum + rl,
             title: `${word} ${up ? 'up' : 'down'}`, sub: `${lvl(leg.level)} → ${lvl(to)}` });
         }
         cum += rl; time += rl / 0.85; ramps++;

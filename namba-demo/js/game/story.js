@@ -64,6 +64,12 @@ export class Story {
     ev.on('phone:open', () => { this.f.raised = true; });
     ev.on('phone:app', (e) => { if (e && e.app === 'maps' && this.aya.wasSent('meet')) this.f.maps = true; });
     ev.on('interact', () => { this.f.interacted = true; });
+    // v6 (item 2): the gate teaches E. A player tap ('gate:tap', notes/v6-gates.md) is the lesson; walking into a lane
+    // untapped ('gate:blocked' reason 'notap') brings a short "tap first" hint back
+    const mine = (e) => !!(e && (e.player === true || (e.player == null && this.game._isPlayerGateEv && this.game._isPlayerGateEv(e))));
+    ev.on('gate:tap', (e) => { if (mine(e)) { this.f.gateTapped = true; this.f.blockedT = null; } });   // v6 critic: a tap ends the "tap first" hint (it sat beside "Open — walk through")
+    // only the player is ever blocked; 'lane' (wrong-way channel) and a refused card get their own words in game.js
+    ev.on('gate:blocked', (e) => { if (e && (!e.reason || e.reason === 'notap')) { this.f.blockedT = this.t; this.f.blocks = (this.f.blocks || 0) + 1; this.tut.poke('gate'); } });
     // v4: the player chose a destination in Maps or Lodestone (any pick satisfies the step)
     ev.on('nav:destination', (e) => this._onPick(e || {}));
     ev.on('nav:arrived', (e) => { if (e && e.slotId && e.slotId === this.errand.slot) this.f.atCafe = true; });
@@ -189,12 +195,48 @@ export class Story {
           if (this.dests && app === 'messages' && ph().messages && ph().messages.lastPlace) return { html: TUTORIAL.pickMsg, at: 'phoneup' };
           return this.dests && (app === 'maps' || app === 'lodestone') ? { html: TUTORIAL.pick, at: 'phoneup' } : { html: TUTORIAL.maps, at: 'phoneup' };
         } },
-      { id: 'interact', delay: 1.5,
-        done: () => this.f.interacted,
-        hint: () => { const t = this.game.interactions && this.game.interactions.target; return up() ? null : t && !t.passive ? { html: TUTORIAL.interactHere, at: 'prompt' } : { html: TUTORIAL.interact, at: 'center' }; } },
     ]);
+    this._gateSteps();
   }
-
+  // v6 (item 2): "Tap your IC card at the gate (E)". A late step (it takes over from whatever else is being taught the
+  // moment you reach the gate line, and is always taught, even on a replay: you cannot get through without it).
+  _gateSteps() {
+    const g = this.game, ph = () => this.ctx.phone || {};
+    const aimed = () => { const t = g.interactions && g.interactions.target; return !!(t && t.id === 'gatetap' && g._gateTgt && !ph().isOpen); };
+    const blocked = () => this.f.blockedT != null && this.t - this.f.blockedT < 5;
+    const hint = (base) => () => {
+      if (ph().isOpen) return null;
+      if (blocked()) return { html: TUTORIAL.gateBlocked, at: aimed() ? 'prompt' : 'center' };
+      return aimed() ? { html: TUTORIAL.gateHere, at: 'prompt' } : base ? { html: base, at: 'center' } : null;
+    };
+    this.tut.add({ id: 'gate', late: true, delay: 0.3,
+      available: () => !ph().isOpen && (this._nearGate() || aimed() || blocked()) && g._newGates && g._newGates(),   // phone up: its own hint wins
+      done: () => this.f.gateTapped,
+      hint: hint(TUTORIAL.gate) });
+    // after the lesson: walking into a lane untapped again brings back the one-liner for a few seconds
+    this.tut.add({ id: 'gateAgain', late: true, delay: 0,
+      available: () => this.f.gateTapped && blocked() && !ph().isOpen,
+      done: () => false,
+      hint: hint(null) });
+  }
+  // while the gate lesson is pending and you are near the line, the IC reader pads pulse (Gates: setGateHint)
+  _gatePulse() {
+    const tr = this.ctx.transit; if (!tr || typeof tr.setGateHint !== 'function') return;
+    const want = !this.f.gateTapped && !this.game.paused && this._nearGate() ? this._nearGateId : null;
+    if (want === this._pulsing) return;
+    this._pulsing = want;
+    try { tr.setGateHint(want || null); } catch (e) { /* cosmetic */ }
+  }
+  // on the paid side of a gate line, within ~12 m of it (the Nankai central gate right after the platform)
+  _nearGate() {
+    const g = this.game, p = this.ctx.player && this.ctx.player.body; if (!p || !g._gates) return false;
+    for (const { gt, paidSign } of g._gates) {
+      if (gt.level !== p.level) continue;
+      const along = gt.axis === 'x' ? p.x : p.z, across = (gt.axis === 'x' ? p.z : p.x) - gt.at;
+      if (along > gt.from - 3 && along < gt.to + 3 && Math.abs(across) < 12 && across * paidSign > 0) { this._nearGateId = gt.id; return true; }
+    }
+    return false;
+  }
   update(dt) {
     const { ctx, demo, aya } = this;
     this.t += dt;
@@ -207,6 +249,7 @@ export class Story {
       this.f.lastYaw = p.yaw;
     } else if (p) this.f.lastYaw = p.yaw;
     this.tut.update(dt);
+    this._gatePulse();
 
     this._tick -= dt;
     if (this._tick > 0) return;
@@ -224,15 +267,31 @@ export class Story {
     const { demo, aya } = this, t = this.t;
     if (t >= demo._offerAt) { this._offer('time'); return; }                       // fallback: nobody stuck forever
     if (this.engaged && t >= demo._offerMin && demo._isLost()) { this._offer(this.engaged); return; }
-    // v2's "Where are you??" — now sent when the player is lost / stalled / on a wrong floor (from ~45 s), or at 100 s
-    if (this.whereT == null && t >= demo._offerMin && aya.idle(10) && (demo._isLost() || t >= 100)) {
+    // v2's "Where are you??" — v6 (item 1): not before ~95 s (the player is still taking in the station), and then only
+    // when they are clearly stalled or wandering: a "lost" reason AND under 15 m of real progress over the last 30 s.
+    // Fallback from 150 s unless they are visibly making progress; by 175 s at the latest. Never in the first minute.
+    if (this.whereT == null && aya.idle(10) && this._whereDue(t)) {
       this.whereT = t;
+      this.ctx.events.emit('story:where', { t: +t.toFixed(1), why: this.whereWhy });
       aya.say(AYA.where, { onReply: (r, reply) => {
         if (reply && reply.lost) { this._offer('lost'); return; }
         aya.say(AYA.whereAck[r] || AYA.whereAck.omw, { wait: 0.5 });
         if (demo._isLost()) this._offer('checkin'); else this.engaged = 'checkin';   // answered while clearly lost
       } });
     }
+  }
+  _whereDue(t) {
+    const d = this.demo, cap = (v) => Math.min(v, Math.max(5, d._offerAt - 15));   // ?offerat=N (tests) pulls it all in
+    if (t < cap(DEMO.whereMin)) return false;
+    const prog = d.progressOver(30), moving = prog != null && prog >= 15;
+    let why = d._isLost();
+    // heading down to Aya's café (CITY 1F) is the errand, not a wrong floor
+    const E = this.errand, p = this.ctx.player && this.ctx.player.body;
+    if (why === 'floor' && E.state === 'asked' && E.biz && p && p.level === E.biz.level) why = null;
+    if (!moving && why) { this.whereWhy = why; return true; }
+    if (t >= cap(DEMO.whereAt) && !moving) { this.whereWhy = 'time'; return true; }
+    if (t >= cap(DEMO.whereLatest)) { this.whereWhy = 'latest'; return true; }
+    return false;
   }
   _offer(why) {
     const { demo, aya } = this;

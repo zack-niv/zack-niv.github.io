@@ -13,8 +13,13 @@ export const QUESTS = {
 export const DEMO = {
   slot: 'parks_6Fdw03',
   coffeeSlot: 'city_1e12',          // v4: Aya's coffee errand (Namba CITY 1F, at the foot of the esc_city_b escalators)
-  offerAt: 165,                     // real seconds of play: Aya sends Lodestone anyway (nobody stays stuck forever)
-  offerMin: 45,                     // ...and never before this (the generic map has to be felt)
+  // v6 pacing (item 9): the ordinary map has to be FELT for ~2-3 min before Lodestone (real statistics need a real
+  // "before"), and Aya's "Where are you??" must not arrive while the player is still taking in the station (item 1)
+  offerAt: 195,                     // real seconds of play: Aya sends Lodestone anyway (nobody stays stuck forever) — 3:15
+  offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
+  whereMin: 95,                     // "Where are you??" never before this, and only when clearly stalled or wandering...
+  whereAt: 150,                     // ...or as a fallback from here (unless the player is making clear progress)...
+  whereLatest: 175,                 // ...and by here at the latest
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
@@ -72,6 +77,10 @@ export const TUTORIAL = {
   order: 'Walk up to the counter — {k:E} to order',
   interact: '{k:E} interacts — machines, doors, café counters',
   interactHere: '{k:E} — try it',
+  // v6 (item 2): the Nankai gate teaches E — tap your IC card; walk in without tapping and the flaps stop you
+  gate: 'Tap your IC card at the gate — walk up to a lane, then {k:E}',
+  gateHere: '{k:E} interacts — here, it taps your IC card',
+  gateBlocked: 'Tap your IC card first — {k:E}',
   install: 'Aya sent a link — {k:Q}, then {k:Enter} or click <b>Lodestone</b>',
   installUp: '{k:Enter} or click <b>Lodestone</b> in Aya\'s message',
 };
@@ -100,6 +109,10 @@ export const ENDCARD = {
   line: 'Indoor spaces shouldn\'t run on guesswork.',
   note: 'Built for the Oriient team by Zack Niv — a love letter to Namba and to indoor positioning.',
   contact: '',                       // none yet: the end card hides the line when this is empty
+  // v6 (item 8): ways to reach Zack — open in a new tab (rel=noopener noreferrer)
+  invite: 'I\'d love to hear what you think.',
+  agent: { label: 'Chat with my AI career agent', url: 'https://careermate-dusky.vercel.app/r/c-3VWYnNHXQ27jj-0Z61EqhOxM7QRDf9ennPGBVKcbk' },
+  call: { label: 'Book a call', url: 'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0OHvcPKOXnoNh3PO76_L9qeSE-EIXOOruEnD2lv_mdY6IUHan5zVE0-S-xWd4QvuzNs6Vy1Kv0' },
 };
 
 // Shop lines ---------------------------------------------------------------

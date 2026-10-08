@@ -24,13 +24,19 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const COFFEE_CATS = new Set(['cafe', 'kissaten', 'coffeestand']);
 const MIN_FARE = 190;
+// v6: what a tap-out costs (IC fares, 2024): the airport ride you just took, and the metro's minimum
+const FARES = {
+  nankai: { amount: 970, note: '関西空港 → なんば · Kansai Airport → Namba' },
+  metro: { amount: MIN_FARE, note: '' },
+};
+const TAP_REOPEN_S = 25;     // tapping the same lane again soon after (didn't walk through) never charges twice
 
 export class Game {
   constructor(ctx) {
     this.ctx = ctx;
     this.started = false; this.paused = false; this.ended = false; this.finished = false;
     this.busy = false; this.phoneOpen = false; this.intro = false;
-    this.ic = { balance: 2000 };
+    this.ic = { balance: 3000 };
     this.quests = {};
     for (const id of Object.keys(QUESTS)) this.quests[id] = { id, state: 'hidden', ...QUESTS[id], notes: [] };
     this.meals = [];
@@ -40,6 +46,7 @@ export class Game {
     this.paidArea = null;
     this._prev = null;
     this._msgId = 0;
+    this._rt = 0; this._tap = null; this._gateTgt = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -64,6 +71,7 @@ export class Game {
     this.addInteractable = (def) => this.interactions.add(def);
     this.removeInteractable = (id) => this.interactions.remove(id);
     this.discover = (id, en, ja) => this.journal.discover(id, en, ja);
+    // v6: ONE way to pay with the ICOCA card (gates, café orders, vignettes, machines) — see icCharge below
     // discoveries are quiet in the demo: only the two real wonders get a soft place-name card
     this.onDiscover = (d) => { if (this.quiet || this.ended || this.intro || this.demo.arrived) return; if (d.id === 'canyon' || d.id === 'parks') this.hud?.chapter({ ja: d.ja, en: d.en, sub: '' }, 4.5); };
 
@@ -82,7 +90,9 @@ export class Game {
     ev.on('phone:close', () => { this.phoneOpen = false; });
     ev.on('train:arrive', (t) => { if (t && t.track) { this._doors[t.track] = true; this._sawTrainEvents = true; } });
     ev.on('train:depart', (t) => { if (t && t.track) { this._doors[t.track] = false; this._sawTrainEvents = true; } });
-    ev.on('player:teleport', () => { this._prev = null; this.journal.resetTracking(); this._recomputePaid(); });
+    ev.on('player:teleport', () => { this._prev = null; this._tap = null; this.journal.resetTracking(); this._recomputePaid(); });
+    // v6: the Gates agent's reactive gates (notes/v6-gates.md): the player walks through a lane they tapped
+    ev.on('gate:pass', (e) => { if (e && this._isPlayerGateEv(e) && this._tap && this._tap.gate === e.gate) this._tap.passed = true; });
 
     // pointer lock → pause
     const canvas = ctx.engine && ctx.engine.renderer ? ctx.engine.renderer.domElement : document.getElementById('view');
@@ -386,12 +396,21 @@ export class Game {
         }
       }
     }
-    // a passive hint when you walk up to a gate line from the free side
+    // v6: the gates are real (notes/v6-gates.md): E taps your ICOCA on the lane in front of you and its flaps open for a
+    // few seconds; walk in without tapping and they snap shut. One interactable serves every gate line.
+    this.interactions.add({
+      id: 'gatetap', level: null,
+      test: (b, fwd) => { const T = this._gateTarget(b, fwd); this._gateTgt = T; return T ? T.score : null; },
+      view: () => this._gateView(),
+      onUse: () => this._tapGate(),
+    });
+    // older transit (no tapGate): the v5 passive hint, you tap by walking through
     for (const g of this._gates) {
       const { gt, paidSign } = g;
       this.interactions.add({
         id: `gate:${gt.id}`, level: gt.level, passive: true,
         test: (b, fwd) => {
+          if (this._newGates()) return null;
           const along = gt.axis === 'x' ? b.x : b.z;
           const across = (gt.axis === 'x' ? b.z : b.x) - gt.at;
           if (along < gt.from || along > gt.to) return null;
@@ -409,6 +428,101 @@ export class Game {
       });
     }
   }
+  // ---------------------------------------------------------------------------
+  // v6: ONE way to pay with the ICOCA card — gate fares, café orders, vignettes, machines.
+  //   icCharge({ amount, label, ja, note, kind: 'fare'|'purchase'|'tap', orCoins?, sound? }) -> { ok, balance, amount }
+  // Drives the HUD chip; amount 0 is a plain tap ("ピッ" + balance). Not enough on the card: nothing is charged and the
+  // chip says so ("Paid in coins instead" with orCoins). Emits 'ic:pay'. Gate taps also emit 'ic:tap' (audio beeps on it).
+  icCharge({ amount = 0, label = '', ja = '', note = '', kind = 'purchase', orCoins = false, sound = true } = {}) {
+    const ic = this.ic, ev = this.ctx.events;
+    amount = Math.max(0, Math.round(+amount || 0));
+    if (amount > ic.balance) {
+      if (sound) this.ctx.audio?.play?.('gate_fail');
+      this.hud?.ic({ balance: ic.balance, ok: false, reason: orCoins ? 'Paid in coins instead' : kind === 'fare' ? 'Charge at a machine · チャージしてください' : 'Not enough on the card', note });
+      ev.emit('ic:pay', { ok: false, amount, label, ja, kind, balance: ic.balance });
+      return { ok: false, balance: ic.balance, amount: 0, coins: !!orCoins };
+    }
+    ic.balance -= amount;
+    if (kind === 'fare' && amount) this.journal.fares = (this.journal.fares || 0) + amount;
+    if (sound) this.ctx.audio?.play?.(kind === 'purchase' ? 'pay' : 'gate_ok');
+    this.hud?.ic({ balance: ic.balance, fare: amount, ok: true, label: label || (kind === 'purchase' ? 'お支払い Paid' : '運賃 Fare'), reason: ja, note });
+    ev.emit('ic:pay', { ok: true, amount, label, ja, kind, balance: ic.balance });
+    return { ok: true, balance: ic.balance, amount };
+  }
+
+  // ---------------------------------------------------------------------------
+  // v6 gates: the Gates agent's reactive gates (ctx.transit.gateLaneNear / tapGate, events gate:tap / gate:blocked /
+  // gate:pass). Without them (older transit) the v5 crossing logic below still taps you through automatically.
+  _newGates() { const tr = this.ctx.transit; return !!(tr && typeof tr.tapGate === 'function' && typeof tr.gateLaneNear === 'function'); }
+  // is this gate event the player's? (the Gates agent flags it; otherwise: it happened right where the player is)
+  _isPlayerGateEv(e) {
+    if (!e) return false;
+    if (e.player === true) return true;
+    if (e.player === false || e.npc) return false;
+    const b = this.ctx.player && this.ctx.player.body; if (!b || !isFinite(e.x) || !isFinite(e.z)) return false;
+    return (!e.level || e.level === b.level) && Math.hypot(e.x - b.x, e.z - b.z) < 2.6;
+  }
+  // the gate channel the player is standing at and facing, or null (gateLaneNear: notes/v6-gates.md)
+  _gateTarget(b, fwd) {
+    if (!this._newGates()) return null;
+    const n = safe(() => this.ctx.transit.gateLaneNear(b.x, b.z, b.level));
+    if (!n || typeof n.lane !== 'number') return null;
+    const g = this._gates.find(x => x.gt.id === n.gate); if (!g) return null;
+    const gt = g.gt;
+    const across = (gt.axis === 'x' ? b.z : b.x) - gt.at;
+    const look = (gt.axis === 'x' ? fwd.z : fwd.x) * (across < 0 ? 1 : -1);      // looking at the gate line
+    if (look < 0.35) return null;
+    const entering = n.dir != null ? n.dir > 0 : -across * g.paidSign > 0;
+    const d = isFinite(n.dist) ? n.dist : Math.abs(across);
+    return { g, n, gate: gt.id, lane: n.lane, sub: n.sub, entering, ok: n.ok !== false, open: !!n.open, score: -0.6 + d * 0.12 + (1 - look) * 0.5 };
+  }
+  _gateView() {
+    const T = this._gateTgt; if (!T) return null;
+    const gt = T.g.gt, low = T.entering && this.ic.balance < MIN_FARE;
+    const sub = `${T.n.ja || gt.ja} ${T.n.name || gt.name} · ICOCA ${yen(this.ic.balance)}`;
+    if (T.open) return { prompt: 'Open — walk through', promptJa: 'どうぞ', sub, passive: true };
+    if (!T.ok) return { prompt: T.entering ? 'Exit only — try the next gate' : 'Entry only — try the next gate', promptJa: '✕', sub, passive: true };
+    if (low) return { prompt: 'Tap your ICOCA (balance low)', promptJa: '残高不足', sub };
+    return { prompt: 'Tap your ICOCA', promptJa: 'タッチ', sub };
+  }
+  // E at a gate: the fare comes off at the tap (one IC mechanism, icCharge), then the Gates agent opens the channel and
+  // voices the beep — or refuses the card (flaps shut, buzzer) when the balance is too low. game.js plays no gate sound.
+  _tapGate() {
+    const T = this._gateTgt; if (!T || !this._newGates() || T.open || !T.ok) return;
+    const { g, lane, sub, entering } = T, gt = g.gt;
+    const tr = this.ctx.transit;
+    // tapping the same side again before walking through (stepped back out) never charges twice
+    const k = this._tap;
+    const again = !!(k && k.gate === gt.id && k.entering === entering && !k.passed && this._rt - k.at < TAP_REOPEN_S);
+    let fare = 0, note = '', metro = false;
+    if (!again && !entering) {
+      if (gt.line === 'nankai' && !this._rapitDone) { fare = FARES.nankai.amount; note = FARES.nankai.note; }
+      else if ((gt.line === 'midosuji' || gt.line === 'sennichimae') && this._tapInLine === gt.line) { fare = Math.min(FARES.metro.amount, this.ic.balance); metro = true; }
+    }
+    if (entering && !again && this.ic.balance < MIN_FARE) {
+      // not enough on the card to get in: the reader refuses it
+      this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
+      this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });
+      safe(() => tr.tapGate(gt.id, lane, { sub, deny: 'balance' }));
+      return;
+    }
+    const res = this.icCharge({ amount: fare, kind: fare ? 'fare' : 'tap', ja: fare ? '' : (T.n.ja || gt.ja), note: fare ? note : '', sound: false });
+    if (!res.ok) { safe(() => tr.tapGate(gt.id, lane, { sub, deny: 'balance' })); return; }
+    const r = safe(() => tr.tapGate(gt.id, lane, { sub, balance: res.balance, fare: res.amount }));
+    if (r && r.ok === false) {
+      if (res.amount) { this.ic.balance += res.amount; if (this.journal.fares) this.journal.fares -= res.amount; }   // refused: nothing was paid
+      if (r.reason === 'lane') this.hud?.caption({ ja: entering ? 'この改札機は出場専用です。' : 'この改札機は入場専用です。', en: entering ? 'Red ✕ — this lane is exit-only. Try one with the green arrow.' : 'Red ✕ — this lane is entry-only. Try the next one.', kind: 'machine', duration: 3.4 });
+      return;
+    }
+    if (!entering && !again && gt.line === 'nankai') this._rapitDone = true;
+    if (metro) {
+      this._tapInLine = null;
+      if (fare && this.ctx.clock.minutes - (this._tapInAt || 0) < 20) this.hud?.caption({ en: 'Tapped in, tapped straight out. The minimum fare, for the privilege of looking at a platform.', kind: 'thought', duration: 3.8 });
+    }
+    if (entering && !again) { this._tapInLine = gt.line; this._tapInAt = this.ctx.clock.minutes; }
+    this._tap = { gate: gt.id, lane, sub, entering, at: this._rt, passed: false };
+  }
+
   _recomputePaid() {
     const p = this.ctx.player; if (!p) return;
     const b = p.body;
@@ -433,6 +547,8 @@ export class Game {
       const along = gt.axis === 'x' ? b.x : b.z;
       if (along < gt.from - 0.5 || along > gt.to + 0.5) continue;
       const entering = Math.sign(ca) === paidSign;
+      // v6: the reactive gates already charged the tap and let you through (or stopped you): just note the side
+      if (this._newGates()) { this.paidArea = entering ? gt.line : null; if (this._tap && this._tap.gate === gt.id) this._tap.passed = true; continue; }
       // which lane, and is it the right way round? (transit animates the flaps)
       const tr = this.ctx.transit;
       let lane = -1, policy = 'both';
@@ -476,7 +592,7 @@ export class Game {
     this.paidArea = gt.line;
     this._tapInLine = gt.line; this._tapInAt = this.ctx.clock.minutes;
     this._flaps(tap, true);
-    this.hud?.ic({ balance: this.ic.balance, ok: true, reason: gt.ja });
+    this.icCharge({ amount: 0, kind: 'tap', ja: gt.ja, sound: false });
     this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare: 0, x: b.x, z: b.z, level: b.level });
   }
   _tapOut(tap) {
@@ -485,9 +601,10 @@ export class Game {
     this.paidArea = null;
     this._flaps(tap, true);
     if (gt.line === 'nankai' && !this._rapitDone) {
+      // v6: the airport ride comes off the card, like the café (one IC mechanism)
       this._rapitDone = true;
-      this.ctx.audio?.play?.('gate_ok');
-      this.hud?.caption({ en: 'The gate swallows your rapi:t ticket with a satisfied little whirr.', kind: 'thought', duration: 3.4 });
+      const r = this.icCharge({ amount: FARES.nankai.amount, kind: 'fare', note: FARES.nankai.note, sound: false });
+      this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: r.balance, fare: r.amount, exit: true, x: b.x, z: b.z, level: b.level });
       return;
     }
     // leaving a metro gate you tapped into: the minimum fare comes off (the card
@@ -495,13 +612,10 @@ export class Game {
     let fare = 0;
     if ((gt.line === 'midosuji' || gt.line === 'sennichimae') && this._tapInLine === gt.line) {
       fare = Math.min(MIN_FARE, this.ic.balance);
-      this.ic.balance -= fare;
       this._tapInLine = null;
-      this.journal.fares = (this.journal.fares || 0) + fare;
       if (fare) this.hud?.caption({ en: 'Tapped in, tapped straight out. The minimum fare, for the privilege of looking at a platform.', kind: 'thought', duration: 3.8 });
     }
-    this.ctx.audio?.play?.('gate_ok');
-    this.hud?.ic({ balance: this.ic.balance, ok: true, fare, reason: gt.ja });
+    fare = this.icCharge({ amount: fare, kind: fare ? 'fare' : 'tap', ja: gt.ja, sound: false }).amount;
     this.ctx.events.emit('ic:tap', { ok: true, gate: gt.id, balance: this.ic.balance, fare, exit: true, x: b.x, z: b.z, level: b.level });
   }
 
@@ -523,6 +637,7 @@ export class Game {
     this._menuInput();
     if (!this.paused) this._stepLook(dt);
     if (!this.paused) {
+      this._rt = (this._rt || 0) + dt;      // real seconds of play (pause-aware): gate tap windows
       // timers (real seconds, pause-aware)
       for (let i = this._timers.length - 1; i >= 0; i--) {
         const t = this._timers[i];
