@@ -252,9 +252,14 @@ export class Guidance {
         const rideDir = [(s1.x - s0.x) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1), (s1.z - s0.z) / (Math.hypot(s1.x - s0.x, s1.z - s0.z) || 1)];
         prevDir = rideDir;
         const prev = leg.onRamp ? null : man[man.length - 1];
+        // v5 critic: brushing the mouth of a ramp's LAST metre (e.g. the bottom of the Parks 3F DOWN lane, right beside
+        // the up lane's foot) made the body "ride" it for a frame or two and the card flashed "Escalator down · 4F → 3F".
+        // Nothing to announce there: keep the geometry, skip the maneuver.
+        const tail = leg.onRamp && rl < 2.5;
         // chain of escalators with a short connecting walk collapses into one step
         const word = r.kind === 'escalator' ? 'Escalator' : 'Stairs';
-        if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
+        if (tail) { /* nothing to announce */ }
+        else if (prev && prev.kind === 'ramp' && prev.up === up && (base - prev.endCum) < 9) {
           prev.count++; prev.to = to; prev.endCum = cum + rl; prev.mark.text = `${up ? '▲' : '▼'} ${lvl(to)}`;
           prev.title = `${prev.word}${prev.count > 1 ? (prev.word === 'Stairs' ? '' : 's') : ''} ${up ? 'up' : 'down'}`;
           prev.sub = `${lvl(prev.from)} → ${lvl(to)} · ${prev.count} flights`;

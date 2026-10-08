@@ -782,12 +782,14 @@ export class MapApp {
       const b = p.b, open = isOpen(b, mins);
       const st = b.cat === 'closed' ? `<span class="mp-closed">Closed for renovation</span>` : open ? `<span class="mp-open">Open now</span> · until ${hm(b.hours[1])}` : `<span class="mp-closed">Closed</span> · opens ${hm(b.hours[0])}`;
       const revs = reviewsFor(b).map(r => `<div class="mp-rev"><div class="mp-rev-h"><i>${r.who[0]}</i><b>${esc(r.who)}</b><span class="mp-st">${'★'.repeat(r.stars)}<u>${'★'.repeat(5 - r.stars)}</u></span><small>${r.when}</small></div><p>${esc(r.text)}</p></div>`).join('');
-      body = `<img class="mp-photo" src="${placeArt(b)}" alt="">
-        <div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
+      // v5 critic: Google-Maps order — name, rating, status, the action row, THEN the photo, so Directions (the primary
+      // action, Enter) is visible on the half-height sheet without scrolling (it used to sit under a 118 px photo).
+      body = `<div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
         <div class="mp-pc-meta"><span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> <span class="mp-dim">(${b.reviews.toLocaleString('en')})</span> · ${esc(CATEGORIES[b.cat].en)} · ¥${'¥'.repeat(1 + (b.rating > 4.3 ? 1 : 0))}</div>
         <div class="mp-pc-meta">${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-fl">${LEVELS[b.level].label}</span> · ${fmtDist(crow)} · 🚶 ${Math.max(1, Math.round(crow / 1.4 / 60))} min</div>
         <div class="mp-pc-meta">${st}</div>${floorNote}
         <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button><button>⇪ Share</button></div>
+        <img class="mp-photo mp-photo-in" src="${placeArt(b)}" alt="">
         ${b.blurb ? `<p class="mp-blurb">${esc(b.blurb)}</p>` : ''}
         ${this._popularHtml(b)}
         <div class="mp-hours">🕘 Hours <b>${hm(b.hours[0])} – ${hm(b.hours[1])}</b></div>

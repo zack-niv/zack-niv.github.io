@@ -397,8 +397,9 @@ export class LodestoneApp {
     return m;
   }
   _emitMilestone() {
+    // v5 critic: position in 8 m buckets (a zone-entry point drifts a metre or two per recompute: the event fired every ~2 s)
     const m = this.milestone();
-    const key = m ? [m.kind, m.dir, m.toLevel, m.name || '', m.turn || '', Math.round(m.x), Math.round(m.z)].join('|') : '';
+    const key = m ? [m.kind, m.dir, m.toLevel, m.name || '', m.turn || '', m.level, Math.round(m.x / 8), Math.round(m.z / 8)].join('|') : '';
     if (key === this._msKey) return; this._msKey = key;
     if (m) this.ctx.events.emit('nav:milestone', m);
   }
