@@ -34,7 +34,7 @@ export class Agent {
     this.i = i; this.alive = false; this.serial = 0;
     this.x = 0; this.z = 0; this.y = 0; this.level = 'B1'; this.lv = 0; this.ramp = -1;
     this.rs = 0; this.ru = 0; this.rdir = 1; this.rspd = 0; this.walkLane = false;
-    this.rsp = 0; this.bw = BOARD_W; this.bx = 0; this.bz = 0; this.bvx = 0; this.bvz = 0; this.bo = false; this.boardK = 1; this.boardSpd0 = 0;   // v5: boarding offset (spring) and clip/speed blend
+    this.seatK = 1; this.seatTx = NaN; this.seatTz = 0; this.rsp = 0; this.bw = BOARD_W; this.bx = 0; this.bz = 0; this.bvx = 0; this.bvz = 0; this.bo = false; this.boardK = 1; this.boardSpd0 = 0;   // v5: boarding offset (spring) and clip/speed blend
     this.vx = 0; this.vz = 0; this.yaw = 0; this.spd = 0; this.pref = 1.3; this.prefBase = 1.3;
     this.node = -1; this.aimX = 0; this.aimZ = 0; this.aimT = 0; this.rampNext = -1; this.rampU = 0; this.rampFromLow = true;
     this.en = null; this.arriveDm = 10; this.mode = MODE.NONE;
@@ -83,7 +83,7 @@ export class CrowdSim {
     a.alive = true; a.dead = false; a.serial = ++this.serial;
     a.mode = MODE.NONE; a.ramp = -1; a.en = null; a.path = null; a.gate = null; a.lane = -1; a.leader = null; a.followers = null;
     a.legs = null; a.leg = 0; a.st = 0; a.t = 0; a.t2 = 0; a.d = null; a.fade = 0; a.fadeDir = 1; a.vx = a.vz = 0; a.spd = 0;
-    a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.lookAbs = undefined; a.lookRel = undefined; a.pHY = 0; a.pHP = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
+    a.seatK = 1; a.seatTx = NaN; a.faceSet = false; a.pose = POSE.STAND; a.lookT = 0; a.lookYaw = 0; a.lookPitch = 0; a.lookAbs = undefined; a.lookRel = undefined; a.pHY = 0; a.pHP = 0; a.blockT = 0; a.queueing = false; a.waitField = false; a.ff = 0;
     a.spot = null; a.biz = null; a.mark = null; a.markK = -1; a.track = null; a.rampNext = -1; a.aimT = 0; a.node = -1; a.dyn = 0; a.hesT = 0; a.seatH = 0; a.seatPhone = false; a.seatDone = false; a.seatStool = false; a._dy = undefined;
     a.lastUpd = this.time; a.tier = 2; a.handHold = false; a.rampQ = null; a._slot = null;
     this.count++;
@@ -255,7 +255,18 @@ export class CrowdSim {
       case MODE.FOLLOW: this._followStep(a, dt); return;
       case MODE.STAND:
         if (a.tier === 2) { a.vx = a.vz = 0; a.spd = 0; return; }
-        if (a.seatH) { a.vx = a.vz = 0; a.spd = 0; if (a.faceSet) this._turn(a, a.faceYaw, dt, 3); return; }   // seated: rigid (no personal-space push off the seat)
+        if (a.seatH) {
+          a.vx = a.vz = 0; a.spd = 0;
+          // v5: sitting down is eased: the last step onto the seat position (<= 0.9 m/s) and the turn into the seat direction (<= 5.5 rad/s =
+          // 315 deg/s); the sit clip only takes over once seatK >= 0.35 (render.js), then cross-fades in
+          if (a.seatTx === a.seatTx) {
+            const dx = a.seatTx - a.x, dz = a.seatTz - a.z, d = Math.hypot(dx, dz), st = 0.9 * dt;
+            if (d <= st) { a.x = a.seatTx; a.z = a.seatTz; a.seatTx = NaN; } else { a.x += dx / d * st; a.z += dz / d * st; }
+          }
+          if (a.seatK < 1) a.seatK = Math.min(1, a.seatK + dt / 0.5);
+          if (a.faceSet) this._turn(a, a.faceYaw, dt, 5.5);
+          return;
+        }   // seated: rigid (no personal-space push off the seat)
         this._steer(a, 0, 0, dt); return;
       default: a.vx = a.vz = 0; a.spd = 0;
     }

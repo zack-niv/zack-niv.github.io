@@ -293,7 +293,7 @@ export class CrowdRenderer {
       case POSE.PHONE: return moving ? 'phonewalk' : 'phone';
       case POSE.SIT: case POSE.EAT: {
         // v4: a seated clip only ever plays on a real seat (a.seatH); anything else stands instead of showing a broken sit
-        if (!a.seatH) return moving ? loco() : 'idle';
+        if (!a.seatH || a.seatK < 0.35) return moving ? loco() : 'idle';   // v5: sit clip only once the person has turned / stepped onto the seat
         const base = pose === POSE.EAT ? 'eat' : a.seatPhone ? 'sitphone' : 'sit';
         return a.seatStool ? base + '2' : base;
       }
