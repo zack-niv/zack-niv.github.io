@@ -16,6 +16,8 @@ import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
 import { Tracker } from './track.js';
 import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js';
 import { businessBySlot } from '../../world/directory.js';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js';
+import { placeArt } from './art.js';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -38,6 +40,7 @@ const ICONS = {
   up: '<path d="M3 20h5v-5h5v-5h5M12 4h8v8M20 4 11 13"/>',
   down: '<path d="M3 4h5v5h5v5h5M12 20h8v-8M20 20l-9-9"/>',
   canyon: '<path d="M3 20 8 10l3 5 3-8 7 13M3 20h18M17 4.2a2 2 0 1 0 .01 0"/>',
+  bridge: '<path d="M2 15h20M4 15v5M20 15v5M2 15c4-6 16-6 20 0M8 11v4M12 10v5M16 11v4"/>',
   flag: '<path d="M6 21V4M6 5h11l-2.5 4L17 13H6"/>',
   check: '<path d="M5 12.5 10 17.5 19 7"/>',
   pin: '<path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.3"/>',
@@ -61,7 +64,7 @@ export function phrase(s, dest) {
     const name = dest ? dest.en : 'Your destination';
     return { long: `${name} is ${side}`, short: `${name.replace(/^Tempura /, '')} ${side}` };
   }
-  if (s.kind === 'via') return { long: 'Walk out into the open-air canyon', short: 'Out into the canyon' };
+  if (s.kind === 'via') return { long: s.long || 'Walk out into the open-air canyon', short: s.short || 'Out into the canyon' };
   if (/^Turn/.test(s.title)) {
     const into = /^(into|across)/.test(s.sub || '') ? ' ' + noFloor(s.sub) : '';
     return { long: s.title + into, short: s.title };
@@ -81,11 +84,13 @@ export class LodestoneApp {
     // v4: no destination until the player picks one (here or in Maps: phone.dest is shared)
     this.dest = null; this.guid = null;
     this._guids = new Map();               // one Guidance (cost field) per destination, kept for multi-leg trips
-    this._via = { done: false };           // the Namba Parks canyon detour is offered once per game, whatever the leg
+    this._via = { done: false, i: 0 };           // the Namba Parks canyon detour is offered once per game, whatever the leg
     this._choosing = false;                // "Change" pressed: the list is up although a destination is set
     this.route = null; this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this.arrived = false;
     this.track = new Tracker(this);  // v3: heading / progress vs the route ('nav:track')
+    this.pass = new PassCue();       // v5: "straight past <shop>" on long legs
+    this._pass = null; this._mSide = null; this._msKey = '';
     this.view = 'guide';           // 'guide' (one instruction, stack as a preview) | 'stack' (the 3D exploded stack, all steps)
     this.mode = 'overview';
     this._revealT = 0;
@@ -105,7 +110,8 @@ export class LodestoneApp {
         <button class="ld-x3d"><i>${EXPAND}</i><span>3D view</span>${phone.ctx.input && phone.ctx.input.touch ? '' : '<kbd>V</kbd>'}</button>
         <div class="ld-trip">
           <div class="ld-trip-r ld-here"><i class="ld-dot"></i><div><small>You are here <u>±1 m</u></small><b><span class="ld-w-l">3F</span><span class="ld-w-z">Namba</span></b></div></div>
-          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination <button class="ld-change" type="button">Change</button></small><b><span class="ld-to-l"></span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em></div>
+          <div class="ld-trip-r ld-to"><i class="ld-pin"></i><div><small>Destination</small><b><span class="ld-to-l"></span><span class="ld-to-n">${destName}</span></b></div><em class="ld-to-m"></em></div>
+          <div class="ld-trip-a"><button class="ld-new" type="button"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg><span>New place</span>${phone.ctx.input && phone.ctx.input.touch ? '' : '<kbd>/</kbd>'}</button><button class="ld-end" type="button"><span>End route</span>${phone.ctx.input && phone.ctx.input.touch ? '<i>×</i>' : '<kbd>X</kbd>'}</button></div>
         </div>
         <div class="ld-top"><div class="ld-brand">${logo()}<b>Lodestone</b></div><div class="ld-acc"><i></i><span>±1 m</span></div></div>
         <div class="ld-ladder"></div>
@@ -114,6 +120,7 @@ export class LodestoneApp {
         <div class="ld-card" hidden></div>
         <div class="ld-next"></div>
         <div class="ld-pick"><button class="ld-pick-x" type="button" aria-label="Back to the route">×</button><div class="ld-pick-l"></div></div>
+        <div class="ld-prev" hidden></div>
       </section>`;
     const q = (c) => root.querySelector(c);
     this.el = {
@@ -126,7 +133,11 @@ export class LodestoneApp {
     // v4: the shared "Where to?" list, Lodestone styling (search box, chips, Aya's pick on top)
     this.list = new DestList(q('.ld-pick-l'), { theme: 'lodestone', search: true, chips: true, onPick: (it) => this._pickItem(it), onQuery: () => this._renderList() });
     this.list.touch = !!(phone.ctx.input && phone.ctx.input.touch);
-    q('.ld-change').addEventListener('click', (e) => { e.stopPropagation(); this.choose(true); });
+    // v5: the same route controls as Maps — New place (/) and End route (X)
+    q('.ld-new').addEventListener('click', (e) => { e.stopPropagation(); this.choose(true); this.list.focusSearch(); });
+    q('.ld-end').addEventListener('click', (e) => { e.stopPropagation(); this.phone.endRoute('lodestone'); });
+    this._prevEl = q('.ld-prev'); this._prev = null;
+    for (const ev of ['pointerdown', 'click', 'wheel']) this._prevEl.addEventListener(ev, e => e.stopPropagation(), { passive: true });
     q('.ld-pick-x').addEventListener('click', (e) => { e.stopPropagation(); this.choose(false); });
     for (const ev of ['pointerdown', 'click', 'wheel']) this.el.pick.addEventListener(ev, e => e.stopPropagation(), { passive: true });
     this.fg = this.el.field.getContext('2d');
@@ -174,7 +185,7 @@ export class LodestoneApp {
   _bands(s = this.stack) {
     if (!s) return;
     if (this.view === 'stack') { s.bandTop = 112; s.bandBottom = 316; s.bandRight = 46; }      // (v3: + the dock)
-    else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 264; s.bandRight = 0; }
+    else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 306; s.bandRight = 0; }   // (v5: 306 = + the trip card's route-controls row)
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards
     try { this.el.c3d.style.setProperty('--ld-band-t', `${Math.round(s.bandTop) - 8}px`); this.el.c3d.style.setProperty('--ld-band-b', `${Math.round(s.bandBottom) - (this.view === 'stack' ? 6 : 40)}px`); } catch (e) { /* ignore */ }
@@ -367,7 +378,29 @@ export class LodestoneApp {
     const r = this.guid.compute(body, this.phone.pos.heading);
     // a route with NaN/Infinity in it is never shown: keep the last good one
     if (r && r.ok) { this.route = r; this._stackRoute = false; } else if (r && !r.bad) { this.route = r; }
+    // v5: the next milestone (+ the shop you'll pass on a long leg); 'nav:milestone' when it changes
+    const R = this.route;
+    this._pass = R && R.ok && R.steps[0] ? this.pass.pick(R, R.steps[0].at, body) : null;
+    this._emitMilestone();
     return true;
+  }
+
+  // v5: the next thing to expect on the route (ctx.phone.nextMilestone), fresh side vs the current heading
+  milestone() {
+    const R = this.route;
+    if (this.state !== 'ready' || !this.dest || this.arrived || !R || !R.ok || !R.steps.length) return null;
+    const m = milestoneOf(R.steps[0], this.dest, this.phone.pos, this._mSide);
+    if (!m) return null;
+    this._mSide = m.side;
+    m.app = 'lodestone';
+    if (this._pass && m.dist > 60) m.pass = { name: this._pass.name, dist: Math.round(this._pass.dist) };
+    return m;
+  }
+  _emitMilestone() {
+    const m = this.milestone();
+    const key = m ? [m.kind, m.dir, m.toLevel, m.name || '', m.turn || '', Math.round(m.x), Math.round(m.z)].join('|') : '';
+    if (key === this._msKey) return; this._msKey = key;
+    if (m) this.ctx.events.emit('nav:milestone', m);
   }
 
   _tickMain(dt) {
@@ -404,7 +437,7 @@ export class LodestoneApp {
     else if (!this.el.card.hidden && this.el.card.classList.contains('out')) { this._cardOutT = (this._cardOutT || 0) + dt; if (this._cardOutT > 0.5) { this.el.card.hidden = true; this.el.card.classList.remove('out'); this._cardOutT = 0; } }
     // the on-track sign follows the heading (left / right / around) even while standing still
     this._signT = (this._signT || 0) - dt;
-    if (this._signT <= 0) { this._signT = 0.2; if (this.track.state !== 'on') this._renderGuide(false); }
+    if (this._signT <= 0) { this._signT = 0.2; if (this.track.state !== 'on' || this._msNear) this._renderGuide(false); }
     // live arrow on the current instruction
     this._liveArrow();
   }
@@ -484,11 +517,49 @@ export class LodestoneApp {
   }
   get picking() { return this.state === 'ready' && (!this.dest || this.arrived || this._choosing); }
   activeList() {
+    if (this.state === 'ready' && this._prev) return this._prevList;
     if (this.view !== 'guide' || this.state !== 'ready') return null;
     if (!this.picking) return this._next || null;
     return this.list.items.length ? this.list : null;
   }
-  focusSearch() { return this.picking ? this.list.focusSearch() : false; }
+  focusSearch() { if (this.state !== 'ready') return false; this.closePreview(); if (!this.picking) this.choose(true); return this.list.focusSearch(); }
+  // ---- v5: a place link from Aya's text → its card (photo, floor, TRUE distance) → Go -----------------------
+  preview(id) {
+    if (this.state !== 'ready') return false;
+    const D = this.phone.dest, d = D && D.resolve(id); if (!d) return false;
+    if (this.view !== 'guide') this.setView('guide');
+    this._prev = id;
+    const b = businessBySlot[id], touch = this.list.touch;
+    let far = '';
+    try { const g = this._guidFor(d); const m = g.remaining(this.ctx.player.body); if (isFinite(m)) far = `${fm(m)} · ${Math.max(1, Math.round(m / 1.4 / 60))} min walk`; } catch (e) { /* distance is optional */ }
+    const sub = b ? bizSub(b, this.ctx.clock.minutes) : null;
+    const art = b ? `<img class="ld-pv-ph" src="${placeArt(b)}" alt="">` : `<i class="ld-pv-gl">${esc(d.icon || '📍')}</i>`;
+    const status = sub ? (sub.status ? `<u class="cl">${esc(sub.status)}</u>` : '<u class="op">Open now</u>') : '';
+    this._prevEl.innerHTML = `${art}<button class="ld-pv-x" type="button" aria-label="Close">×</button>
+      <div class="ld-pv-b"><em>From Aya’s message</em><b>${esc(d.name)}</b>
+        <small>${esc(sub ? sub.sub : `${lvl(d.level)}${d.zone ? ' · ' + zoneShort(d.zone) : ''}`)}</small>
+        <p><span class="ld-pv-l">${lvl(d.level)}</span>${far ? `<span>${esc(far)}</span>` : ''}${status}</p>
+        <button class="ld-pv-go" type="button">Go${touch ? '' : ' <kbd>Enter</kbd>'}</button></div>`;
+    this._prevEl.hidden = false;
+    this.el.main.classList.add('previewing');
+    this._prevEl.querySelector('.ld-pv-go').addEventListener('click', (e) => { e.stopPropagation(); this._goPreview(); });
+    this._prevEl.querySelector('.ld-pv-x').addEventListener('click', (e) => { e.stopPropagation(); this.closePreview(); });
+    this._prevList = { items: [{ id }], sel: 0, armed: true, move() {}, pick: () => { this._goPreview(); return true; } };
+    return true;
+  }
+  _goPreview() {
+    const id = this._prev; if (!id) return;
+    this.closePreview();
+    this.phone._lastPhoneInput = this.phone._now;
+    this.list.reset();
+    this.phone.setDestination(id, { app: 'lodestone', via: 'link' });
+  }
+  closePreview() {
+    if (!this._prev) return false;
+    this._prev = null; this._prevList = null;
+    this._prevEl.hidden = true; this.el.main.classList.remove('previewing');
+    return true;
+  }
   _pickItem(it) {
     this.phone._lastPhoneInput = this.phone._now;
     if (this.list.input) this.list.input.blur();
@@ -533,15 +604,22 @@ export class LodestoneApp {
   glanceInfo() {
     const p = this.phone.pos, here = `you’re on ${lvl(p.level)}`;
     const D = this.phone.dest, nx = D && D.next(), sug = nx && D.name(nx);
-    if (!this.dest) return { kind: 'pick', icon: 'pin', title: 'Pick a place in Lodestone', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}` };
+    if (!this.dest) return this.phone._ended
+      ? { kind: 'pick', icon: 'pin', title: 'No route', sub: sug ? `Where to? · Aya: ${sug}` : `Where to? · ${here}` }      // v5: after End route — calm, no guidance
+      : { kind: 'pick', icon: 'pin', title: 'Pick a place in Lodestone', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}` };
     if (this.arrived) return { kind: 'arr', icon: 'flag', title: `Arrived · ${this.dest.name || this.dest.en}`, sub: sug ? `Next: ${sug}` : `${lvl(this.dest.level)} · ±1 m` };
     const R = this.route;
     if (!R || !R.ok) return { kind: 'wait', icon: 'straight', title: 'Finding your route…', sub: here };
     const cur = R.steps[0], toGo = Math.max(0, Math.round(isFinite(cur && cur.at) ? cur.at : 0));
     const sg = this.track.sign();
     if (sg) return { kind: 'nav', trk: sg.cls, icon: sg.check ? 'check' : 'straight', live: sg.live, ang: sg.live ? this.liveAngle() : null, angFn: sg.live ? () => this.liveAngle() : null, title: sg.short, sub: sg.gsub || sg.sub };
-    const live = isLive(cur, toGo), ph = phrase(cur, this.dest);
-    return { kind: 'nav', trk: 'trk-on', icon: cur ? cur.icon : 'straight', live, ang: live ? this.liveAngle() : null, angFn: live ? () => this.liveAngle() : null, title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` };
+    // v5: ALWAYS the heading arrow (where to walk now) + the next milestone as a small icon and words.
+    // Far: "Escalator down to 1F" · "In 165 m · past Sneaker Lab"; under 30 m it takes over: "Escalator down — on your left".
+    const m = this.milestone(), tx = milestoneText(m);
+    if (!m || !tx) { const ph = phrase(cur, this.dest); return { kind: 'nav', trk: 'trk-on', icon: 'straight', live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` }; }
+    const d = Math.round(m.dist), dt = d < 3 ? 'Now' : 'In ' + fm(d);
+    const sub = m.dist < NEAR_M ? [dt, tx.sub].filter(Boolean).join(' · ') : m.pass ? `${dt} · past ${m.pass.name}` : `${dt} · ${tx.sub || here}`;
+    return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: tx.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: tx.title, sub };
   }
 
   // ---------------------------------------------------------------- guide ---
@@ -587,7 +665,8 @@ export class LodestoneApp {
     const mins = !isFinite(R.eta) ? '' : R.eta < 45 ? '<1 min' : `${Math.max(1, Math.round(R.eta / 60))} min`;
     const ph = phrase(cur, dest), live = isLive(cur, toGo);
     const sg = this.track.sign();
-    const key = [ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on'].join('|');
+    const mk = this.milestone(), mt = milestoneText(mk);
+    const key = [ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on', mt && mt.long, mk && mk.pass && mk.pass.name, mk && mk.pass && Math.round(mk.pass.dist / 5)].join('|');
     if (!force && key === this._guideKey) return; this._guideKey = key;
     E.nav.dataset.trk = sg ? sg.cls : 'trk-on';
     if (sg) {
@@ -600,19 +679,24 @@ export class LodestoneApp {
       if (this._arrowEl) this._liveArrow();
       return;
     }
-    // the ONE instruction: big plain words, a distance, a simple arrow
-    E.navIc.className = `ld-nav-ic trk-on ${live ? 'live' : ''}`;
-    E.navIc.innerHTML = live ? icon('straight', 'ld-arrow') : icon(cur ? cur.icon : 'straight');
+    // the ONE instruction (v5): the live heading arrow, the distance, and the next milestone (small icon + plain words)
+    const m = this.milestone(), tx = milestoneText(m) || { icon: cur ? cur.icon : 'straight', long: ph.long };
+    this._msNear = !!(m && m.dist < NEAR_M);
+    E.navIc.className = 'ld-nav-ic trk-on live';
+    E.navIc.innerHTML = icon('straight', 'ld-arrow');
     E.navD.textContent = toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
-    E.navI.textContent = ph.long;
-    // "then" only when the next step comes soon after (you'll need it at the same glance)
+    E.navI.innerHTML = `<i class="ld-mi">${icon(tx.icon, 'sm')}</i>${esc(tx.long)}`;
+    // under it: the shop you'll walk past on a long leg, else "then" when the next step comes soon after
     const soon = nxt && isFinite(nxt.at) && nxt.at - toGo < 30;
-    E.then.hidden = !soon;
-    if (soon) E.then.innerHTML = `<em>Then</em>${icon(nxt.icon, 'sm')}<span>${esc(phrase(nxt, dest).short)}</span>`;
+    const pass = m && m.pass;
+    E.then.hidden = !pass && !soon;
+    if (pass) E.then.innerHTML = `<em>Past</em>${icon('straight', 'sm')}<span>${esc(pass.name)} · ${fm(pass.dist)}</span>`;
+    else if (soon) E.then.innerHTML = `<em>Then</em>${icon(nxt.icon, 'sm')}<span>${esc(phrase(nxt, dest).short)}</span>`;
     E.toM.textContent = mins;
     // all steps (the 3D view's list)
     E.steps.innerHTML = st.map((s, i) => `<li class="${i === 0 ? 'cur' : ''}">${icon(s.icon, 'sm')}<span>${esc(phrase(s, dest).long)}</span><em>${i === 0 && toGo < 3 ? 'now' : fm(s.at)}</em></li>`).join('');
-    this._arrowEl = live ? E.navIc.querySelector('.ld-arrow') : null;
+    this._arrowEl = E.navIc.querySelector('.ld-arrow');
+    if (this._arrowEl) this._liveArrow();
   }
   _legT0() {
     const D = this.phone.dest, leg = D && D.legs[D.legs.length - 1];

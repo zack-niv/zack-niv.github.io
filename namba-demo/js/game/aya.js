@@ -96,6 +96,7 @@ export class Aya {
     const ph = this.ctx.phone;
     const payload = { id: m.id, from: m.from, text: m.text, time: this.ctx.clock.hhmm };
     if (m.link) payload.link = m.link;
+    if (m.place) payload.place = m.place;          // v5: a place link card (Maps-style preview) in the bubble
     if (this.rich) {
       if (replies) { payload.replies = replies; payload.expectReply = true; }
       try { ph.message(payload); return; } catch (e) { console.error('[aya] phone.message', e); }

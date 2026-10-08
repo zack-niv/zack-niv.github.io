@@ -51,7 +51,7 @@ try {
     on('phone:message', e => (e.from || '') + ': ' + (e.text || '').slice(0, 80) + (e.link ? ' [link]' : ''));
     on('demo:offer', e => e.why); on('tutorial:step', e => e.id + ' n=' + e.nudges); on('tutorial:done', e => e.t); on('phone:reply', e => e.msgId + '->' + e.replyId); on('phone:upgrade', e => e.stage); on('demo:arrive'); on('demo:end'); on('lodestone:arrive'); on('phone:arrive');
     on('quest:update', e => e.id + ' ' + e.state); on('discover', e => e.id); on('ic:tap', e => `${e.gate} ok=${e.ok} ${e.reason || ''}`);
-    on('nav:destination', e => `${e.slotId} ${e.name} app=${e.app} suggested=${e.suggested}`); on('nav:arrived', e => e.slotId); on('demo:order', e => `${e.slotId} ${e.item} errand=${e.errand}`); on('story:pick', e => JSON.stringify(e));
+    on('nav:destination', e => `${e.slotId} ${e.name} app=${e.app} suggested=${e.suggested} via=${e.via}`); on('nav:end', e => `${e.app} ${e.slotId}`); on('nav:milestone', e => `${e.app} ${e.kind} ${e.dir || ''} ${e.toLevel || ''} ${e.name || ''} ${Math.round(e.dist)}m`); on('nav:arrived', e => e.slotId); on('demo:order', e => `${e.slotId} ${e.item} errand=${e.errand}`); on('story:pick', e => JSON.stringify(e));
     on('nav:track', e => `${e.state} herr=${Math.round(e.headingErr||0)} lost=${(e.lost||0).toFixed?.(1)} @${c.player.body.level},${c.player.body.x.toFixed(0)},${c.player.body.z.toFixed(0)} ramp=${c.player.body.ramp}`); on('phone:pose', e => e.pose); on('phone:app', e => e.app); on('phone:typing', e => e.on); on('tutorial:start'); on('demo:lost', e => JSON.stringify(e).slice(0,80));
     on('caption', e => (e.en || '').slice(0, 70)); on('announce', e => e.kind || '');
     c.events.on('ic:tap', (e) => { if (e && !e.ok) { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; L.ev.push([T(), 'gate-refused', `try#${W.refused} side=${W.side}`]); } });
@@ -66,7 +66,11 @@ try {
       // which leg: the café while Aya's latte is still wanted (and the bot is not skipping it), else Daikichi
       const E = c.game.story && c.game.story.errand;
       const wantCoffee = FC && E && E.state === 'asked' && !window.__coffee.skip;
-      F = wantCoffee ? FC : FD; W.F = F;
+      F = wantCoffee ? FC : FD;
+      // v5: once Lodestone guides to Daikichi, follow ITS route (the scenic loop: canyon → garden stairs → glass bridge)
+      const lg = c.phone.lodestone && c.phone.lodestone.guid;
+      if (!wantCoffee && lg && lg.dest && lg.dest.slot === biz.slot && !lg.viaDone && lg.leadField && !/nocanyon/.test(location.search)) F = lg.leadField(b) || FD;
+      W.F = F;
       if (wantCoffee && b.level === ctr.level && Math.hypot(b.x - ctr.order.x, b.z - ctr.order.z) < 1.1) {
         // at the order spot: face the staff and press E (exactly what interact.js does on the key)
         const sx = ctr.staff.x - b.x, sz = ctr.staff.z - b.z;
@@ -153,7 +157,7 @@ try {
     });
     if (pk) {
       await step(1.0); await settle(2); await page.waitForTimeout(500);
-      await shot(`p${pk}a-list-dev`, '.ph-device');
+      await shot(`p${pk}a-list-dev`, '.ph-device'); await shot(`p${pk}a-list-full`);   // v5: full frame — the tutorial hint must sit clear of the raised phone
       await page.keyboard.press(pk === 1 && process.env.PICK1 ? process.env.PICK1 : 'Digit1'); await step(0.6);
       let d = await page.evaluate(() => window.__namba.phone.destination);
       const sug = await page.evaluate(() => window.__namba.phone.suggested);
@@ -210,6 +214,8 @@ try {
       const ev = await page.evaluate(() => window.__L.ev.filter(e => e[1] === 'discover' || /canyon/i.test(String(e[2]))).slice(-3));
       if (s.z > 222) { canyonShot = true; await settle(2); await shot('09-canyon'); log('canyon ev', JSON.stringify(ev), JSON.stringify(s)); }
     }
+    if (s.stage === 'ready' && s.lvl === '3F' && s.x > 20 && s.x < 50 && s.z > 235 && s.z < 243) await once('09b', async () => { await settle(2); await shot('09b-glass-bridge'); });
+    if (s.stage === 'ready' && ((s.lvl === '2F' && s.z > 150 && s.z < 160) || (s.lvl === '2F' && s.z > 209 && s.z < 216))) await once('g' + s.lvl + Math.round(s.z / 60), async () => { await settle(1); await shot(`09g-glance-${Math.round(s.z)}`, '.ph-isl'); log('GLANCE', await page.evaluate(() => document.querySelector('.ph-isl .gl')?.innerText.replace(/\s+/g, ' '))); });
     if (s.lvl === '6F' && !shotsAt.has('10')) { await once('10', async () => { await settle(2); await shot('10-6F-arrive-floor'); }); }
     if (s.stage === 'ready' && shotsAt.has('10') && !shotsAt.has('10b') && s.rem != null && s.rem < 30) { await once('10b', async () => { await page.evaluate(() => window.__namba.phone.open('lodestone')); await step(1); await settle(2); await page.waitForTimeout(600); await shot('10b-lodestone-near-dev', '.ph-device'); await page.evaluate(() => window.__namba.phone.close()); }); }
     if (s.arrived) { log('ARRIVED', JSON.stringify(s)); break; }

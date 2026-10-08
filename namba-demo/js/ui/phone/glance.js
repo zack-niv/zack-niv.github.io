@@ -59,7 +59,7 @@ export class Glance {
     info.unread = M && (M.unread > 0 || !!M.pending) && info.kind !== 'note';
     info.rep = !!(M && M.pending);
     info.typing = M && M.typingFrom && info.kind !== 'note' ? M.typingFrom : null;
-    const key = JSON.stringify([info.kind, info.cls, info.trk, info.icon, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, info.rep, info.typing, (this.phone._raises || 0) >= 3]);
+    const key = JSON.stringify([info.kind, info.cls, info.trk, info.icon, info.mic, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, info.rep, info.typing, (this.phone._raises || 0) >= 3]);
     if (key !== this._key) { this._key = key; this._render(info); }
     this._angFn = info.angFn || null;
     this._target = info.ang;
@@ -91,7 +91,8 @@ export class Glance {
     else ic = `<i class="gl-ic">${i.warn ? `<b class="gl-wb" title="${esc(i.warn)}">!</b>` : ''}${i.icon === 'lost' ? '<svg viewBox="0 0 24 24" class="ld-ic" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M9.2 9a3 3 0 1 1 4.3 2.7c-.9.5-1.5 1.1-1.5 2.1M12 17.6v.1"/></svg>' : '<svg viewBox="0 0 24 24" class="gl-arrow" fill="currentColor"><path d="M12 2.5 19 20l-7-3.6L5 20Z"/></svg>'}</i>`;
     const bar = i.pct != null ? `<u class="gl-bar"><i style="width:${(i.pct * 100).toFixed(0)}%"></i></u>` : '';
     const sub = i.kind === 'note' ? `<p>${esc(i.sub)}</p>` : `<span>${esc(i.sub || '')}</span>`;
-    const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${esc(i.title)}</b>`;
+    // v5: the next milestone's small icon sits in front of its words (the big tile keeps the heading arrow)
+    const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${i.mic ? `<i class="gl-mi">${icon(i.mic)}</i>` : ''}${esc(i.title)}</b>`;
     this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'} ${i.trk || ''}`;
     // (the island itself carries the on-track state: amber ring while drifting / off)
     this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');

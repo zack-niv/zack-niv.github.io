@@ -26,7 +26,7 @@ export const DEMO = {
 export const AYA = {
   hello: { id: 'hello', text: 'Landed?? Welcome to Osaka! 🛬',
     replies: [{ id: 'yes', text: 'Just landed! 🙌' }, { id: 'huge', text: 'Yes! This station is HUGE 😵' }] },
-  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤' },
+  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤', place: 'parks_6Fdw03' },   // v5: + a place link card
   // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
@@ -65,8 +65,10 @@ export const TUTORIAL = {
   pickDown: '{k:Q}, open <b>Maps</b> and pick where to go',
   pick2: 'Next stop: pick <b>Tempura Daikichi</b> — Aya\'s pick, top of the list',
   pick2Down: '{k:Q} — pick your next stop',
-  pick2Route: 'Next stop: <b>Tempura Daikichi</b> — end this route (×) and pick Aya\'s place',
-  pick2RouteLs: 'Next stop: <b>Tempura Daikichi</b> — tap <b>Change</b>, then Aya\'s pick',
+  pick2Route: 'Next stop: <b>Tempura Daikichi</b> — {k:1} takes Aya\'s pick (or {k:X} ends this route)',
+  pick2RouteLs: 'Next stop: <b>Tempura Daikichi</b> — {k:1} takes Aya\'s pick (or {k:X} ends this route)',
+  // v5: on Messages, Aya's place link opens the map on that place
+  pickMsg: 'Open Aya\'s link — {k:Enter} or click the card (or {k:Tab} to Maps)',
   order: 'Walk up to the counter — {k:E} to order',
   interact: '{k:E} interacts — machines, doors, café counters',
   interactHere: '{k:E} — try it',
@@ -79,8 +81,9 @@ export const QUEUE_LINES = [
   [170, 'I\'m 2nd in line!! 🍤'],
   [45, 'You can see the noren from there, right?? 👋'],
 ];
-// Lodestone routes through the Namba Parks canyon; Aya texts once, as you reach the bridge.
-export const CANYON_TEXT = 'take the canyon side — trust me 🌿';
+// Lodestone routes up through the Namba Parks canyon; Aya texts once, as you reach the bridge.
+// v5: the canyon is the natural way UP now (canyon floor → garden stairs → the glass bridge into Parks 3F), not a detour
+export const CANYON_TEXT = 'take the canyon way up 🌿 out into the garden, up the stairs, then across the glass bridge. trust me';
 
 export const ARRIVAL = {
   aya: { ja: 'こっちこっち！', en: 'Over here! You made it 😆' },

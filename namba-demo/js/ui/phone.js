@@ -82,7 +82,7 @@ export class Phone {
     this.app = 'maps';
     this.handlesMessages = true;
     // the final key bindings (for Story's hints): see notes/v3-phone.md
-    this.keys = { raise: 'Q', lower: 'Q', apps: 'Tab', reply: ['1', '2', '3'], appSlots: ['1', '2', '3'], stack: 'V', install: 'Enter', pick: DEST_KEYS, search: '/' };
+    this.keys = { raise: 'Q', lower: 'Q', apps: 'Tab', reply: ['1', '2', '3'], appSlots: ['1', '2', '3'], stack: 'V', install: 'Enter', pick: DEST_KEYS, search: '/', endRoute: 'X', openLink: 'Enter' };
     this.battery = 64;
     this.typing = false;
     this.upgradeStage = 'none';
@@ -117,6 +117,39 @@ export class Phone {
   }
   setDestination(slotId, opts) { return this.dest ? this.dest.set(slotId, opts || {}) : false; }
   clearDestination() { this.dest && this.dest.clear(); }
+  // ---- v5 (notes/v5-nav.md) -----------------------------------------------------
+  // the next thing to expect on the active route: { kind, dir, toLevel, dist, name, side, level, x, z, app, pass? } | null
+  get nextMilestone() {
+    if (this.upgradeStage === 'ready' && this.lodestone && this.lodestone.state === 'ready') return this.lodestone.milestone();
+    return this.maps && this.maps.milestone ? this.maps.milestone() : null;
+  }
+  // End route (× / End / key X), same in both apps: no destination, calm "No route · Where to?", 'nav:end'
+  endRoute(app) {
+    const C = this.dest && this.dest.current; if (!C || C.arrived) return false;
+    app = app || (this.app === 'lodestone' || this.app === 'maps' ? this.app : this.upgradeStage === 'ready' ? 'lodestone' : 'maps');
+    this._ended = true;
+    this.dest.clear();
+    this.ctx.events.emit('nav:end', { app, slotId: C.slotId, name: C.name });
+    this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_close');
+    return true;
+  }
+  // New destination at any time (key /, the search pill): the app's "Where to?" with the search box focused
+  newDestination() {
+    const a = this.app === 'maps' ? this.maps : this.app === 'lodestone' ? this.lodestone : null;
+    if (!a) return false;
+    if (a === this.lodestone && this.lodestone.state === 'ready' && !this.lodestone.picking) this.lodestone.choose(true);
+    return !!(a.focusSearch && a.focusSearch());
+  }
+  // a place link in a text (item 5): open the active nav app on that place's card (Go = pick it)
+  openPlace(id) {
+    if (!id || !this.dest || !this.dest.resolve(id)) return false;
+    this._lastPhoneInput = this._now;
+    const ld = this.upgradeStage === 'ready' && this.lodestone.state === 'ready';
+    this.open(ld ? 'lodestone' : 'maps');
+    if (ld) this.lodestone.preview(id); else this.maps.preview(id);
+    this.ctx.events.emit('phone:link', { id, app: ld ? 'lodestone' : 'maps' });
+    return true;
+  }
   // opts (optional): { text, from, id, replies } — Aya's own line for the link card
   offerLodestone(opts) {
     if (this.upgradeStage !== 'none') return false;
@@ -176,6 +209,7 @@ export class Phone {
     this._bindHold();
     // v4: the destination lists' keys (1–9, ↑ ↓, Enter, /) — captured before the game sees them (no walking on ↑ ↓)
     addEventListener('keydown', (e) => this._listKey(e), true);
+    ctx.events.on('nav:destination', () => { this._ended = false; });
   }
 
   // the "Where to?" list on screen right now (Maps / Lodestone, phone up), or null
@@ -188,8 +222,17 @@ export class Phone {
     if (!this.ctx.started || !this._canUse()) return;
     const t = e.target; if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    const L = this._activeList(); if (!L) return;
     const eat = () => { e.preventDefault(); e.stopPropagation(); this._lastPhoneInput = this._now; };
+    // v5: the same route keys in both apps (phone up, not held): X ends the route, / = new destination (search)
+    if (this.isOpen && !this._held && (this.app === 'maps' || this.app === 'lodestone') && !e.repeat) {
+      if (e.code === 'KeyX') { const a = this.app === 'maps' ? this.maps : this.lodestone; if (a.closePreview && a.closePreview()) return eat(); if (this.endRoute(this.app)) return eat(); }
+      if (e.code === 'Slash') { if (this.newDestination()) eat(); return; }
+    }
+    // v5: Enter on Messages opens the newest place link (when no Lodestone offer is waiting for Enter)
+    if (this.isOpen && !this._held && this.app === 'messages' && (e.code === 'Enter' || e.code === 'NumpadEnter') && !e.repeat && this.upgradeStage !== 'offer') {
+      const id = this.messages && this.messages.lastPlace; if (id && this.openPlace(id)) return eat();
+    }
+    const L = this._activeList(); if (!L) return;
     const m = /^(?:Digit|Numpad)([1-9])$/.exec(e.code);
     if (m) {
       if (e.repeat) return eat();
@@ -491,6 +534,13 @@ export class Phone {
     this.lodestone.update(dt, this.isOpen && this.app === 'lodestone', this.pose === 'glance', this.pose !== 'down');
     if (this.isOpen && this.app === 'transit') this.transit.update(dt);
     this.glance.update(dt, this.pose === 'glance');
+    // v5: Maps' milestone changes ('nav:milestone'; Lodestone emits its own from its route tick)
+    this._msT = (this._msT || 0) - dt;
+    if (this._msT <= 0 && this.upgradeStage !== 'ready' && this.maps.milestone) {
+      this._msT = 0.5;
+      const m = this.maps.milestone(), key = m ? [m.kind, m.dir, m.toLevel, m.name || ''].join('|') : '';
+      if (key !== this._msKey) { this._msKey = key; if (m) ctx.events.emit('nav:milestone', m); }
+    }
   }
 
   // pocket / glance / auto-lower

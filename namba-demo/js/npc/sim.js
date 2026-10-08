@@ -34,7 +34,7 @@ export class Agent {
     this.i = i; this.alive = false; this.serial = 0;
     this.x = 0; this.z = 0; this.y = 0; this.level = 'B1'; this.lv = 0; this.ramp = -1;
     this.rs = 0; this.ru = 0; this.rdir = 1; this.rspd = 0; this.walkLane = false;
-    this.rsp = 0; this.bx = 0; this.bz = 0; this.bvx = 0; this.bvz = 0; this.bo = false; this.boardK = 1; this.boardSpd0 = 0;   // v5: boarding offset (spring) and clip/speed blend
+    this.rsp = 0; this.bw = BOARD_W; this.bx = 0; this.bz = 0; this.bvx = 0; this.bvz = 0; this.bo = false; this.boardK = 1; this.boardSpd0 = 0;   // v5: boarding offset (spring) and clip/speed blend
     this.vx = 0; this.vz = 0; this.yaw = 0; this.spd = 0; this.pref = 1.3; this.prefBase = 1.3;
     this.node = -1; this.aimX = 0; this.aimZ = 0; this.aimT = 0; this.rampNext = -1; this.rampU = 0; this.rampFromLow = true;
     this.en = null; this.arriveDm = 10; this.mode = MODE.NONE;
@@ -536,8 +536,8 @@ export class CrowdSim {
     a.queueing = l < 4.5;
     // the head of the line: stuck close to the mouth (a neighbour's personal space) for a moment => steps on anyway
     if (rank === 0 && l < 1.8 && a.spd < 0.08) a.headT = (a.headT || 0) + dt; else a.headT = 0;
-    // v5: lateral tolerance 0.8 -> 0.4 m (the rest of the sideways error is eased out by the boarding spring in _startRide / _placeOnRamp)
-    if ((rank === 0 && (l < 0.5 || (along < 1.0 && lat < 0.4) || a.headT > 0.8)) || a.tier === 2) {
+    // v5: lateral tolerance 0.8 -> 0.6 m (the rest of the sideways error is eased out by the boarding spring in _startRide / _placeOnRamp)
+    if ((rank === 0 && (l < 0.5 || (along < 1.0 && lat < 0.6) || a.headT > 0.8)) || a.tier === 2) {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
@@ -575,13 +575,15 @@ export class CrowdSim {
     a.bo = false; a.bx = a.bz = a.bvx = a.bvz = 0; a.boardK = 1;
     if (a.tier !== 2) {
       const along = (ox - end.x) * end.dx + (oz - end.z) * end.dz;           // metres outside the start line (+)
-      if (along > -0.3 && along < 1.2) {
+      if (along > -1.0 && along < 2.0) {
         const tx = -end.dx, tz = -end.dz;                                   // into the ramp
         a.rs = fromLow ? -along / R.len : 1 + along / R.len;
         a.rsp = Math.max(0, ovx * tx + ovz * tz);                           // current speed along the ramp
         this._placeOnRamp(a, 0, a.rsp);
         const bx = ox - a.x, bz = oz - a.z;                                 // what is left is the sideways error (lane axis is the ramp axis)
-        if (Math.hypot(bx, bz) < 1.2) {
+        const bm = Math.hypot(bx, bz);
+        if (bm < 2.2) {
+          a.bw = Math.max(3, Math.min(BOARD_W, 4.2 / Math.max(bm, 1e-3)));   // a big error (a blocked head stepping on from the side) is eased out more gently
           a.bx = bx; a.bz = bz; a.bvx = ovx - tx * a.rsp; a.bvz = ovz - tz * a.rsp; a.bo = true; a.boardK = 0;
           a.x = ox; a.z = oz; a.vx = ovx; a.vz = ovz; a.yaw = yaw0; a.y = rampProfile(R.r, Math.min(1, Math.max(0, a.rs)));
           return;
@@ -603,7 +605,7 @@ export class CrowdSim {
     let vx = tx * sp, vz = tz * sp;
     if (a.bo) {
       // critically damped spring on the sideways error (position AND velocity continuous): off'' = -2w off' - w^2 off
-      const w = BOARD_W, e = Math.exp(-w * dt);
+      const w = a.bw || BOARD_W, e = Math.exp(-w * dt);
       const cx1 = a.bvx + w * a.bx, cz1 = a.bvz + w * a.bz;
       const nbx = (a.bx + cx1 * dt) * e, nbz = (a.bz + cz1 * dt) * e;
       a.bvx = (a.bvx - w * cx1 * dt) * e; a.bvz = (a.bvz - w * cz1 * dt) * e; a.bx = nbx; a.bz = nbz;
