@@ -85,8 +85,12 @@ Zack explicitly asked that this working style carry over.
 1. **Feedback round.** Zack's feedback becomes a `namba-demo/V{n}.md` spec: items table → owner, disjoint file ownership,
    contracts between agents, quality bar. Commit it before starting the agents. Use the `/namba-round` skill.
 2. **Fan out** about 4–5 background agents with disjoint files:
-   - design, architecture and hard debugging go to **Opus** (`namba-designer`);
-   - well-scoped code goes to **Sonnet** (`namba-implementer`);
+   - default to **Sonnet** (`namba-implementer`) for anything well specified: models and meshes, state machines, UI
+     wiring, links, refactors;
+   - use **Opus** (`namba-designer`) only for root-cause debugging of unexplained bugs, UX/design judgment (pacing,
+     metrics, interaction design) or architecture, and always for the critic;
+   - when unsure, split the item into its Opus part (diagnose or design) and its Sonnet part (build). Zack asked about
+     this in v6: Gates should have been Sonnet;
    - agents never run git; the lead commits.
    - Agents coordinate through `notes/v{n}-<agent>.md`. Send contract changes to the other agents yourself.
 3. **Check-ins.**
