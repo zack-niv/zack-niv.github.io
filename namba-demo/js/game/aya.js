@@ -44,6 +44,14 @@ export class Aya {
     this.q.push({ msg, wait: opts.wait != null ? opts.wait : (this.q.length || this.cur ? 0.9 : 0.25), typing, run: opts.run || null, onReply: opts.onReply || null, onExpire: opts.onExpire || null, state: 'wait', t: 0 });
     return msg.id;
   }
+  // send right now, outside the queue (the arrival cut-scene runs on real time; the outbox runs on game time)
+  sayNow(m) {
+    const msg = typeof m === 'string' ? { text: m } : Object.assign({}, m);
+    if (!msg.id) msg.id = `aya_${++this._seq}`;
+    msg.from = msg.from || 'Aya';
+    this._typing(false); this._send({ msg });
+    return msg.id;
+  }
   // a custom send (e.g. the phone's Lodestone offer) behind the same typing beat
   act(run, { typing = 1.3, wait } = {}) { this.q.push({ msg: null, wait: wait != null ? wait : 0.6, typing, run, state: 'wait', t: 0 }); }
   idle(sec) { return !this.cur && !this.q.length && this.t - this.lastSentT >= sec; }
