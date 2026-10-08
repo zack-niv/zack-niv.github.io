@@ -79,7 +79,7 @@ export const TUTORIAL = {
   interactHere: '{k:E} — try it',
   // v6 (item 2): the Nankai gate teaches E — tap your IC card; walk in without tapping and the flaps stop you
   gate: 'Tap your IC card at the gate — walk up to a lane, then {k:E}',
-  gateHere: '{k:E} — tap your IC card',
+  gateHere: '{k:E} interacts — here, it taps your IC card',
   gateBlocked: 'Tap your IC card first — {k:E}',
   install: 'Aya sent a link — {k:Q}, then {k:Enter} or click <b>Lodestone</b>',
   installUp: '{k:Enter} or click <b>Lodestone</b> in Aya\'s message',

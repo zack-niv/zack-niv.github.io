@@ -368,10 +368,13 @@ export class LodestoneApp {
 
   // route / guidance at ~2 Hz when the player moved (runs with the phone up OR lowered to a glance)
   _routeTick(dt) {
+    const body = this.ctx.player.body;
+    // v6: stepping on / off an escalator or stairs re-plans at once ("Riding up to 3F" from the first step, not 0.5 s on)
+    const onRamp = body.ramp >= 0;
+    if (onRamp !== this._onRamp) { this._onRamp = onRamp; this._rt = 0; this._lastPos = [1e9, 1e9, '']; }
     this._rt -= dt;
     if (this._rt > 0) return false;
     this._rt = 0.5;
-    const body = this.ctx.player.body;
     const moved = Math.hypot(body.x - this._lastPos[0], body.z - this._lastPos[1]);
     if (!(moved > 0.9 || body.level !== this._lastPos[2] || !this.route)) return false;
     this._lastPos = [body.x, body.z, body.level];

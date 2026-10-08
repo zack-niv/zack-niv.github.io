@@ -1,6 +1,6 @@
 # v6 — Story (items 1, 2-tutorial/IC, 8, 9-pacing) · owner: js/game/*, js/ui/hud.js, js/ui/title.js, css/game.css, index.html
 
-Status: **contract published, building.**
+Status: **built; verifying with the walk bot.** (contract below is implemented as written, adapted to notes/v6-gates.md)
 
 ## Contract: shared IC purchases (Story → everyone)
 
@@ -12,25 +12,18 @@ Status: **contract published, building.**
 - Emits `'ic:pay' { amount, label, ja, kind, balance, ok }`. (`'ic:charge'` stays the top-up event of the charge machine.)
 - Used by: gate taps (game.js), café orders (order.js), vignettes (vignettes.js). One mechanism.
 
-## How Story uses the Gates contract (Gates → Story)
+## How Story uses the Gates contract (notes/v6-gates.md) — implemented
 
-- An interactable `gatetap` (game.js) is in range when `ctx.transit.gateLaneNear(x, z, level)` returns a lane and the player
-  faces the gate line. Prompt: **"Tap ICOCA"** · タッチ, sub `Central Gate · 中央改札口 · ICOCA ¥2,000`.
-- **E** → balance check (entering needs ≥ ¥190) → `ctx.transit.tapGate(gate, lane)` → if `{ok:true}` the fare is charged with
-  `icCharge` (tap-out of the Nankai gate after the rapi:t: ¥970 Kansai Airport → Namba; Midosuji/Sennichimae tap-out after a
-  tap-in: ¥190; tap-in: ¥0, "ピッ" + balance). If `{ok:false, reason}` Story shows the reason (`'lane'` → "this lane is exit-only").
-- **Gates agent, please:**
-  1. `gate:tap`, `gate:blocked` and `gate:pass` for the **player** carry `player: true` (NPC taps/passes must not, or carry
-     `player: false`), so Story can tell them apart.
-  2. `gateLaneNear(...).dir`: Story reads it as `+1` = the player is on the free side (tapping IN), `-1` = on the paid side
-     (tapping OUT). If you use another convention, say so in `notes/v6-gates.md` and Story adapts.
-  3. The **beep + light flash** on a successful tap is yours (transit/gates); the **buzzer** on `gate:blocked` is yours.
-     Story plays no gate sound when `tapGate` exists (falls back to `audio.play('gate_ok')` without it).
-  4. A refused tap (wrong-way lane, Story's low balance): Story calls `tapGate` only when the balance is fine; for the
-     low-balance case Story calls `ctx.transit.refuseGate?.(gate, lane)` if you expose it (flaps shut + buzzer), else nothing.
-- With the new API present, game.js stops charging on line *crossing* (the old `_checkGates` auto-tap); it only tracks the
-  paid side from player `gate:pass`. Without the API (old transit), the v5 behaviour stays.
-- The gate's old passive "Walk through to tap" prompt is gone.
+- `gatetap` interactable (game.js `_gateTarget`): `ctx.transit.gateLaneNear(x, z, level)` returns a channel and the
+  player faces the gate line → prompt **"Tap your ICOCA"** · タッチ, sub `中央改札口 Central Gate · ICOCA ¥3,000`;
+  `open` → passive "Open — walk through"; `ok:false` → passive "Exit only — try the next gate".
+- **E** (`_tapGate`): fare via `icCharge` first (Nankai tap-out after the rapi:t: **¥970** "関西空港 → なんば · Kansai Airport →
+  Namba"; Midosuji/Sennichimae tap-out after a tap-in: ¥190; tap-in: ¥0 "ピッ"), then `tapGate(gate, lane, { sub, balance,
+  fare })`. Low balance on the way in → `tapGate(..., { deny: 'balance' })` + chip + caption. A refused tap refunds.
+  Tapping the same side again before walking through never charges twice (25 s window).
+- game.js emits **no `ic:tap` and plays no sound** for reactive-gate taps (the gate voices itself). The v5 auto-tap on
+  crossing stays only as the fallback when `tapGate` is missing; with it, crossing only records the paid side.
+- Starting ICOCA balance 2,000 → **3,000** (after the fare and Aya's latte: 2,030 → 1,510).
 
 ## Tutorial (item 2)
 
@@ -39,7 +32,11 @@ Status: **contract published, building.**
   hint *"Tap your IC card at the gate — {E}"* anchored on the prompt (center when not yet aligned with a lane);
   validated by a player `gate:tap` (or the tap itself through `icCharge`). Always taught (also on replays): you can't get
   through without it.
-- `gate:blocked` (player) → a short hint for ~5 s: *"Tap your IC card first — {E}"*.
+- `gate:blocked` with reason `notap` → a short hint for ~5 s: *"Tap your IC card first — {E}"* (late step `gate` before
+  the lesson, `gateAgain` after it). Reasons `lane`/`balance` get game.js's own captions instead.
+- Aimed at a channel the tip reads *"{E} interacts — here, it taps your IC card"* (under the HUD prompt); further away
+  *"Tap your IC card at the gate — walk up to a lane, then {E}"*. While the lesson is pending and the player is within
+  12 m on the paid side, `setGateHint(gate)` pulses the reader pads.
 
 ## Pacing (items 1 + 9)
 

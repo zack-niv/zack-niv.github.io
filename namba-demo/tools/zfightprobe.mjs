@@ -171,6 +171,19 @@ try {
       const attr = (arr, k, w) => { if (!arr) return null; const out = []; for (let c = 0; c < k; c++) out.push(arr[c] * w[0] + arr[k + c] * w[1] + arr[2 * k + c] * w[2]); return out; };
       const diff = (a, b) => { if (!a || !b) return a || b ? 1 : 0; let m = 0; for (let i = 0; i < a.length; i++) m = Math.max(m, Math.abs(a[i] - b[i])); return m; };
       const offKey = (m) => m.polygonOffset ? `${m.polygonOffsetFactor}/${m.polygonOffsetUnits}` : '0';
+      const inTri = (T, x, y) => { const s = (a, b) => (b[0] - a[0]) * (y - a[1]) - (b[1] - a[1]) * (x - a[0]); const d1 = s(T[0], T[1]), d2 = s(T[1], T[2]), d3 = s(T[2], T[0]); return !((d1 < 0 || d2 < 0 || d3 < 0) && (d1 > 0 || d2 > 0 || d3 > 0)); };
+      const buried = (A, ax, x, y) => {
+        const nk2 = nkey(-A.n[0], -A.n[1], -A.n[2]), db2 = Math.floor(-A.d / DB);
+        for (let k = -1; k <= 1; k++) {
+          const lst = buckets.get(nk2 + '|' + (db2 + k)); if (!lst) continue;
+          for (const ti of lst) {
+            const T = tris[ti];
+            if (T.n[0] * A.n[0] + T.n[1] * A.n[1] + T.n[2] * A.n[2] > -0.9997 || Math.abs(T.d + A.d) > 0.012) continue;
+            if (inTri(proj(T, ax), x, y)) return true;
+          }
+        }
+        return false;
+      };
       const clusters = new Map();
       let pairs = 0;
       for (const [key, list] of buckets) {
@@ -215,6 +228,12 @@ try {
           if (I.length < 3) return;
           const ar = Math.min(Math.abs(area2(I)) / Math.max(1e-6, Math.abs(t0.n[ax])), A.area, B.area);
           if (ar < OPT.min) return;
+          // buried: an opposite-facing opaque surface in contact covers the overlap (box bottoms on a floor,
+          // a panel's back against a wall): neither face can be seen, so there is nothing to fight over
+          {
+            let cx = 0, cy = 0; for (const q of I) { cx += q[0]; cy += q[1]; } cx /= I.length; cy /= I.length;
+            if (buried(A, ax, cx, cy)) return;
+          }
           // identical shading at the overlap = invisible duplicate
           if (A.mi === B.mi) {
             let cx = 0, cy = 0; for (const q of I) { cx += q[0]; cy += q[1]; } cx /= I.length; cy /= I.length;
@@ -244,7 +263,7 @@ try {
     console.log(`\n${v}  cam ${r.cam}  meshes ${r.nMesh} tris ${(r.nTri / 1000).toFixed(0)}k  calls ${r.calls}  fight clusters ${fights.length} (${A(fights).toFixed(2)} m2)  far-risk ${far.length} (${A(far).toFixed(2)} m2)`);
     // group clusters by material pair for the printout
     const byPair = new Map();
-    for (const c of r.clusters) { const k = c.kind + ' ' + c.pair; const g = byPair.get(k) || { k, n: 0, area: 0, at: [], gap: 0 }; g.n++; g.area += c.area; g.gap = Math.max(g.gap, c.gap); if (g.at.length < 3) g.at.push(c.at.join(',') + ' d' + c.dist); byPair.set(k, g); }
+    for (const c of r.clusters) { const k = c.kind + ' ' + c.pair; const g = byPair.get(k) || { k, n: 0, area: 0, at: [], gap: 0 }; g.n++; g.area += c.area; g.gap = Math.max(g.gap, c.gap); if (g.at.length < 3) g.at.push(c.at.join(',') + ' n' + c.nrm.join('/') + ' d' + c.dist); byPair.set(k, g); }
     for (const g of [...byPair.values()].sort((a, b) => b.area - a.area).slice(0, OPT.top)) console.log(`   ${g.area.toFixed(3).padStart(8)} m2  ${String(g.n).padStart(4)} cl  gap<=${(g.gap * 1000).toFixed(1)}mm  ${g.k}   e.g. ${g.at.join(' | ')}`);
     for (const c of r.clusters) { const k = `${c.kind}|${c.pair}|${c.at.map(Math.floor).join(',')}`; if (!all.has(k)) all.set(k, c); }
     if (r.errors.length) console.log('  system errors:', r.errors.join(' | '));

@@ -76,7 +76,8 @@ export function buildStructures(ctx, parks) {
   }
   // ---- north entrance lintel over the canyon ---------------------------------------
   strataFace(strata, 20, 214.4, 50, 214.4, 11, 16.6, 0, 1, 77, { u0: 0 });
-  under.quadAuto([20, 11, 211], [50, 11, 211], [50, 11, 214.4], [20, 11, 214.4]);
+  // v6: the soffit started at z 211, inside the Parks 2F hall (z 204..214) whose ceiling is also at y 11: z-fight
+  under.quadAuto([20, 11, 214], [50, 11, 214], [50, 11, 214.4], [20, 11, 214.4]);
   box(stone, 35, 16.7, 209.4, 30, 0.2, 10.4, cream);
   parks.planters.push({ kind: 'ledge', a: [21, 16.8, 213.6], b: [49, 16.8, 213.6], a2: [21, 16.8, 205], b2: [49, 16.8, 205], n: [0, 1], y: 16.8 });
 

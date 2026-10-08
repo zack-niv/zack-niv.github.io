@@ -264,7 +264,8 @@ export class Ramps {
       const wallMat = tunnel ? (styleOf(this._nearSpace(r)).wall || 'wall_tile_white') : (zoneMetro ? 'wall_tile_metro' : 'wall_stone_warm');
       if (tunnel) {
         // stairwell wall up to the soffit / street level
-        ribbon(b, wallMat, ss, s => P(s, side * hw, lineY(s) - 0.3), s => P(s, side * hw, Math.max(F.yl + 3.0, Math.min(F.yu + (outdoorTop ? 1.1 : 0), lineY(s) + 2.8))), n_);
+        // (1 cm proud of the footprint edge: the upper level's slab-edge cladding, surfaces.js, lies exactly on it)
+        ribbon(b, wallMat, ss, s => P(s, side * (hw - 0.01), lineY(s) - 0.3), s => P(s, side * (hw - 0.01), Math.max(F.yl + 3.0, Math.min(F.yu + (outdoorTop ? 1.1 : 0), lineY(s) + 2.8))), n_);
       } else {
         // solid parapet 1.0 m above the nosing line, 0.12 thick
         ribbon(b, wallMat, ss, s => P(s, side * inner, lineY(s) - 0.05), s => P(s, side * inner, lineY(s) + 1.0), n_);
