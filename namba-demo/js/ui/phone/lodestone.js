@@ -713,7 +713,7 @@ export class LodestoneApp {
     E.navIc.className = 'ld-nav-ic trk-on live';
     E.navIc.innerHTML = icon('straight', 'ld-arrow');
     const ride = !!(m && m.riding);
-    E.navD.textContent = ride ? `${m.kind === 'stairs' ? 'On the stairs' : 'On the escalator'} · ${fm(m.dist)} to go` : fc ? 'Now' : toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
+    E.navD.textContent = ride ? `${m.kind === 'stairs' ? 'On the stairs' : 'On the escalator'} · ${fm(m.dist).replace(' ', '\u00a0')}\u00a0to\u00a0go` : fc ? 'Now' : toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
     E.navI.innerHTML = `<i class="ld-mi">${icon(fc ? fc.icon : tx.icon, 'sm')}</i>${esc(fc ? fc.title : tx.long)}`;
     // under it: the shop you'll walk past on a long leg, else "then" when the next step comes soon after
     // (v5.1: facing away from the path, the arrow's word is the title and the milestone itself is the "then")
