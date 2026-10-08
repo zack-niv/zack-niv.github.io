@@ -10,6 +10,8 @@
 // rules in both phases, so phases of unequal length compare honestly:
 //   error p50 / p90       percentiles of the per-second error
 //   wrong-floor %         share of samples on the wrong floor
+//   dot within 5 m %      v7.2: share of samples where the dot is on the right floor AND <= 5 m from the player
+//                         (same error samples; dotWithin5Before / dotWithin5After, null under 20 samples)
 //   detour factor         metres walked (with a destination) ÷ metres of real
 //                         progress: the drop in the remaining length of the
 //                         route being followed (true nav-graph path; with
@@ -39,7 +41,7 @@ export class PhoneStats {
   constructor(phone) {
     this.phone = phone; this.ctx = phone.ctx;
     const phaseObj = () => ({ t: 0, gameMin: 0, dist: 0, sumErr: 0, n: 0, maxErr: 0, wrongFloor: 0, errWrongFloor: 0,
-      errs: [], navDist: 0, progress: 0, wrongWays: 0, reroutes: 0, headSum: 0, headN: 0, settle: [] });
+      errs: [], within5: 0, navDist: 0, progress: 0, wrongWays: 0, reroutes: 0, headSum: 0, headN: 0, settle: [] });
     this.before = phaseObj(); this.after = phaseObj();
     this.reroutes = 0; this.floorFlips = 0; this.compassPrompts = 0;
     this.frozen = false;
@@ -92,6 +94,7 @@ export class PhoneStats {
       ph.sumErr += err; ph.n++; ph.maxErr = Math.max(ph.maxErr, err);
       if (ph.errs.length < 4000) ph.errs.push(err);
       if (wrong) { ph.wrongFloor++; ph.errWrongFloor += err; }
+      else if (err <= 5) ph.within5++;       // 'dot within 5 m of you': right floor AND horizontally within 5 m
       const D = this._progress(ph, b);
       if (this.series.length < 1500) this.series.push([+this._t.toFixed(1), +err.toFixed(1), wrong, this.phase === 'after' ? 1 : 0, D == null ? -1 : Math.round(D)]);
     }
@@ -147,6 +150,7 @@ export class PhoneStats {
       errP50: enough ? r1(pct(P.errs, 0.5)) : null,
       errP90: enough ? r1(pct(P.errs, 0.9)) : null,
       wrongFloorPct: enough ? Math.round(P.wrongFloor / P.n * 100) : null,
+      dotWithin5: enough ? Math.round(P.within5 / P.n * 100) : null,
       walked: Math.round(P.dist), walkedNav: Math.round(P.navDist),
       progress: Math.round(P.progress),
       detour: P.progress >= 15 && P.navDist > 0 ? Math.max(1, r1(P.navDist / P.progress)) : null,
@@ -181,7 +185,7 @@ export class PhoneStats {
       finished: this.frozen, series: this.series,
     };
     // v6 flat fair metrics: <name>Before / <name>After (notes/v6-phone.md)
-    const names = { errMean: 'errMean', errP50: 'errP50', errP90: 'errP90', wrongFloorPct: 'wrongFloorPct', walked: 'walked', walkedNav: 'walkedNav',
+    const names = { errMean: 'errMean', errP50: 'errP50', errP90: 'errP90', wrongFloorPct: 'wrongFloorPct', dotWithin5: 'dotWithin5', walked: 'walked', walkedNav: 'walkedNav',
       progress: 'progress', detour: 'detour', wrongWays: 'wrongWays', wrongWaysPerKm: 'wrongWaysPerKm', reroutesPerKm: 'reroutesPerKm',
       headingErr: 'headingErr', headingSettle: 'headingSettle', turns: 'turns' };
     for (const k in names) { out[names[k] + 'Before'] = fb[k]; out[names[k] + 'After'] = A.t > 0 ? fa[k] : null; }

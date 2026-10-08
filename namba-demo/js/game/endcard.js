@@ -3,8 +3,8 @@
 // softly blurred behind it. Left: the line and the note. Right: the player's
 // own journey, measured live, before vs after the upgrade.
 //   showEndCard(ctx, summary, { onRoam, onReplay }) -> { close() }
-// summary = { upgraded, before:{seconds,meters,err,p90,wrongFloorS,wrongPct,detour,gained,turnsPerKm}, after:{...}|null, ... }
-// v6: fair per-unit rows (item 9) and two ways to reach Zack (item 8: his AI career agent, a booking link).
+// summary = { upgraded, before:{err,p90,wrongPct,dotWithin5,headingSettle,...}, after:{...}|null, ... }
+// v7.2: a fixed set of four rows, each defined identically in both phases; primary buttons above two contact cards.
 // Brand rule: never Oriient's logo or colours. The only colours are ours
 // (warm amber = guesswork, cool blue = Lodestone's own).
 // =============================================================================
@@ -20,60 +20,54 @@ const bar = (v, max) => `${Math.max(3, Math.min(100, (v / Math.max(1e-6, max)) *
 const mpm = (v) => { const r = Math.round(v); return `${r < 0 ? '\u2212' : ''}${Math.abs(r)}<small>m/min</small>`; };
 
 const pct = (v) => `${v > 0 && v < 1 ? '<1' : Math.round(v)}<small>%</small>`;
-const times = (v) => `${v.toFixed(v < 10 ? 1 : 0)}<small>×</small>`;
-const perKm = (v) => `${v < 0.05 ? '0' : v.toFixed(v < 10 ? 1 : 0)}<small>/km</small>`;
 const ICON = {
   chat: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H9l-3.6 2.6V14.5H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.5 8.5h7M6.5 11h4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
   cal: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 8.5h14M7 2.8v3.4M13 2.8v3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="12.6" r="1.3" fill="currentColor"/></svg>',
 };
-const link = (L, icon) => (L && L.url ? `<a class="e-link" href="${esc(L.url)}" target="_blank" rel="noopener noreferrer">${ICON[icon]}<span>${esc(L.label)}</span><i aria-hidden="true">↗</i><em class="e-sr"> (opens in a new tab)</em></a>` : '');
+// v7.2: two equal contact cards (icon in a tinted circle, title, one-line subtitle, ↗). Cool blue = the agent, warm amber = the call.
+const SUB = { chat: 'Ask anything about my experience', cal: 'Pick a time that works for you' };
+const link = (L, icon, tone) => (L && L.url
+  ? `<a class="e-link ${tone}" href="${esc(L.url)}" target="_blank" rel="noopener noreferrer"><span class="e-ic">${ICON[icon]}</span><span class="e-tx"><b>${esc(L.label)}</b><small>${esc(L.sub || SUB[icon])}</small></span><i aria-hidden="true">↗</i><em class="e-sr"> (opens in a new tab)</em></a>`
+  : '');
 
 export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const b = s.before, a = s.after;
-  const pg = s.progress || {};
   const ok = (v) => v != null && isFinite(v);
-  // Rows: fair per-unit comparisons only (a mean, a share of the time, a ratio, a rate per km), never raw totals that
-  // depend on how much of the route each phase happened to cover. Every number is measured on this player's own trip.
-  //   always: 1. position error (mean; p90 in the caption)  2. share of the time on the wrong floor (when Maps got it wrong)
-  //   then more up to 4 rows, in this order, each only when its two phases genuinely differ (equal numbers say nothing,
-  //   whichever side they favour): detour factor, wrong turns per km, "Recalculating…" per km, arrow catch-up, compass error.
-  //   Without a Lodestone phase (never upgraded) only rows 1-2 + net progress show, before only.
-  const p90 = (v) => (ok(v) ? `mean · 90% within ${err(v)} m` : null);
+  // v7.2: a FIXED set of four rows, each defined identically in both phases (same samples, same formula), so the
+  // columns are comparable and the card never changes shape with how the player happened to walk. (The old
+  // detour / wrong-turn rows were measured against different routes after the upgrade: dropped from the card.)
+  //   1. position error: mean metres between the phone's dot and you (+ p90 in the caption)   lower is better
+  //   2. on the wrong floor: % of the time the dot was on another floor                       lower is better
+  //   3. blue dot within 5 m of you: % of walking time (right floor and <= 5 m)               higher is better
+  //   4. arrow catches up: median seconds for the heading to settle after a >= 60° turn       lower is better
+  // A phase with no data shows "—" and says why (never a made-up number).
+  const p90 = (x) => (x && ok(x.p90) ? `mean · 90% within ${err(x.p90)} m` : 'mean, by the phone');
   const rows = [
-    { k: 'Position error', cap: [(v, x) => p90(x.p90) || 'mean, by the phone', (v, x) => p90(x.p90) || 'mean, by the phone'], b: b.err, a: a && a.err, fmt: (v) => `${err(v)}<small>m</small>` },
+    { k: 'Position error', dir: 'lower', get: (x) => x.err, fmt: (v) => `${err(v)}<small>m</small>`, cap: (v, x) => p90(x) },
+    { k: 'On the wrong floor', dir: 'lower', get: (x) => x.wrongPct, fmt: pct, cap: (v) => (v < 0.5 ? 'right floor, every time' : 'of the time, by the phone') },
+    { k: 'Blue dot within 5 m of you', dir: 'higher', get: (x) => x.dotWithin5, fmt: pct, abs: 100, cap: () => 'of your walking time' },
+    { k: 'Arrow catches up after a turn', dir: 'lower', get: (x) => x.headingSettle, fmt: (v) => `${v.toFixed(1)}<small>s</small>`, cap: (v) => (v < 0.5 ? 'turns with you' : 'seconds after you turn') },
   ];
-  // v6 critic: the wrong-floor row only when the "before" phone actually got the floor wrong (0% vs 0% says nothing)
-  const wf = ok(b.wrongPct)
-    ? { k: 'On the wrong floor', cap: ['of the time, by the phone', (v) => (v < 0.5 ? 'right floor, every time' : 'of the time')], b: b.wrongPct, a: a && a.wrongPct, fmt: pct, show: b.wrongPct >= 1 }
-    : { k: 'Wrong-floor seconds', cap: ['phone put you on the wrong floor', (v) => (v < 1 ? 'right floor, every time' : 'corrected in a heartbeat')], b: b.wrongFloorS, a: a && a.wrongFloorS, fmt: (v) => `${Math.round(v)}<small>s</small>`, show: b.wrongFloorS >= 2 };
-  if (!a || wf.show) rows.push(wf);
-  const extra = a ? [
-    { k: 'Walked per metre of progress', cap: ['on foot, per metre closer', (v) => (v < 1.25 ? 'close to the shortest way' : 'on foot, per metre closer')], b: b.detour, a: a.detour, fmt: times, diff: 0.15 },
-    { k: 'Wrong turns', cap: ['per km walked', (v) => (v < 0.05 ? 'none' : 'per km walked')], b: b.turnsPerKm, a: a.turnsPerKm, fmt: perKm, diff: 0.5 },
-    { k: 'Reroutes', cap: ['“Recalculating…”, per km walked', (v) => (v < 0.05 ? 'never lost the thread' : 'per km walked')], b: b.reroutesPerKm, a: a.reroutesPerKm, fmt: perKm, diff: 1 },
-    // v6 critic: how long the arrow takes to come round after you turn — separates the phases for every player
-    { k: 'Arrow catches up', cap: ['seconds after you turn', (v) => (v < 0.5 ? 'turns with you' : 'seconds after you turn')], b: b.headingSettle, a: a.headingSettle, fmt: (v) => `${v.toFixed(1)}<small>s</small>`, diff: 1 },
-    { k: 'Compass error', cap: ['mean, while walking', (v) => (v < 2 ? 'heading true' : 'mean, while walking')], b: b.headingErr, a: a.headingErr, fmt: (v) => `${Math.round(v)}<small>°</small>`, diff: 5 },
-  ].filter(r => ok(r.b) && ok(r.a) && Math.abs(r.b - r.a) >= r.diff) : [];
-  rows.push(...extra.slice(0, Math.max(0, 4 - rows.length)));
-  if (rows.length < 3) {
-    // Net progress only says something when the "before" phase was genuinely lost; for a player who happened to walk
-    // the right way anyway, the per-minute pace is about equal and the row would be noise. Show it only when it tells
-    // the real story (Lodestone clearly faster), never fabricate it.
-    const r = { k: 'Net progress toward Daikichi', cap: [(v) => (v < 10 ? 'wandering: barely any closer' : 'closer to the door, per minute'), 'closer to the door, per minute'], b: pg.before, a: a && pg.after, fmt: mpm };
-    if (ok(r.b) && ok(r.a) && r.a >= 1.3 * Math.max(r.b, 5)) rows.push(r);
-  }
   const total = [
     s.totalSeconds != null && isFinite(s.totalSeconds) ? `${mmss(s.totalSeconds)} min` : null,
     s.totalMeters != null && isFinite(s.totalMeters) ? `${metres(s.totalMeters)} m on foot` : null,
     s.errand && s.errand.delivered ? `1 ${s.errand.item || 'coffee'} delivered` : null,      // v4: the coffee stop
   ].filter(Boolean).join(' · ');
-  const capOf = (r, side, v) => { const c = r.cap[side === 'b' ? 0 : 1]; return typeof c === 'function' ? c(v, side === 'b' ? b : a) : c; };
-  const cell = (r, side) => {
-    const v = side === 'b' ? r.b : r.a;
-    if (v == null || !isFinite(v)) return `<div class="e-v ${side}"><b class="e-none">—</b></div>`;
-    const max = Math.max(r.b > 0 ? r.b : 0, r.a > 0 ? r.a : 0, 1e-6);
-    return `<div class="e-v ${side}"><b>${r.fmt(v)}</b><i class="e-bar"><u style="--w:${bar(v, max)}"></u></i><span>${esc(capOf(r, side, v))}</span></div>`;
+  const val = (r, side) => { const x = side === 'b' ? b : a; const v = x ? r.get(x) : null; return ok(v) ? v : null; };
+  // the better side (by a clear margin) gets a quiet highlight so "better" reads at a glance whichever way is better
+  const winner = (r) => {
+    const vb = val(r, 'b'), va = val(r, 'a');
+    if (vb == null || va == null || Math.abs(vb - va) < Math.max(0.04 * Math.max(Math.abs(vb), Math.abs(va)), 0.05)) return null;
+    return (r.dir === 'lower') === (va < vb) ? 'a' : 'b';
+  };
+  const cell = (r, side, win) => {
+    const v = val(r, side), x = side === 'b' ? b : a;
+    if (v == null) {
+      const why = side === 'a' && !a ? 'Lodestone not installed' : 'not enough data';
+      return `<div class="e-v ${side} none"><b class="e-none">—</b><i class="e-bar"></i><span>${why}</span></div>`;
+    }
+    const max = r.abs || Math.max(val(r, 'b') || 0, val(r, 'a') || 0, 1e-6);
+    return `<div class="e-v ${side}${win === side ? ' win' : win ? ' lose' : ''}"><b>${r.fmt(v)}</b><i class="e-bar"><u style="--w:${bar(v, max)}"></u></i><span>${esc(r.cap(v, x))}</span></div>`;
   };
   const talk = ENDCARD.agent || ENDCARD.call;
   const el = document.createElement('div');
@@ -86,11 +80,11 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
         <p class="e-where">${esc(ENDCARD.kicker)}</p>
         <p class="e-note">Built for the Oriient team by <b>Zack Niv</b> — a love letter to Namba and to indoor positioning.</p>
         ${ENDCARD.contact ? `<p class="e-contact">${esc(ENDCARD.contact)}</p>` : ''}
-        ${talk ? `<div class="e-talk">${ENDCARD.invite ? `<p class="e-invite">${esc(ENDCARD.invite)}</p>` : ''}<div class="e-links">${link(ENDCARD.agent, 'chat')}${link(ENDCARD.call, 'cal')}</div></div>` : ''}
         <div class="e-btns">
           <button type="button" class="g-btn sel" data-a="roam">Keep exploring <small>まだ歩く</small></button>
           <button type="button" class="g-btn" data-a="replay">Replay <small>もう一度</small></button>
         </div>
+        ${talk ? `<div class="e-talk">${ENDCARD.invite ? `<p class="e-invite">${esc(ENDCARD.invite)}</p>` : ''}<div class="e-links">${link(ENDCARD.agent, 'chat', 'agent')}${link(ENDCARD.call, 'cal', 'call')}</div></div>` : ''}
       </section>
       <section class="e-right" aria-label="Your journey, before and after">
         <div class="e-head"><span>Your journey, measured live</span></div>
@@ -98,9 +92,10 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
           <div class="e-col-h b"><i></i><b>Before</b><small>an ordinary maps app</small></div>
           <div class="e-col-h a"><i></i><b>After</b><small>Lodestone</small></div>
         </div>
-        ${rows.map(r => `<div class="e-row"><div class="e-k">${esc(r.k)}</div>${cell(r, 'b')}${a ? cell(r, 'a') : `<div class="e-v a"><b class="e-none">—</b></div>`}</div>`).join('')}
+        ${rows.map(r => { const w = winner(r); return `<div class="e-row"><div class="e-k">${esc(r.k)}<small>${r.dir === 'lower' ? '↓ lower is better' : '↑ higher is better'}</small></div>${cell(r, 'b', w)}${cell(r, 'a', w)}</div>`; }).join('')}
         ${total ? `<p class="e-total">Whole trip: ${esc(total)}</p>` : ''}
         ${a ? '' : '<p class="e-foot">Lodestone was waiting in your messages the whole time.</p>'}
+        <p class="e-honest">${a ? 'Maps simulates typical indoor GPS/Wi\u2011Fi; Lodestone simulates ~1\u00a0m positioning. Both measured live on your walk.' : 'Maps simulates typical indoor GPS/Wi\u2011Fi, measured live on your walk.'}</p>
       </section>
     </div>`;
   (ctx.ui.overlay || document.body).appendChild(el);

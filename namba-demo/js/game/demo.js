@@ -448,11 +448,11 @@ export class Demo {
     const ser = Array.isArray(ps.series) ? ps.series : null;
     const fromSeries = (ph) => {
       if (!ser) return null;
-      const e = [], n = { w: 0 };
-      for (const r of ser) if (r && r[3] === ph && isFinite(r[1])) { e.push(r[1]); if (r[2]) n.w++; }
+      const e = [], n = { w: 0, in5: 0 };
+      for (const r of ser) if (r && r[3] === ph && isFinite(r[1])) { e.push(r[1]); if (r[2]) n.w++; else if (r[1] <= 5) n.in5++; }
       if (e.length < 15) return null;
       e.sort((x, y) => x - y);
-      return { p90: e[Math.min(e.length - 1, Math.floor(e.length * 0.9))], wrongPct: (n.w / e.length) * 100, n: e.length };
+      return { p90: e[Math.min(e.length - 1, Math.floor(e.length * 0.9))], wrongPct: (n.w / e.length) * 100, within5: (n.in5 / e.length) * 100, n: e.length };
     };
     const pick = (...v) => { for (const x of v) if (num(x) != null) return x; return null; };
     // the phone's own field wins whenever the phone publishes it — including its null ("not enough data to rate")
@@ -461,11 +461,13 @@ export class Demo {
     const own4 = (X) => (X.n >= 40 ? (X.wf / (X.n * 0.25)) * 100 : null);
     before.p90 = P('errP90Before', SB && SB.p90);
     before.wrongPct = P('wrongFloorPctBefore', pick(SB && SB.wrongPct, own4(A.before)));
+    before.dotWithin5 = P('dotWithin5Before', SB && SB.within5);       // v7.2: % of walking time the phone's dot was within 5 m of you
     before.turnsPerKm = P('wrongWaysPerKmBefore', null);
     before.reroutesPerKm = P('reroutesPerKmBefore', null); before.headingErr = P('headingErrBefore', null); before.headingSettle = P('headingSettleBefore', null);
     if (after) {
       after.p90 = P('errP90After', SA && SA.p90);
       after.wrongPct = P('wrongFloorPctAfter', pick(SA && SA.wrongPct, own4(A.after)));
+      after.dotWithin5 = P('dotWithin5After', SA && SA.within5);
       after.turnsPerKm = P('wrongWaysPerKmAfter', null);
       after.reroutesPerKm = P('reroutesPerKmAfter', null); after.headingErr = P('headingErrAfter', null); after.headingSettle = P('headingSettleAfter', null);
     }
