@@ -1,6 +1,6 @@
 # v6 — Story (items 1, 2-tutorial/IC, 8, 9-pacing) · owner: js/game/*, js/ui/hud.js, js/ui/title.js, css/game.css, index.html
 
-Status: **done** (walk 2 verifying the bot/row fixes). (contract below is implemented as written, adapted to notes/v6-gates.md)
+Status: **done.** Walk 2 (final code) completes; see Results. (contract below is implemented as written, adapted to notes/v6-gates.md)
 
 ## Contract: shared IC purchases (Story → everyone)
 
@@ -75,6 +75,12 @@ Status: **done** (walk 2 verifying the bot/row fixes). (contract below is implem
   progressing → the `whereLatest` fallback), offer 183 s (`lost`), Lodestone ready ~190 s, café order 270 s (`ic:pay
   purchase 520`, balance 1,510), arrival 496 s, end card shown. `ctx.errors []`; console: only the bot's own dbg warnings.
   End card (real numbers): ±15 m (p90 24) vs ±0.5 m · 16% vs 0% wrong floor · 27 vs 0 reroutes/km · 16° vs 0° compass.
+
+- **Full walk 2** (final code, `walk2-14-endcard.png`): same beats — gate E at 63.4 s (¥970), where 175.2 s (latest),
+  offer 183.7 s, latte 276.5 s (¥520 → 1,510), arrival 502.6 s. End card: ±18 m (p90 26) vs ±0.5 · 10% vs 0% ·
+  27 vs 0 reroutes/km · 16° vs 0°. `ctx.errors []`, console: the bot's 2 dbg warnings only.
+- Known bot quirk: at 104.5 s the bot also taps IN at lane 18 of `g_nk_central` (walking beside the gate line to the
+  3F→2F escalator; its 10-node look-ahead crosses the line). ¥0 tap-in, no charge, harmless; a human wouldn't press E.
 
 ## Requests / findings for other agents
 

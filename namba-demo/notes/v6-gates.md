@@ -85,3 +85,37 @@ player's direction. `setGateHint(null)` clears it.
   (the crowd code path is unchanged; the difference is noise).
 - Draw calls at the Nankai close-up: 940 → 944 (+4 instanced meshes per level). Tris: 1059k → 1093k.
 - `&autotap` URL param: an untapped walk-in auto-taps (the v5 feel). For bots and debugging only.
+
+### Evidence (15:20)
+
+In-page test (`?test`, systems stepped at dt 0.05 like walk.mjs, `input.setScript`). Shots are in `notes/v6-shots/gates/`.
+
+| Check | Result |
+|---|---|
+| Walk 3 s into lane 7.2 of `g_nk_central` from the free side, untapped | `gate:blocked {reason:'notap'}` and the player **stops at z −66.33** (flap line −66.0, radius 0.3). Before the fix the player ended up at −64.87 (walked through). |
+| Standing at the flaps, `tapGate(gate, 7, {sub:2})` → walk 3 s | `{ok:true, dir:1}` and the player reaches z −62.47 (through) |
+| Paid → free: tap from 2.4 m away, then walk | `gate:tap` 7.1, then `gate:pass {player:true}` 7.1; ends at −69.03 |
+| Wrong-way Midosuji lane (`policy:'in'`, exiting) | `gateLaneNear.ok=false`, `tapGate` → `{ok:false, reason:'lane'}` |
+| Collision registered | 188/188 flap segments; `autoTap` false by default |
+| NPC throughput, Nankai central (120 sim-s) | base 39.5/min → new 43.0/min (not reduced) |
+| Draw calls (Nankai close-up) | 940 → 943–944 |
+| Console errors / `ctx.errors` | none in either probe run; `loadprobe` → `READY 156.4s []` (only the sandbox font cert error) |
+
+Shots: `00-before-closeup` (v5.1), `01-after-closeup`, `02-after-gateline`, `03-after-paidside`, `04-blocked-flaps-shut`
+(flaps out, red pad, red no-entry LED), `05-after-tap-ic-pads`.
+
+### Unfinished / for the reviewer
+
+- **Divider collision is not proven yet.** The dividers between channels are player-only boxes (`hx` 0.09), registered
+  with the flap segments. A strafe test inside channel 7.0 ended 0.05 m past the divider's centre line. The likely
+  cause is player.js `_deflect` sliding the player around the 1.45 m cabinet end (z wasn't logged), but it could
+  also be a missing box. The probe now does a direct `world.move` check (`dividerMove` in my scratch probe). Reviewer:
+  `w=__namba.world; b={level:'3F',x:<channel centre>,z:-65.9,ramp:-1}; w.move(b,0.8,0,0.3)` must stop at
+  `hi − 0.39`.
+- The tap flash (green pad) and the live LCD readout (balance/fare on the cabinet top, 3.5 s) are coded, but the
+  screenshot caught them too late or too small to show. Verify on a real GPU.
+- NPC "wrist-tap" animation is in the crowd code (not mine). The gate side flashes the reader and LED of the crowd's
+  centre channel on every `gatePass`.
+- `tools/walk.mjs` must tap, or run with `&autotap`, or the bot is stopped at the Nankai central gate (by design).
+  Story's E prompt does tap.
+- The cabinets add ~34k triangles (extruded rounded shells). They're chunk-culled with the gate group.
