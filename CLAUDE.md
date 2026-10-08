@@ -125,6 +125,7 @@ Zack explicitly asked that this working style carry over.
 | `node tools/walk.mjs` | Full playthrough bot (`&nocoffee` variant) |
 | `node tools/accshot.mjs <prefix>` | NPC accessory close-ups |
 | `node tools/leakprobe.mjs` | Ray probe for see-through / back-face leaks |
+| `node tools/zfightprobe.mjs` | Coplanar z-fighting surfaces along the route (24 poses; `--poses`, `--shot`) |
 | `node tools/headtest.mjs` | NPC head-turn sanity |
 | `node tools/boardprobe.mjs` | Node-only per-frame step / yaw / sideways checks around escalators (`--js DIR` compares old code) |
 | `node tools/browserprobe.mjs` | The same per-frame check in the real browser, plus a boarding screenshot |
@@ -139,6 +140,10 @@ Zack explicitly asked that this working style carry over.
 
 - When something "isn't drawn", check data and precision before blaming shaders. A float32 `int(x + 0.5)` hid every NPC
   accessory.
+- Coplanar surfaces z-fight (ceilings at slab height, soil at the pot rim, sills in deck planes). Offset 1–4 cm and sweep
+  with `zfightprobe.mjs`.
+- Moods/env maps are picked by the space you're in; on ramps `space` is null. `lighting._rampLoc` now borrows the nearer
+  end's space.
 - Geometry built only as inward-facing skins leaks when new viewpoints open up. `arch/shells.js` closes it; probe with
   `leakprobe.mjs`.
 - Crowd jams come from spawning and relocation logic as much as from queues. Measure with flowprobe at the real population
