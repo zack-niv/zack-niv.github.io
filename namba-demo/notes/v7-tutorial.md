@@ -51,3 +51,25 @@ a nudge after 12 s idle. Zack had already finished it in that tab (v5 or an earl
 Tutorial, fresh session (shots `01`–`07`): look (`01`) → move (`02`) → raise (`03`) → reply (`04`) → pick (`05`, `06`)
 → `tutorial:done` 43.8 s → gate (`07`). All events in order, `ctx.errors []`, console: only the sandbox font cert error
 and SwiftShader ReadPixels perf notes.
+
+**Replay** (`scratchpad replay.mjs`: sessionStorage `namba.tutorial.v3 = done` set before load, like a refresh after
+finishing): `teach: true`; look → move → raise → reply → pick all hinted and validated, `tutorial:done` 27.6 s
+(shots `r01`–`r04`). Before the fix the same tab reloaded with `teach: false` and no hint at all.
+
+## Walk (full `tools/walk.mjs`, default walk params `?quality=low&noaudio`, no `&autotap`, bot presses E as key events)
+
+Tutorial: move, raise, reply, pick → `tutorial:done` 54.6 s. Gate: `bot:E gatetap g_nk_central 9.1` → `ic:pay fare 970`
+→ `gate:tap` → tutorial `gate` done; one `gate:blocked notap` at 10.0 (bot side-stepped into the next channel) → E →
+tap → through. Café: `bot:E order:city_1e12` → `ic:pay purchase 520` → iced latte. **ARRIVED t 499 s**, end card shown
+(±18 m → ±0.5 m, 28 % wrong floor → 0). `ctx.errors []`, console: only the bot's 2 `dbg` warnings. `loadprobe`:
+`READY 133.9s []` (sandbox font cert error only).
+
+## For the lead
+
+- **Stale-module risk on deploy (not my files):** `index.html`/`js/**` load with no version stamp and GitHub Pages
+  serves `Cache-Control: max-age=600`. Right after a deploy a browser can run a **mix** of old and new modules (I
+  reproduced the mechanism locally: a reload kept the old `tutorial.js` while the server had the new one). An old
+  `game.js` against the new `gates.js` = no E at the gate. Worth a `?v=<sha>` stamp in `deploy.sh` (importmap / main.js
+  URL), and telling Zack to hard-refresh after v7 goes live.
+- The phone still stays up while you walk if the cursor moves over it (`phone._lastPointerT`); harmless now that E and
+  the gate prompt work with it up, so I left phone.js alone.

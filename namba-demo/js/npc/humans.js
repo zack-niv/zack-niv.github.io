@@ -381,13 +381,13 @@ export class HumanLibrary {
       };
       const tp = { names };
       tp.up = grab(() => {
-        aim('UpperArm' + s, 'LowerArm' + s, V(0.1 * sx, -1, 0.34));
-        aim('LowerArm' + s, 'Wrist' + s, V(0.32 * sx, -0.3, 1));
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.02 * sx, -1, 0.3));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.2 * sx, -0.12, 1));
         palmTo(s, 1, V(0, -1, 0.12));
       });
       tp.press = grab(() => {
-        aim('UpperArm' + s, 'LowerArm' + s, V(0.1 * sx, -1, 0.42));
-        aim('LowerArm' + s, 'Wrist' + s, V(0.32 * sx, -0.36, 1));
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.02 * sx, -1, 0.5));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.2 * sx, -0.2, 1));
         palmTo(s, 1, V(0, -1, 0.12));
       });
       rig.tapPose[s] = tp;
