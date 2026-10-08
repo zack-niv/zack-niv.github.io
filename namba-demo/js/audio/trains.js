@@ -143,7 +143,7 @@ export class Trains {
     if (tr.line !== 'nankai') {
       const mel = MEL[tr.line];
       const pg = this._pgTr(tr);
-      if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.5 * pg, send: 0.9, wait: true, prio: 1 });
+      if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.75 * pg, send: 0.9, wait: true, prio: 1 });
       const a = approach(tr);
       setTimeoutAudio(this.ac, 5.5, () => this._say({ kind: 'train', platform: this._plat(tr), parts: [{ lang: 'ja', text: a.ja }, { lang: 'en', text: a.en }] }));
     } else {
@@ -180,7 +180,7 @@ export class Trains {
   _melody(s) {
     if (s.melodyDone || !this._nearPlatform(s.tr)) return;
     s.melodyDone = true;
-    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.55 * this._hears(s), send: 0.7, wait: true, prio: 1 });
+    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.8 * this._hears(s), send: 0.7, wait: true, prio: 1 });
     if (!this.live) { const d = departure(s.tr); this._say({ kind: 'train', platform: this._plat(s.tr), delay: 5, parts: [{ lang: 'ja', text: d.ja }, { lang: 'en', text: d.en }] }); }
   }
   onClosing(e) {
@@ -228,7 +228,7 @@ export class Trains {
     // sound hints → melodies / chimes (scaled by how audible the platform is)
     let chime = 'pa';
     const snd = e.sound || '';
-    if (snd === 'metro_approach') { chime = null; const mel = MEL[e.line]; if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.55 * pg, send: 0.9, wait: true, prio: 1 }); }
+    if (snd === 'metro_approach') { chime = null; const mel = MEL[e.line]; if (mel) this.mixer.play(mel, { bus: 'voice', gain: 0.8 * pg, send: 0.9, wait: true, prio: 1 }); }
     else if (snd === 'metro_arrive') chime = null;
     else if (snd === 'metro_door_chime') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); this._fx(s, 'chime:door', 0.45, 0, 'voice'); } }
     else if (snd === 'nankai_melody') { chime = null; if (tr) { const s = this.state(e.trainId || tr.id, tr); s.melodyDone = false; this._melodyOnly(s); } }
@@ -240,7 +240,7 @@ export class Trains {
   _melodyOnly(s) {
     if (s.melodyDone || !this._nearPlatform(s.tr)) return;
     s.melodyDone = true;
-    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.55 * this._hears(s), send: 0.7, wait: true, prio: 1 });
+    this.mixer.play(s.tr.no % 2 ? 'mel:nankaiA' : 'mel:nankaiB', { bus: 'voice', gain: 0.8 * this._hears(s), send: 0.7, wait: true, prio: 1 });
   }
 
   // ---- per frame --------------------------------------------------------------------

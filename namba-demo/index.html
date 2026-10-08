@@ -28,6 +28,16 @@
   "three/addons/": "./vendor/three/addons/"
 } }
 </script>
+  <!-- Vercel Web Analytics: only on Vercel hosting (on GitHub Pages / localhost the endpoint doesn't exist) -->
+  <script>
+    (function () {
+      var h = location.hostname;
+      if (/github\.io$/.test(h) || /^(localhost|127\.|0\.0\.0\.0)/.test(h) || location.search.indexOf('test') >= 0) return;
+      window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+      var s = document.createElement('script'); s.defer = true; s.src = '/_vercel/insights/script.js';
+      document.head.appendChild(s);
+    })();
+  </script>
 </head>
 <body>
 <canvas id="view"></canvas>

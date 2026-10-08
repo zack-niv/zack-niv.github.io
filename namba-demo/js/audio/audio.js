@@ -322,6 +322,16 @@ export class Audio {
     const parts = []; if (ja) parts.push({ lang: 'ja', text: ja }); if (en) parts.push({ lang: 'en', text: en });
     return this.announcer.say({ kind, parts, pos, gain, chime, send: pos ? 0.4 : 0.9 });
   }
+  // test hook: speak a platform line from the platform that is loudest where you stand (null when none is audible).
+  // The same path as a real train announcement: chime + Japanese line, ambience ducked while it plays.
+  testPA(ja = 'まもなく、一番線に、電車が参ります。危ないですから、黄色い線まで、お下がりください。', en = 'The train is now approaching. Please stand behind the yellow line.') {
+    const L = this.L; if (!this.announcer || !L) return null;
+    let best = null, bg = 0;
+    for (const sp of LAYOUT.spaces) { if (sp.kind !== 'platform' || !sp.rect) continue; const g = platformGain(sp, L); if (g > bg) { bg = g; best = sp; } }
+    if (!best) return null;
+    this.announcer.say({ kind: 'train', platform: best, chime: 'pa', gain: 1, parts: [{ lang: 'ja', text: ja }, { lang: 'en', text: en }], group: 'testPA' });
+    return { platform: best.id, gain: +bg.toFixed(2) };
+  }
   // how audible an 'announce' payload is from where the player stands (0..1): train lines belong to their platform,
   // others are point speakers. The HUD can use this to caption only what is heard.
   paVolume(e) {

@@ -37,9 +37,10 @@ export class Mixer {
     this.bus = {};
     for (const name of BUSES) {
       const dry = ac.createGain(), wet = ac.createGain(), vol = ac.createGain();
+      const wetDuck = ac.createGain();   // announcer ducking acts on dry.gain and wetDuck.gain (bus volume lives on vol / wet)
       dry.connect(vol); vol.connect(master);
-      wet.connect(this.verbIn);
-      this.bus[name] = { dry, wet, vol, level: 1 };
+      wet.connect(wetDuck); wetDuck.connect(this.verbIn);
+      this.bus[name] = { dry, wet, wetDuck, vol, level: 1 };
     }
     this.volumes = { master: 1, music: 1, sfx: 1, voice: 1, ambience: 1, ui: 1 };
     this.listener = ac.listener;

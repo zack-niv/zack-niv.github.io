@@ -60,6 +60,10 @@
 .h-prompt.passive .h-prompt-main { padding-left: 14px; background: rgba(14, 15, 18, .38); }
 .h-prompt.disabled .h-prompt-main { opacity: .7; }
 .h-prompt.disabled .g-key { display: none !important; }
+/* v7: world prompts work with the phone raised (E taps your card at a gate) → the prompt steps left of the phone */
+body:has(#phone-root.ph-is-open) .h-prompt { left: auto; right: calc(50% + 14px); align-items: flex-end; transform: translate(0, 6px); }
+body:has(#phone-root.ph-is-open) .h-prompt.on { transform: translate(0, 0); }
+@media (max-width: 860px) { body:has(#phone-root.ph-is-open) .h-prompt { right: auto; left: 12px; align-items: flex-start; } }
 
 .h-toasts { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .h-toast {

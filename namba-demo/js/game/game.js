@@ -18,7 +18,6 @@ import { Demo } from './demo.js';
 import * as V from './vignettes.js';
 import { QUESTS, DEMO } from './script.js';
 import { orderItem, hasCounter } from './order.js';
-import { tutorialStore } from './tutorial.js';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -234,15 +233,13 @@ export class Game {
     return d;
   }
   // v3 item 6: "Restart" asks first. Confirm = a clean reload to the title (the title click is the user gesture
-  // audio and pointer lock need). If the tutorial was completed this session, the next run keeps the story but
-  // hides the hints (tutorial.js: they only come back as a nudge when a step stalls).
+  // audio and pointer lock need). v7: the hints show again on the new run (tutorial.js).
   _restartView() {
     const d = document.createElement('div');
     d.className = 'p-confirm';
-    const skip = tutorialStore.completed();
     d.innerHTML = `<h3>Restart <small>最初から</small></h3>
       <p class="p-confirm-q">Are you sure?</p>
-      <p class="p-confirm-sub">Your progress will be lost. You'll start again on the platform, fresh off the rapi:t.${skip ? ' The control hints stay hidden — you know the ropes.' : ''}</p>
+      <p class="p-confirm-sub">Your progress will be lost. You'll start again on the platform, fresh off the rapi:t.</p>
       <div class="p-confirm-btns">
         <button type="button" class="g-btn" data-c="cancel">Cancel <small>やめる</small></button>
         <button type="button" class="g-btn danger" data-c="restart">Restart <small>最初から</small></button>
@@ -399,7 +396,7 @@ export class Game {
     // v6: the gates are real (notes/v6-gates.md): E taps your ICOCA on the lane in front of you and its flaps open for a
     // few seconds; walk in without tapping and they snap shut. One interactable serves every gate line.
     this.interactions.add({
-      id: 'gatetap', level: null,
+      id: 'gatetap', level: null, keepPhone: true,     // v7: tap with Maps still up, the way people do
       test: (b, fwd) => { const T = this._gateTarget(b, fwd); this._gateTgt = T; return T ? T.score : null; },
       view: () => this._gateView(),
       onUse: () => this._tapGate(),
@@ -651,8 +648,15 @@ export class Game {
     if (!this.paused && !this.ended) this._checkGates();
     this._prev = { x: b.x, z: b.z, level: b.level };
     // interactions
-    const canUse = !this.paused && !this.busy && !this.intro && !this.ended && !this.phoneOpen && !this.panels.open;
-    if (canUse && !this.quiet) this.interactions.update(dt, true);
+    // v7 (items 2+3): the world stays usable while the phone is raised. v6 switched every interaction off whenever the
+    // phone was up — and the tutorial ends with Maps raised, so a player walking to the gate behind their map got no
+    // prompt and E did nothing ("I cannot continue"). With the phone up only E itself acts on the world (Enter, 1–9,
+    // Tab, Q… stay the phone's); not while typing in it, and not while Aya's Lodestone offer is on screen (E installs).
+    const ph = ctx.phone;
+    const phoneUp = !!(this.phoneOpen || (ph && ph.isOpen));
+    const phoneBusy = phoneUp && !!(ph && (ph.typing || ph.upgradeStage === 'offer'));
+    const canUse = !this.paused && !this.busy && !this.intro && !this.ended && !this.panels.open && !phoneBusy;
+    if (canUse && !this.quiet) this.interactions.update(dt, true, phoneUp ? { keyOnly: true, lowerPhone: true } : null);
     else if (this.hud) this.hud.prompt(null);
   }
   // Esc / gamepad Start toggles the pause menu when the pointer isn't locked
