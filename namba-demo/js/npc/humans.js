@@ -26,8 +26,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BIT } from './looks.js';
-import { ESC_STAND_SIDE } from './sim.js';
+import { BIT } from './looks.js?v=488c31e';
+import { ESC_STAND_SIDE } from './sim.js?v=488c31e';
 
 export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11, SCREEN: 12, CAP: 13 };
 const MAX_MATS = 28;   // polish: + phone screen (was 23 / 24 used)
@@ -367,6 +367,32 @@ export class HumanLibrary {
       const s = ESC_STAND_SIDE > 0 ? 'R' : 'L', sx = ESC_STAND_SIDE > 0 ? -1 : 1;
       aim('UpperArm' + s, 'LowerArm' + s, V(0.4 * sx, -0.9, 0.12)); aim('LowerArm' + s, 'Wrist' + s, V(0.25 * sx, -0.35, 1));
     });
+    // v7: IC-card tap at a ticket gate. Not a clip: a layered upper-body override applied by render.js on top of the walk (near LOD
+    // only), so the walk, the feet and the other arm are untouched. Two key poses per hand, stored as the arm bones' LOCAL
+    // quaternions (relative to the shoulder, so independent of the walk's torso sway): `up` = forearm forward, hand at the reader
+    // (~0.95 m on a 1.7 m person), palm down, and `press` = the hand pushed ~4 cm on to the pad. R = right hand, L = mirrored.
+    rig.tapPose = {};
+    for (const s of ['R', 'L']) {
+      const sx = s === 'R' ? -1 : 1, names = ['UpperArm' + s, 'LowerArm' + s, 'Wrist' + s];
+      const grab = (fn) => {
+        S.cur = null; S.curClip = null; this._restore(rig); this._pose(rig, C.idle, 0);
+        fn();
+        return names.map(n => B[n] ? B[n].quaternion.clone() : null);
+      };
+      const tp = { names };
+      tp.up = grab(() => {
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.02 * sx, -1, 0.3));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.2 * sx, -0.12, 1));
+        palmTo(s, 1, V(0, -1, 0.12));
+      });
+      tp.press = grab(() => {
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.02 * sx, -1, 0.5));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.2 * sx, -0.2, 1));
+        palmTo(s, 1, V(0, -1, 0.12));
+      });
+      rig.tapPose[s] = tp;
+    }
+    S.cur = null; S.curClip = null; this._restore(rig);
   }
 
   // sample `base` over `dur` (looping) at `keys` keys, run fn(u) to modify the pose, bake all bone tracks

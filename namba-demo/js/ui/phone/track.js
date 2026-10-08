@@ -28,7 +28,7 @@
 // Emits 'nav:track' {state, headingErr, lost} on every state change.
 // Nothing runs while riding an escalator, near the destination, or pocketed.
 // =============================================================================
-import { LEVELS } from '../../world/layout.js';
+import { LEVELS } from '../../world/layout.js?v=488c31e';
 
 const DEG = 180 / Math.PI;
 const lvl = (l) => (LEVELS[l] ? LEVELS[l].label : l).replace('B1F', 'B1').replace('B2F', 'B2');

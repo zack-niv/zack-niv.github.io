@@ -6,8 +6,8 @@
 // night lights, and aerial perspective that fades into the sky's horizon.
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js';
-import { viaductAt } from './massing.js';
+import { rng } from '../../core/rng.js?v=488c31e';
+import { viaductAt } from './massing.js?v=488c31e';
 
 export const CITY_U = {
   uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color() }, uSunE: { value: 18 },

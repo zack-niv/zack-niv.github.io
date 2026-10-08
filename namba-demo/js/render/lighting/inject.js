@@ -7,7 +7,7 @@
 // after ours) and nobody has to opt in.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVEL_ORDER, LEVELS } from '../../world/layout.js';
+import { LEVEL_ORDER, LEVELS } from '../../world/layout.js?v=488c31e';
 
 export const NB_LEVELS = LEVEL_ORDER.length;
 export const NB_DYN = 4; // real specular fixtures per fragment (8 unrolled GGX evaluations made every lit program slow to compile)

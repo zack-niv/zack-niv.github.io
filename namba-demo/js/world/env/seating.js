@@ -5,8 +5,8 @@
 // table gets a small visual offset, chairs a yaw wobble, and the generators choose shape / size / orientation at random,
 // so the result never reads as a grid. RNG rule (see furnish.js): only S.r() and S.solid() answers steer the layout.
 // =============================================================================
-import { mix } from './kit.js';
-import { WOODS, FABRIC, chair, roundTable, squareTable, cup, glass, globeLamp } from './furnish.js';
+import { mix } from './kit.js?v=488c31e';
+import { WOODS, FABRIC, chair, roundTable, squareTable, cup, glass, globeLamp } from './furnish.js?v=488c31e';
 
 export class Cells {
   constructor(W, D) { this.W = W; this.D = Math.ceil(D); this.u = new Uint8Array(this.W * this.D); this.Dm = D; }

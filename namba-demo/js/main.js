@@ -12,38 +12,38 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js';
-import { Events } from './core/events.js';
-import { Clock } from './core/clock.js';
-import { Input } from './core/input.js';
-import { params } from './core/params.js';
-import { World } from './world/world.js';
-import { Nav } from './world/nav.js';
-import { LAYOUT } from './world/layout.js';
-import { Loader } from './core/loader.js';
-import { precompileVisible, precompileRest } from './render/precompile.js';
+import { Engine } from './core/engine.js?v=488c31e';
+import { Events } from './core/events.js?v=488c31e';
+import { Clock } from './core/clock.js?v=488c31e';
+import { Input } from './core/input.js?v=488c31e';
+import { params } from './core/params.js?v=488c31e';
+import { World } from './world/world.js?v=488c31e';
+import { Nav } from './world/nav.js?v=488c31e';
+import { LAYOUT } from './world/layout.js?v=488c31e';
+import { Loader } from './core/loader.js?v=488c31e';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=488c31e';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js', 'Architecture', 'build'],
-  ['props',        './world/props.js',        'Props',        'build'],
-  ['shops',        './world/shops.js',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js',     'Exterior',     'build'],
-  ['parks',        './world/parks.js',        'Parks',        'build'],
-  ['transit',      './world/transit.js',      'Transit',      'build'],
-  ['signage',      './world/signage.js',      'Signage',      'build'],
-  ['player',       './player/player.js',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js',        'Audio',        'live'],
-  ['phone',        './ui/phone.js',           'Phone',        'live'],
-  ['hud',          './ui/hud.js',             'Hud',          'live'],
-  ['game',         './game/game.js',          'Game',         'live'],
-  ['visibility',   './render/visibility.js',  'Visibility',   'live'],
-  ['post',         './render/post.js',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=488c31e',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=488c31e',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=488c31e', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=488c31e',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=488c31e',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=488c31e',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=488c31e',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=488c31e',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=488c31e',      'Signage',      'build'],
+  ['player',       './player/player.js?v=488c31e',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=488c31e',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=488c31e',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=488c31e',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=488c31e',             'Hud',          'live'],
+  ['game',         './game/game.js?v=488c31e',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=488c31e',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=488c31e',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -122,7 +122,7 @@ async function boot() {
   loader.finish('nav');
   for (const s of SYSTEMS.filter(s => s[3] === 'live')) await load(s);
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./ui/perf.js?v=488c31e').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
 
   ctx.start = () => {
     if (ctx.started) return;

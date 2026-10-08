@@ -3,8 +3,8 @@
 // tunnels, traffic, distant city, leaves, water, crowd footstep texture) and
 // one-shot nature/street calls (birds, crows, crossing signals, horns).
 // =============================================================================
-import { TAU, rng, Biquad, white, pink, brown, smoothRandom, foldLoop, filt, normalize, addMode, clamp, onePoleLP } from './dsp.js';
-import { footstep } from './foley.js';
+import { TAU, rng, Biquad, white, pink, brown, smoothRandom, foldLoop, filt, normalize, addMode, clamp, onePoleLP } from './dsp.js?v=488c31e';
+import { footstep } from './foley.js?v=488c31e';
 
 const XF = 0.5; // loop crossfade seconds
 function loopStereo(sr, seconds, gen) {

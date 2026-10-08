@@ -3,9 +3,9 @@
 // that opens panels, plays lines, passes time and updates quests.
 // The game marks itself busy (player frozen) while one runs.
 // =============================================================================
-import { isOpen } from '../world/directory.js';
-import { MENUS, BARISTA, AFTERTASTE, PEEK } from './script.js';
-import { yen, esc } from './panel.js';
+import { isOpen } from '../world/directory.js?v=488c31e';
+import { MENUS, BARISTA, AFTERTASTE, PEEK } from './script.js?v=488c31e';
+import { yen, esc } from './panel.js?v=488c31e';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

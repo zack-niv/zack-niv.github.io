@@ -8,13 +8,13 @@
 // world.addBox.
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js';
-import { EDGE } from '../world.js';
-import { MeshAcc, lin, mulc } from './meshacc.js';
-import { Frontages, prepareStorefrontTextures, updateStorefronts } from './storefront.js';
-import { buildTraffic } from './traffic.js';
-import { Vegetation } from './vegetation.js';
-import { FACADE_U, facadeMat, FKIND } from './facade.js';
+import { rng } from '../../core/rng.js?v=488c31e';
+import { EDGE } from '../world.js?v=488c31e';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=488c31e';
+import { Frontages, prepareStorefrontTextures, updateStorefronts } from './storefront.js?v=488c31e';
+import { buildTraffic } from './traffic.js?v=488c31e';
+import { Vegetation } from './vegetation.js?v=488c31e';
+import { FACADE_U, facadeMat, FKIND } from './facade.js?v=488c31e';
 
 // ---- layout constants ---------------------------------------------------------
 export const SEN = { z0: -252, z1: -206 };           // Sennichimae-dori carriageway incl. bays
