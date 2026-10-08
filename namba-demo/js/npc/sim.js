@@ -39,7 +39,7 @@ export class Agent {
     this.node = -1; this.aimX = 0; this.aimZ = 0; this.aimT = 0; this.rampNext = -1; this.rampU = 0; this.rampFromLow = true;
     this.en = null; this.arriveDm = 10; this.mode = MODE.NONE;
     this.path = null; this.pi = 0; this.tx = 0; this.tz = 0; this.arriveR = 0.4;
-    this.gate = null; this.lane = -1; this.gstage = 0; this.gside = 1;
+    this.gate = null; this.lane = -1; this.gstage = 0; this.gside = 1; this.tapAt = -9; this.tapDone = false;   // v7: IC-card tap gesture (render.js reads tapAt, sim time of the gesture's start)
     this.faceYaw = 0; this.faceSet = false; this.pose = POSE.STAND; this.lookYaw = 0; this.lookPitch = 0; this.lookT = 0;
     this.tier = 2; this.lastUpd = 0; this.fade = 0; this.fadeDir = 1; this.dead = false;
     this.leader = null; this.followers = null; this.offX = 0; this.offZ = 0; this.handHold = false;
@@ -695,7 +695,7 @@ export class CrowdSim {
       if (c < bc) { bc = c; best = i; }
     }
     if (best < 0) return false;
-    a.gate = G; a.lane = best; a.gside = side; a.gstage = 0; G.load[best]++;
+    a.gate = G; a.lane = best; a.gside = side; a.gstage = 0; a.tapDone = false; G.load[best]++;
     a.mode = MODE.GATE;
     return true;
   }
@@ -723,6 +723,13 @@ export class CrowdSim {
     const dx = tx - a.x, dz = tz - a.z, l = Math.hypot(dx, dz);
     const before = ((ax ? a.z : a.x) - G.at) * side;
     if (!a.d) a.d = {};
+    // v7: IC-card tap. The hand-to-reader contact lands ~0.4 s into the gesture (render.js TAP_*), and the gate's reader flash fires
+    // when the person crosses the flap line below, so start the gesture 0.4 s before that crossing (time-to-line from the current
+    // speed). Purely visual: it never touches the walk (no stop, no speed change).
+    if (!a.gPassed && !a.tapDone && a.tier < 2) {
+      const eta = before / Math.max(0.35, a.spd);
+      if (eta <= 0.4) { a.tapAt = this.time - Math.max(0, 0.4 - eta); a.tapDone = true; }
+    }
     if (before < 0 && !a.gPassed) {
       a.gPassed = true;
       if (G.occDir[a.lane] === side) G.occDir[a.lane] = 0;

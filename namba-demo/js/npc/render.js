@@ -33,6 +33,7 @@ const TIERS = {
 };
 const PHONE_CLIPS = new Set(['phone', 'phonewalk', 'photo', 'sitphone', 'sitphone2']);   // clips with a hand up at a phone ('browse' reaches for a shelf: no phone)
 const XFADE = 0.3;   // near <-> far hand-over (s)
+const TAP_UP = 0.3, TAP_DOWN = 0.65, TAP_END = 0.95;   // v7: IC-card tap timings (s)
 const BLEND = 0.28;  // clip cross-fade (s)
 const HEAD_YAW_MAX = 70 * Math.PI / 180, HEAD_PITCH_MAX = 25 * Math.PI / 180, HEAD_RATE = Math.PI;   // head look limits: +-70 / +-25 deg, 180 deg/s
 const wrapA = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a < -Math.PI ? a + 2 * Math.PI : a; };
@@ -425,7 +426,11 @@ export class CrowdRenderer {
     // clean state), run the mixer, remember the clean pose, then apply the (clamped, smoothed) look on top of it.
     const neck = s.by.Neck, head = s.by.Head;
     if (s.hClean) { if (neck) neck.quaternion.copy(s.nClean); if (head) head.quaternion.copy(s.hClean); }
+    // v7: IC-card tap layer (same clean-pose rule as the head: put the arm bones back before the mixer, override after it)
+    if (s.tapBones) for (let i = 0; i < s.tapBones.length; i++) if (s.tapBones[i]) s.tapBones[i].quaternion.copy(s.tapClean[i]);
     s.mixer.update(0);
+    s.tapBones = null;
+    if (a.tapAt > -5) this._tap(s, a);
     if (head) { if (!s.hClean) { s.hClean = new THREE.Quaternion(); s.nClean = new THREE.Quaternion(); } s.hClean.copy(head.quaternion); if (neck) s.nClean.copy(neck.quaternion); }
     const yawH = a.pHY || 0, pitchH = a.pHP || 0;
     if (Math.abs(yawH) > 0.005 || Math.abs(pitchH) > 0.005) {
@@ -435,6 +440,31 @@ export class CrowdRenderer {
     // kids: bigger heads
     const kid = (lk.flags >> BIT.KID) & 1;
     if (head) head.scale.setScalar(kid ? 1.16 : 1);
+  }
+  // v7: the quick IC-card tap at a ticket gate: hand up to the reader (0..TAP_UP s), press (contact ~0.32-0.65 s, the gate's reader
+  // flash fires at 0.4 s, see sim.js _gateStep), hand back down (to TAP_END s). Near LOD only, the walk keeps going underneath.
+  _tap(s, a) {
+    const tt = this.sim.time - a.tapAt;
+    if (tt < 0 || tt > TAP_END || !isFinite(tt)) return;
+    // right hand, unless that one carries something (then the left); nothing free: no tap
+    const f = a.flags | a.dyn, hasB = (b) => (f >> b) & 1;
+    const rBusy = hasB(BIT.BRIEFCASE) || hasB(BIT.SHOPBAG2) || hasB(BIT.UMBRELLA);
+    const lBusy = hasB(BIT.SHOPBAG) || hasB(BIT.CUP) || hasB(BIT.SUITCASE) || hasB(BIT.CART);
+    const side = !rBusy ? 'R' : !lBusy ? 'L' : null;
+    const tp = side && a._rig.tapPose && a._rig.tapPose[side]; if (!tp) return;
+    const sm = (x) => { x = x < 0 ? 0 : x > 1 ? 1 : x; return x * x * (3 - 2 * x); };
+    const k = tt < TAP_UP ? sm(tt / TAP_UP) : tt < TAP_DOWN ? 1 : 1 - sm((tt - TAP_DOWN) / (TAP_END - TAP_DOWN));
+    const w = sm((tt - 0.3) / 0.1) * (1 - sm((tt - 0.55) / 0.1));
+    if (k <= 0.001) return;
+    const bones = tp.names.map(n => s.by[n]);
+    s.tapBones = bones; s.tapClean = s.tapClean || [];
+    const q = this._q2;
+    for (let i = 0; i < bones.length; i++) {
+      const b = bones[i]; if (!b) continue;
+      s.tapClean[i] = (s.tapClean[i] || new THREE.Quaternion()).copy(b.quaternion);
+      q.copy(tp.up[i]); if (w > 0.001) q.slerp(tp.press[i], w);
+      b.quaternion.slerp(q, k);
+    }
   }
   // Rotate bone `b` about the person's up axis (yaw, + = towards their left) and right axis (pitch, + = up), given in the
   // root's frame (the root only turns about Y, so root-up == world-up). Uses local quaternions only (no matrix decomposition,

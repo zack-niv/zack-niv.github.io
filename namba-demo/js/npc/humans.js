@@ -367,6 +367,32 @@ export class HumanLibrary {
       const s = ESC_STAND_SIDE > 0 ? 'R' : 'L', sx = ESC_STAND_SIDE > 0 ? -1 : 1;
       aim('UpperArm' + s, 'LowerArm' + s, V(0.4 * sx, -0.9, 0.12)); aim('LowerArm' + s, 'Wrist' + s, V(0.25 * sx, -0.35, 1));
     });
+    // v7: IC-card tap at a ticket gate. Not a clip: a layered upper-body override applied by render.js on top of the walk (near LOD
+    // only), so the walk, the feet and the other arm are untouched. Two key poses per hand, stored as the arm bones' LOCAL
+    // quaternions (relative to the shoulder, so independent of the walk's torso sway): `up` = forearm forward, hand at the reader
+    // (~0.95 m on a 1.7 m person), palm down, and `press` = the hand pushed ~4 cm on to the pad. R = right hand, L = mirrored.
+    rig.tapPose = {};
+    for (const s of ['R', 'L']) {
+      const sx = s === 'R' ? -1 : 1, names = ['UpperArm' + s, 'LowerArm' + s, 'Wrist' + s];
+      const grab = (fn) => {
+        S.cur = null; S.curClip = null; this._restore(rig); this._pose(rig, C.idle, 0);
+        fn();
+        return names.map(n => B[n] ? B[n].quaternion.clone() : null);
+      };
+      const tp = { names };
+      tp.up = grab(() => {
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.1 * sx, -1, 0.34));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.32 * sx, -0.3, 1));
+        palmTo(s, 1, V(0, -1, 0.12));
+      });
+      tp.press = grab(() => {
+        aim('UpperArm' + s, 'LowerArm' + s, V(0.1 * sx, -1, 0.42));
+        aim('LowerArm' + s, 'Wrist' + s, V(0.32 * sx, -0.36, 1));
+        palmTo(s, 1, V(0, -1, 0.12));
+      });
+      rig.tapPose[s] = tp;
+    }
+    S.cur = null; S.curClip = null; this._restore(rig);
   }
 
   // sample `base` over `dur` (looping) at `keys` keys, run fn(u) to modify the pose, bake all bone tracks
