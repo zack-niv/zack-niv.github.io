@@ -460,6 +460,17 @@ export class HumanLibrary {
     // bevelled box (108 tris): bags read as soft goods, not crates
     const rbox = (bit, bone, mat, cx, cy, cz, sx, sy, sz, rad, rx = 0, ry = 0, rz = 0) => parts.push({ bit, bone, mat, g: new RoundedBoxGeometry(sx, sy, sz, 1, rad), c: [cx, cy, cz], r: [rx, ry, rz] });
     const body = this._bodyPts(rig, meshes);
+    // polish: a thin bar from p0 to p1 (straps, handles); its thickness runs along `side` (the surface normal) when given
+    const seg = (bit, bone, mat, p0, p1, w, t, side = null) => {
+      const d = new THREE.Vector3().subVectors(p1, p0), len = d.length(); if (len < 1e-4) return;
+      const g = new THREE.BoxGeometry(w, len + t, t), y = d.normalize();
+      const z = side ? side.clone().addScaledVector(y, -side.dot(y)) : null;
+      if (z && z.lengthSq() > 1e-6) { z.normalize(); g.applyMatrix4(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(y, z), y, z)); }
+      else g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), y));
+      g.translate((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, (p0.z + p1.z) / 2);
+      parts.push({ bit, bone, mat, g, c: [0, 0, 0], r: [0, 0, 0] });
+    };
+    const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
     const cyl = (bit, bone, mat, cx, cy, cz, r, h) => parts.push({ bit, bone, mat, g: new THREE.CylinderGeometry(r, r * 0.85, h, 8), c: [cx, cy, cz], r: [0, 0, 0] });
     const A = ACC_IDX;
     // hands (v4 hotfix: real proportions; the old ones were plain crates)
@@ -495,9 +506,28 @@ export class HumanLibrary {
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);
-    box(BIT.SHOULDERBAG, 'Hips', A.acc, hips.x + 0.21, hips.y + 0.04, hips.z + 0.03, 0.08, 0.22, 0.28);
-    box(BIT.SHOULDERBAG, 'Chest', A.acc, chest.x, chest.y + 0.02, chest.z + chestZ + 0.01, 0.035, 0.62, 0.012, 0, 0, -0.62);
-    box(BIT.TOTE, 'ShoulderL', A.acc, hips.x + 0.25, hips.y + 0.12, hips.z - 0.02, 0.1, 0.36, 0.33);
+    // polish: shoulder bag = a soft bevelled satchel with a flap and a clasp on the left hip, and a cross-body strap that follows
+    // the measured body surface: up across the chest to the right shoulder, over it, and down the back to the bag (~250 tris)
+    {
+      const bx = hips.x + 0.2, by = hips.y + 0.03, bz = hips.z + 0.03, top = by + 0.1;
+      rbox(BIT.SHOULDERBAG, 'Hips', A.acc, bx, by, bz, 0.075, 0.2, 0.26, 0.022);
+      rbox(BIT.SHOULDERBAG, 'Hips', A.acc, bx + 0.038, by + 0.035, bz, 0.012, 0.135, 0.268, 0.005);   // flap
+      box(BIT.SHOULDERBAG, 'Hips', A.dark, bx + 0.046, by - 0.03, bz, 0.006, 0.026, 0.034);             // clasp
+      const sx = chest.x - 0.115, sTop = body.top(sx, chest.y + 0.02, chest.y + 0.32, chest.y + 0.18);
+      const F = (t) => { const x = bx - 0.03 + (sx - bx + 0.03) * t, y = top + (sTop - 0.045 - top) * t; return v3(x, y, body.front(x, y, chest.z + 0.11) + 0.008); };
+      const Bk = (t) => { const x = bx - 0.03 + (sx - bx + 0.03) * t, y = top + (sTop - 0.045 - top) * t; return v3(x, y, body.back(x, y - 0.03, y + 0.03, 0.02, chest.z - 0.1) - 0.008); };
+      const f1 = F(0.4), f2 = F(0.7), f3 = F(1), b3 = Bk(1), b2 = Bk(0.6);
+      const ov = v3(sx, sTop + 0.006, (f3.z + b3.z) / 2), fwd = v3(0, 0, 1), up = v3(0, 1, 0);
+      const chain = [v3(bx - 0.02, top - 0.005, bz + 0.05), f1, f2, f3, ov, b3, b2, v3(bx - 0.02, top - 0.005, bz - 0.06)];
+      for (let i = 0; i + 1 < chain.length; i++) seg(BIT.SHOULDERBAG, 'Chest', A.acc, chain[i], chain[i + 1], 0.032, 0.008, i === 3 || i === 4 ? up : fwd);
+    }
+    // polish: tote = a soft, thin, wide bevelled bag at the left hip with two flat handles up over the left shoulder (~150 tris)
+    {
+      const tx = hips.x + 0.25, ty = hips.y + 0.11, tz = hips.z - 0.02, top = ty + 0.165;
+      rbox(BIT.TOTE, 'ShoulderL', A.acc, tx, ty, tz, 0.06, 0.33, 0.34, 0.016);
+      const shx = chest.x + 0.14, shy = body.top(shx, chest.y + 0.02, chest.y + 0.32, chest.y + 0.18) + 0.006;
+      for (const dz of [-1, 1]) seg(BIT.TOTE, 'ShoulderL', A.acc, v3(tx - 0.01, top - 0.01, tz + dz * 0.085), v3(shx, shy, chest.z - 0.01 + dz * 0.03), 0.028, 0.006, v3(1, 0.4, 0));
+    }
     // backpack (v4 hotfix): ~0.28 x 0.38 x 0.12 bevelled body snug on the back (measured back surface), front pocket, top grab
     // loop, and two shoulder straps that run over the shoulders and down the chest; muted palette colour (TINT.PACK)
     {
@@ -525,8 +555,15 @@ export class HumanLibrary {
     box(BIT.APRON, 'Chest', A.acc2, chest.x, chest.y + 0.02, chest.z + chestZ + 0.015, 0.27, 0.3, 0.02);
     // head (bind pose == idle pose for the head shape; author around the idle head)
     const hz = this._frontZ(rig, headB.y + 0.08, true);
-    box(BIT.CAP, 'Head', A.acc2, headB.x, headB.y + 0.255, headB.z + 0.0, 0.215, 0.09, 0.235);
-    box(BIT.CAP, 'Head', A.acc2, headB.x, headB.y + 0.215, headB.z + hz * 0.5 + 0.12, 0.19, 0.015, 0.1);
+    // polish: a baseball cap = a soft dome crown (hemisphere) + a curved-down front brim + a top button (~110 tris), not a slab
+    {
+      const cy = headB.y + 0.212, cz = headB.z - 0.008;
+      const crown = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); crown.scale(0.113, 0.094, 0.125);
+      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: crown, c: [headB.x, cy, cz], r: [0, 0, 0] });
+      const brim = new THREE.CylinderGeometry(1, 1, 0.01, 10, 1, false, -Math.PI / 2, Math.PI); brim.scale(0.1, 1, hz * 0.5 + 0.13);
+      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: brim, c: [headB.x, cy + 0.004, cz + 0.01], r: [0.16, 0, 0] });
+      cyl(BIT.CAP, 'Head', A.acc2, headB.x, cy + 0.096, cz, 0.012, 0.012);
+    }
     box(BIT.MASK, 'Head', A.white, headB.x, headB.y + 0.055, headB.z + hz + 0.012, 0.12, 0.075, 0.03);
     // to bind space
     const out = [];
