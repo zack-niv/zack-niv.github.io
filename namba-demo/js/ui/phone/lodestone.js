@@ -438,7 +438,7 @@ export class LodestoneApp {
     else if (!this.el.card.hidden && this.el.card.classList.contains('out')) { this._cardOutT = (this._cardOutT || 0) + dt; if (this._cardOutT > 0.5) { this.el.card.hidden = true; this.el.card.classList.remove('out'); this._cardOutT = 0; } }
     // the on-track sign follows the heading (left / right / around) even while standing still
     this._signT = (this._signT || 0) - dt;
-    if (this._signT <= 0) { this._signT = 0.2; if (this.track.state !== 'on' || this._msNear) this._renderGuide(false); }
+    if (this._signT <= 0) { this._signT = 0.2; this._renderGuide(false); }      // (key-gated; v5.1: the face cue follows the heading too)
     // live arrow on the current instruction
     this._liveArrow();
   }
@@ -452,6 +452,25 @@ export class LodestoneApp {
     const bearing = Math.atan2(-dx, -dz);            // yaw convention: 0 = north / -Z, + turns left
     let d = bearing - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
     return -d * 180 / Math.PI;
+  }
+  // v5.1: the words never contradict the arrow. A turn word ("Turn left") and a door side ("— on your left") are
+  // relative to the PATH, the arrow to YOU: facing away from the path, "Turn left · in 5 m" sat next to an arrow
+  // pointing right. While |arrow| is large (in > 50°, out < 30°; around > 140°, back < 120°) the title follows the
+  // arrow and the milestone moves to a "then" line. A cue that agrees with the turn word is not used (at every corner
+  // the arrow already swings toward the turn). Returns null, or { title, icon, then } for the milestone m / text tx.
+  _faceCue(m, tx) {
+    const a = this.liveAngle();
+    const k = this._face, A = a == null ? 0 : Math.abs(a);
+    this._face = a == null || !(A > (k ? 30 : 50)) ? null : A > (k === 'around' ? 120 : 140) ? 'around' : 'side';
+    if (!this._face || !m || !tx) return null;
+    if (!(m.kind === 'turn' || (m.kind === 'arrive' && m.dist < NEAR_M))) return null;
+    const side = a > 0 ? 'right' : 'left';
+    if (this._face === 'side' && m.kind === 'turn' && m.turn === side) return null;
+    const d = Math.round(m.dist), when = d < 3 ? 'now' : 'in ' + fm(d);
+    const word = tx.title.charAt(0).toLowerCase() + tx.title.slice(1);
+    return this._face === 'around'
+      ? { title: 'Turn around', icon: side === 'right' ? 'uright' : 'uleft', then: `${word} · ${when}`, ticon: tx.icon }
+      : { title: `Turn ${side}`, icon: side, then: `${word} · ${when}`, ticon: tx.icon };
   }
   _liveArrow() {
     const a = this._arrowEl; if (!a) return;
@@ -618,8 +637,10 @@ export class LodestoneApp {
     // Far: "Escalator down to 1F" · "In 165 m · past Sneaker Lab"; under 30 m it takes over: "Escalator down — on your left".
     const m = this.milestone(), tx = milestoneText(m);
     if (!m || !tx) { const ph = phrase(cur, this.dest); return { kind: 'nav', trk: 'trk-on', icon: 'straight', live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: ph.short, sub: `${toGo < 3 ? 'Now' : 'In ' + fm(toGo)} · ${here}` }; }
+    const fc = this._faceCue(m, tx);
+    if (fc) return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: fc.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: fc.title, sub: `Then ${fc.then}` };
     const d = Math.round(m.dist), dt = d < 3 ? 'Now' : 'In ' + fm(d);
-    const sub = m.dist < NEAR_M ? [dt, tx.sub].filter(Boolean).join(' · ') : m.pass ? `${dt} · past ${m.pass.name}` : `${dt} · ${tx.sub || here}`;
+    const sub =m.dist < NEAR_M ? [dt, tx.sub].filter(Boolean).join(' · ') : m.pass ? `${dt} · past ${m.pass.name}` : `${dt} · ${tx.sub || here}`;
     return { kind: 'nav', trk: 'trk-on', icon: 'straight', mic: tx.icon, live: true, ang: this.liveAngle(), angFn: () => this.liveAngle(), title: tx.title, sub };
   }
 
@@ -666,8 +687,8 @@ export class LodestoneApp {
     const mins = !isFinite(R.eta) ? '' : R.eta < 45 ? '<1 min' : `${Math.max(1, Math.round(R.eta / 60))} min`;
     const ph = phrase(cur, dest), live = isLive(cur, toGo);
     const sg = this.track.sign();
-    const mk = this.milestone(), mt = milestoneText(mk);
-    const key = [ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on', mt && mt.long, mk && mk.pass && mk.pass.name, mk && mk.pass && Math.round(mk.pass.dist / 5)].join('|');
+    const mk = this.milestone(), mt = milestoneText(mk), fc = sg ? null : this._faceCue(mk, mt);
+    const key = [fc ? fc.title + fc.then : '', ph.long, cur && cur.icon, live, Math.round(toGo / 5), nxt && nxt.title, mins, st.length, this.view, sg ? sg.cls + sg.title + sg.sub : 'on', mt && mt.long, mk && mk.pass && mk.pass.name, mk && mk.pass && Math.round(mk.pass.dist / 5)].join('|');
     if (!force && key === this._guideKey) return; this._guideKey = key;
     E.nav.dataset.trk = sg ? sg.cls : 'trk-on';
     if (sg) {
@@ -685,13 +706,15 @@ export class LodestoneApp {
     this._msNear = !!(m && m.dist < NEAR_M);
     E.navIc.className = 'ld-nav-ic trk-on live';
     E.navIc.innerHTML = icon('straight', 'ld-arrow');
-    E.navD.textContent = toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
-    E.navI.innerHTML = `<i class="ld-mi">${icon(tx.icon, 'sm')}</i>${esc(tx.long)}`;
+    E.navD.textContent = fc ? 'Now' : toGo < 3 ? 'Now' : `In ${fm(toGo)}`;
+    E.navI.innerHTML = `<i class="ld-mi">${icon(fc ? fc.icon : tx.icon, 'sm')}</i>${esc(fc ? fc.title : tx.long)}`;
     // under it: the shop you'll walk past on a long leg, else "then" when the next step comes soon after
+    // (v5.1: facing away from the path, the arrow's word is the title and the milestone itself is the "then")
     const soon = nxt && isFinite(nxt.at) && nxt.at - toGo < 30;
     const pass = m && m.pass;
-    E.then.hidden = !pass && !soon;
-    if (pass) E.then.innerHTML = `<em>Past</em>${icon('straight', 'sm')}<span>${esc(pass.name)} · ${fm(pass.dist)}</span>`;
+    E.then.hidden = !fc && !pass && !soon;
+    if (fc) E.then.innerHTML = `<em>Then</em>${icon(fc.ticon, 'sm')}<span>${esc(fc.then.charAt(0).toUpperCase() + fc.then.slice(1))}</span>`;
+    else if (pass) E.then.innerHTML = `<em>Past</em>${icon('straight', 'sm')}<span>${esc(pass.name)} · ${fm(pass.dist)}</span>`;
     else if (soon) E.then.innerHTML = `<em>Then</em>${icon(nxt.icon, 'sm')}<span>${esc(phrase(nxt, dest).short)}</span>`;
     E.toM.textContent = mins;
     // all steps (the 3D view's list)

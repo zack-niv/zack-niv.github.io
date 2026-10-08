@@ -477,25 +477,38 @@ export class Stack3D {
     const tanV = Math.tan(this.camera.fov * Math.PI / 360) * bandH / H;
     const tanH = Math.tan(this.camera.fov * Math.PI / 360) * ((W - this.bandRight) / H);
     const pl = this.player;
-    let pts;
+    let pts, dP = null;
     if (this.mode === 'follow') {
       // you, with a little of the destination direction when it is near
       const R = 70 * this.zoomMul;
       pts = [[pl.x - R, pl.y - 18, pl.z - R], [pl.x + R, pl.y + 18, pl.z + R], [pl.x - R, pl.y + 18, pl.z + R], [pl.x + R, pl.y - 18, pl.z - R]];
     } else {
       pts = (this.fitPts && this.fitPts.length ? this.fitPts : []).concat([[pl.x, pl.y, pl.z]]);
-      if (this.dest) {
-        const dy = LEVELS[this.dest.level].y * this.K, pm = bandH / (2 * Math.max(60, this.cur.dist) * tanV);
-        const up = 95 / pm; pts.push([this.dest.x, dy, this.dest.z], [this.dest.x + B.u.x * up, dy + B.u.y * up, this.dest.z + B.u.z * up]);
-      }
+      if (this.dest) { dP = [this.dest.x, LEVELS[this.dest.level].y * this.K, this.dest.z]; pts.push(dP); }
       if (pts.length < 2) { const e = this.extent; pts = [[e.minX, e.minY, e.minZ], [e.maxX, e.maxY, e.maxZ]]; }
     }
     let a0 = 1e9, a1 = -1e9, b0 = 1e9, b1 = -1e9, d0 = 1e9, d1 = -1e9;
     const v = new THREE.Vector3();
     for (const p of pts) { v.set(p[0] - pl.x, p[1] - pl.y, p[2] - pl.z); const a = v.dot(B.r), b = v.dot(B.u), d = v.dot(B.f); a0 = Math.min(a0, a); a1 = Math.max(a1, a); b0 = Math.min(b0, b); b1 = Math.max(b1, b); d0 = Math.min(d0, d); d1 = Math.max(d1, d); }
-    const pad = this.mode === 'follow' ? 1.0 : 1.0;
-    const ca = (a0 + a1) / 2, cb = (b0 + b1) / 2, cd = (d0 + d1) / 2;
-    const hw = Math.max(20, (a1 - a0) / 2) * pad, hh = Math.max(20, (b1 - b0) / 2) * pad, hd = (d1 - d0) / 2;
+    const ca = (a0 + a1) / 2, cd = (d0 + d1) / 2;
+    const hw = Math.max(20, (a1 - a0) / 2), hd = (d1 - d0) / 2;
+    let hh = Math.max(20, (b1 - b0) / 2), cb = (b0 + b1) / 2;
+    if (dP) {
+      // v5.1: the pin's name chip needs ~95 px of screen ABOVE the pin. Solved in closed form (pixels per metre pm):
+      //   geometry  (b1 - b0)·pm      <= bandH
+      //   chip      (bD - b0)·pm + L  <= bandH
+      // v5 added the chip as a point 95/pm metres above the pin with pm taken from the CURRENT camera distance: a
+      // feedback loop with gain 95/bandH. With a tall instruction card (3 lines + the PAST row → a 130 px band) the
+      // camera kept backing off (1205 → 4651 m in 2.5 s) and the stack shrank to nothing: the "blank 3D after New place".
+      v.set(dP[0] - pl.x, dP[1] - pl.y, dP[2] - pl.z);
+      // a short band (guide view under a tall instruction card): no name chip (the trip card just below names the
+      // place), only the pin's own ~48 px; otherwise the chip (~100 px with its soft edge), at most 60% of the band
+      this._chipOff = this.compact && bandH < 150;
+      const bD = v.dot(B.u), L = this._chipOff ? 48 : Math.min(100, bandH * 0.6), hp = bandH / 2;
+      const pm = Math.min(hp / hh, (bandH - L) / Math.max(1e-3, bD - b0));
+      const top = Math.max(b1, bD + L / pm);
+      hh = Math.max(hh, hp / pm); cb = (b0 + top) / 2;
+    }
     const dist = Math.max(hh / tanV, hw / tanH) + hd * 0.3;
     this.goal.tx = pl.x + B.r.x * ca + B.u.x * cb + B.f.x * cd;
     this.goal.ty = pl.y + B.r.y * ca + B.u.y * cb + B.f.y * cd;
@@ -555,6 +568,7 @@ export class Stack3D {
       const dy = LEVELS[this.dest.level].y * this.K + 1.2;
       spx(this.pin, 34, 42);
       const dph = (this.time * 0.7 + 0.5) % 1; spx(this.destRing, 24 + dph * 50, 24 + dph * 50); this.destRing.material.opacity = (1 - dph) * 0.9;
+      this.destLabel.visible = !this._chipOff;
       this.destLabel.position.set(this.dest.x, dy + 1 + 42 / pxPerM, this.dest.z); spx(this.destLabel, this.destLabel.userData.px[0], this.destLabel.userData.px[1]);
       // keep the name chip inside the canvas: shift its anchor when the pin is near an edge
       this._lblV = this._lblV || new THREE.Vector3();

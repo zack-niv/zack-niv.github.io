@@ -135,3 +135,54 @@ the garden-stairs foot (52.5, 225.6) and ~15 s at the 3F escalator foot; a playe
 - The `nav:milestone` event fires on milestone identity change only (kind / dir / level / name / position), not per metre.
 - `player:teleport` resets the Tracker, but teleport-back in probes still produced a "Rerouted" card once (05) —
   harness artifact, not seen in the walk.
+
+## v5.1 hotfix (critic's open items 1 + 2) · files: `js/ui/phone/stack3d.js`, `js/ui/phone/lodestone.js`
+
+Probes: `scratchpad/hotfix/blank.mjs` (real `/`, typed "ramen" at 160 ms/key, Enter, real frame loop only) and
+`turn.mjs` (grid-searched corner whose route starts with "Turn right" in 10 m, Nankai 2F (-44.5, -108.5), café route).
+Shots: `notes/v5-shots/hotfix/`.
+
+### 1 · Blank Lodestone 3D after "New place" search: a camera-framing feedback loop
+- **Not** the search sheet, canvas size or render loop: in-page state after Enter showed canvas 316×676, the new route
+  (58 fit points) set on the stack, render running. But the camera distance kept growing: **1205 → 2868 → 4651 m** in
+  2.5 s, and the stack shrank to a speck (`before_c_new_route`).
+- Cause: `Stack3D._frame()` reserved room for the destination name chip by adding a point `95 / pm` metres above the
+  pin, with `pm` (px per metre) taken from the **current** camera distance. That is a feedback loop with gain 95 / bandH.
+  The ramen route's instruction card is 3 lines plus the PAST row (bandTop 240), so the free band is only 130 px: gain
+  0.73, so the camera backs off about 3.7× (fixed point **8594 m**, against 2315 m for the route alone). Picking from the
+  list "worked" only because that card was shorter (a wider band, gain about 0.5).
+- Fix: solve the fit in closed form, with no dependence on the current camera: geometry `(b1-b0)·pm ≤ bandH`, pin plus chip
+  `(bD-b0)·pm + L ≤ bandH`, so `pm = min(...)` and the box is centred on `[b0, max(b1, bD + L/pm)]`. On a short guide band
+  (< 150 px) the name chip is dropped and only the pin's 48 px is reserved, because the trip card right below names the place.
+  Otherwise the chip gets up to 100 px (at most 60% of the band).
+- Fixed points (same route, from the probe): band 240: v5 8594 → **v5.1 3654** (route alone 2315); band 200: 4024 → 4276;
+  band 160: 2633 → 2730. In v5.1 the distance is identical on every iteration (no loop).
+- Evidence: `before_c_new_route` (empty band) → `after_c_new_route` (2F→6F route, pin, dot all in the band);
+  `walk_w-p2b-picked-dev` (the normal list pick still shows the "Tempura Daikichi" chip).
+
+### 2 · Arrow vs words near turns: the title follows the arrow when you face away
+- Cause: the turn word ("Turn left") and the arrival door side ("— on your left") are relative to the PATH. The arrow is
+  relative to YOU. The tracker only takes over ("Turn around", amber) when you are moving and the error has lasted 1.1 s, so
+  while you stand still or have just turned, both showed at once.
+- Fix (`LodestoneApp._faceCue`, used by the glance strip and the instruction card): while |arrow| > 50° (out < 30°) and
+  the next milestone is a turn, or the arrival within 30 m, the title becomes the arrow's own word: `Turn left` /
+  `Turn right` / `Turn around` (> 140°, back < 120°). The milestone moves to the second line: glance `Then turn right ·
+  in 10 m`; card `Now · Turn around` + `THEN ↱ Turn right · in 10 m`. When the arrow already points the same way as the
+  turn word (the normal swing at every corner) nothing changes. Escalator / stairs "on your left" words are already
+  player-relative, so they are untouched. The card now re-renders on its 0.2 s key-gated tick at any distance, not only
+  under 30 m.
+- Evidence: `before_turn_side_turnside_glance` ("Turn right · In 10 m" with the arrow pointing left) →
+  `after_turn_side_turnside_glance` ("Turn left · Then turn right · in 10 m"); `before/after_turn_away_*` ("Turn right"
+  with the arrow pointing back → "Turn around · Then turn right"). Heading sweep: no frame where the word and the arrow
+  disagree, and no flicker. Arrow (deg) → strip, out and back on the contradicting side:
+  `-47 Turn right · In 10 m` → `-52 Turn left · Then turn right` → `-142 Turn around · Then turn right` → (back) `-122 still
+  Turn around` → `-92 Turn left` → `-32 still Turn left` → `-27 Turn right · In 10 m`. On the agreeing side it says
+  `Turn right · In 10 m` up to +129°, then `Turn around` from 144°.
+- The walk below ran with the first thresholds (65/45). The final 50/30 change only moves two constants, and it was
+  checked by the sweep above.
+
+### Regression
+- `node tools/walk.mjs`: full playthrough to `demo:end` 504.8 s, end card "Whole trip 8:21 · 660 m · 1 iced latte
+  delivered". `ctx.errors []`; the 2 console lines are the bot's own `dbg` warnings. The stuck spots are the same as the
+  critic's (garden stairs, 3F foot, café exit).
+- `node tools/loadprobe.mjs`: `READY 18.8s []`.
