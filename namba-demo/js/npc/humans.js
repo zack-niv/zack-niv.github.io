@@ -524,7 +524,9 @@ export class HumanLibrary {
     // polish: tote = a soft, thin, wide bevelled bag at the left hip with two flat handles up over the left shoulder (~150 tris)
     {
       const tx = hips.x + 0.25, ty = hips.y + 0.11, tz = hips.z - 0.02, top = ty + 0.165;
-      rbox(BIT.TOTE, 'ShoulderL', A.acc, tx, ty, tz, 0.06, 0.33, 0.34, 0.016);
+      const tg = new RoundedBoxGeometry(0.06, 0.33, 0.32, 1, 0.016), tp = tg.attributes.position;   // tapered: wider at the mouth
+      for (let i = 0; i < tp.count; i++) tp.setZ(i, tp.getZ(i) * (1 + 0.28 * tp.getY(i) / 0.33));
+      parts.push({ bit: BIT.TOTE, bone: 'ShoulderL', mat: A.acc, g: tg, c: [tx, ty, tz], r: [0, 0, 0] });
       const shx = chest.x + 0.14, shy = body.top(shx, chest.y + 0.02, chest.y + 0.32, chest.y + 0.18) + 0.006;
       for (const dz of [-1, 1]) seg(BIT.TOTE, 'ShoulderL', A.acc, v3(tx - 0.01, top - 0.01, tz + dz * 0.085), v3(shx, shy, chest.z - 0.01 + dz * 0.03), 0.028, 0.006, v3(1, 0.4, 0));
     }
@@ -557,12 +559,12 @@ export class HumanLibrary {
     const hz = this._frontZ(rig, headB.y + 0.08, true);
     // polish: a baseball cap = a soft dome crown (hemisphere) + a curved-down front brim + a top button (~110 tris), not a slab
     {
-      const cy = headB.y + 0.212, cz = headB.z - 0.008;
-      const crown = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); crown.scale(0.113, 0.094, 0.125);
+      const cy = headB.y + 0.205, cz = headB.z - 0.006;
+      const crown = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); crown.scale(0.12, 0.1, 0.132);
       parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: crown, c: [headB.x, cy, cz], r: [0, 0, 0] });
-      const brim = new THREE.CylinderGeometry(1, 1, 0.01, 10, 1, false, -Math.PI / 2, Math.PI); brim.scale(0.1, 1, hz * 0.5 + 0.13);
-      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: brim, c: [headB.x, cy + 0.004, cz + 0.01], r: [0.16, 0, 0] });
-      cyl(BIT.CAP, 'Head', A.acc2, headB.x, cy + 0.096, cz, 0.012, 0.012);
+      const brim = new THREE.CylinderGeometry(1, 1, 0.01, 10, 1, false, -Math.PI / 2, Math.PI); brim.scale(0.108, 1, hz * 0.5 + 0.16);
+      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: brim, c: [headB.x, cy + 0.006, cz + 0.01], r: [0.2, 0, 0] });
+      cyl(BIT.CAP, 'Head', A.acc2, headB.x, cy + 0.102, cz, 0.012, 0.012);
     }
     box(BIT.MASK, 'Head', A.white, headB.x, headB.y + 0.055, headB.z + hz + 0.012, 0.12, 0.075, 0.03);
     // to bind space
