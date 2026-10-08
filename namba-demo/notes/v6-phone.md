@@ -135,3 +135,35 @@ Run 1 (before the last tuning) had 43 % wrong floor and 1.0× / 1.1× detour (ri
 - Two rows that separate for EVERY player (bot included), measured the same way in both phases:
   **"Recalculating…" per km** `reroutesPerKmBefore → reroutesPerKmAfter` (58.6 → 0), and
   **"Arrow caught up after a turn"** `headingSettleBefore → headingSettleAfter` (4.5 s → 0.1 s).
+
+## Evidence (`notes/v6-shots/phone/`)
+
+| shot | what |
+|---|---|
+| `walk_ride_city_1F2F_full` | on the CITY 1F→2F escalator: glance **"Riding up to 2F · Then 70 m to the bridge"**, arrow forward (that run used the longer "then cross the bridge in 70 m", which got truncated, so the compact wording is now used for the strip) |
+| `walk_ride_city_2F1F_full` | riding down to the café: **"Riding down to 1F · Then turn right"** |
+| `walk_ride_garden_stairs_full` | canyon garden stairs: **"Up the stairs to 3F · Then turn right"** |
+| `walk1_board_first_frame_full` | run 1, first frame on the ramp: still the approach text (route re-planned 0.5 s later). Fixed: `_routeTick` now re-plans the moment you step on or off a ramp |
+| `maps_b1_dot_dev/_full` | Maps on B1 NAMBAWALK: dot 18.6 m off, ±25 m circle, directions stop at the first escalator |
+| `walk_maps_nankai3F_dev` | Maps on Nankai 3F: the dot sits between the platforms, ±20 m |
+| `walk_endcard` | Story's end card fed by the new fields (±18 m · p90 29 m → ±0.5 m; 25 % → 0 % wrong floor) |
+
+Full walk (run 2, final code apart from the compact "then" wording): Maps pick 1 → offer at 183.5 s → Lodestone →
+café → Daikichi with the canyon loop → arrived at 499.6 s, end card 8:18 · 657 m. **0 "behind" cues** in 1 Hz sampling
+of the glance across the walk; every ride read "Riding … · Then …". `ctx.errors []`; the only console lines are the bot's
+own 2 `dbg` warnings. Node probe after the last edit: 0 "behind" (the 3 U-turn samples read "U-turn onto it").
+`loadprobe`: `READY 29.3s []` at the start of the work; `READY 157.3s []` at the end, with 4 browsers sharing the machine.
+
+## Unfinished / for the reviewer
+- **No screenshot of the Lodestone CARD (phone raised) while riding.** `rideprobe.mjs` kept steering into the down
+  lane's mouth, and later its screenshots timed out under 4-browser load. The card code path is the same milestone
+  (`On the escalator · N m to go` / `Riding up to 6F` / `THEN …`). It is untested visually.
+- **No screenshot yet of the compact glance wording** ("Then 70 m to the bridge", "Then 20 m to Daikichi"). The Node
+  probe prints it; the walk shots show the earlier, longer wording.
+- Bot-only noise: brushing the DOWN lane's mouth beside an up lane (café 1F, Parks 3F) briefly shows "Turn left / Turn
+  around · then …". That is correct for where the body is. Players rarely do this.
+- Maps "Recalculating…" fires about every 15 s in the Maps phase (13 in 192 s). Every believed-floor change re-plans
+  (the v4 behaviour). That is realistic and maddening; if it reads as spammy, raise the off-route threshold in
+  `mapapp.js _routeTick` (18 m) or stop re-planning on a wrong-floor episode.
+- A one-off console warning `WebGL: INVALID_OPERATION: texImage3D: FLIP_Y…` appeared in one probe right before its tab
+  crashed under memory pressure. It never appeared in either full walk. Nothing in `js/` uses 3D textures.
