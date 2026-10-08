@@ -18,8 +18,8 @@
 // are generated once per family and shared between materials (clones share the
 // GPU texture; only repeat differs).
 import * as THREE from 'three';
-import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js?v=488c31e';
-import { kitCanvas, wearCanvas } from './textures/kitatlas.js?v=488c31e';
+import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js?v=5f764cf';
+import { kitCanvas, wearCanvas } from './textures/kitatlas.js?v=5f764cf';
 // (generation runs in ./textures/worker.js; see texSet())
 
 const HDR = (r, g, b, k) => new THREE.Color(r, g, b).multiplyScalar(k);
@@ -259,7 +259,7 @@ export class Materials {
     this._workers = null;
     try {
       const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
-      const url = new URL('./textures/worker.js?v=488c31e', import.meta.url);
+      const url = new URL('./textures/worker.js?v=5f764cf', import.meta.url);
       this._workers = [];
       for (let i = 0; i < n; i++) {
         const w = new Worker(url, { type: 'module' });

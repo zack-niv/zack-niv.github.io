@@ -6,18 +6,18 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=488c31e';
-import { LAYOUT, spaceById } from '../world/layout.js?v=488c31e';
-import { BUSINESSES } from '../world/directory.js?v=488c31e';
-import { Interactions } from './interact.js?v=488c31e';
-import { Panels, yen, esc } from './panel.js?v=488c31e';
-import { Journal } from './journal.js?v=488c31e';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=488c31e';
-import { Title } from '../ui/title.js?v=488c31e';
-import { Demo } from './demo.js?v=488c31e';
-import * as V from './vignettes.js?v=488c31e';
-import { QUESTS, DEMO } from './script.js?v=488c31e';
-import { orderItem, hasCounter } from './order.js?v=488c31e';
+import { params } from '../core/params.js?v=5f764cf';
+import { LAYOUT, spaceById } from '../world/layout.js?v=5f764cf';
+import { BUSINESSES } from '../world/directory.js?v=5f764cf';
+import { Interactions } from './interact.js?v=5f764cf';
+import { Panels, yen, esc } from './panel.js?v=5f764cf';
+import { Journal } from './journal.js?v=5f764cf';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=5f764cf';
+import { Title } from '../ui/title.js?v=5f764cf';
+import { Demo } from './demo.js?v=5f764cf';
+import * as V from './vignettes.js?v=5f764cf';
+import { QUESTS, DEMO } from './script.js?v=5f764cf';
+import { orderItem, hasCounter } from './order.js?v=5f764cf';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

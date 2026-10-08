@@ -8,8 +8,8 @@
 //     g: CanvasRenderingContext2D whose current transform maps world metres
 //        (x east, z south) to pixels. bounds: [x0,z0,x1,z1] to limit work.
 // =============================================================================
-import { CELL } from '../../world/world.js?v=488c31e';
-import { LAYOUT } from '../../world/layout.js?v=488c31e';
+import { CELL } from '../../world/world.js?v=5f764cf';
+import { LAYOUT } from '../../world/layout.js?v=5f764cf';
 
 export const FOOD = new Set(['ramen', 'udon', 'okonomiyaki', 'kushikatsu', 'sushi', 'tonkatsu', 'curry', 'tempura', 'tendon', 'izakaya', 'yakiniku', 'omurice', 'takoyaki']);
 export const CAFE = new Set(['cafe', 'kissaten', 'coffeestand', 'bakery', 'sweets']);

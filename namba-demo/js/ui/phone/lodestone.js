@@ -10,14 +10,14 @@
 // Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
 // name, logo or colours anywhere.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=488c31e';
-import { Stack3D } from './stack3d.js?v=488c31e';
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=488c31e';
-import { Tracker } from './track.js?v=488c31e';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=488c31e';
-import { businessBySlot } from '../../world/directory.js?v=488c31e';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=488c31e';
-import { placeArt } from './art.js?v=488c31e';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=5f764cf';
+import { Stack3D } from './stack3d.js?v=5f764cf';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=5f764cf';
+import { Tracker } from './track.js?v=5f764cf';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=5f764cf';
+import { businessBySlot } from '../../world/directory.js?v=5f764cf';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=5f764cf';
+import { placeArt } from './art.js?v=5f764cf';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');

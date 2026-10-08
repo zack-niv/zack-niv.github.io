@@ -9,8 +9,8 @@
 //   POSTER_KINDS                       the twelve kinds
 //   POSTER_TEXT                        every glyph used (so the webfont subsets are loaded before painting)
 // =============================================================================
-import { FONT_JA, FONT_EN, FONT_SERIF } from './kit.js?v=488c31e';
-import { rng, hash } from '../../core/rng.js?v=488c31e';
+import { FONT_JA, FONT_EN, FONT_SERIF } from './kit.js?v=5f764cf';
+import { rng, hash } from '../../core/rng.js?v=5f764cf';
 
 // (local copies of the draw.js helpers: draw.js delegates drawAd() to this module, so no import cycle)
 function fitText(g, text, x, y, maxW, size, weight = 700, fam = FONT_JA, align = 'center') {

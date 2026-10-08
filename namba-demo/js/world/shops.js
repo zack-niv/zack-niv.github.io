@@ -21,15 +21,15 @@
 // Events: emits 'shop:shutter' { slot, closed } when a shutter opens/closes.
 // =============================================================================
 import * as THREE from 'three';
-import { BUSINESSES, isOpen } from './directory.js?v=488c31e';
-import { LAYOUT, LEVELS } from './layout.js?v=488c31e';
-import { GeoBatch } from '../render/geobatch.js?v=488c31e';
-import { Atlas } from './env/atlas.js?v=488c31e';
-import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=488c31e';
-import { ShopCtx } from './env/shopctx.js?v=488c31e';
-import { POSTER_TEXT } from './env/posters.js?v=488c31e';
-import { buildShop, regions } from './env/shopbuild.js?v=488c31e';
-import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=488c31e';
+import { BUSINESSES, isOpen } from './directory.js?v=5f764cf';
+import { LAYOUT, LEVELS } from './layout.js?v=5f764cf';
+import { GeoBatch } from '../render/geobatch.js?v=5f764cf';
+import { Atlas } from './env/atlas.js?v=5f764cf';
+import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=5f764cf';
+import { ShopCtx } from './env/shopctx.js?v=5f764cf';
+import { POSTER_TEXT } from './env/posters.js?v=5f764cf';
+import { buildShop, regions } from './env/shopbuild.js?v=5f764cf';
+import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=5f764cf';
 
 // v2 counters contract: business category -> counter kind / staff role
 const COUNTER_KIND = {

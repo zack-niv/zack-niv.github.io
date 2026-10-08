@@ -20,10 +20,10 @@
 //   shows. Walking on past the café without it → one tease, never a block.
 // Words in script.js (AYA, UPGRADE, TUTORIAL); measurements in demo.js.
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE } from './script.js?v=488c31e';
-import { businessBySlot } from '../world/directory.js?v=488c31e';
-import { Aya } from './aya.js?v=488c31e';
-import { Tutorial } from './tutorial.js?v=488c31e';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE } from './script.js?v=5f764cf';
+import { businessBySlot } from '../world/directory.js?v=5f764cf';
+import { Aya } from './aya.js?v=5f764cf';
+import { Tutorial } from './tutorial.js?v=5f764cf';
 
 export class Story {
   constructor(ctx, game, demo) {
