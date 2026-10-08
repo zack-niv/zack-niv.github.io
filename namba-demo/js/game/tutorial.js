@@ -134,6 +134,9 @@ export class Tutorial {
     if (h.html !== this._html) { this._html = h.html; this._t.innerHTML = keys(h.html); }
     const at = h.at || 'center';
     if (at !== this._at) { this._at = at; el.dataset.at = at; }
+    // polish: a hint never covers the raised phone — anything not meant for it steps aside, left of the phone
+    const ph = this.ctx.phone, up = !!(ph && (ph.isOpen || ph.pose === 'up')) && at !== 'phoneup';
+    if (up !== el.classList.contains('ph-up')) el.classList.toggle('ph-up', up);
     if (!el.classList.contains('on')) el.classList.add('on');
   }
   _pulse(on) {

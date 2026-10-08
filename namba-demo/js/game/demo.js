@@ -297,10 +297,14 @@ export class Demo {
     ctx.audio?.play?.('notify');
     // v4: her iced latte — handed over (the cup leaves your HUD), or a tease if you came empty-handed
     const st = this.story, coffee = st.hasCoffee, asked = st.errand.state !== 'none';
-    game.message(coffee ? ARRIVAL.textCoffee : ARRIVAL.text, 'Aya', 1.2);
+    // polish: the payoff runs on REAL time like the rest of this cut-scene (game.after / Aya's outbox run on game
+    // time, which crawls when frames are slow, so on a slow machine the end card used to arrive first)
+    const later = (ms, fn) => setTimeout(() => { if (!this.ended) { try { fn(); } catch (e) { console.error('[arrive]', e); } } }, ms);
+    const text = (t) => { if (st.aya && st.aya.sayNow) st.aya.sayNow(t); else game.message(t, 'Aya'); };
+    later(700, () => text(coffee ? ARRIVAL.textCoffee : ARRIVAL.text));
     if (coffee) {
-      game.after(1.9, () => { hud?.caption({ ja: ARRIVAL.thanks.ja, en: ARRIVAL.thanks.en, speaker: 'Aya', duration: 2.6 }); hud?.cup(false); ctx.audio?.play?.('cup'); });
-    } else if (asked) game.message(ARRIVAL.tease, 'Aya', 0.6);
+      later(1500, () => { hud?.caption({ ja: ARRIVAL.thanks.ja, en: ARRIVAL.thanks.en, speaker: 'Aya', duration: 3.6 }); hud?.cup(false); ctx.audio?.play?.('cup'); });
+    } else if (asked) later(2300, () => text(ARRIVAL.tease));
     await sleep(3100);
 
     // 3) back to the shopfront: the noren, the lanterns, the oil you can hear

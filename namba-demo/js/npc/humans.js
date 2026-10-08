@@ -29,8 +29,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { BIT } from './looks.js';
 import { ESC_STAND_SIDE } from './sim.js';
 
-export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11 };
-const MAX_MATS = 24;
+export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11, SCREEN: 12 };
+const MAX_MATS = 28;   // polish: + phone screen (was 23 / 24 used)
 const FPS = 30;
 const BASE = new URL('../../assets/humans/', import.meta.url).href;
 
@@ -317,10 +317,12 @@ export class HumanLibrary {
     // palm (and the phone on it) turned to the face, so the phone was sandwiched between hand and face, invisible from anywhere.
     // Now: elbow by the side, forearm forward, in across the body and a little up, hand in front of the chest, palm rolled up to
     // the eyes and fingers loosely closed: the phone lies ON the hand and pokes out past it, so it reads from every side.
+    // polish: the palm (and the lit screen) faces UP and a little forward instead of straight at the eyes, the way people hold a
+    // phone low at the chest with the head bowed: still readable for its owner, and the glowing screen now shows to people in front.
     const phoneArm = (k = 1) => {
       aim('UpperArmR', 'LowerArmR', V(-0.1, -1, 0.18), k);
       aim('LowerArmR', 'WristR', V(0.5, 0.35, 1), k);
-      if (k > 0) { palmTo('R', 0.3); grip('R', 0.4, 0.35, 0.3); }
+      if (k > 0) { palmTo('R', 1, V(0, 1, 0.38)); grip('R', 0.4, 0.35, 0.3); }
     };
     const caseArm = () => { aim('UpperArmL', 'LowerArmL', V(0.32, -1, -0.28)); aim('LowerArmL', 'WristL', V(0.3, -1, -0.38)); };
     const eatLoop = (u) => {
@@ -489,7 +491,7 @@ export class HumanLibrary {
     // between hand and face, see phoneArm. Graphite case + a black screen face on the side away from the palm.
     const palm = hR.x < 0 ? 1 : -1;
     box(BIT.PHONE, 'WristR', A.phone, hR.x + palm * 0.028, hR.y - 0.025, hR.z + 0.005, 0.014, 0.078, 0.16);
-    box(BIT.PHONE, 'WristR', A.dark, hR.x + palm * 0.0355, hR.y - 0.025, hR.z + 0.005, 0.002, 0.07, 0.148);
+    box(BIT.PHONE, 'WristR', A.screen, hR.x + palm * 0.0355, hR.y - 0.025, hR.z + 0.005, 0.002, 0.07, 0.148);   // polish: lit screen
     cyl(BIT.CUP, 'WristL', A.cup, hL.x - 0.01, hL.y - 0.05, hL.z + 0.03, 0.04, 0.12);
     // body
     const chestZ = this._frontZ(rig, 1.25), hipZ = this._frontZ(rig, 0.85);
@@ -653,8 +655,9 @@ const ACC_MATS = [
   { name: 'pack', color: '#3a3f48', tint: TINT.PACK },     // backpack: muted palette pick (shader crowdColour)
   { name: 'case', color: '#2b1c13', tint: TINT.CASE },     // briefcase: black / dark brown leather
   { name: 'cord', color: '#3a2a1e', tint: TINT.CORD },     // paper-bag handles: contrast with the bag
+  { name: 'screen', color: '#a9c4ea', tint: TINT.SCREEN }, // polish: phone screen, faintly self-lit (cool white-blue)
 ];
-const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5, pack: 6, case: 7, cord: 8 };
+const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5, pack: 6, case: 7, cord: 8, screen: 9 };
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 function smooth(x) { return x * x * (3 - 2 * x); }
@@ -669,6 +672,8 @@ uniform vec4 crMat[${MAX_MATS}];
 uniform float crMask;
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying float vCrowdGlow;
+float crowdGlow() { return int(crMat[int(aMat + 0.5)].w + 0.5) == 12 ? 1.0 : 0.0; }
 vec3 crowdUnpack(float v) {
   float r = floor(v / 65536.0);
   float g = floor((v - r * 65536.0) / 256.0);
@@ -686,6 +691,7 @@ vec3 crowdColour(vec4 cA, vec4 cB) {
   if (t == 5) return crowdUnpack(cA.z);
   if (t == 6) return crowdUnpack(cB.y);
   if (t == 7) return crowdUnpack(cB.z);
+  if (t == 12) return m.rgb;
   if (t >= 9) {
     // per-person pick from a small palette (stable: hashed from the person's colours)
     float h = fract(cA.x * 0.000131 + cB.x * 0.000097 + cA.w * 0.000071 + cA.y * 0.000053);
@@ -725,6 +731,7 @@ uniform vec4 crMisc; // fade, flags
 const NEAR_VERT_BEGIN = /* glsl */`
 vCrowdCol = crowdColour(crColA, crColB);
 vCrowdFade = crMisc.x;
+vCrowdGlow = crowdGlow();
 vec3 transformed = vec3(position);
 if (crowdHidden(crMisc.y)) transformed = vec3(0.0);
 `;
@@ -756,6 +763,7 @@ mat4 crSkin(int f) {
 const FAR_VERT_BODY = /* glsl */`
   vCrowdCol = crowdColour(iColA, iColB);
   vCrowdFade = iMisc.x;
+  vCrowdGlow = crowdGlow();
   vec3 crP = crowdHidden(iMisc.y) ? vec3(0.0) : position;
   mat4 crM = crSkin(int(iAnim.x + 0.5));
   if (iAnim.z > 0.001) crM = crM * (1.0 - iAnim.z) + crSkin(int(iAnim.y + 0.5)) * iAnim.z;
@@ -772,9 +780,15 @@ const FAR_VERT_BODY = /* glsl */`
 const FRAG_HEAD = /* glsl */`
 varying vec3 vCrowdCol;
 varying float vCrowdFade;
+varying float vCrowdGlow;
+`;
+// polish: a phone screen is a dim diffuse surface plus a low self-glow, so it reads as a lit phone against a dark suit
+const FRAG_GLOW = /* glsl */`
+#include <emissivemap_fragment>
+totalEmissiveRadiance += vCrowdCol * (0.55 * vCrowdGlow);
 `;
 const FRAG_COLOR = /* glsl */`
-  diffuseColor.rgb *= vCrowdCol;
+  diffuseColor.rgb *= vCrowdCol * (1.0 - 0.7 * vCrowdGlow);
   #ifdef CROWD_BLEND
     diffuseColor.a *= clamp(vCrowdFade, 0.0, 1.0);
   #endif
@@ -791,7 +805,7 @@ export function makeNearMaterial(variant, blend) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = COMMON_VERT_HEAD + NEAR_VERT_HEAD + sh.vertexShader.replace('#include <begin_vertex>', NEAR_VERT_BEGIN);
-    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR);
+    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR).replace('#include <emissivemap_fragment>', FRAG_GLOW);
   };
   m.customProgramCacheKey = () => blend ? 'namba_people_near_blend_v1' : 'namba_people_near_v1';
   m.name = blend ? 'crowd_person_fade' : 'crowd_person';
@@ -805,7 +819,7 @@ export function twinNearMaterial(variant, base, blend) {
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = COMMON_VERT_HEAD + NEAR_VERT_HEAD + sh.vertexShader.replace('#include <begin_vertex>', NEAR_VERT_BEGIN);
-    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR);
+    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR).replace('#include <emissivemap_fragment>', FRAG_GLOW);
   };
   return m;
 }
@@ -819,7 +833,7 @@ export function makeFarMaterial(variant, blend) {
     sh.vertexShader = COMMON_VERT_HEAD + FAR_VERT_HEAD + sh.vertexShader
       .replace('#include <beginnormal_vertex>', FAR_VERT_BODY)
       .replace('#include <begin_vertex>', 'vec3 transformed = crP;');
-    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR);
+    sh.fragmentShader = FRAG_HEAD + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n' + FRAG_COLOR).replace('#include <emissivemap_fragment>', FRAG_GLOW);
   };
   m.customProgramCacheKey = () => blend ? 'namba_people_far_blend_v1' : 'namba_people_far_v1';
   m.name = blend ? 'crowd_people_far_fade' : 'crowd_people_far';

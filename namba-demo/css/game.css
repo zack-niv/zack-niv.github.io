@@ -500,11 +500,15 @@ body:has(#phone-root.ph-glance) .h-captions { bottom: max(8.5vh, calc(var(--phon
 /* up by the overhead signs */
 .g-tip[data-at="top"] { bottom: auto; top: 12vh; }
 .g-tip[data-at="top"]::after { display: block; left: calc(50% - 4px); top: -5px; transform: rotate(-135deg); }
+/* polish: phone raised and the hint is not about it → it steps aside, left of the phone (never over it) */
+.g-tip.ph-up { --tx: 0px; left: auto; right: calc(50% + 14px); }
+.g-tip.ph-up::after { display: none; }
 body:has(.g-pause:not([hidden])) .g-tip { opacity: 0; }
 @media (max-width: 860px) {
   .g-tip[data-at="phoneup"] { --tx: -50%; right: auto; left: 50%; top: 9vh; }
   .g-tip[data-at="phoneup"]::after { display: none; }
   .g-tip { white-space: normal; max-width: calc(100vw - 32px); }
+  .g-tip.ph-up { --tx: -50%; right: auto; left: 50%; bottom: auto; top: 9vh; }
 }
 @media (prefers-reduced-motion: reduce) { .g-tip.nudge, .g-tip-dot { animation: none; } }
 

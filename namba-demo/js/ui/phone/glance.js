@@ -28,6 +28,13 @@ export class Glance {
     this.touch = !!(this.ctx.input && this.ctx.input.touch);
     root.innerHTML = `<div class="gl"></div>`;
     this.box = root.firstChild;
+    // polish: the arrival cut-scene — the strip says so (not "on your right · In 5 m") from its first frame
+    this.finale = null;
+    this.ctx.events.on('demo:arrive', (e) => {
+      const D = phone.dest, n = (e && e.slot && D && D.name && D.name(e.slot)) || 'Tempura Daikichi';
+      this.finale = n; this.refresh(true);
+    });
+    this.ctx.events.on('nav:destination', () => { if (this.finale) { this.finale = null; this.refresh(true); } });   // free roam: a new pick
   }
 
   showNote(msg) {
@@ -62,6 +69,7 @@ export class Glance {
   _info() {
     const ph = this.phone;
     if (this.note) return { kind: 'note', cls: 'gl-note', title: this.note.title, sub: this.note.text };
+    if (this.finale) return { kind: 'arr', cls: ph.upgradeStage === 'ready' ? 'gl-ld' : 'gl-mp', icon: 'check', title: 'You’ve arrived', sub: this.finale };
     const st = ph.upgradeStage;
     if (st === 'installing' || st === 'calibrating') {
       const L = ph.lodestone, pct = st === 'installing' ? Math.min(1, L.t / L.T_INSTALL) : Math.min(1, L.t / L.T_CALIB);
