@@ -101,3 +101,8 @@ Full walk again (`walk.fin`, coffee path): pick 1 Mitsubachi (Maps, key 1) → L
 order 275.2 s → pick 2 Daikichi (Lodestone, key 1) → arrive 430 s → end card ±7.9 m vs ±0.5 m, 13 s vs 0 s wrong floor, 568 m,
 1 iced latte delivered. `ctx.errors []`, zero console errors (the sandbox Google-Fonts cert error excluded). Route, upgrade,
 canyon, escalator wells and end card unchanged. Phone UI harness phases B / D / F: `ctx.errors []`, 0 real console errors.
+
+## Correction (v4.2)
+"No accessories drawn on near people" had two causes, fixed in sequence:
+1. **v4.1 hotfix** (`notes/v4-hotfix.md`): a float32 rounding bug in the accessory mask (`int(crMask + 0.5)` overflowed to 1<<24) hid every accessory on every non-backpacker outfit. The `inject.js` lighting hook was not involved.
+2. **v4.2** (side session, commit 697987a, merged): with accessories drawn, the phone was still buried. The old `phoneArm` pose put the hand at the chin with the palm toward the face, so the phone sat between the hand and the face. The new pose holds the hand in front of the chest with the palm up to the eyes, loose grip; `photo` is one-handed with the phone turned outward; the phone case is graphite with a screen face. `browse` (reaching for a shelf) no longer shows a phone.
