@@ -50,7 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). v7.1 adds the NPC gate-tap gesture and cache-busting (`tools/stamp.mjs`, run by deploy.sh). Pending: Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
+- **Live:** v7.2 (fair 4-row end-card stats: error, wrong floor, dot within 5 m, arrow catch-up; buttons above the contact cards). Before that, v7 (gate E with the phone up, the tutorial on replays, the FPS overlay, louder platform PA). v7.1 adds the NPC gate-tap gesture and cache-busting (`tools/stamp.mjs`, run by deploy.sh). Pending: Zack's own Vercel project (Web Analytics snippet already in index.html). v6.1 leftovers: `notes/v6-critique.md`.
 - **Never measured:** real-GPU frame rate and crowd density. Ask Zack after he plays.
 - **Full game:** paused since the demo pivot. Its scores were architecture 4/10, rendering 4.5, sound 5.5, game 5,
   crowd-visual 3.5.
@@ -129,6 +129,9 @@ Zack explicitly asked that this working style carry over.
 - The budget: zero console errors (ignore the sandbox's Google Fonts `ERR_CERT_AUTHORITY_INVALID`) and an empty `ctx.errors`.
 
 ### Known lessons
+
+- End-card stats must be defined identically in both phases. v6's detour and wrong-turn rows were measured against
+  different routes (Lodestone's scenic loop vs Maps' stub) and made Lodestone look worse. Use fixed, fair rows.
 
 - Test like a human. Bots must press real keys (keydown on window) and keep the phone up the way players do; v6 shipped a
   dead E because the bot called `onUse()` directly and always lowered the phone.
