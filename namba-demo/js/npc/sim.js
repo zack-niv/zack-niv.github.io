@@ -24,6 +24,9 @@ export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHO
 const TWO_PI = Math.PI * 2;
 // Osaka stands on the RIGHT of escalators and passes on the left (Tokyo is the reverse); -1 = Tokyo style.
 export const ESC_STAND_SIDE = +1;
+// v5: the head of the line waits this far outside the ramp's start line, on its lane axis; it steps on only once it is lined up
+// (so boarding is a continuation of a walk, not a jump). BOARD_W = critically damped spring rate of the residual offset.
+const EXIT_RUN = 0.4, RAMP_AIM = 0.3, BOARD_W = 7.5, BOARD_BLEND = 0.55;
 const PLAYER_R = 0.62;     // nobody comes closer to the player's centre than this
 
 export class Agent {
@@ -31,6 +34,7 @@ export class Agent {
     this.i = i; this.alive = false; this.serial = 0;
     this.x = 0; this.z = 0; this.y = 0; this.level = 'B1'; this.lv = 0; this.ramp = -1;
     this.rs = 0; this.ru = 0; this.rdir = 1; this.rspd = 0; this.walkLane = false;
+    this.rsp = 0; this.bx = 0; this.bz = 0; this.bvx = 0; this.bvz = 0; this.bo = false; this.boardK = 1; this.boardSpd0 = 0;   // v5: boarding offset (spring) and clip/speed blend
     this.vx = 0; this.vz = 0; this.yaw = 0; this.spd = 0; this.pref = 1.3; this.prefBase = 1.3;
     this.node = -1; this.aimX = 0; this.aimZ = 0; this.aimT = 0; this.rampNext = -1; this.rampU = 0; this.rampFromLow = true;
     this.en = null; this.arriveDm = 10; this.mode = MODE.NONE;
@@ -448,7 +452,7 @@ export class CrowdSim {
       u = (0.15 + this.rnd() * 0.85) * hw * (this.rnd() < 0.85 ? ESC_STAND_SIDE : -ESC_STAND_SIDE); // stairs: same side as escalator standers
     }
     a.rampU = u;
-    a.aimX = end.x + end.dx * 0.45 + rx * u; a.aimZ = end.z + end.dz * 0.45 + rz * u;
+    a.aimX = end.x + end.dx * RAMP_AIM + rx * u; a.aimZ = end.z + end.dz * RAMP_AIM + rz * u;
     a.rampAimX = a.aimX; a.rampAimZ = a.aimZ;
     // single-file queue per lane and end
     const qk = (fromLow ? 'qL' : 'qH') + (R.esc ? (a.walkLane ? 'w' : 's') : '');
@@ -524,7 +528,7 @@ export class CrowdSim {
     let uw = u0 * (1 + 0.85 * Math.min(1, Math.max(0, back - 0.3) / 1.0)) + 0.8 * col;
     if (!R.esc) uw = Math.min(uw, Math.max(0.3, R.hw - 0.25));
     const u = side * uw;
-    a.aimX = end.x + end.dx * (0.45 + back) + px * u; a.aimZ = end.z + end.dz * (0.45 + back) + pz * u;
+    a.aimX = end.x + end.dx * (RAMP_AIM + back) + px * u; a.aimZ = end.z + end.dz * (RAMP_AIM + back) + pz * u;
     const dx = a.aimX - a.x, dz = a.aimZ - a.z, l = Math.hypot(dx, dz);
     // distance to the end line along the ramp axis
     const along = (a.x - end.x) * end.dx + (a.z - end.z) * end.dz;
@@ -532,7 +536,8 @@ export class CrowdSim {
     a.queueing = l < 4.5;
     // the head of the line: stuck close to the mouth (a neighbour's personal space) for a moment => steps on anyway
     if (rank === 0 && l < 1.8 && a.spd < 0.08) a.headT = (a.headT || 0) + dt; else a.headT = 0;
-    if ((rank === 0 && (l < 0.5 || (along < 1.0 && lat < 0.8) || a.headT > 0.8)) || a.tier === 2) {
+    // v5: lateral tolerance 0.8 -> 0.4 m (the rest of the sideways error is eased out by the boarding spring in _startRide / _placeOnRamp)
+    if ((rank === 0 && (l < 0.5 || (along < 1.0 && lat < 0.4) || a.headT > 0.8)) || a.tier === 2) {
       if (R.esc && a.tier !== 2) {
         const tNext = a.walkLane ? R.nextWalk : R.nextStand;
         if (this.time < tNext) { this._steer(a, 0, 0, dt); a.faceYaw = Math.atan2(end.dx, end.dz); a.faceSet = true; return; }
@@ -553,26 +558,71 @@ export class CrowdSim {
   _startRide(a) {
     const R = this.places.ramps[a.rampNext];
     this._rampDequeue(a);
+    // v5: boarding is a continuation of the walk. The rider starts where the person IS: its distance outside the start line becomes a
+    // negative ramp parameter (rs < 0, or > 1 at the top end), its speed along the ramp relaxes to the belt speed over ~0.3 s, and the
+    // little sideways error to the lane is a critically damped spring; the facing eases from the walking heading to the lane direction.
+    // (v4: position snapped onto the lane start, yaw snapped to the ramp, speed jumped to the belt speed: "teleports onto it".)
+    const ox = a.x, oz = a.z, ovx = a.vx, ovz = a.vz, yaw0 = a.yaw;
+    const fromLow = a.rampFromLow, end = fromLow ? R.ends.low : R.ends.high;
     a.ramp = a.rampNext; a.rampNext = -1; a.queueing = false;
-    a.rs = a.rampFromLow ? 0 : 1; a.rdir = a.rampFromLow ? 1 : -1;
+    a.rs = fromLow ? 0 : 1; a.rdir = fromLow ? 1 : -1;
     a.ru = a.rampU;
     a.rspd = R.esc ? (0.5 + (a.walkLane ? 0.55 + a.hurry * 0.3 : 0)) : a.pref * 0.62;
+    a.rsp = a.rspd;
     a.prevMode = a.mode === MODE.FOLLOW ? MODE.FOLLOW : MODE.FIELD;
     a.mode = MODE.RIDE;
     R.riders.push(a);
-    this._placeOnRamp(a);
+    a.bo = false; a.bx = a.bz = a.bvx = a.bvz = 0; a.boardK = 1;
+    if (a.tier !== 2) {
+      const along = (ox - end.x) * end.dx + (oz - end.z) * end.dz;           // metres outside the start line (+)
+      if (along > -0.3 && along < 1.2) {
+        const tx = -end.dx, tz = -end.dz;                                   // into the ramp
+        a.rs = fromLow ? -along / R.len : 1 + along / R.len;
+        a.rsp = Math.max(0, ovx * tx + ovz * tz);                           // current speed along the ramp
+        this._placeOnRamp(a, 0, a.rsp);
+        const bx = ox - a.x, bz = oz - a.z;                                 // what is left is the sideways error (lane axis is the ramp axis)
+        if (Math.hypot(bx, bz) < 1.2) {
+          a.bx = bx; a.bz = bz; a.bvx = ovx - tx * a.rsp; a.bvz = ovz - tz * a.rsp; a.bo = true; a.boardK = 0;
+          a.x = ox; a.z = oz; a.vx = ovx; a.vz = ovz; a.yaw = yaw0; a.y = rampProfile(R.r, Math.min(1, Math.max(0, a.rs)));
+          return;
+        }
+        a.rs = fromLow ? 0 : 1; a.rsp = a.rspd;                             // not lined up at all: snap (rare re-plan glitch)
+      }
+    }
+    this._placeOnRamp(a, 0, a.rspd);
   }
-  _placeOnRamp(a) {
+  // Put a rider on its lane at ramp parameter a.rs. dt > 0: advance the boarding offset (spring) and ease the facing; sp = speed along the ramp.
+  _placeOnRamp(a, dt, sp) {
     const R = this.places.ramps[a.ramp], E = R.ends;
     const cx = E.low.x + (E.high.x - E.low.x) * a.rs, cz = E.low.z + (E.high.z - E.low.z) * a.rs;
     // travel direction
     let tx = (E.high.x - E.low.x) * a.rdir, tz = (E.high.z - E.low.z) * a.rdir;
     const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
     const rx = -tz, rz = tx;
-    a.x = cx + rx * a.ru; a.z = cz + rz * a.ru;
+    if (sp === undefined) sp = a.rspd;
+    let vx = tx * sp, vz = tz * sp;
+    if (a.bo) {
+      // critically damped spring on the sideways error (position AND velocity continuous): off'' = -2w off' - w^2 off
+      const w = BOARD_W, e = Math.exp(-w * dt);
+      const cx1 = a.bvx + w * a.bx, cz1 = a.bvz + w * a.bz;
+      const nbx = (a.bx + cx1 * dt) * e, nbz = (a.bz + cz1 * dt) * e;
+      a.bvx = (a.bvx - w * cx1 * dt) * e; a.bvz = (a.bvz - w * cz1 * dt) * e; a.bx = nbx; a.bz = nbz;
+      a.boardK = Math.min(1, a.boardK + dt / BOARD_BLEND);
+      if (a.boardK >= 1 && Math.abs(a.bx) + Math.abs(a.bz) + Math.abs(a.bvx) + Math.abs(a.bvz) < 0.01) { a.bo = false; a.bx = a.bz = a.bvx = a.bvz = 0; }
+      vx += a.bvx; vz += a.bvz;
+    }
+    a.x = cx + rx * a.ru + a.bx; a.z = cz + rz * a.ru + a.bz;
     a.y = rampProfile(R.r, Math.min(1, Math.max(0, a.rs)));
-    a.yaw = Math.atan2(-tx, -tz);
-    a.vx = tx * a.rspd; a.vz = tz * a.rspd;
+    a.vx = vx; a.vz = vz;
+    // facing: along the actual motion while the sideways error is settling, the lane direction once it has
+    const laneYaw = Math.atan2(-tx, -tz);
+    if (!(dt > 0)) { a.yaw = laneYaw; return; }
+    let ty = laneYaw;
+    if (a.bo) { const vm = Math.hypot(vx, vz); if (vm > 0.25) { const my = Math.atan2(-vx, -vz); const k = Math.min(1, Math.hypot(a.bx, a.bz) / 0.12); ty = laneYaw + wrap(my - laneYaw) * k; } }
+    const d = wrap(ty - a.yaw), lim = 5.5 * dt;
+    let st = d * (1 - Math.exp(-9 * dt));
+    st = st > lim ? lim : st < -lim ? -lim : st;
+    a.yaw = wrap(a.yaw + st);
   }
   _ride(a, dt) {
     const R = this.places.ramps[a.ramp];
@@ -583,26 +633,29 @@ export class CrowdSim {
       const ahead = (b.rs - a.rs) * a.rdir * R.len;
       if (ahead > 0 && ahead < 0.7) sp = Math.min(sp, b.rspd * Math.max(0, (ahead - 0.42) / 0.28));
     }
-    a.spd = sp; a.curRideSpd = sp;
+    // boarding: the speed along the ramp relaxes from the walking speed to the belt speed (a stander arriving at 1.2 m/s slows, a
+    // person stepping on from rest picks up) instead of jumping
+    if (a.boardK < 1 || a.rsp !== sp) a.rsp += (sp - a.rsp) * (a.boardK < 1 ? 1 - Math.exp(-dt / 0.3) : 1);
+    sp = a.rsp;
+    a.curRideSpd = sp;
     a.rs += a.rdir * sp * dt / R.len;
-    if (a.rs > 1.0 || a.rs < 0.0) {
+    // v5: the rider keeps gliding EXIT_RUN metres past the end line (on the landing floor, still a rider: no collision yet) and only
+    // then becomes a walker, with its own velocity. (Was: at the line, teleport 0.35 m forward, velocity reset to walking pace.)
+    const over = a.rdir > 0 ? a.rs - 1 : -a.rs;
+    if (over >= EXIT_RUN / R.len) {
       const r = R.r;
       const up = a.rdir > 0;
-      const end = up ? R.ends.high : R.ends.low;
+      this._placeOnRamp(a, dt, sp);
       this._leaveRide(a);
       a.level = up ? r.upper : r.lower; a.lv = this.lvIndex[a.level];
-      let tx = -end.dx, tz = -end.dz; // into ramp from this end; we travel opposite
-      tx = end.dx; tz = end.dz;
-      const rx = -tz, rz = tx;
-      a.x = end.x + end.dx * 0.35 + rx * a.ru; a.z = end.z + end.dz * 0.35 + rz * a.ru;
       a.y = LEVELS[a.level].y;
       a.ramp = -1; a.mode = a.prevMode || MODE.FIELD; a.aimT = 0; a.node = -1; this._updNode(a);
-      a.vx = end.dx * a.pref; a.vz = end.dz * a.pref;
+      a.spd = Math.hypot(a.vx, a.vz); a.bo = false; a.boardK = 1;
       if (this.behave && this.behave.onRideEnd) this.behave.onRideEnd(a, R);
       return;
     }
-    this._placeOnRamp(a);
-    a.vx *= sp / Math.max(0.01, a.rspd); a.vz *= sp / Math.max(0.01, a.rspd);
+    this._placeOnRamp(a, dt, sp);
+    a.spd = a.bo ? Math.hypot(a.vx, a.vz) : sp;
   }
   _leaveRide(a) {
     if (a.ramp < 0) return;

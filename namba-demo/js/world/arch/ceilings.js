@@ -37,8 +37,10 @@ export function buildCeilings(K) {
     if (sp.style === 'terminal_concourse' && sp.ceil >= 8) return;  // trussed roof (transit structure)
     const lv = sp.level, g = world.grids[lv];
     if (!g) return;
-    const y = K.y(lv), H = y + sp.ceil;
     const up = K.above(lv);
+    // polish: a ceiling exactly at the next level's floor (CITY 1F court, ceil 6 = 2F at y 6) z-fought with the down-facing
+    // 2F slab geometry there (grey, ragged "cell-stepped" patches over the court); keep it 3 cm under the slab
+    const y = K.y(lv), H = up ? Math.min(y + sp.ceil, K.y(up) - 0.03) : y + sp.ceil;
     // v4: the ceiling also continues over the space's own atrium void (CITY 1F court, Nankai 2F): it
     // used to stop at the void, so from below (and from the top of the B1 escalator) you saw the
     // floor slab of the level above from underneath = the shops up there floating in the air

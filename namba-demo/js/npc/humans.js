@@ -29,7 +29,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { BIT } from './looks.js';
 import { ESC_STAND_SIDE } from './sim.js';
 
-export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11, SCREEN: 12 };
+export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11, SCREEN: 12, CAP: 13 };
 const MAX_MATS = 28;   // polish: + phone screen (was 23 / 24 used)
 const FPS = 30;
 const BASE = new URL('../../assets/humans/', import.meta.url).href;
@@ -561,10 +561,10 @@ export class HumanLibrary {
     {
       const cy = headB.y + 0.205, cz = headB.z - 0.006;
       const crown = new THREE.SphereGeometry(1, 10, 4, 0, Math.PI * 2, 0, Math.PI / 2); crown.scale(0.12, 0.1, 0.132);
-      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: crown, c: [headB.x, cy, cz], r: [0, 0, 0] });
+      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.cap, g: crown, c: [headB.x, cy, cz], r: [0, 0, 0] });
       const brim = new THREE.CylinderGeometry(1, 1, 0.01, 10, 1, false, -Math.PI / 2, Math.PI); brim.scale(0.108, 1, hz * 0.5 + 0.16);
-      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.acc2, g: brim, c: [headB.x, cy + 0.006, cz + 0.01], r: [0.2, 0, 0] });
-      cyl(BIT.CAP, 'Head', A.acc2, headB.x, cy + 0.102, cz, 0.012, 0.012);
+      parts.push({ bit: BIT.CAP, bone: 'Head', mat: A.cap, g: brim, c: [headB.x, cy + 0.006, cz + 0.01], r: [0.2, 0, 0] });
+      cyl(BIT.CAP, 'Head', A.cap, headB.x, cy + 0.102, cz, 0.012, 0.012);
     }
     box(BIT.MASK, 'Head', A.white, headB.x, headB.y + 0.055, headB.z + hz + 0.012, 0.12, 0.075, 0.03);
     // to bind space
@@ -695,8 +695,9 @@ const ACC_MATS = [
   { name: 'case', color: '#2b1c13', tint: TINT.CASE },     // briefcase: black / dark brown leather
   { name: 'cord', color: '#3a2a1e', tint: TINT.CORD },     // paper-bag handles: contrast with the bag
   { name: 'screen', color: '#a9c4ea', tint: TINT.SCREEN }, // polish: phone screen, faintly self-lit (cool white-blue)
+  { name: 'cap', color: '#222222', tint: TINT.CAP },       // polish: cap = the person's acc2 colour, muted
 ];
-const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5, pack: 6, case: 7, cord: 8, screen: 9 };
+const ACC_IDX = { acc: 0, acc2: 1, dark: 2, white: 3, cup: 4, phone: 5, pack: 6, case: 7, cord: 8, screen: 9, cap: 10 };
 
 function clamp01(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
 function smooth(x) { return x * x * (3 - 2 * x); }
@@ -731,6 +732,7 @@ vec3 crowdColour(vec4 cA, vec4 cB) {
   if (t == 6) return crowdUnpack(cB.y);
   if (t == 7) return crowdUnpack(cB.z);
   if (t == 12) return m.rgb;
+  if (t == 13) { vec3 a = crowdUnpack(cB.w); return mix(vec3(dot(a, vec3(0.2126, 0.7152, 0.0722))), a, 0.55) * 0.8; }   // cap: muted
   if (t >= 9) {
     // per-person pick from a small palette (stable: hashed from the person's colours)
     float h = fract(cA.x * 0.000131 + cB.x * 0.000097 + cA.w * 0.000071 + cA.y * 0.000053);
