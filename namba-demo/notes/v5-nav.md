@@ -54,3 +54,62 @@ ctx.phone.message({ id, from, text, place: 'city_1e12' })   // any destination i
 - **4 (canyon out-and-back):** `Guidance` forces one via-point (2F, 33, 222) in the canyon; from there the shortest
   path to Daikichi is back west along z = 223 to `esc_pk_23` (nav probe: `canyon → dk` legs `2F 34,223 → -3,223`).
   Detour +64 m, all of it a back-track.
+
+## What changed
+
+### 1 · Compass + next milestone (`js/ui/phone/milestone.js` NEW, `lodestone.js`, `glance.js`, `css/phone.css`)
+- The glance strip and the Lodestone instruction card ALWAYS show the live heading arrow (the Tracker's bearing, as in
+  v3) in the big tile. The next milestone is a small icon in front of its words:
+  - far: `[arrow] [esc] Escalator down to 1F` · `In 105 m · past RE:STYLE`
+  - < 30 m it takes over with the side: `Escalator down — straight ahead` / `— on your left` · `In 20 m · to 1F`
+  - long legs (> 60 m): the next storefront on the path from the directory (`PassCue`, door within 7 m of the path,
+    16–85 m ahead, sticky until passed). Glance: `· past <shop>`; card: a `PAST ↑ <shop> · 25 m` row.
+  - off-route amber / rerouting still replace it (unchanged `track.sign()` path).
+- `ctx.phone.nextMilestone` + `'nav:milestone'` (Lodestone from its route tick, Maps from phone.update at 2 Hz).
+
+### 4 · Canyon: the natural way up, a loop (`guidance.js` `VIAS`, `script.js` CANYON_TEXT, `tools/walk.mjs`)
+- Via chain: canyon floor (2F 33,222) → the canyon's own garden stairs `stair_pk_g3` to the 3F terrace → the 3F glass
+  bridge (3F 46,239) → Parks 3F → escalators to 6F. No step is walked twice. Steps (node probe from the Parks bridge):
+  `Out into the canyon garden 42 m → Stairs up 2F→3F 52 → Turn right (Parks Garden 3F) 61 → Cross the glass bridge
+  80 → Escalators up 3F→6F 129 → Arrive 200`. Cost vs indoor: +98 m (v4 out-and-back: +64 m, all back-track).
+  Full garden-terrace route to 6F was +212 m: rejected.
+- Stage tracking (`noteBody`): in the canyon / on the 3F garden → stage 1; on the bridge or anywhere in Parks ≥ 3F
+  indoors → done (taking the indoor escalators first drops the scenic way, as before). Offered once per game.
+- Lodestone wording: "Through the canyon garden — the scenic way up", "Cross the glass bridge over the canyon".
+- Aya at the Parks bridge: "take the canyon way up 🌿 out into the garden, up the stairs, then across the glass bridge.
+  trust me".
+- walk.mjs follows Lodestone's `guid.leadField(body)` while the scenic way is pending (`&nocanyon` to skip).
+
+### 5 · Place links (`apps.js` MessagesApp, `phone.js` openPlace, `mapapp.js` preview, `lodestone.js` preview, `aya.js`, `story.js`, `script.js`)
+- Cards: photo tile (placeArt) · name · `6F · Namba Parks · 190 m` · `Open in Maps ›` (blue) / `Open in Lodestone ›`
+  (amber). The newest card shows the `Enter` key cap.
+- Maps: opens its place card (Directions = Go, `Enter`/`1`). Lodestone: its own preview (photo, "From Aya's message",
+  floor chip, TRUE walking distance + minutes, open now, big amber **Go ⏎**, × / X closes).
+- Aya's links: "Meet me…" → Daikichi, the coffee ask → Café Mitsubachi, "omg you're an angel… NOW come" → Daikichi,
+  the no-latte tease → Daikichi. Tutorial pick step on Messages: "Open Aya's link — Enter or click the card".
+
+### 6 · Route controls (`phone.js` endRoute/newDestination + keys, `lodestone.js` trip card, `mapapp.js` endRoute)
+- Lodestone trip card: **New place /** and **End route X** buttons (the old "Change" pill is gone).
+- X (both apps, phone up): End route → `nav:end`, list "Where to?", glance "No route · Where to? · Aya: …", no tracker.
+- / (both apps): search focused at any time; in Lodestone while routing it opens the chooser over the route.
+- Lifted the Next chip / 3D button above the taller trip card; 3D band bottom 264 → 306.
+- Tutorial `pick2Route*`: "{1} takes Aya's pick (or {X} ends this route)" (the Change wording was stale).
+
+## Evidence (`notes/v5-shots/nav/`, probe `scratchpad/nav5/ui.mjs` + `ui2.mjs`, ?test&quality=low&nocrowd)
+| shot | what |
+|---|---|
+| 03b_glance_far_full | arrow + `↘ Escalator down to 1F` · `In 105 m · past RE:STYLE` (CITY 2F mall) |
+| 04_glance_near | `Escalator down — straight ahead` · `In 20 m · to 1F` |
+| 15_canyon_stairs_full | canyon floor, the garden stairs ahead; glance `Stairs up — straight ahead · In 15 m · to 3F` |
+| 16_garden3_bridge_full / 17_on_bridge_full | 3F garden → `Over the glass bridge · In 20 m`; on the bridge → `Escalators up to 6F · In 45 m` |
+| 14_lodestone_canyon_step | card: `In 45 m · Through the canyon garden — the scenic way up` · THEN `Stairs up to 3F` |
+| 05 / 20_lodestone_* | trip card with New place / End route; Next chip clear of it (20 = after the lift fix; re-shot pending, see below) |
+| 06 / 07 | after X: "Where to?" list (Aya's pick row 1) · glance `No route · Where to? · Aya: Café Mitsubachi` |
+| 08 / 09 | `/` + "ramen" → Enter → new route (Tonkotsu Kamikaze 6F), `PAST Drug Hikari · 25 m` |
+| 10 | arrived at the café after replacing the route (/ Esc 1) |
+| 01 / 02 | Maps-era link cards → Enter → Maps place card → Enter → `nav:destination {via:'link'}` |
+| 11 / 12 | Lodestone-era cards → Enter → preview (190 m · 2 min walk) → Enter → `nav:destination {via:'link'}` |
+| 18 / 19 | v4.3 long names wrap to 2 lines on the trip card ("Yōshoku Kitchen Hanada") |
+| walk `w-p1a-list-full` | v4.3 tutorial hint sits left of the raised phone (not over it) |
+Event log of the cycle: `nav:end` → `nav:destination` (ramen, list) → `nav:destination` (café, list) → `nav:arrived`
+→ `phone:link` → `nav:destination {via:'link', suggested:true}`. `ctx.errors []`, 0 console issues. loadprobe READY 16.3 s [].

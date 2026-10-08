@@ -122,6 +122,8 @@ Zack explicitly asked that this working style carry over.
 | `node tools/accshot.mjs <prefix>` | NPC accessory close-ups |
 | `node tools/leakprobe.mjs` | Ray probe for see-through / back-face leaks |
 | `node tools/headtest.mjs` | NPC head-turn sanity |
+| `node tools/boardprobe.mjs` | Node-only per-frame step / yaw / sideways checks around escalators (`--js DIR` compares old code) |
+| `node tools/browserprobe.mjs` | The same per-frame check in the real browser, plus a boarding screenshot |
 | `node js/npc/flowprobe.mjs --max 1500` | Escalator congestion (Node only) |
 
 - Browser slots are rate-limited by `tools/slot.mjs` (4 slots). Keep at most 2 browsers per agent, no persistent daemons, and

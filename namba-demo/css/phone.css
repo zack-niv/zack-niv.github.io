@@ -802,6 +802,6 @@
 .ld-pv-go kbd { font: 800 10px/1 Inter, sans-serif; padding: 3px 5px 2px; border-radius: 5px; background: rgba(0,0,0,.18); }
 .mp-actions .mp-go .mp-k { font: 800 9.5px/1 Inter, sans-serif; padding: 2px 4px; border-radius: 4px; background: rgba(255,255,255,.22); margin-left: 4px; }
 /* v5: the trip card grew by the New place / End route row (+46 px): lift what sits on it */
-.ld-x3d { bottom: 300px; }
-.ld-next { bottom: 300px; }
-.ld-main.has-next .ld-x3d { bottom: 348px; }
+.ld-x3d { bottom: 264px; }
+.ld-next { bottom: 264px; }
+.ld-main.has-next .ld-x3d { bottom: 312px; }

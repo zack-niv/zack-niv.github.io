@@ -97,3 +97,15 @@ with the same zero-pop result.
 * One single-frame 0.2 m step by a non-boarding walker pressed against a mouth cell (collision ejection); same in v4.2.
 * Heads that were physically blocked (the 0.8 s `headT` fallback) and step on from the side of the mouth now glide in over ~1 s
   (rare, < 1 in 100 boardings) instead of popping.
+
+## Follow-up: sitting down is eased; probes are in tools/
+
+* **Dining 180 deg turn** (`behave.js` `_seatOn` / `_sitDown`, `sim.js` STAND + `seatH` branch, `render.js` `_clipFor`): `_sitDown` and `_seatOn`
+  used to set `a.yaw` and `a.x/z` (the seat spot, up to 0.45 m away) directly, so the person popped onto the seat facing the seat. Now they only
+  set `faceYaw` and a target (`seatTx/seatTz`); the sim walks the last step (<= 0.9 m/s) and turns (<= 5.5 rad/s = 315 deg/s); `seatK` 0 -> 1 over
+  0.5 s and the sit clip starts at `seatK` 0.35 (the existing 0.28 s cross-fade, and the hip lift eases as before). Agents placed already seated
+  (initial fill, `_seatOn(..., true)`) are still put on the seat directly.
+  Probe (6000 frames at 1/60 s, three spawns, near agents): yaw jumps > 400 deg/s: v4.2 had dozens per spawn ('dine' STAND agents); now 0; STAND
+  agents moving > 0.1 m per frame: 0.
+* **Tools:** `tools/boardprobe.mjs` (Node, no browser; `--js DIR` compares against an older copy of `js/`) and `tools/browserprobe.mjs`
+  (headless browser, near-LOD recording + boarding shots). Usage headers inside.
