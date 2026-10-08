@@ -67,7 +67,7 @@ export class Story {
     // v6 (item 2): the gate teaches E. A player tap ('gate:tap', notes/v6-gates.md) is the lesson; walking into a lane
     // untapped ('gate:blocked' reason 'notap') brings a short "tap first" hint back
     const mine = (e) => !!(e && (e.player === true || (e.player == null && this.game._isPlayerGateEv && this.game._isPlayerGateEv(e))));
-    ev.on('gate:tap', (e) => { if (mine(e)) this.f.gateTapped = true; });
+    ev.on('gate:tap', (e) => { if (mine(e)) { this.f.gateTapped = true; this.f.blockedT = null; } });   // v6 critic: a tap ends the "tap first" hint (it sat beside "Open — walk through")
     // only the player is ever blocked; 'lane' (wrong-way channel) and a refused card get their own words in game.js
     ev.on('gate:blocked', (e) => { if (e && (!e.reason || e.reason === 'notap')) { this.f.blockedT = this.t; this.f.blocks = (this.f.blocks || 0) + 1; this.tut.poke('gate'); } });
     // v4: the player chose a destination in Maps or Lodestone (any pick satisfies the step)
