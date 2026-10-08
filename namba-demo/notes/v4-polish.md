@@ -70,10 +70,37 @@ Shot `ui_tip_phone_up.png`.
   `after_closeup_shoulderbag*.png`, `after_bags_near.png` / `after_bags_far.png`. Before: `hotfix/v41_bags_near.png`.
   The far (lod2) mesh keeps the "big" parts only, as before (tote yes; shoulder bag / cap no).
 
-## 6. 1F court ceiling over the void
+## 6. 1F court ceiling over the void — not the light field: z-fighting
 
-See "verification status".
+Diagnosis (`court.mjs diag`, view `1F,6,60,0,30`): turning the light-field AO off left the patches unchanged
+(`court_before_a_noao.png`); hiding every 2F mesh removed them (`court_before_a_no2f.png`). The court's ceiling is
+`ceil 6` on 1F (y 0), i.e. exactly at the 2F floor (y 6), so it z-fought with down-facing 2F slab geometry at the same height;
+the ragged, view-dependent strips looked like light-field cells. Fix (`js/world/arch/ceilings.js`, 2 lines): a ceiling is kept
+3 cm under the next level's floor (`H = min(y + ceil, y(above) - 0.03)`); applies to any space whose ceiling reaches the
+slab above. After: `court_after_a.png` (clean), `court_after_b.png` / `court_after_c.png` (no change elsewhere, vs `court_before_*`).
+Residual: a 1 px horizontal sliver at the far-left of `court_after_a` (a ceiling step face now 3 cm proud) — barely visible.
 
-## Verification status
+## Status per item
 
-(filled in below)
+| # | item | status |
+|---|---|---|
+| 1 | Arrival glance + coffee payoff on real time | **done**, verified (arr.mjs log + shots) |
+| 2 | Lodestone trip card long names | **done (CSS), not screenshot-verified** — the `ui.mjs` run timed out waiting for the intro to end (headless game time); needs one look at `ui_lode_*` in v5 |
+| 3 | Tutorial hint steps aside while the phone is up | **done (code), not screenshot-verified** — same `ui.mjs` run |
+| 4 | NPC phone lit screen + tilt | **done**, verified near + far LOD |
+| 5 | Tote / shoulder bag / cap (+ lead's "square hats") | **done**, verified front / side / 3/4 close-ups + near/far group shots |
+| 6 | Court ceiling patches | **done** (z-fight, not light field), verified |
+
+## Checks
+* `node tools/loadprobe.mjs`: READY, errors `[]` (first frame 144 s: SwiftShader with a second browser running).
+* Every probe run: `ctx.errors []`, 0 console issues (sandbox font cert error excluded). Crowd programs unchanged
+  (`crowd_person`, `crowd_person_fade`, `crowd_people_far`, `crowd_people_far_fade`).
+* Not run: the full walk bot (`critic-demo/walk.mjs`) and `tools/shot.mjs` — out of time; the arrival path was exercised by
+  `arr.mjs` instead.
+
+## Unsure / for v5
+* Item 2/3 visuals unverified (see table). Risk is low (CSS only; the tip uses existing anchor styles).
+* The `photo` pose's lit screen faces the subject (v4.2 pose turns the palm out); a real photo-taker's screen faces them.
+* `ui.mjs` / `arr.mjs` need the title click + intro end; `arr.mjs` worked (intro ended at ~380 s), `ui.mjs` (nocrowd) did not
+  within 400 s — probably the `&tutorial` / nocrowd intro path; worth a look before reuse.
+* `aya.sayNow()` bypasses the outbox (no typing beat) — used only in the arrival cut-scene.
