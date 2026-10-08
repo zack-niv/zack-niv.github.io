@@ -50,7 +50,7 @@ Zack explicitly asked that this working style carry over.
 
 ## Status at handoff (update at the end of each session)
 
-- **Live:** v5.1. Open items: `notes/v5-critique.md` (real-GPU frame rate, the bot snagging at the garden-stairs foot and the Parks 3F escalator foot).
+- **Live:** v6. Open items for v6.1 are in `notes/v6-critique.md` "Left for v6.1": shop-interior z-fighting (likely shared offsets in `env/shopbuild.js`), a glance flicker at two escalator feet, and real-GPU frame rate.
 - **In flight at handoff:** a polish pass (`notes/v4-polish.md`):
   - the arrival glance and coffee payoff;
   - names truncated in the Lodestone trip card;
