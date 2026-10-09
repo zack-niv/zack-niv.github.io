@@ -611,6 +611,8 @@ export class HumanLibrary {
           if (j > 0 && j < ny) z = Math.max(z, Math.min(zs[j - 1][i], zs[j + 1][i]) - 0.008);
           zs[j][i] = z;
         }
+        // cloth is convex: no point of a row may sit far behind that row's foremost central sample (missed centre vertices)
+        for (let j = 0; j <= ny; j++) { const row = zs[j]; let zc = -Infinity; for (let i = 0; i <= nx; i++) if (Math.abs(i / nx - 0.5) <= 0.26) zc = Math.max(zc, row[i]); for (let i = 0; i <= nx; i++) { const e = (i / nx - 0.5) * 2; row[i] = Math.max(row[i], zc - 0.035 * e * e); } }
         for (let j = 0; j <= ny; j++) { const row = zs[j], v = j / ny; zs[j] = row.map((z, i) => (row[Math.max(0, i - 1)] + 2 * z + row[Math.min(nx, i + 1)]) / 4 + offA + (offB - offA) * v); }
         for (let k = 0; k < pp.count; k++) {
           const u = pp.getX(k) + 0.5, v = 0.5 - pp.getY(k), side = Math.sign(pp.getZ(k));
@@ -622,7 +624,7 @@ export class HumanLibrary {
         return zs;
       };
       const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.016, 0.02, chest.z + chestZ, 4, 3);        // bib
-      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.03, hips.z + hipZ, 6, 4);            // skirt (flared)
+      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.03, hips.z + hipZ, 8, 6);            // skirt (flared)
       // waist tie: a band across the skirt top, side ties round the flanks to a back bow
       const bw = (x, y, o) => v3(x, y, fz(x, y, hips.z + hipZ) + o);
       const wb = yW - 0.012;
