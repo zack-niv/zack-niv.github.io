@@ -582,9 +582,9 @@ export class HumanLibrary {
     // v8: staff apron that hugs the body (the v1 version was two rigid slabs at fixed offsets that floated off the profile, "weird
     // blocks"). A tapered bib on the chest's measured front surface (collarbone -> waist), a flared skirt on the hips / thigh front
     // (waist -> mid-thigh), a neck strap over the trapezius and a waist tie round to a back bow. Panels are thin slabs whose
-    // vertices are pushed onto body.front(x, y) per grid point (1-3 cm proud, a little more at the hem), ~230 tris.
+    // vertices are pushed onto body.front(x, y) per grid point (1-3 cm proud, a little more at the hem), ~400 tris.
     {
-      const yW = hips.y + 0.07, yHem = hips.y - 0.4, yTop = chest.y + 0.1;   // waist, hem (mid-thigh), bib top (below the collarbone)
+      const yW = hips.y + 0.07, yHem = hips.y - 0.36, yTop = chest.y + 0.1;   // waist, hem (mid-thigh), bib top (below the collarbone)
       // foremost z at (x, y); the legs leave a gap at x = 0 below the crotch, so widen the search sideways until something is found
       const fz = (x, y, fb) => {
         for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) for (const lv of [[0], [0.045, -0.045], [0.09, -0.09]]) {
@@ -621,12 +621,12 @@ export class HumanLibrary {
         parts.push({ bit: BIT.APRON, bone, mat: A.acc2, g, c: [0, 0, 0], r: [0, 0, 0] });
         return zs;
       };
-      const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.016, 0.02, chest.z + chestZ, 6, 5);        // bib
-      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.03, hips.z + hipZ, 8, 6);            // skirt (flared)
+      const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.016, 0.02, chest.z + chestZ, 4, 3);        // bib
+      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.03, hips.z + hipZ, 6, 4);            // skirt (flared)
       // waist tie: a band across the skirt top, side ties round the flanks to a back bow
       const bw = (x, y, o) => v3(x, y, fz(x, y, hips.z + hipZ) + o);
       const wb = yW - 0.012;
-      for (let i = 0; i < 4; i++) { const x0 = -0.17 + i * 0.085, x1 = x0 + 0.085; seg(BIT.APRON, 'Hips', A.acc2, bw(x0, wb, 0.024), bw(x1, wb, 0.024), 0.022, 0.012, v3(0, 0, 1)); }
+      for (let i = 0; i < 2; i++) { const x0 = -0.17 + i * 0.17, x1 = x0 + 0.17; seg(BIT.APRON, 'Hips', A.acc2, bw(x0, wb, 0.024), bw(x1, wb, 0.024), 0.022, 0.012, v3(0, 0, 1)); }
       for (const sd of [-1, 1]) {
         const sx = hips.x + sd * 0.175, bk = body.back(0, wb - 0.04, wb + 0.04, 0.12, hips.z - 0.11) - 0.008;
         const fzS = fz(sd * 0.17, wb, hips.z + hipZ - 0.05);
