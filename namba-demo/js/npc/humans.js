@@ -579,8 +579,58 @@ export class HumanLibrary {
     box(BIT.CART, 'Root', A.dark, 0, 0.98, 0.5, 0.48, 0.035, 0.035);
     box(BIT.SUITCASE, 'Root', A.acc2, hC.x + 0.04, 0.33, hC.z - 0.2, 0.22, 0.56, 0.38, 0.25, 0, 0);
     box(BIT.SUITCASE, 'Root', A.dark, hC.x + 0.04, (0.62 + hC.y) / 2, hC.z - 0.04, 0.025, Math.max(0.1, hC.y - 0.6), 0.025, 0.25, 0, 0);
-    box(BIT.APRON, 'Hips', A.acc2, hips.x, hips.y - 0.22, hips.z + hipZ + 0.02, 0.38, 0.6, 0.02);
-    box(BIT.APRON, 'Chest', A.acc2, chest.x, chest.y + 0.02, chest.z + chestZ + 0.015, 0.27, 0.3, 0.02);
+    // v8: staff apron that hugs the body (the v1 version was two rigid slabs at fixed offsets that floated off the profile, "weird
+    // blocks"). A tapered bib on the chest's measured front surface (collarbone -> waist), a flared skirt on the hips / thigh front
+    // (waist -> mid-thigh), a neck strap over the trapezius and a waist tie round to a back bow. Panels are thin slabs whose
+    // vertices are pushed onto body.front(x, y) per grid point (1-3 cm proud, a little more at the hem), ~230 tris.
+    {
+      const yW = hips.y + 0.07, yHem = hips.y - 0.4, yTop = chest.y + 0.1;   // waist, hem (mid-thigh), bib top (below the collarbone)
+      // foremost z at (x, y); the legs leave a gap at x = 0 below the crotch, so widen the search sideways until something is found
+      const fz = (x, y, fb) => { for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) { const r = body.front(x + dx, y, null); if (r !== null) return r; } return fb; };
+      // a slab panel from yA (top) to yB (bottom): half width hwA -> hwB, standing off the surface by offA -> offB, thick t
+      const panel = (bone, yA, yB, hwA, hwB, offA, offB, fb, nx = 6, ny = 5, t = 0.009) => {
+        const g = new THREE.BoxGeometry(1, 1, 1, nx, ny, 1), pp = g.attributes.position;
+        const zs = [];   // surface z per grid point (smoothed along x so a stray vertex can't spike the panel)
+        for (let j = 0; j <= ny; j++) {
+          const v = j / ny, y = yA + (yB - yA) * v, hw = hwA + (hwB - hwA) * v, row = [];
+          for (let i = 0; i <= nx; i++) row.push(fz((i / nx - 0.5) * 2 * hw, y, fb));
+          zs.push(row.map((z, i) => (row[Math.max(0, i - 1)] + 2 * z + row[Math.min(nx, i + 1)]) / 4 + offA + (offB - offA) * v));
+        }
+        for (let k = 0; k < pp.count; k++) {
+          const u = pp.getX(k) + 0.5, v = 0.5 - pp.getY(k), side = Math.sign(pp.getZ(k));
+          const i = Math.round(u * nx), j = Math.round(v * ny), hw = hwA + (hwB - hwA) * v;
+          pp.setXYZ(k, hips.x + (u - 0.5) * 2 * hw, yA + (yB - yA) * v, zs[j][i] + side * t / 2);
+        }
+        g.computeVertexNormals();
+        parts.push({ bit: BIT.APRON, bone, mat: A.acc2, g, c: [0, 0, 0], r: [0, 0, 0] });
+        return zs;
+      };
+      const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.012, 0.016, chest.z + chestZ, 6, 5);        // bib
+      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.016, 0.03, hips.z + hipZ, 8, 6);            // skirt (flared)
+      // waist tie: a band across the skirt top, side ties round the flanks to a back bow
+      const bw = (x, y, o) => v3(x, y, fz(x, y, hips.z + hipZ) + o);
+      const wb = yW - 0.012;
+      for (let i = 0; i < 4; i++) { const x0 = -0.17 + i * 0.085, x1 = x0 + 0.085; seg(BIT.APRON, 'Hips', A.acc2, bw(x0, wb, 0.024), bw(x1, wb, 0.024), 0.022, 0.012, v3(0, 0, 1)); }
+      for (const sd of [-1, 1]) {
+        const sx = hips.x + sd * 0.175, bk = body.back(0, wb - 0.04, wb + 0.04, 0.12, hips.z - 0.11) - 0.008;
+        const fzS = fz(sd * 0.17, wb, hips.z + hipZ - 0.05);
+        seg(BIT.APRON, 'Hips', A.acc2, bw(sd * 0.17, wb, 0.024), v3(sx + sd * 0.004, wb, (fzS + bk) / 2 + 0.006), 0.02, 0.012, v3(sd, 0, 0));
+        seg(BIT.APRON, 'Hips', A.acc2, v3(sx + sd * 0.004, wb, (fzS + bk) / 2 + 0.006), v3(sd * 0.05, wb, bk), 0.02, 0.012, v3(0, 0, -1));
+        seg(BIT.APRON, 'Hips', A.acc2, v3(sd * 0.04, wb, bk), v3(sd * 0.075, wb - 0.11, bk - 0.01), 0.026, 0.01, v3(0, 0, -1));   // bow tail
+      }
+      // neck strap: bib corner -> up the chest to the collar -> over the trapezius -> across the back of the neck
+      const bar = (a, b, side) => seg(BIT.APRON, 'Chest', A.acc2, a, b, 0.024, 0.008, side);
+      const nT = body.top(0.06, chest.y + 0.02, chest.y + 0.32, chest.y + 0.18) + 0.004;
+      const sFront = (x, y) => v3(x, y, fz(x, y, chest.z + chestZ) + 0.009);
+      const bkNeck = body.back(0.05, nT - 0.05, nT, 0.03, chest.z - 0.08) - 0.007;
+      const pts = [];
+      for (const sd of [-1, 1]) {
+        const cF = sFront(sd * 0.1, yTop + 0.005), nF = sFront(sd * 0.055, nT - 0.045);
+        const ovr = v3(sd * 0.058, nT, (nF.z + bkNeck) / 2), nB = v3(sd * 0.055, nT - 0.03, bkNeck);
+        bar(cF, nF, v3(0, 0, 1)); bar(nF, ovr, v3(0, 1, 0)); bar(ovr, nB, v3(0, 1, 0)); pts.push(nB);
+      }
+      seg(BIT.APRON, 'Chest', A.acc2, pts[0], pts[1], 0.024, 0.008, v3(0, 0, -1));
+    }
     // head (bind pose == idle pose for the head shape; author around the idle head)
     const hz = this._frontZ(rig, headB.y + 0.08, true);
     // polish: a baseball cap = a soft dome crown (hemisphere) + a curved-down front brim + a top button (~110 tris), not a slab
