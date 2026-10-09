@@ -36,6 +36,33 @@ None required. `css/phone.css` hides `.mp-gpswarn` while the route banner is up 
 shows in the route sheet ("Start" line) and on the canvas tag under the dot. If the Lodestone agent wants the chip during
 routes, change that rule.
 
-## Numbers
+## Numbers (one full `walk.mjs` run, `P=m8`, quality=low; `ctx.errors` [], zero console issues beyond the walk's own dbg warnings)
 
-See the final report (sim probe and walk.mjs).
+| end-card "Before" | v7.3 baseline | v8 |
+|---|---|---|
+| error mean | 17-21 m | 34.5 m |
+| error p50 / p90 | ~15 / ~30 m | 30.3 / 77.8 m (max 103 m) |
+| wrong floor | 7% | 26% (49 s, 2 episodes) |
+| dot within 5 m | 5% | 13% (lucky fix blips) |
+| on track | 100% (bot walks the true route) | 100% |
+| hops (coarse jumps + fixes) / floor flips / reroutes | | 4 / 3 / 4 (18 per km) |
+| heading error | | 20 deg, settle 4.2 s |
+
+Lodestone phase unchanged: 0.4 m mean, 0.7 m p90, 0% wrong floor, 100% within 5 m.
+
+Lodestone offer: `demo:offer` (why `lost`) at game t = 183 s (3:03); install 187 s, ready 192 s. The offer logic reads true
+progress (demo._isLost), not the phone, so it did not move. Walk finished: arrive at 499.5 s.
+
+Screenshots (`notes/v8-shots/maps/`): `maps-stale-route.png` (route sheet, grey dot, dashed circle, "No GPS · last seen 37 s
+ago" tag), `maps-stale-home.png`, `maps-coarse-route.png` ("Approximate · ±41 m" tag, the route drawn from the wrong spot),
+`maps-coarse-home.png`.
+
+## Knobs / risks
+
+- p90 78 m is a lot: it is stale (30-56 s at 1.4 m/s = up to ~75 m behind you) plus a 20-60 m coarse jump. To soften, in
+  `_enterStale` shorten `30 + S()*26`, or let the coarse anchor creep ~0.3 of the player's displacement (Wi-Fi handover).
+- Maps' route is computed from the believed spot, so after a jump >24 m off the drawn leg it flashes "Recalculating..."
+  (rate-limited to one per 12 s): 18 reroutes/km. Honest, but watch for noise.
+- A coarse jump can land within 7 m of the destination on the right floor and trigger Maps' "You have arrived" banner
+  (that is its belief, as before; `phone:arrive` has no consumers).
+- Real-GPU feel (how often the fix blips land) is untested by a human.
