@@ -109,6 +109,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const btns = [...el.querySelectorAll('.g-btn')];
   const act = (v) => {
     removeEventListener('keydown', key, true);
+    try { ctx.events.emit('demo:choice', { choice: v === 'replay' ? 'replay' : 'roam' }); } catch (e) { /* analytics only */ }
     if (v === 'replay') return onReplay && onReplay();
     onRoam && onRoam();
   };

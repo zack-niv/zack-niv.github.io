@@ -2,6 +2,7 @@
 import { chromium } from 'playwright';
 import { acquireSlot } from './slot.mjs';
 import { spawn } from 'child_process';
+import { forwardPostHog } from './phroute.mjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +17,8 @@ await new Promise(r => setTimeout(r, 600));
 const release = await acquireSlot('critic-walk');
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
 const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+// v7.4: Q with '&track' sends the real analytics events (forwarded through curl; see phroute.mjs)
+const PH = /track/.test(Q) ? await forwardPostHog(page, (...a) => console.log(...a)) : null;
 const errors = [];
 page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`); });
 page.on('pageerror', e => errors.push('[pageerror] ' + e.message));
@@ -261,6 +264,12 @@ try {
   await shot('14-endcard');
   log('ENDCARD TEXT', await page.evaluate(() => document.querySelector('.g-end')?.innerText.replace(/\s+/g, ' ')));
   log('SUMMARY', JSON.stringify(await page.evaluate(() => { const s = window.__namba.game.demo.summary(); delete s.phone.series; return s; })));
+  if (PH) {   // a visitor who books a call: click the end card's amber card, then let posthog flush
+    page.context().on('page', (p) => p.close().catch(() => {}));
+    await page.click('.g-end a.e-link.call').catch((e) => log('contact click fail', e.message));
+    await page.waitForTimeout(6000);
+    log('PH EVENTS', PH.map(e => e[0]).join(' > '));
+  }
 } catch (e) { log('HARNESS ERROR', e.stack); }
 try {
   const L = await page.evaluate(() => window.__L);
