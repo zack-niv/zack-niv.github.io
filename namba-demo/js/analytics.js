@@ -5,7 +5,8 @@
 // autocapture, no session recording, no personal data, IPs anonymised in the project. Only the story beats below.
 // Off on localhost and in test runs (?test), unless ?track; ?notrack turns it off anywhere.
 //
-// Every custom event is prefixed namba_ and carries app=lost-in-namba (the PostHog project is shared with other work).
+// Every custom event is prefixed namba_ and carries app=lost-in-namba (v7.4.1: Zack's own experiments org; the tag keeps
+// future games in the same project apart).
 // Super properties: v (deploy stamp), ref (?r= / ?ref= / utm_source: who the link was sent to), quality, gpu,
 // screen, and `stage`: the furthest beat reached, so a $pageleave tells where a player dropped out.
 //
@@ -14,7 +15,7 @@
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 // =============================================================================
-const KEY = 'phc_mFX7VQtoF3wEtpcNnDrdMFLEFhDCsYi3yN7hqzj8A8Pr';    // project API key: public by design (client-side)
+const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
