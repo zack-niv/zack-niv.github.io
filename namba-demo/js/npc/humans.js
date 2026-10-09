@@ -587,9 +587,9 @@ export class HumanLibrary {
       const yW = hips.y + 0.07, yHem = hips.y - 0.4, yTop = chest.y + 0.1;   // waist, hem (mid-thigh), bib top (below the collarbone)
       // foremost z at (x, y); the legs leave a gap at x = 0 below the crotch, so widen the search sideways until something is found
       const fz = (x, y, fb) => {
-        for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) {
-          let r = null;   // the surface is sampled from mesh vertices (sparse on dresses / coats): take the foremost of three heights
-          for (const dy of [0, 0.045, -0.045]) { const q = body.front(x + dx, y + dy, null); if (q !== null && (r === null || q > r)) r = q; }
+        for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) for (const lv of [[0], [0.045, -0.045], [0.09, -0.09]]) {
+          let r = null;   // the surface is sampled from mesh vertices (sparse on dresses / coats): the foremost one in a widening height window
+          for (const dy of lv) { const q = body.front(x + dx, y + dy, null); if (q !== null && (r === null || q > r)) r = q; }
           if (r !== null) return r;
         }
         return fb;
@@ -613,7 +613,7 @@ export class HumanLibrary {
         return zs;
       };
       const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.016, 0.02, chest.z + chestZ, 6, 5);        // bib
-      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.04, hips.z + hipZ, 8, 6);            // skirt (flared)
+      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.03, hips.z + hipZ, 8, 6);            // skirt (flared)
       // waist tie: a band across the skirt top, side ties round the flanks to a back bow
       const bw = (x, y, o) => v3(x, y, fz(x, y, hips.z + hipZ) + o);
       const wb = yW - 0.012;

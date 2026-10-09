@@ -28,7 +28,7 @@ Reroutes: 18 and 9 per km, about 5 "Recalculating…" in a 3-minute Maps phase. 
 The tutorial pick worked in both runs ("Pick a place in Maps" → 1 → Café Mitsubachi, `nav:destination` app=maps), and so
 did the gate step and the café order. The end card is sane (`c8n-14-endcard.png`).
 
-`loadprobe` / `mouseshot`: see the report (run last, on the final tree).
+`loadprobe` on the final tree: `READY 227.1s []`. The machine was at load average ~15 from other agents' browsers, and the v7 baseline was 46 s unloaded. `mouseshot` **did not finish**: it hit my 700 s timeout under that load. My edits don't touch its paths (pause menu, chip), and the Fixes agent's v8 run passed with errors `[]`, but the lead should rerun it before deploy.
 
 ## Per item
 
