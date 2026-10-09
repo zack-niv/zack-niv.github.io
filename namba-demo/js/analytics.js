@@ -14,6 +14,7 @@
 //   namba_gate_tap (first) · namba_lost_prompt · namba_lodestone_offer · namba_lodestone_install · namba_lodestone_ready
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
+//   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
@@ -74,6 +75,7 @@ export function setupAnalytics(ctx) {
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
   E.on('nav:destination', (e) => { reach('destination'); send('namba_destination', { app: e.app, slot: e.slotId, place: e.name, suggested: !!e.suggested, via: e.via, t: t() }); });
   E.on('gate:tap', (e) => { if (e && e.player && !e.auto && !gateSent) { gateSent = true; reach('gate'); send('namba_gate_tap', { gate: e.gate, t: t() }); } });
+  E.on('aya:answered', (e) => { if (e && !e.auto) send('namba_reply', { msg: e.msgId, reply: e.replyId, lost: !!e.lost, t: t() }); });   // v9: which chip each player picks
   E.on('story:where', (e) => { reach('lost'); send('namba_lost_prompt', { why: e && e.why, t: t() }); });
   E.on('demo:offer', (e) => { reach('offer'); send('namba_lodestone_offer', { why: e && e.why, t: t() }); });
   E.on('phone:upgrade', (e) => {

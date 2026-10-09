@@ -337,7 +337,20 @@ still fires (`story:where`, `demo:offer` with `why` ∈ lost/checkin/early/silen
 | `REPLY=none` | 11.7 → nudge 32.2 → give-up 43.7 / 46.2 (*ok I'll assume…*; closed after 25 m walked at 63.7) / 67.0 (silence = yes at 92.0) | 175.2, nudge 203.3 | **205.5 `silent`** (*ok just install this 😅…*) | 266.1 | **492.2 s** | 973, **0 bad** | sane, latte delivered |
 | `REPLY=instant` | 11.7 (0.6 s) / 16.7 / 20.8 | 175.2 | **180.6 `lost`** | 268.4 | **493.7 s** | 980, **0 bad** | sane |
 | `&wander` | 11.7 / 20.0 / 27.4 | 175.2 | **183.3 `lost`** | 318.1 | **544.2 s** | 1083, **0 bad** | On track 81% · 0:27 off route (v7.3 reference: 83%, 0:26) |
-| `JOG=1` | see below | | | | | | |
+| `JOG=1` (final code) | 9.5 / 18.1 / 25.8 | none (never lost) | **174.7 `ahead`** (*ok Parks is a maze from here 😅*, about 16 s before the bridge) | 144.8 | **269.4 s** | 529, **0 bad** | On track 95% / 100% |
+| normal (final code, rerun) | 11.7 / 20.2 / 28.0 | 175.2 latest | **183.4 `lost`** | 276.4 | **503.4 s** | 1000, **0 bad** | sane |
+
+**Bugs the browser walks caught (both fixed, then re-verified with JOG3 and normal2 above):**
+
+1. **JOG run 1: `ahead` fired in Namba CITY.** At 105 s the jogger got *"ok Parks is a maze from here"* on the latte leg,
+   because the nav distance to Daikichi from the café leg already passed the 45% mark. Now `ahead` is only on the
+   Daikichi leg, in a `parks_*` space or under 30% of the start distance. The time fallback while not lost outside Parks
+   says *"trust me, get Lodestone before you hit Parks 😅…"* (`UPGRADE.offerFine`). There is a sim scenario for it.
+2. **JOG run 2: a false "Where are you??" right after buying the latte** (166.9 s, `floor`). The leg switch resets
+   Daikichi's history, so `progressOver(30)` was null and counted as "not moving" while the player walked back up from
+   CITY 1F. Now the lostness-based triggers need 30 s of history; the `latest` fallback is unchanged.
+3. **Copy:** *"I'm 2nd in line!!"* was followed by *"see? 😌 6F, I'm 3rd in line"*. When the 170 m banter has already
+   gone out, the ready text is now *"see? 😌 6F. still 2nd in line, hurry 🍤"* (`UPGRADE.ready2`).
 
 Notes against the §6 expectations:
 
@@ -348,3 +361,16 @@ Notes against the §6 expectations:
 - **Screenshots** (`namba-shots/walk/v9n-05-offer-dev.png`): the thread reads *how's my latte coming? 👀* → *I'm lost
   😭* → *you're lost aren't you 😂* + Lodestone card. No stale chips: the probe count was 0 and the DOM chip count
   matched the pending state on every check.
+
+### Still rough / for the lead
+
+- **Every bot run hits Where's `latest` (175 s) fallback**, because the bot never stalls after 60 s. Only humans (and the
+  sim) exercise the 95 s lost path, the `early` path and the `silent` 45 s path in the browser. The sim covers them
+  (8/8).
+- **Never-replier pacing:** Meet arrives at about 46 s instead of v8's 43 s, and the latte at 67 s instead of 47 s. The
+  offer for a silent walker is 205 s instead of 195 s (the grace for her fresh Where question, cap 210 s).
+- **`LATTE_REFUSABLE`** (`js/game/script.js`) is `true` pending Zack. With `false`, the chips are *Sure! ☕ / Only for
+  you 😂*.
+- **PostHog:** `demo:offer.why` gains `early`, `silent` and `ahead`; `namba_lost_prompt` now fires less often (never at
+  the café or right after the order). If wanted, a `namba_reply` event (from `aya:answered`) is a one-liner in
+  `analytics.js`, left untouched as asked.
