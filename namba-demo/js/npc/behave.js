@@ -310,7 +310,9 @@ export class Behave {
         } else if (a.st === 2 && a.fadeDir >= 0) {
           // v8: the doors closed (or it took too long) before this person reached the doorway: go back to the queue, never fade in the platform
           const into = this._intoTrain(a, T);
-          if (into < -0.1 && (!this.director.doorsOpen(T) || this.time > a.d.boardBy)) {
+          // in the doorway (the platform-edge collision can hold people ~0.25 m short of the door line): step in and fade
+          if (into > -0.3) { a.fadeDir = -1; if (a.followers) for (const f of a.followers) f.fadeDir = -1; }
+          else if (!this.director.doorsOpen(T) || this.time > a.d.boardBy) {
             a.st = 0; a.mark = null; a.d.maxWait = Math.max(a.d.maxWait, this.time + 120);
             const m = this._pickMark(a, T);
             if (m) { a.mark = m; const col = m.n[0] <= m.n[1] ? 0 : 1; a.markK = col + 2 * m.n[col]; m.n[col]++; const sl = this.P.markSlot(m, a.markK); a.d.sl = sl; S.goTo(a, sl.x, sl.z, T.platform.rect, 0.25); }
@@ -669,7 +671,7 @@ export class Behave {
     for (const d of doors) { const l = T.along === 'z' ? Math.abs(d.z - a.z) : Math.abs(d.x - a.x); if (l < bd) { bd = l; best = d; } }
     if (!best) return;
     a.d.door = best;
-    this.sim.setPath(a, [[best.x + nx * 0.9, best.z + nz * 0.9], [best.x - nx * 1.1, best.z - nz * 1.1]], 0.3);
+    this.sim.setPath(a, [[best.x + nx * 0.9, best.z + nz * 0.9], [best.x - nx * 0.2, best.z - nz * 0.2]], 0.35);
   }
   _pickMark(a, T) {
     const M = T.marks; if (!M.length) return null;
