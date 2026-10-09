@@ -586,7 +586,14 @@ export class HumanLibrary {
     {
       const yW = hips.y + 0.07, yHem = hips.y - 0.4, yTop = chest.y + 0.1;   // waist, hem (mid-thigh), bib top (below the collarbone)
       // foremost z at (x, y); the legs leave a gap at x = 0 below the crotch, so widen the search sideways until something is found
-      const fz = (x, y, fb) => { for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) { const r = body.front(x + dx, y, null); if (r !== null) return r; } return fb; };
+      const fz = (x, y, fb) => {
+        for (const dx of [0, 0.03, -0.03, 0.06, -0.06, 0.09, -0.09]) {
+          let r = null;   // the surface is sampled from mesh vertices (sparse on dresses / coats): take the foremost of three heights
+          for (const dy of [0, 0.045, -0.045]) { const q = body.front(x + dx, y + dy, null); if (q !== null && (r === null || q > r)) r = q; }
+          if (r !== null) return r;
+        }
+        return fb;
+      };
       // a slab panel from yA (top) to yB (bottom): half width hwA -> hwB, standing off the surface by offA -> offB, thick t
       const panel = (bone, yA, yB, hwA, hwB, offA, offB, fb, nx = 6, ny = 5, t = 0.009) => {
         const g = new THREE.BoxGeometry(1, 1, 1, nx, ny, 1), pp = g.attributes.position;
@@ -605,8 +612,8 @@ export class HumanLibrary {
         parts.push({ bit: BIT.APRON, bone, mat: A.acc2, g, c: [0, 0, 0], r: [0, 0, 0] });
         return zs;
       };
-      const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.012, 0.016, chest.z + chestZ, 6, 5);        // bib
-      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.016, 0.03, hips.z + hipZ, 8, 6);            // skirt (flared)
+      const zb = panel('Chest', yTop, yW + 0.03, 0.105, 0.155, 0.016, 0.02, chest.z + chestZ, 6, 5);        // bib
+      const zk = panel('Hips', yW + 0.005, yHem, 0.168, 0.205, 0.022, 0.04, hips.z + hipZ, 8, 6);            // skirt (flared)
       // waist tie: a band across the skirt top, side ties round the flanks to a back bow
       const bw = (x, y, o) => v3(x, y, fz(x, y, hips.z + hipZ) + o);
       const wb = yW - 0.012;

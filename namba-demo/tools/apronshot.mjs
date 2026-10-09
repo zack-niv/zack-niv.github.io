@@ -42,7 +42,7 @@ try {
   await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=high&noaudio&time=12:10`);
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 400000 });
   log('ready');
-  await page.evaluate(() => { for (const el of document.body.children) if (el.tagName !== 'CANVAS' && !el.querySelector('canvas')) el.style.display = 'none'; });
+  await page.addStyleTag({ content: '#ui{display:none!important}' });
   const CAM = ['2F', 0, 150, 0];
   await tp([CAM[0], CAM[1], CAM[2], CAM[3], -8]); await step(4);
   // stage: N people in a row in front of the camera, pinned, facing it, each with a forced clip + accessory bits
