@@ -43,6 +43,16 @@ export const THEMES = {
     track: '#9c988f', rails: '#6d6961', platformEdge: '#e8b800', rampFill: '#bfc6d1', rampLine: '#6d7787', stairsFill: '#d0c9bd',
     gate: '#3e444d', wallW: 0.6, shopW: 0.3,
   },
+  // v8: Lodestone's own map (graphite night theme: the walkable concourse is the lightest thing, shops recede)
+  lodestone: {
+    bg: '#05080f', hall: '#1a2539', outdoor: '#17262a', garden: '#133022', canyon: '#2a2722', deck: '#2c2619',
+    zone: { midosuji: '#1c2438', sennichimae: '#1d2338', nankai: '#1e2437', nambawalk: '#1f2436', city: '#1a2640', parks: '#1a2a36',
+      takashimaya: '#1c2636', link: '#1a2335', plaza: '#18202e', street: '#18202e', parksGarden: '#133022' },
+    shop: { food: '#16131a', cafe: '#16131a', retail: '#0f1424', service: '#0f1524', closed: '#0c0f17' },
+    shopStroke: '#2a3753', wall: '#6d82aa', partition: '#2b3856', rail: '#4a6d96', voidFill: '#04060b',
+    track: '#0a0d14', rails: '#2c3549', platformEdge: '#9c7e26', rampFill: '#24324e', rampLine: '#7f98c4', stairsFill: '#202c44',
+    gate: '#8b9bba', wallW: 0.5, shopW: 0.16,
+  },
 };
 
 const OUTDOOR_STYLE_FILL = { garden: 'garden', canyon: 'canyon', canyon_stage: 'deck', canyon_bridge: 'deck', garden_deck: 'deck' };

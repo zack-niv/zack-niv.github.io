@@ -24,6 +24,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const COFFEE_CATS = new Set(['cafe', 'kissaten', 'coffeestand']);
 const MIN_FARE = 190;
+const GATE_PROMPT_M = 1.6;   // v8: the IC tap prompt only shows this close to a gate lane (gates.js NEAR_V is 2.4)
 // v6: what a tap-out costs (IC fares, 2024): the airport ride you just took, and the metro's minimum
 const FARES = {
   nankai: { amount: 970, note: '関西空港 → なんば · Kansai Airport → Namba' },
@@ -466,8 +467,13 @@ export class Game {
     return (!e.level || e.level === b.level) && Math.hypot(e.x - b.x, e.z - b.z) < 2.6;
   }
   // the gate channel the player is standing at and facing, or null (gateLaneNear: notes/v6-gates.md)
+  // v8 (item 5): the IC prompt belongs to a gate lane you are standing at, not to a ramp that ends next to the line. A body
+  // riding a ramp keeps the level it was entered from until the foot, and the Nankai 3F->2F escalators end 1 m past the 3F
+  // gate line, so gateLaneNear() answered while you were still on the escalator ("Tap your ICOCA" at the escalator foot).
+  // No prompt on a ramp, and only within GATE_PROMPT_M of the line while facing it.
   _gateTarget(b, fwd) {
     if (!this._newGates()) return null;
+    if (b.ramp != null && b.ramp >= 0) return null;
     const n = safe(() => this.ctx.transit.gateLaneNear(b.x, b.z, b.level));
     if (!n || typeof n.lane !== 'number') return null;
     const g = this._gates.find(x => x.gt.id === n.gate); if (!g) return null;
@@ -477,6 +483,7 @@ export class Game {
     if (look < 0.35) return null;
     const entering = n.dir != null ? n.dir > 0 : -across * g.paidSign > 0;
     const d = isFinite(n.dist) ? n.dist : Math.abs(across);
+    if (d > GATE_PROMPT_M) return null;
     return { g, n, gate: gt.id, lane: n.lane, sub: n.sub, entering, ok: n.ok !== false, open: !!n.open, score: -0.6 + d * 0.12 + (1 - look) * 0.5 };
   }
   _gateView() {

@@ -42,7 +42,7 @@ export class Behave {
     if (L.t === 'queue' && L.B) { const k = L.B.queue.indexOf(a); if (k >= 0) L.B.queue.splice(k, 1); }
     if (L.t === 'order' && a.d && a.d.C) { const k = a.d.C.queue.indexOf(a); if (k >= 0) a.d.C.queue.splice(k, 1); }
     if (L.t === 'window' && a.d && a.d.w) { a.d.w.used = 0; }
-    if (L.t === 'board' && a.mark) { a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1); a.mark = null; }
+    if (L.t === 'board') { if (a.mark) { a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1); a.mark = null; } if (L.T && L.T.boarders) L.T.boarders.delete(a); }
     if ((L.t === 'dine' || L.t === 'browse') && a.spot) { a.spot.used = 0; a.spot = null; if (L.t === 'dine' && L.B && a.d && a.d.counted) { L.B.seated = Math.max(0, L.B.seated - 1); a.d.counted = false; } }
     a.dyn = 0; a.d = null; a.queueing = false; a.faceSet = false; a.pose = POSE.WALK; a.seatH = 0; a.seatPhone = false; a.seatDone = false;
   }
@@ -106,6 +106,8 @@ export class Behave {
       }
       case 'board': {
         const T = L.T; a.track = T;
+        this.director.syncMarks(T);   // v8: queue at the doors of the train that will really stop here (before we join the boarders)
+        (T.boarders || (T.boarders = new Set())).add(a);
         const m = this._pickMark(a, T);
         if (!m) { this.nextLeg(a); return; }
         a.mark = m; const col = m.n[0] <= m.n[1] ? 0 : 1; a.markK = col + 2 * m.n[col]; m.n[col]++;
@@ -292,21 +294,29 @@ export class Behave {
       case 'board': {
         const T = L.T;
         if (a.st === 1) {
-          // waiting at the door marking
-          const open = T.doorsUntil > this.time && this.time > T.doorsT0 + 3.5;
-          if (open || this.time > a.d.maxWait) {
+          // waiting at the door marking; v8: the leaves must be open (the old "waited long enough" fallback walked people into car walls)
+          if (this.director.doorsOpen(T)) {
             a.st = 2;
             if (a.mark) { a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1); }
-            const m = a.mark; a.mark = null;
-            const ex = m ? m.x - m.nx * 1.1 : a.x, ez = m ? m.z - m.nz * 1.1 : a.z;
-            S.goTo(a, ex, ez, null, 0.35); a.pose = POSE.WALK; a.dyn = 0;
-            a.d.boardBy = this.time + 6;
-          } else {
+            this._enterDoor(a, T);
+            a.pose = POSE.WALK; a.dyn = 0;
+            a.d.boardBy = this.time + 10;
+          } else if (this.time > a.d.maxWait) { this.nextLeg(a); }
+          else {
             a.t2 -= dt;
             if (a.t2 <= 0) { a.t2 = 3 + this.r() * 8; if (a.pose !== POSE.PHONE) { a.lookYaw = (this.r() - 0.5) * 1.4; a.lookT = 2; } }
             if (a.pose === POSE.PHONE) a.dyn |= (1 << BIT.PHONE);
           }
-        } else if (a.st === 2 && this.time > a.d.boardBy) { a.fadeDir = -1; }
+        } else if (a.st === 2 && a.fadeDir >= 0) {
+          // v8: the doors closed (or it took too long) before this person reached the doorway: go back to the queue, never fade in the platform
+          const into = this._intoTrain(a, T);
+          if (into < -0.1 && (!this.director.doorsOpen(T) || this.time > a.d.boardBy)) {
+            a.st = 0; a.mark = null; a.d.maxWait = Math.max(a.d.maxWait, this.time + 120);
+            const m = this._pickMark(a, T);
+            if (m) { a.mark = m; const col = m.n[0] <= m.n[1] ? 0 : 1; a.markK = col + 2 * m.n[col]; m.n[col]++; const sl = this.P.markSlot(m, a.markK); a.d.sl = sl; S.goTo(a, sl.x, sl.z, T.platform.rect, 0.25); }
+            else this.nextLeg(a);
+          }
+        }
         return;
       }
       case 'stroll': case 'hall': case 'patrol': {
@@ -645,6 +655,21 @@ export class Behave {
     if (!S.col.walkable(A.level, x, z) || a.level !== A.level) { a.st = 1; a.t = 2; return; }
     S.goTo(a, x, z, A.bounds, 0.6);
     if (!a.path) { a.st = 1; a.t = 2; }
+  }
+  // signed distance past the platform edge toward the train (> 0: in the doorway / inside)
+  _intoTrain(a, T) {
+    const d = a.d && a.d.door; if (!d) return -1;
+    return -((a.x - d.x) * T.nx + (a.z - d.z) * T.nz);
+  }
+  // v8: walk to the door nearest to where we stand: first the apron in front of it, then straight through the opening
+  _enterDoor(a, T) {
+    const nx = T.nx, nz = T.nz;
+    let best = null, bd = Infinity;
+    const doors = T.doors && T.doors.length ? T.doors : T.marks.map(m => ({ x: m.x - m.nx * 0.9, z: m.z - m.nz * 0.9 }));
+    for (const d of doors) { const l = T.along === 'z' ? Math.abs(d.z - a.z) : Math.abs(d.x - a.x); if (l < bd) { bd = l; best = d; } }
+    if (!best) return;
+    a.d.door = best;
+    this.sim.setPath(a, [[best.x + nx * 0.9, best.z + nz * 0.9], [best.x - nx * 1.1, best.z - nz * 1.1]], 0.3);
   }
   _pickMark(a, T) {
     const M = T.marks; if (!M.length) return null;

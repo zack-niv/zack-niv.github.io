@@ -32,7 +32,29 @@
 <body>
 <canvas id="view"></canvas>
 <div id="ui">
-  <div id="loading"><div class="ld-inner"><div class="ld-title">なんば</div><div class="ld-sub">LOST IN NAMBA</div><div class="ld-bar"><i></i></div><div class="ld-msg">Loading…</div></div></div>
+  <!-- v8: the loading screen is painted here and adopted by js/core/loader.js (same markup, nothing is rebuilt), so
+       the title "Lost in Namba" never changes from first paint to the title screen. Keep in sync with loader.js STATIONS. -->
+  <div id="loading">
+    <div class="nbl-bg"></div>
+    <div class="nbl-inner">
+      <div class="nbl-kana" lang="ja">なんば</div>
+      <div class="nbl-latin">Lost in Namba</div>
+      <div class="nbl-line" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div class="nbl-track"><i class="nbl-fill"></i><b class="nbl-train"></b></div>
+        <ol class="nbl-stations"><li><span class="nbl-dot"></span><em>Survey</em><small lang="ja">測量</small></li><li><span class="nbl-dot"></span><em>Station</em><small lang="ja">駅</small></li><li><span class="nbl-dot"></span><em>Streets</em><small lang="ja">街</small></li><li><span class="nbl-dot"></span><em>Light</em><small lang="ja">光</small></li><li><span class="nbl-dot"></span><em>People</em><small lang="ja">人</small></li><li><span class="nbl-dot"></span><em>Shaders</em><small lang="ja">仕上げ</small></li></ol>
+      </div>
+      <div class="nbl-row"><div class="ld-msg">Loading…</div><div class="nbl-pct">0%</div></div>
+      <div class="nbl-tip"></div>
+    </div>
+    <div class="nbl-touch" hidden role="dialog" aria-modal="true" aria-labelledby="nbl-touch-h">
+      <div class="nbl-card">
+        <div class="nbl-card-ico" aria-hidden="true">⌨️🖱️</div>
+        <h2 id="nbl-touch-h">Best on a computer with keyboard &amp; mouse</h2>
+        <p>Namba is built for walking with <b>WASD</b> and looking with a mouse. It will still run here, at reduced quality, but the controls are tricky on touch.</p>
+        <button type="button" class="nbl-go">Continue anyway</button>
+      </div>
+    </div>
+  </div>
   <div id="title" hidden></div>
   <div id="hud"></div>
   <div id="phone-root"></div>

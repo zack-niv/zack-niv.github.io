@@ -113,6 +113,20 @@ export class Places {
     }
     this.platformById = Object.fromEntries(this.platforms.map(p => [p.id, p]));
   }
+  // v8: the painted marks above are those of the track's STANDARD formation (comm8 on Nankai). The train that really stops has its
+  // own door positions (rapi:t has 2 doors per car, 20 m cars; a 6-car local another pitch), so boarders queued at the standard marks
+  // walked into car walls. Rebuild the marks of a track from the doors of the train that stops there ({x,z} on the platform edge).
+  setTrackDoors(T, doors) {
+    const lv = T.platform.level, nx = T.nx, nz = T.nz, marks = [];
+    for (const d of doors) {
+      const mx = d.x + nx * 0.9, mz = d.z + nz * 0.9;
+      if (!this.col.walkable(lv, mx, mz) || !this.col.walkable(lv, mx + nx * 2.5, mz + nz * 2.5)) continue;
+      marks.push({ x: mx, z: mz, nx, nz, n: [0, 0], a: T.along === 'z' ? d.z : d.x, transit: true, real: true });
+    }
+    if (!marks.length) return false;
+    T.marks = marks;
+    return true;
+  }
   platformField(P, pri = 2) { return this.fields.request(P.key, P.goals, { paidOk: true, priority: pri }); }
   // queue slot k (0,1,...) at a door marking: two columns perpendicular to the edge
   markSlot(m, k) {
