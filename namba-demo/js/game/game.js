@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=6c67dba';
-import { LAYOUT, spaceById } from '../world/layout.js?v=6c67dba';
-import { BUSINESSES } from '../world/directory.js?v=6c67dba';
-import { Interactions } from './interact.js?v=6c67dba';
-import { Panels, yen, esc } from './panel.js?v=6c67dba';
-import { Journal } from './journal.js?v=6c67dba';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=6c67dba';
-import { Title } from '../ui/title.js?v=6c67dba';
-import { Demo } from './demo.js?v=6c67dba';
-import * as V from './vignettes.js?v=6c67dba';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=6c67dba';
-import { orderItem, hasCounter } from './order.js?v=6c67dba';
-import { contactLinks } from './endcard.js?v=6c67dba';
+import { params } from '../core/params.js?v=454ed73';
+import { LAYOUT, spaceById } from '../world/layout.js?v=454ed73';
+import { BUSINESSES } from '../world/directory.js?v=454ed73';
+import { Interactions } from './interact.js?v=454ed73';
+import { Panels, yen, esc } from './panel.js?v=454ed73';
+import { Journal } from './journal.js?v=454ed73';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=454ed73';
+import { Title } from '../ui/title.js?v=454ed73';
+import { Demo } from './demo.js?v=454ed73';
+import * as V from './vignettes.js?v=454ed73';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=454ed73';
+import { orderItem, hasCounter } from './order.js?v=454ed73';
+import { contactLinks } from './endcard.js?v=454ed73';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

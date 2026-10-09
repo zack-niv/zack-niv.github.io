@@ -48,14 +48,14 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=6c67dba';
-import { MapApp } from './phone/mapapp.js?v=6c67dba';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=6c67dba';
-import { LodestoneApp } from './phone/lodestone.js?v=6c67dba';
-import { PhoneStats } from './phone/stats.js?v=6c67dba';
-import { Glance } from './phone/glance.js?v=6c67dba';
-import { buzzSound } from './phone/track.js?v=6c67dba';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=6c67dba';
+import { Positioning } from './phone/positioning.js?v=454ed73';
+import { MapApp } from './phone/mapapp.js?v=454ed73';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=454ed73';
+import { LodestoneApp } from './phone/lodestone.js?v=454ed73';
+import { PhoneStats } from './phone/stats.js?v=454ed73';
+import { Glance } from './phone/glance.js?v=454ed73';
+import { buzzSound } from './phone/track.js?v=454ed73';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=454ed73';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -181,7 +181,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=6c67dba'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=454ed73'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';

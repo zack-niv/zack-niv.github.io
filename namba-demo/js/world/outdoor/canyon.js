@@ -9,10 +9,10 @@
 // Openings: canyon-view doorways, the garden stairs, bridges and skywalks.
 // =============================================================================
 import * as THREE from 'three';
-import { CELL } from '../world.js?v=6c67dba';
-import { LEVELS } from '../layout.js?v=6c67dba';
-import { rng } from '../../core/rng.js?v=6c67dba';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=6c67dba';
+import { CELL } from '../world.js?v=454ed73';
+import { LEVELS } from '../layout.js?v=454ed73';
+import { rng } from '../../core/rng.js?v=454ed73';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=454ed73';
 
 export const PALETTE = {
   ochre: lin(0xc89a62), rust: lin(0xa8603f), sand: lin(0xdcc29c), terracotta: lin(0xbc7552),

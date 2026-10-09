@@ -10,9 +10,9 @@
 //  * Nature/street events: birds, crows, crossing signals, horns, buses,
 //    distant trains under the floor, distant PA.
 // =============================================================================
-import { ZONES } from '../world/layout.js?v=6c67dba';
-import { AMBIENT_PA, DINING_CALLS } from './phrases.js?v=6c67dba';
-import { platformLeak } from './zones.js?v=6c67dba';
+import { ZONES } from '../world/layout.js?v=454ed73';
+import { AMBIENT_PA, DINING_CALLS } from './phrases.js?v=454ed73';
+import { platformLeak } from './zones.js?v=454ed73';
 
 // layer name → recipe, bus, base gain
 const LAYERS = {

@@ -3,7 +3,7 @@
 //   foliage(ctx)  -> atlas 4x2 tiles (alpha): see FOLIAGE_TILES
 //   bark(ctx), groundcover(ctx), paving(ctx), deck(ctx), water normals...
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=6c67dba';
+import { rng } from '../../core/rng.js?v=454ed73';
 
 export const FOLIAGE_TILES = { broad: 0, autumn: 1, shrub: 2, ginkgo: 3, narrow: 4, grass: 5, flower: 6, pine: 7 };
 export function tileUV(tile) { const c = tile % 4, r = (tile / 4) | 0; return [c / 4, 1 - (r + 1) / 2, (c + 1) / 4, 1 - r / 2]; } // u0,v0,u1,v1

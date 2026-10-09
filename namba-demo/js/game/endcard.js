@@ -9,7 +9,7 @@
 // Brand rule: never Oriient's logo or colours. The only colours are ours
 // (warm amber = guesswork, cool blue = Lodestone's own).
 // =============================================================================
-import { ENDCARD } from './script.js?v=6c67dba';
+import { ENDCARD } from './script.js?v=454ed73';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -109,6 +109,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const btns = [...el.querySelectorAll('.g-btn')];
   const act = (v) => {
     removeEventListener('keydown', key, true);
+    try { ctx.events.emit('demo:choice', { choice: v === 'replay' ? 'replay' : 'roam' }); } catch (e) { /* analytics only */ }
     if (v === 'replay') return onReplay && onReplay();
     onRoam && onRoam();
   };

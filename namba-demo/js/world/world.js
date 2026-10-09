@@ -7,7 +7,7 @@
 // the same `edges` / `cells` data, so what you see is exactly what you collide
 // with.
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, rampProfile, rampLocal, rampLength } from './layout.js?v=6c67dba';
+import { LAYOUT, LEVELS, LEVEL_ORDER, rampProfile, rampLocal, rampLength } from './layout.js?v=454ed73';
 
 export const CELL = { SOLID: 0, WALK: 1, VOID: 2, TRACK: 3, RAMP: 4 };
 // edge kinds

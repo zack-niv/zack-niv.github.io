@@ -11,8 +11,8 @@
 //  * Cheap grid collision (per-cell open-side masks) for thousands of agents
 //  * Local BFS paths inside a rectangle (platforms, shop interiors, gardens)
 // =============================================================================
-import { CELL } from '../world/world.js?v=6c67dba';
-import { dijkstra } from './fieldworker.js?v=6c67dba';
+import { CELL } from '../world/world.js?v=454ed73';
+import { dijkstra } from './fieldworker.js?v=454ed73';
 
 const UNREACH = 65535;
 
@@ -152,7 +152,7 @@ export class FieldStore {
     this.worker = null;
     if (!want || typeof Worker === 'undefined') return;
     try {
-      const w = new Worker(new URL('./fieldworker.js?v=6c67dba', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./fieldworker.js?v=454ed73', import.meta.url), { type: 'module' });
       const nav = this.nav;
       w.postMessage({ type: 'init', N: this.N, inStart: nav.inStart, inSrc: nav.inSrc, inCost: nav.inCost, penalty: this.penalty, paid: this.paid, cut: this.cutIn });
       w.onmessage = (ev) => this._onResult(ev.data);

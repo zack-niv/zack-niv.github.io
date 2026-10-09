@@ -9,7 +9,7 @@
 // =============================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { GeoBatch } from '../../render/geobatch.js?v=6c67dba';
+import { GeoBatch } from '../../render/geobatch.js?v=454ed73';
 
 // ---- colours -----------------------------------------------------------------
 export function rgb(hex, k = 1) {

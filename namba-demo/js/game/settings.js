@@ -1,5 +1,5 @@
 // Player settings: persisted in localStorage (guarded), applied to systems.
-import { params } from '../core/params.js?v=6c67dba';
+import { params } from '../core/params.js?v=454ed73';
 
 const KEY = 'namba.settings';
 const DEFAULTS = { quality: 'high', sensitivity: 1, headBob: 1, volume: 0.8, subtitles: true };

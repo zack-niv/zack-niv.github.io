@@ -8,7 +8,7 @@
 //     same physics run with a falling speed profile.
 //   roll(): wheel/rail roar loop; brakeSqueal(); airRelease(); doors().
 // =============================================================================
-import { TAU, rng, Biquad, white, pink, brown, smoothRandom, foldLoop, filt, normalize, addMode, clamp } from './dsp.js?v=6c67dba';
+import { TAU, rng, Biquad, white, pink, brown, smoothRandom, foldLoop, filt, normalize, addMode, clamp } from './dsp.js?v=454ed73';
 
 // speed profile → per-sample motor electrical frequency fm (Hz)
 function inverterTone(sr, dur, fmAt, torqueAt, variant = 0) {

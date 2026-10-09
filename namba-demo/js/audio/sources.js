@@ -8,8 +8,8 @@
 // robin: other level → heavy low-pass; same level but no line of sight to
 // the doorway → muffled.
 // =============================================================================
-import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js?v=6c67dba';
-import { ESCALATOR_LINES, IRASSHAI } from './phrases.js?v=6c67dba';
+import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js?v=454ed73';
+import { ESCALATOR_LINES, IRASSHAI } from './phrases.js?v=454ed73';
 
 // shop music level by the soundscape you are in: NAMBAWALK is a wall of BGM, the malls are softer, outdoors it leaks faintly
 const MUSIC_K = { arcade: 1.0, passage: 0.9, metro: 0.5, department: 0.55, mall: 0.6, parks: 0.5, canyon: 0.5, garden: 0.35, street: 0.5, terminal: 0.4, platform: 0, nkplatform: 0, dining: 0.5, shop: 1 };

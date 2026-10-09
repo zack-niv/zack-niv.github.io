@@ -5,7 +5,7 @@
 // All generated once at init (lazily cached through ctx.materials.texture).
 // =============================================================================
 import * as THREE from 'three';
-import { DESTS, TYPES, LINES } from './timetable.js?v=6c67dba';
+import { DESTS, TYPES, LINES } from './timetable.js?v=454ed73';
 
 export const JP = '"Noto Sans JP","Noto Sans CJK JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
 export const EN = '"Inter","Helvetica Neue",Arial,sans-serif';

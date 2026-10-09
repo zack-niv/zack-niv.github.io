@@ -18,9 +18,9 @@
 //      partitions), from the soffit line up to the next slab.
 // Slab edges at wells (surfaces.js buildSlabEdges) and roof slabs complete it.
 // =============================================================================
-import { CELL, EDGE } from '../world.js?v=6c67dba';
-import { styleOf } from './styles.js?v=6c67dba';
-import { face } from './surfaces.js?v=6c67dba';
+import { CELL, EDGE } from '../world.js?v=454ed73';
+import { styleOf } from './styles.js?v=454ed73';
+import { face } from './surfaces.js?v=454ed73';
 
 const SOFFIT = 0.1;     // soffit line below a floor (m)
 const IN = 0.008;       // outer room faces sit this far inside the boundary (behind glass / facades)

@@ -15,7 +15,7 @@ export class Bank {
     this.worker = null;
     if (useWorker && typeof Worker !== 'undefined') {
       try {
-        this.worker = new Worker(new URL('./worker.js?v=6c67dba', import.meta.url), { type: 'module' });
+        this.worker = new Worker(new URL('./worker.js?v=454ed73', import.meta.url), { type: 'module' });
         this.worker.onmessage = (e) => this._onResult(e.data);
         this.worker.onerror = (e) => { console.warn('[audio] synthesis worker failed, using main thread', e.message || e); this.worker = null; this.inflight = 0; this._pump(); };
       } catch (e) { this.worker = null; }
@@ -59,7 +59,7 @@ export class Bank {
   }
   async _runLocal(name) {
     try {
-      if (!this._recipes) this._recipes = await import('./recipes.js?v=6c67dba');
+      if (!this._recipes) this._recipes = await import('./recipes.js?v=454ed73');
       const t0 = performance.now();
       const res = this._recipes.synthesize(name, this.ac.sampleRate);
       this._finish(name, res.channels, res.sampleRate, performance.now() - t0);
