@@ -19,7 +19,7 @@
 // Draw calls / triangles are the main scene pass (engine.stats), the number the call budget is tuned against.
 // The meter restarts when the tab is hidden / shown, so a backgrounded tab never pollutes the numbers.
 // =============================================================================
-import { params } from '../core/params.js?v=454ed73';
+import { params } from '../core/params.js?v=f150c03';
 
 const WINDOW = 2.0;         // seconds of history for avg / p95
 const FPS_WINDOW = 1.0;     // seconds for the FPS average

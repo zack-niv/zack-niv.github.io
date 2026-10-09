@@ -4,10 +4,10 @@
 // steel columns, and the lintel over the canyon's north entrance.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS } from '../layout.js?v=454ed73';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=454ed73';
-import { PALETTE, TERRACE_Z } from './canyon.js?v=454ed73';
-import { strataFace } from './terraces.js?v=454ed73';
+import { LEVELS } from '../layout.js?v=f150c03';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=f150c03';
+import { PALETTE, TERRACE_Z } from './canyon.js?v=f150c03';
+import { strataFace } from './terraces.js?v=f150c03';
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const CYL = new THREE.CylinderGeometry(1, 1, 1, 10);

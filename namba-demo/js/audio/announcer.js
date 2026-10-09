@@ -16,8 +16,8 @@
 // Voices load asynchronously (voiceschanged, plus polling); speech needs a
 // prior user gesture (the title click) — a rejected utterance is skipped.
 // =============================================================================
-import { spokenText } from './phrases.js?v=454ed73';
-import { platformGain, pointGain } from './zones.js?v=454ed73';
+import { spokenText } from './phrases.js?v=f150c03';
+import { platformGain, pointGain } from './zones.js?v=f150c03';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };

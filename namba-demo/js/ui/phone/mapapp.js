@@ -10,15 +10,15 @@
 //     stairs ("Take escalator to 2F"), then wait for you to get there
 // Rendering: Canvas2D, cached per-floor base layers, redrawn only while open.
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=454ed73';
-import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=454ed73';
-import { businessBySlot } from '../../world/directory.js?v=454ed73';
-import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=454ed73';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=454ed73';
-import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=454ed73';
-import { hash } from '../../core/rng.js?v=454ed73';
-import { placeArt, reviewsFor, popularTimes } from './art.js?v=454ed73';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=454ed73';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=f150c03';
+import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=f150c03';
+import { businessBySlot } from '../../world/directory.js?v=f150c03';
+import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=f150c03';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=f150c03';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=f150c03';
+import { hash } from '../../core/rng.js?v=f150c03';
+import { placeArt, reviewsFor, popularTimes } from './art.js?v=f150c03';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=f150c03';
 
 const BASE_PPM = 4;          // cached base layer resolution (px per metre)
 const ZOOM_MIN = 0.45, ZOOM_MAX = 14;

@@ -15,7 +15,7 @@
 // combined). The physical clearance between a departing and the following
 // train is checked by tools-free script in notes (>= 25 m).
 // =============================================================================
-import { rng, hash } from '../../core/rng.js?v=454ed73';
+import { rng, hash } from '../../core/rng.js?v=f150c03';
 
 export function rushAt(h) {
   const g = (c, w) => Math.exp(-((h - c) * (h - c)) / (2 * w * w));

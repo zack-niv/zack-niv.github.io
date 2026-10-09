@@ -26,8 +26,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { BIT } from './looks.js?v=454ed73';
-import { ESC_STAND_SIDE } from './sim.js?v=454ed73';
+import { BIT } from './looks.js?v=f150c03';
+import { ESC_STAND_SIDE } from './sim.js?v=f150c03';
 
 export const TINT = { KEEP: 0, SKIN: 1, HAIR: 2, TOP: 3, BOTTOM: 4, SHOES: 5, INNER: 6, ACC: 7, ACC2: 8, PACK: 9, CASE: 10, CORD: 11, SCREEN: 12, CAP: 13 };
 const MAX_MATS = 28;   // polish: + phone screen (was 23 / 24 used)

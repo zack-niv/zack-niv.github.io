@@ -3,7 +3,7 @@
 // Discoveries are first visits to places worth remembering; each shows a
 // subtle toast once ("Discovered · Namba Parks Canyon").
 // =============================================================================
-import { LAYOUT, ZONES } from '../world/layout.js?v=454ed73';
+import { LAYOUT, ZONES } from '../world/layout.js?v=f150c03';
 
 // place definitions: by space id (prefix match with '*'), by zone, or by point
 export const PLACES = [

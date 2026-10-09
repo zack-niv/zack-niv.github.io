@@ -18,11 +18,11 @@
 // (measured from the planted foot), so feet do not slide.
 // =============================================================================
 import * as THREE from 'three';
-import { buildBlob } from './humanGeo.js?v=454ed73';
-import { makeBlobMaterial } from './humanMat.js?v=454ed73';
-import { POSE } from './sim.js?v=454ed73';
-import { BIT } from './looks.js?v=454ed73';
-import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO, SEAT_BODY, SEAT_CLIPS } from './humans.js?v=454ed73';
+import { buildBlob } from './humanGeo.js?v=f150c03';
+import { makeBlobMaterial } from './humanMat.js?v=f150c03';
+import { POSE } from './sim.js?v=f150c03';
+import { BIT } from './looks.js?v=f150c03';
+import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO, SEAT_BODY, SEAT_CLIPS } from './humans.js?v=f150c03';
 
 const FAR_CAP = 320, FADE_CAP = 64;
 const TIERS = {

@@ -4,8 +4,8 @@
 // balustrades, slab edges around every hole, shop bulkheads (sign band),
 // ceiling steps and contact-shadow (AO) strips.
 // =============================================================================
-import { CELL, EDGE } from '../world.js?v=454ed73';
-import { styleOf, bandMat, doorHead } from './styles.js?v=454ed73';
+import { CELL, EDGE } from '../world.js?v=f150c03';
+import { styleOf, bandMat, doorHead } from './styles.js?v=f150c03';
 
 // vertical face on the line a->b, facing the normal (nx, nz), offset along it
 export function face(b, mat, ax, az, bx, bz, y0, y1, nx, nz, off = 0, opt) {
