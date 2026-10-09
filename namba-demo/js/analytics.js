@@ -59,7 +59,7 @@ export function setupAnalytics(ctx) {
       disable_session_recording: true, disable_surveys: true, person_profiles: 'identified_only', advanced_disable_feature_flags: true,
       opt_out_useragent_filter: q.has('track'),     // test runs only: headless Chrome counts as a bot and would be dropped
     });
-    window.posthog.register({ app: 'lost-in-namba', v, ref, gpu, quality: quality(), screen: `${screen.width}x${screen.height}`, stage: 'loaded' });
+    window.posthog.register({ app: 'lost-in-namba', test: q.has('track'), v, ref, gpu, quality: quality(), screen: `${screen.width}x${screen.height}`, stage: 'loaded' });
     ph = window.posthog;               // the stub until array.js arrives (it queues), then the real client
     for (const [ev, p] of queue.splice(0)) ph.capture(ev, p);
   } catch (e) { console.warn('[analytics]', e.message); }
