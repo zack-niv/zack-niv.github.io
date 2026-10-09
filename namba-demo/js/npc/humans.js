@@ -601,8 +601,17 @@ export class HumanLibrary {
         for (let j = 0; j <= ny; j++) {
           const v = j / ny, y = yA + (yB - yA) * v, hw = hwA + (hwB - hwA) * v, row = [];
           for (let i = 0; i <= nx; i++) row.push(fz((i / nx - 0.5) * 2 * hw, y, fb));
-          zs.push(row.map((z, i) => (row[Math.max(0, i - 1)] + 2 * z + row[Math.min(nx, i + 1)]) / 4 + offA + (offB - offA) * v));
+          zs.push(row);
         }
+        // fill dents (a grid point lower than both neighbours along x or y = a vertex gap in the sampled surface: the cloth beneath
+        // would poke through the panel), smooth along x, then stand the panel off the surface
+        for (let pass = 0; pass < 2; pass++) for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+          let z = zs[j][i];
+          if (i > 0 && i < nx) z = Math.max(z, Math.min(zs[j][i - 1], zs[j][i + 1]) - 0.008);
+          if (j > 0 && j < ny) z = Math.max(z, Math.min(zs[j - 1][i], zs[j + 1][i]) - 0.008);
+          zs[j][i] = z;
+        }
+        for (let j = 0; j <= ny; j++) { const row = zs[j], v = j / ny; zs[j] = row.map((z, i) => (row[Math.max(0, i - 1)] + 2 * z + row[Math.min(nx, i + 1)]) / 4 + offA + (offB - offA) * v); }
         for (let k = 0; k < pp.count; k++) {
           const u = pp.getX(k) + 0.5, v = 0.5 - pp.getY(k), side = Math.sign(pp.getZ(k));
           const i = Math.round(u * nx), j = Math.round(v * ny), hw = hwA + (hwB - hwA) * v;
