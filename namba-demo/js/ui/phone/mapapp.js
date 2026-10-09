@@ -992,6 +992,8 @@ export class MapApp {
     const p = this.pos, t = R.target;
     // arrived?
     // "arrived" is the phone's belief, not the truth: it can fire 10 m early or late
+    // v8 critic: a coarse Wi-Fi guess can "arrive" and then jump away; the belief moves on with it (no stuck banner)
+    if (R.arrived && !(p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 15)) { R.arrived = false; R.recalc = 0; R.offCount = 0; this._routeSheet(); }
     if (p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 7) {
       if (!R.arrived) { R.arrived = true; this.banner.hidden = false; this.banner.innerHTML = `<div class="mp-bn-ic">✓</div><div><b>You have arrived</b><small>${esc(t.en)}</small></div>`; this.ctx.events.emit('phone:arrive', { id: t.id }); }
       return;

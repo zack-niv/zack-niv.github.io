@@ -12,6 +12,7 @@
 // =============================================================================
 import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js';
 import { Stack3D } from './stack3d.js';
+const HERO_S = 5.2;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
 import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js';
 import { Tracker } from './track.js';
 import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js';
@@ -205,8 +206,10 @@ export class LodestoneApp {
     this.el.seg.forEach(b => b.classList.toggle('on', b.dataset.m === m));
     if (this.stack) this.stack.setMode(m);
   }
-  setView(v) {
+  // hero: the reveal's brief 3D fly-in (v8 critic); any other view change (V, Done, a tap) cancels the auto-settle
+  setView(v, hero = false) {
     if (this.state !== 'ready' || v === this.view) return;
+    this._heroT = hero ? HERO_S : 0;
     this.view = v;
     this.el.main.dataset.view = v;
     if (v === 'guide') { this.setMode('overview'); this.stack && this.stack.recenter(); this.map.snap(); }
@@ -227,6 +230,7 @@ export class LodestoneApp {
     // the canyon note is cheap and runs even with the phone down (v4: arrival is phone.dest's, on the true position)
     if (this.state === 'ready') this._viaCheck(dt);
     if (this._revealT > 0) { this._revealT -= dt; if (this._revealT <= 0) this.el.main.classList.remove('reveal'); }
+    if (this._heroT > 0) { this._heroT -= dt; if (this._heroT <= 0 && this.view === 'stack') this.setView('guide'); }
     if (this.state === 'idle') return;
     if (this.state === 'installing') { this.t += dt; this._tickInstall(dt); }
     else if (this.state === 'calibrating') { this.t += dt; this._tickCalib(dt, visible); }
@@ -317,6 +321,9 @@ export class LodestoneApp {
     this._showCard(`You’re on ${lvl(ph.pos.level)}`, `${this._zoneName()} · ±1 m`, true);
     this._guideKey = '';
     this._syncDest(); this._syncPick();
+    // v8 critic: the hero beat for the indoor-positioning audience. The floor stack flies in (you, the route climbing
+    // the real escalators to the destination's floor), holds a moment, then settles to the top-down map
+    if (this.stack && this.stack.ready && this.dest) this.setView('stack', true);
     ph.app !== 'lodestone' && ph.isOpen && ph._showApp('lodestone');
     this.ctx.events.emit('phone:upgrade', { stage: 'ready' });
   }
