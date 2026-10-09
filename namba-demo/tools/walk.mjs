@@ -11,6 +11,9 @@ const ROOT = path.resolve(__tooldir, '..');
 const OUT = path.resolve(__tooldir, '../../../namba-shots/walk');
 const Q = process.env.Q || '?quality=low&noaudio';
 const JOG = !!process.env.JOG;
+// v9: how the bot answers Aya — 'normal' (2.5 s; the happy path: first chip, 'I'm lost' at Where), 'instant' (at once),
+// 'none' (never: Aya's patience timers must carry the story)
+const REPLY = process.env.REPLY || 'normal';
 const port = 8000 + Math.floor(Math.random() * 900);
 const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
 await new Promise(r => setTimeout(r, 600));
@@ -60,6 +63,16 @@ try {
     c.events.on('ic:tap', (e) => { if (e && !e.ok) { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; L.ev.push([T(), 'gate-refused', `try#${W.refused} side=${W.side}`]); } });
     // v6: reactive gates — the bot taps with E (game's 'gatetap' interactable); a wrong-way channel makes it side-step
     on('gate:tap', e => `${e.gate} lane=${e.lane}.${e.sub} dir=${e.dir}`); on('gate:blocked', e => `${e.gate} lane=${e.lane}.${e.sub} ${e.reason}`); on('ic:pay', e => `${e.kind} ${e.amount} ok=${e.ok} bal=${e.balance}`); on('story:where', e => `${e.t} ${e.why}`);
+    on('aya:closed', e => `${e.msgId} ${e.reason}`); on('aya:answered', e => `${e.msgId}->${e.replyId}`); on('demo:target', e => e.target); on('story:errand', e => e.state); on('story:engaged', e => e.why);
+    // v9: the chips on the phone must always belong to Aya's open question (state + DOM), checked every frame
+    window.__chipBad = []; window.__chipN = 0;
+    window.__chipCheck = () => {
+      const st = c.game.story, P = c.phone.pendingReply, o = st && st.aya.open;
+      const dom = document.querySelectorAll('.ms-chip').length;
+      window.__chipN += 1;
+      const pid = P ? P.msgId : null, oid = o ? o.msg.id : null;
+      if (pid !== oid || (!!P) !== (dom > 0)) { if (window.__chipBad.length < 20) window.__chipBad.push(`${T()} pending=${pid} open=${oid} domChips=${dom}`); }
+    };
     c.events.on('gate:pass', (e) => { if (e && e.player) L.ev.push([T(), 'gate:pass', `${e.gate} lane=${e.lane} dir=${e.dir} (player)`]); });
     c.events.on('gate:blocked', (e) => { if (e && e.reason && e.reason !== 'notap') { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; } });
     // v7: the bot presses E through the real keyboard path (window keydown -> Input -> Interactions.update), exactly
@@ -150,7 +163,7 @@ try {
   const step = (secs, dt = 0.05) => page.evaluate(([secs, dt]) => {
     const c = window.__namba; const n = Math.round(secs / dt);
     for (let i = 0; i < n; i++) {
-      window.__steer(dt);
+      window.__steer(dt); if (i % 10 === 0) window.__chipCheck();
       c.input.update(); c.clock.update(dt);
       for (const { sys } of c.systems) if (sys.update) { try { sys.update(dt); } catch (e) { console.error('step', e.message); } }
       for (const { sys } of c.systems) if (sys.lateUpdate) { try { sys.lateUpdate(dt); } catch (e) {} }
@@ -167,8 +180,8 @@ try {
     await step(1.0);
     const s = await probe();
     // v3: Aya's questions wait for an answer — raise the phone on Messages, answer (asking for help when offered), lower it
-    const q = await page.evaluate(() => { const st = window.__namba.game.story; const o = st && st.aya.open; if (!o || st.aya.t - o.t < 2.5) return null; window.__namba.phone.open('messages'); return o.msg.id; });
-    if (q) { await step(0.8); const a = await page.evaluate(() => { const r = window.__namba.game.story.answer('lost'); return r; }); await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
+    const q = REPLY === 'none' ? null : await page.evaluate((thr) => { const st = window.__namba.game.story; const o = st && st.aya.open; if (!o || st.aya.t - o.t < thr) return null; window.__namba.phone.open('messages'); return o.msg.id; }, REPLY === 'instant' ? 0.2 : 2.5);
+    if (q) { await step(REPLY === 'instant' ? 0.1 : 0.8); const a = await page.evaluate((q) => { const r = window.__namba.game.story.answer(q === 'where' ? 'lost' : null); return r; }, q); await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
     // v4: choose where to go like a player — phone up on Maps (Lodestone once live), press 1 = Aya's pick
     const pk = await page.evaluate(() => {
       const c = window.__namba, st = c.game.story, ph = c.phone;
@@ -276,6 +289,8 @@ try {
   log('EVENTS\n' + L.ev.map(e => e.join(' | ')).join('\n'));
   log('STUCK', JSON.stringify(L.stuck));
   log('ctx.errors', JSON.stringify(await page.evaluate(() => window.__namba.errors)));
+  log('BEATS\n' + L.ev.filter(e => /^(phone:message|phone:reply|story:where|story:engaged|demo:offer|aya:closed|demo:target|story:errand|demo:order|phone:upgrade|demo:arrive|demo:end)$/.test(e[1])).map(e => e.join(' | ')).join('\n'));
+  log('CHIPS', JSON.stringify(await page.evaluate(() => ({ checks: window.__chipN, bad: window.__chipBad }))));
 } catch (e) { log('no log', e.message); }
 const real = errors.filter(e => !/GL Driver Message|KHR_parallel|CERT_AUTH/.test(e));
 log('--- console issues:', real.length); console.log([...new Set(real)].slice(0, 25).join('\n'));

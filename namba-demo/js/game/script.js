@@ -23,7 +23,18 @@ export const DEMO = {
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
+  // v9 (notes/v9-progression.md): patience — Aya waits for answers, nudges, then follows up naturally
+  helloNudge: 20, helloNudgeM: 30,  // "hello?? 👀" after 20 s or 30 m walked without an answer...
+  helloGiveUp: 12, helloGiveUpM: 25, // ...then she sends the plan anyway 12 s (or 25 m) after the nudge
+  meetGiveUp: 18, meetGiveUpM: 25,  // Meet's chips: silence for 18 s or 25 m walked → the latte ask
+  latteGiveUp: 25,                  // the latte question: silence = yes (chips withdrawn)
+  whereNudge: 25, whereGiveUp: 45,  // "Where are you??": nudge, then she sends Lodestone anyway
+  offerGrace: 15,                   // the 195 s fallback waits up to this long for a fresh question / the café counter
+  aheadFrac: 0.45,                  // reaching Parks (or < 45% of the start distance left) before any offer → 'ahead'
+  orderCool: 20,                    // no "Where are you??" within this long of buying her latte
 };
+// v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)
+export const LATTE_REFUSABLE = true;
 
 // Aya's texts (v2 words, unchanged). v3: they are gated on the player — a question carries reply chips and the
 // next beat waits for the answer (or for a location / state), see story.js. `lost: true` on a reply = the player
@@ -31,12 +42,25 @@ export const DEMO = {
 export const AYA = {
   hello: { id: 'hello', text: 'Landed?? Welcome to Osaka! 🛬',
     replies: [{ id: 'yes', text: 'Just landed! 🙌' }, { id: 'huge', text: 'Yes! This station is HUGE 😵' }] },
-  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤', place: 'parks_6Fdw03' },   // v5: + a place link card
+  meet: { id: 'meet', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I\'m already in the queue 🍤', place: 'parks_6Fdw03',   // v5: + a place link card
+    replies: [{ id: 'omw', text: 'On my way! 🏃' }, { id: 'lost', text: 'Which way?? 😵', lost: true }] },        // v9: she waits for an answer
+  // v9: patience and answers
+  helloNudge: 'hello?? 👀 did you land?',
+  helloAck: { yes: 'yay!! 🎉', huge: 'it\'s a whole city down there 😂' },
+  meetAnyway: 'ok I\'ll assume you landed 😂 ',
+  meetLost: 'lol it\'s Namba, everyone\'s lost 😂 tap my link, Maps will get you close',
+  coffeeReplies: [{ id: 'yes', text: 'Sure! ☕' }, { id: 'no', text: 'Not today 🙈' }],
+  coffeeRepliesYes: [{ id: 'yes', text: 'Sure! ☕' }, { id: 'yes2', text: 'Only for you 😂' }],
+  coffeeYes: '🥹🙏',
+  coffeeNo: '🥲 ok ok. just come then',
+  whereCoffee: { id: 'where', text: 'how\'s my latte coming? 👀 the line is moving',
+    replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'almost', text: 'Almost there!' }] },
+  whereNudge: 'hello?? 👀',
   // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
     replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'omw', text: 'On my way!' }] },
-  whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅' },
+  whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅', almost: 'yesss 🙏 ask your phone if it gets confusing' },
   // v4: the coffee errand ({cafe} = the café's name, read at runtime). Sent right after "meet"; the café is
   // suggested ("Aya's pick") in both apps' destination lists.
   coffee: { id: 'coffee', text: 'oh!! can you bring me an iced latte from {cafe}? Namba CITY 1F, it\'s on your way 🙏 the queue here is forever' },
@@ -51,6 +75,9 @@ export const ERRAND_DRINK = { say: 'iced latte', label: 'iced latte', ja: 'ア�
 
 export const UPGRADE = {
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
+  offerSilent: 'hellooo?? 👀 ok just install this, it actually works indoors',          // v9: Where went unanswered
+  offerSilentShort: 'ok just install this 😅 it actually works indoors',                  // ...right after her nudge
+  offerAhead: 'ok Parks is a maze from here 😅 get Lodestone, it actually works indoors', // v9: doing fine, not lost
   ready: 'see? 😌 6F, I\'m 3rd in line',
   readyCoffee: 'see? 😌 it even knows which floor my latte is on',
 };
