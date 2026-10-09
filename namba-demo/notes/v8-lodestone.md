@@ -57,3 +57,21 @@ installs Lodestone, freezes the calibration at 12/42/70/96 %, then teleports to 
   copy is gone (Zack found it unclear); update the doc if you like.
 - The hero 3D stack no longer plays automatically at the reveal. The reveal is now the map with "You're on 3F". If you
   want the stack fly-in back as the hero beat, it is a one-line change: in `_finish`, call `this.setView('stack')`.
+
+## Verification
+
+- `node tools/loadprobe.mjs` → `READY 169.9s []` (the slow first frame came from 4 SwiftShader browsers sharing the
+  machine; the load path is untouched apart from one small new module).
+- Harness runs: `errs []`, and no console errors besides the sandbox's Google Fonts certificate error.
+- All phone modules pass `node --experimental-default-type=module --check`.
+
+## Open risks
+
+- The headless fonts are fallbacks (Inter is blocked in the sandbox), so text there renders wider than for players. The
+  calibration sub line wraps in the shots; with Inter it should fit on one line. Worth one look on a real browser.
+- Map labels are 12 px in device units (about 9 px on screen at 1024×576 with the phone scale at 0.74). They are readable
+  but small; the header and pins carry the decision.
+- The floor plan is baked once per floor at 4 px/m (3 on low), the same cost as Maps. It is a few MB per floor visited
+  and is baked on first view (the current floor during the install).
+- Not verified: a real-time walk with the phone raised on a real GPU (frame cost of the 2D map; it should be cheaper
+  than the 3D preview it replaces, which no longer renders in the guide view).
