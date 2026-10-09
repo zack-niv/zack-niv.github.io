@@ -7,13 +7,13 @@
 // registered with world.addBox so collision and crowd nav match the visuals.
 // =============================================================================
 import * as THREE from 'three';
-import { CELL } from '../world.js?v=f150c03';
-import { LEVELS } from '../layout.js?v=f150c03';
-import { rng } from '../../core/rng.js?v=f150c03';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=f150c03';
-import { Vegetation } from './vegetation.js?v=f150c03';
-import { PALETTE } from './canyon.js?v=f150c03';
-import { canyonFloor } from './canyonfloor.js?v=f150c03';
+import { CELL } from '../world.js?v=c81de75';
+import { LEVELS } from '../layout.js?v=c81de75';
+import { rng } from '../../core/rng.js?v=c81de75';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=c81de75';
+import { Vegetation } from './vegetation.js?v=c81de75';
+import { PALETTE } from './canyon.js?v=c81de75';
+import { canyonFloor } from './canyonfloor.js?v=c81de75';
 
 // Paths per terrace: polylines [x,z] + width. 'deck' areas are timber.
 export const GARDENS = {

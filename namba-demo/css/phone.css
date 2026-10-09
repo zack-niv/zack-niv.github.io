@@ -806,3 +806,54 @@
 .ld-x3d { bottom: 264px; }
 .ld-next { bottom: 264px; }
 .ld-main.has-next .ld-x3d { bottom: 312px; }
+/* ===== v8 (notes/v8-lodestone.md) ================================================================ */
+/* 3 · one header: the raised app wears the same card as the glance strip; under it, a real map of your floor */
+.ld-map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ld-main[data-view="guide"] .ld-3d { display: none; }
+.ld-main[data-view="stack"] .ld-map { display: none; }
+.ld-tap { cursor: default; }
+.ld-head { top: 52px; left: 8px; right: 8px; gap: 0; }
+.ld-hdr { align-self: stretch; border-radius: 30px; background: #000; color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,.09), 0 12px 32px rgba(0,0,0,.55); }
+.ld-hdr .gl { position: relative; display: flex; align-items: center; gap: 11px; min-height: 84px; padding: 12px 15px 12px 15px; }
+.ld-hdr .gl-t b { font-size: 18px; }
+.ld-hdr .gl-t span { font-size: 13px; -webkit-line-clamp: 2; }
+.ld-hdr .gl-pick .gl-t b, .ld-hdr .gl-arr .gl-t b { font-size: 18px; }
+.ld-main.reveal .ld-head { opacity: 1; transform: none; }          /* the header is there from the first frame (it was the strip) */
+.ld-main[data-view="stack"] .ld-ladder { top: 150px; }
+.ld-main[data-view="stack"] .ld-card:not(.big) { top: 150px; }
+/* the trip card: a touch tighter so the map gets the room */
+.ld-trip { padding: 11px 14px 12px; }
+.ld-trip-r + .ld-trip-r { margin-top: 9px; }
+.ld-trip-r + .ld-trip-r::before { top: -9px; height: 8px; }
+.ld-trip b { font-size: 15.5px; margin-top: 1px; }
+.ld-trip-a { margin-top: 10px; }
+.ld-x3d { right: 10px; }
+
+/* 4 · the calibration: four plain steps beside one picture */
+.ld-calib { background: radial-gradient(90% 50% at 50% 34%, #0e1830 0%, #03050a 72%); }
+.ld-c-txt { top: 62px; padding: 0 18px; }
+.ld-c-txt h2 { font-size: 23px; line-height: 1.2; font-weight: 800; letter-spacing: -.015em; }
+.ld-c-sub { margin-top: 6px; font-size: 11.5px; letter-spacing: 0; text-transform: none; color: #9fb0cc; font-weight: 600; }
+.ld-c-steps { position: absolute; left: 24px; right: 14px; top: 372px; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ld-c-steps li { display: flex; align-items: center; gap: 10px; min-height: 30px; line-height: 1.15; font-size: 14px; letter-spacing: -.01em; font-weight: 650; color: #56627a; transition: color .25s; }
+.ld-c-steps li i { flex: 0 0 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 2px #2a3550; color: transparent; transition: background .25s, box-shadow .25s; }
+.ld-c-steps li i svg { width: 14px; height: 14px; }
+.ld-c-steps li.on { color: #fff; }
+.ld-c-steps li.on i { box-shadow: inset 0 0 0 2.5px rgba(255,176,46,.25); border-top: 2.5px solid #ffb02e; animation: ldSpin .8s linear infinite; }
+.ld-c-steps li.ok { color: #c9d6ee; }
+.ld-c-steps li.ok i { background: #2f7bff; box-shadow: 0 0 12px rgba(47,123,255,.6); color: #fff; animation: ldTick .35s cubic-bezier(.2,.9,.3,1.4); }
+.ld-c-steps li b { display: inline-block; margin-left: 4px; padding: 1px 7px; border-radius: 7px; background: #2f7bff; color: #fff; font-weight: 800; }
+.ld-c-steps li:last-child.ok { color: #fff; }
+@keyframes ldSpin { to { transform: rotate(360deg); } }
+@keyframes ldTick { from { transform: scale(.4); } }
+.ld-c-floors { left: 16px; right: 16px; bottom: 60px; gap: 4px; }
+.ld-c-floors i { gap: 0; }
+.ld-c-floors u { display: none; }
+.ld-c-floors span { display: grid; place-items: center; width: 100%; height: 24px; border-radius: 7px; font-size: 10.5px; font-weight: 800; color: #56627a; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(150,185,235,.12); transition: background .15s, color .15s, box-shadow .15s; }
+.ld-c-floors i.scan span { color: #ffd793; background: rgba(255,176,46,.16); box-shadow: inset 0 0 0 1.5px rgba(255,176,46,.7); }
+.ld-c-floors i.found span { color: #fff; background: #2f7bff; box-shadow: 0 0 14px rgba(47,123,255,.75); }
+@media (prefers-reduced-motion: reduce) { .ld-c-steps li.on i { animation: none; } }
+/* the 3D view (V) under the same full-size header: a shorter step sheet, a tighter ladder */
+.ld-main[data-view="stack"] .ld-sheet { max-height: 150px; }
+.ld-main[data-view="stack"] .ld-ctl { bottom: 254px; }
+.ld-main[data-view="stack"] .ld-ladder button { height: 21px; }

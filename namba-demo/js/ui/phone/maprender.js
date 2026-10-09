@@ -8,8 +8,8 @@
 //     g: CanvasRenderingContext2D whose current transform maps world metres
 //        (x east, z south) to pixels. bounds: [x0,z0,x1,z1] to limit work.
 // =============================================================================
-import { CELL } from '../../world/world.js?v=f150c03';
-import { LAYOUT } from '../../world/layout.js?v=f150c03';
+import { CELL } from '../../world/world.js?v=c81de75';
+import { LAYOUT } from '../../world/layout.js?v=c81de75';
 
 export const FOOD = new Set(['ramen', 'udon', 'okonomiyaki', 'kushikatsu', 'sushi', 'tonkatsu', 'curry', 'tempura', 'tendon', 'izakaya', 'yakiniku', 'omurice', 'takoyaki']);
 export const CAFE = new Set(['cafe', 'kissaten', 'coffeestand', 'bakery', 'sweets']);
@@ -42,6 +42,16 @@ export const THEMES = {
     shopStroke: '#a99c88', wall: '#55504a', partition: '#b5aa98', rail: '#7d98aa', voidFill: '#c9d9e1',
     track: '#9c988f', rails: '#6d6961', platformEdge: '#e8b800', rampFill: '#bfc6d1', rampLine: '#6d7787', stairsFill: '#d0c9bd',
     gate: '#3e444d', wallW: 0.6, shopW: 0.3,
+  },
+  // v8: Lodestone's own map (graphite night theme: the walkable concourse is the lightest thing, shops recede)
+  lodestone: {
+    bg: '#05080f', hall: '#1a2539', outdoor: '#17262a', garden: '#133022', canyon: '#2a2722', deck: '#2c2619',
+    zone: { midosuji: '#1c2438', sennichimae: '#1d2338', nankai: '#1e2437', nambawalk: '#1f2436', city: '#1a2640', parks: '#1a2a36',
+      takashimaya: '#1c2636', link: '#1a2335', plaza: '#18202e', street: '#18202e', parksGarden: '#133022' },
+    shop: { food: '#16131a', cafe: '#16131a', retail: '#0f1424', service: '#0f1524', closed: '#0c0f17' },
+    shopStroke: '#2a3753', wall: '#6d82aa', partition: '#2b3856', rail: '#4a6d96', voidFill: '#04060b',
+    track: '#0a0d14', rails: '#2c3549', platformEdge: '#9c7e26', rampFill: '#24324e', rampLine: '#7f98c4', stairsFill: '#202c44',
+    gate: '#8b9bba', wallW: 0.5, shopW: 0.16,
   },
 };
 

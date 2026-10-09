@@ -7,8 +7,8 @@
 // node, computed by reverse Dijkstra; agents descend it. Fields are cached by
 // key, so a few dozen shared destinations serve thousands of agents.
 // =============================================================================
-import { CELL } from './world.js?v=f150c03';
-import { LEVELS, rampLength, rampEnds } from './layout.js?v=f150c03';
+import { CELL } from './world.js?v=c81de75';
+import { LEVELS, rampLength, rampEnds } from './layout.js?v=c81de75';
 
 export class Nav {
   constructor(world) {

@@ -9,9 +9,9 @@
 // The initial population is placed mid-trip (and seated / queueing / waiting
 // on platforms) so the place is alive from the first frame.
 // =============================================================================
-import { MODE, POSE } from './sim.js?v=f150c03';
-import { makeLook, BIT } from './looks.js?v=f150c03';
-import { rng } from '../core/rng.js?v=f150c03';
+import { MODE, POSE } from './sim.js?v=c81de75';
+import { makeLook, BIT } from './looks.js?v=c81de75';
+import { rng } from '../core/rng.js?v=c81de75';
 
 const gauss = (x, c, w) => Math.exp(-((x - c) * (x - c)) / (2 * w * w));
 const PERSON = {
@@ -420,9 +420,11 @@ export class Director {
         if (Number.isFinite(x) && Number.isFinite(z)) doors.push({ x, z });
       }
     }
+    const realDoors = doors.length > 0;
     if (!doors.length) doors = T.marks.map(m => ({ x: m.x - m.nx * 0.9, z: m.z - m.nz * 0.9 }));
     if (!doors.length || this.nocrowd) return;
     T.doors = doors;
+    if (realDoors) this.applyDoors(T, doors);   // v8: boarders queue at the doors of THIS train, not at the standard formation's marks
     const tgt = this.target();
     const base = LINE_BASE[T.line] || 40;
     const fill = clamp(1 + (tgt - (S.count - this.extra)) / Math.max(1, tgt) * 2.5, 0.35, 1.8);
@@ -436,9 +438,52 @@ export class Director {
     const span = clamp(10 + n * 0.7, 15, 48);
     for (let i = 0; i < n; i++) {
       const d = doors[Math.floor(this.r() * doors.length)];
-      const delay = i < n * 0.4 ? 0.3 + this.r() * 11 : 8 + this.r() * (span - 8);
+      // v8: nobody steps out before the leaves are open (door open fraction > 0.5 about 1.2 s after the doors-open event)
+      const delay = i < n * 0.4 ? 1.3 + this.r() * 10 : 8 + this.r() * (span - 8);
       this.pending.push({ t: S.time + delay, fn: () => this._alight(T, d) });
     }
+  }
+  // ---- v8: door-accurate boarding ------------------------------------------------------------
+  // marks of a track follow the doors of the train that stops (or is about to stop) there
+  applyDoors(T, doors) {
+    const sig = doors.map(d => (T.along === 'z' ? d.z : d.x).toFixed(1)).join(',');
+    if (T.doorSig === sig) return;
+    if (!this.P.setTrackDoors(T, doors)) return;
+    T.doorSig = sig;
+    this.reseat(T);
+  }
+  // before the train arrives: use its formation from the transit timetable (so the queue is already at the right doors)
+  syncMarks(T) {
+    const tr = this.ctx && this.ctx.transit;
+    if (!tr || !tr.trains || !tr.cfg || !tr._doorList) return;
+    let best = null;
+    for (const t of tr.trains) if (t.track === T.id && t.svc && t.state !== 'departing' && t.state !== 'closing' && (!best || t.arr < best.arr)) best = t;
+    if (!best || best.id === T.marksTrain) return;
+    const cfg = tr.cfg[T.id]; if (!cfg) return;
+    let doors; try { doors = tr._doorList(cfg, best.svc); } catch (e) { return; }
+    T.marksTrain = best.id;
+    if (doors && doors.length) this.applyDoors(T, doors);
+  }
+  // people already waiting at old marks walk to the nearest new one (those already on their way in keep their target)
+  reseat(T) {
+    if (!T.boarders || !T.boarders.size) return;
+    const S = this.sim, B = this.B;
+    for (const a of [...T.boarders]) {
+      if (!a.alive || !a.legs || a.legs[a.leg].t !== 'board' || a.st === 2) continue;
+      if (a.mark) a.mark.n[a.markK & 1] = Math.max(0, a.mark.n[a.markK & 1] - 1);
+      const m = B._pickMark(a, T); if (!m) { a.mark = null; continue; }
+      a.mark = m; const col = m.n[0] <= m.n[1] ? 0 : 1; a.markK = col + 2 * m.n[col]; m.n[col]++;
+      const sl = this.P.markSlot(m, a.markK);
+      a.d.sl = sl;
+      a.st = 0; a.pose = POSE.WALK; a.dyn = 0;
+      S.goTo(a, sl.x, sl.z, T.platform.rect, 0.25);
+    }
+  }
+  // are the leaves of the train at this track open (boardable) right now?
+  doorsOpen(T) {
+    const tr = this.ctx && this.ctx.transit;
+    if (tr && tr.trains && tr.cfg) { for (const t of tr.trains) if (t.track === T.id && t.boardable) return true; return false; }
+    return T.doorsUntil > this.sim.time && this.sim.time > T.doorsT0 + 3.5;   // no transit system: the director's own timer
   }
   _alight(T, d) {
     const S = this.sim, P = this.P;

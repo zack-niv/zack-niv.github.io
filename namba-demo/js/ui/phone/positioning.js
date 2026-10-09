@@ -21,9 +21,22 @@
 //  * signal: bars by level/zone; B2 platforms drop to 圏外 (no service).
 //  Never broken: the dot stays on a plausible walkable spot, and the floor
 //  always comes back.
+//
+// v8 (item 1): the ordinary Maps app must make you feel LOST, as in life. Indoors there is no GPS, so the dot does not
+// track you with noise any more; it lives in three states (pos.state, Maps mode only):
+//   'stale'   no signal: the dot is FROZEN at the last fix for 30-55 s while you keep walking; the accuracy circle grows
+//             (pos.ageS = seconds since the last fix, "last seen 40 s ago"). The floor is frozen too.
+//   'coarse'  a Wi-Fi / cell estimate: the dot JUMPS 20-60 m to a wrong place (every other time or so: the wrong floor)
+//             and sits there with a ~±40 m circle, hardly moving, for 20-38 s.
+//   'fix'     a good GPS fix near big openings (the sky, the Parks glass, a street exit): tracks you ~±5 m, then drops
+//             back to stale a few seconds after you leave the opening. Rarely a 4-7 s blip indoors.
+// Cycle indoors: stale -> coarse -> (stale | rarely a fix blip) -> coarse ... The first stale lasts ~40 s, so the very
+// first look at the map is plausible and then goes wrong. A wrong-floor coarse lasts only 14-24 s and is always followed
+// by a right-floor coarse. Events are drawn from their own seeded stream (this.S), so runs are comparable.
+// Lodestone mode is untouched (true position, +-1 m).
 // =============================================================================
-import { LEVEL_ORDER } from '../../world/layout.js?v=f150c03';
-import { rng } from '../../core/rng.js?v=f150c03';
+import { LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=c81de75';
+import { rng } from '../../core/rng.js?v=c81de75';
 
 const gauss = (R) => { let u = 0, v = 0; while (u === 0) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 
@@ -50,12 +63,21 @@ export class Positioning {
     // true heading, instant floor (set by Phone.installLodestone via setMode)
     this.mode = 'gps';
     this.lx = 0; this.lz = 0; this._lsSnap = 0;
+    // v8 Maps states (see the header)
+    this.S = rng(((ctx.params && ctx.params.seed) || 7) * 7919 + 17);   // event stream: durations, jump directions
+    this.state = 'stale'; this.stT = 0; this.dur = 0;
+    this.ageS = 0;                    // seconds since the dot was last refreshed ("last seen 40 s ago")
+    this.hops = 0; this.wrongFloorEpisodes = 0;
+    this._accFreeze = 10; this._wasOpen = null; this._lockT = 0; this._lockNeed = Infinity; this._cool = 0;
+    this._fixMax = 0; this._tail = 0; this._coarseWrong = false; this._coarseN = 0; this._wrongPrev = false;
+    this._ax = 0; this._az = 0; this.cjx = 0; this.cjz = 0; this._coarseAcc = 40; this.lastJump = 0;
   }
 
   setMode(mode) {
     if (mode === this.mode) return;
     this.mode = mode;
     if (mode === 'lodestone') {
+      this.state = 'fix'; this.ageS = 0;
       this._lsSnap = 1.4;                 // the dot visibly snaps to the truth
       this._pendingLevel = null; this._wrongTimer = 0; this._levelTimer = 0;
       this.lx = this.lz = 0;
@@ -90,8 +112,14 @@ export class Positioning {
     this.hBias = 0;
   }
 
-  // environment classification of the TRUE location
+  // environment classification of the TRUE location, plus E.open: what the sky / big openings offer a GPS receiver
   _env(body) {
+    const E = this._env0(body);
+    E.open = E.env === 'outdoor' || E.env === 'canyon' ? 'sky' : E.env === 'glass' ? 'glass' : null;
+    if (!E.open) for (const ex of LAYOUT.exits) if (ex.level === body.level && Math.hypot(ex.x - body.x, ex.z - body.z) < 8) { E.open = 'door'; break; }
+    return E;
+  }
+  _env0(body) {
     const { world } = this.ctx;
     const sp = world.spaceAt(body.level, body.x, body.z);
     const outdoor = sp && sp.outdoor, zone = sp && sp.zone;
@@ -121,66 +149,136 @@ export class Positioning {
     }
     const E = this._env(b);
     this.env = E.env;
-    if (!this._seeded) { this._seeded = true; this.ex = gauss(R) * E.sigma * 0.7; this.ez = gauss(R) * E.sigma * 0.7; }   // the error does not start at zero
+    if (!this._seeded) {
+      this._seeded = true; this.ex = gauss(R) * E.sigma * 0.7; this.ez = gauss(R) * E.sigma * 0.7;   // the error does not start at zero
+      // v8: the first thing Maps knows is the entrance fix from a minute ago: a plausible dot a few metres off, no signal since
+      const m = this._matchToFloor(b.level, b.x + gauss(this.S) * 5, b.z + gauss(this.S) * 5);
+      if (m) { this.x = this.fixX = m[0]; this.z = this.fixZ = m[1]; }
+      this._enterStale(E, 38 + this.S() * 10, 6 + this.S() * 6);
+    }
     if (this.mode === 'lodestone') { this._updateLodestone(dt, b, p, E); this._signal(E, dt); return; }
-    // --- error random walk (OU process, tau ~ 25 s) ---------------------------
-    const tau = 22;
-    const k = Math.sqrt(2 / tau) * E.sigma * Math.sqrt(dt);
-    this.ex += -this.ex / tau * dt + k * gauss(R) * 0.7;
-    this.ez += -this.ez / tau * dt + k * gauss(R) * 0.7;
-    // a hop: the fix jumps to a whole new (wrong) spot — a parallel corridor, the far side of the hall
-    this._snapTimer -= dt;
-    if (this._snapTimer <= 0) {
-      this._snapTimer = 12 + R() * 18;
-      if (R() < E.hop) { const a = R() * Math.PI * 2, m = E.sigma * (0.8 + R() * 0.9); this.ex = Math.cos(a) * m; this.ez = Math.sin(a) * m; this._fixTimer = 0; this._hop = 0.6; this.hops = (this.hops || 0) + 1; }
+    this._gps(dt, b, p, E);
+    this._signal(E, dt);
+  }
+
+  // ---------------------------------------------------------------- v8: the Maps state machine ------------------
+  _enterStale(E, dur, age = 0) {
+    this.state = 'stale'; this.stT = 0; this.ageS = age; this._accFreeze = Math.max(8, Math.min(this.acc || 10, 30));
+    this.acc = this._accFreeze;
+    this.dur = dur != null ? dur : (E.env === 'deep' ? 1.2 : E.env === 'under' ? 1.1 : 1) * (30 + this.S() * 26);
+    this.fixX = this.x; this.fixZ = this.z;
+  }
+  _enterFix(b, E, max) {
+    this.state = 'fix'; this.stT = 0; this.ageS = 0; this._fixMax = max; this._tail = 5 + this.S() * 4;
+    this.hops = (this.hops || 0) + 1;
+    this.ex = gauss(this.R) * 3; this.ez = gauss(this.R) * 3;
+    this._fixTimer = 0; this._hop = 0.6; this._cool = 0;
+    this.level = this.trueLevel(b); this._pendingLevel = null; this._wrongTimer = 0;
+  }
+  // a Wi-Fi / cell estimate: 20-60 m from the truth on a walkable spot; sometimes an adjacent floor
+  _enterCoarse(b, E, rightFloor) {
+    const S = this.S, tl = this.trueLevel(b);
+    let wrong = false;
+    if (!rightFloor) {
+      const want = this._coarseN === 1 ? S() < 0.5 : this.wrongFloorEpisodes === 0 ? true : S() < 0.3;
+      wrong = want && !this._coarseWrong;
     }
-    // --- fixes: refresh rate by environment ----------------------------------
-    this._fixTimer -= dt;
-    if (this._fixTimer <= 0) {
-      this._fixTimer = E.fix * (0.6 + R() * 0.8);
-      let fx = b.x + this.ex, fz = b.z + this.ez;
-      const m = this._matchToFloor(this.level || b.level, fx, fz);
-      if (m) { fx = m[0]; fz = m[1]; }
-      this.fixX = fx; this.fixZ = fz;
-      // accuracy circle "breathes" around sigma
-      this.accTarget = Math.max(3, E.sigma * (0.75 + R() * 0.6));
+    let lv = tl;
+    if (wrong) {
+      const i = LEVEL_ORDER.indexOf(tl);
+      const opts = [LEVEL_ORDER[i - 1], LEVEL_ORDER[i + 1]].filter(l => l && this.ctx.world.grids[l]);
+      if (opts.length) lv = opts[Math.floor(S() * opts.length)]; else wrong = false;
     }
-    // displayed estimate eases to the fix (and outdoors it just follows); a hop snaps (no glide)
+    let best = null;
+    for (let k = 0; k < 18 && !best; k++) {
+      const d = wrong ? 8 + S() * 34 : 22 + S() * 38, a = S() * Math.PI * 2;
+      const m = this._matchToFloor(lv, b.x + Math.cos(a) * d, b.z + Math.sin(a) * d);
+      if (m && Math.hypot(m[0] - b.x, m[1] - b.z) >= (wrong ? 6 : 20)) best = m;
+    }
+    if (!best) { this.dur = this.stT + 6; return; }                                  // nowhere plausible: try again shortly
+    this.state = 'coarse'; this.stT = 0; this.ageS = 0; this._coarseN++;
+    this._coarseWrong = wrong && lv !== tl;
+    this.dur = this._coarseWrong ? 14 + S() * 10 : 20 + S() * 18;
+    this._ax = best[0]; this._az = best[1]; this.cjx = this.cjz = 0;
+    this.lastJump = Math.hypot(best[0] - this.x, best[1] - this.z);
+    this._coarseAcc = Math.max(28, Math.min(62, Math.hypot(best[0] - b.x, best[1] - b.z) * 0.8 + 14 + S() * 8));
+    if (lv !== this.level) this.level = lv;
+    this.fixX = this._ax; this.fixZ = this._az;
+    this._hop = 0.6; this.hops = (this.hops || 0) + 1;
+  }
+
+  _gps(dt, b, p, E) {
+    const R = this.R, S = this.S, tl = this.trueLevel(b);
+    this.stT += dt;
+    const open = E.open;
+    // --- a GPS receiver needs a moment under open sky; the Parks glass and a street exit are only sometimes good enough
+    if (open && !this._wasOpen) { this._lockT = 0; this._lockNeed = open === 'sky' ? 2.5 + S() * 2.5 : (S() < 0.6 ? 1.2 + S() * 2 : Infinity); }
+    if (!open) this._lockT = 0;
+    this._wasOpen = open;
+    if (this._cool > 0) this._cool -= dt;
+    if (open && this.state !== 'fix' && this._lockNeed < Infinity && (open === 'sky' || this._cool <= 0)) {
+      this._lockT += dt;
+      if (this._lockT >= this._lockNeed) this._enterFix(b, E, open === 'sky' ? 1e9 : 7 + S() * 6);
+    }
+    if (this.state === 'stale') {
+      // frozen: same x, z, floor. Only the circle grows ("±8 m ... ±55 m") and the clock runs.
+      this.ageS += dt;
+      this.acc += (Math.min(55, this._accFreeze + this.ageS * 0.9) - this.acc) * (1 - Math.exp(-dt / 0.6));
+      if (this.stT >= this.dur && !open) this._enterCoarse(b, E, false);
+    } else if (this.state === 'coarse') {
+      this.ageS += dt;
+      // the estimate hardly moves: a slow ±1.5 m wobble round the anchor; now and then the cell re-estimates a few metres over
+      const tau = 7, k = Math.sqrt(2 / tau) * 1.4 * Math.sqrt(dt);
+      this.cjx += -this.cjx / tau * dt + k * gauss(R); this.cjz += -this.cjz / tau * dt + k * gauss(R);
+      if (R() < dt / 14) { const a = R() * 6.28, m = 3 + R() * 5, q = this._matchToFloor(this.level, this._ax + Math.cos(a) * m, this._az + Math.sin(a) * m); if (q) { this._ax = q[0]; this._az = q[1]; this._hop = 0.4; } }
+      this.fixX = this._ax + this.cjx; this.fixZ = this._az + this.cjz;
+      this.acc += (this._coarseAcc - this.acc) * (1 - Math.exp(-dt / 0.8));
+      if (this.stT >= this.dur) {
+        if (this._coarseWrong) this._enterCoarse(b, E, true);                  // the floor comes back (to another wrong place)
+        else if (S() < 0.16) this._enterFix(b, E, 4 + S() * 3);                // a brief lucky fix indoors
+        else this._enterStale(E, null, 0);
+      }
+    } else {   // fix
+      const sigma = E.env === 'canyon' ? 6 : open === 'sky' ? 4 : 6;
+      const tau = 14, k = Math.sqrt(2 / tau) * sigma * Math.sqrt(dt);
+      this.ex += -this.ex / tau * dt + k * gauss(R) * 0.7; this.ez += -this.ez / tau * dt + k * gauss(R) * 0.7;
+      this._fixTimer -= dt;
+      if (this._fixTimer <= 0) {
+        this._fixTimer = 0.45 * (0.7 + R() * 0.6);
+        let fx = b.x + this.ex, fz = b.z + this.ez;
+        const m = this._matchToFloor(tl, fx, fz); if (m) { fx = m[0]; fz = m[1]; }
+        this.fixX = fx; this.fixZ = fz;
+        this.accTarget = Math.max(4, sigma * (0.9 + R() * 0.5));
+      }
+      this.acc += ((this.accTarget || sigma) - this.acc) * (1 - Math.exp(-dt / 1.2));
+      if (b.ramp < 0 && this.level !== tl) this.level = tl;
+      this._fixMax -= dt;
+      if (open) this._tail = 5 + S() * 4; else this._tail -= dt;
+      if (this._tail <= 0 || (open !== 'sky' && this._fixMax <= 0)) { this._cool = 12; this._enterStale(E, null, 0); }
+    }
+    // displayed estimate: stale never moves; coarse/fix ease to the fix (a hop snaps, no glide)
     if (this._hop > 0) this._hop -= dt;
-    const ease = 1 - Math.exp(-dt / (this._hop > 0 ? 0.12 : E.env === 'outdoor' || E.env === 'canyon' ? 0.35 : 0.9));
-    this.x += (this.fixX - this.x) * ease; this.z += (this.fixZ - this.z) * ease;
-    this.acc += ((this.accTarget || E.sigma) - this.acc) * (1 - Math.exp(-dt / 1.5));
-    // --- heading: drifting bias + jitter + lag -------------------------------
+    if (this.state !== 'stale') {
+      const ease = 1 - Math.exp(-dt / (this._hop > 0 ? 0.12 : this.state === 'fix' ? 0.35 : 1.2));
+      this.x += (this.fixX - this.x) * ease; this.z += (this.fixZ - this.z) * ease;
+    }
+    // --- heading: the compass alone (steel, rails, escalator motors): a drifting bias + jitter + lag; worse without GPS
+    const bias = E.bias * (this.state === 'fix' ? 0.8 : 1.3);
     const tb = 18;
-    this.hBias += -this.hBias / tb * dt + Math.sqrt(2 / tb) * (E.bias * Math.PI / 180) * Math.sqrt(dt) * gauss(R) * 0.8;
+    this.hBias += -this.hBias / tb * dt + Math.sqrt(2 / tb) * (bias * Math.PI / 180) * Math.sqrt(dt) * gauss(R) * 0.8;
     if (!isFinite(this.ex) || !isFinite(this.ez)) { this.ex = this.ez = 0; }
+    if (!isFinite(this.x) || !isFinite(this.z)) { this.x = b.x; this.z = b.z; this.fixX = b.x; this.fixZ = b.z; }
     if (!isFinite(this.hBias)) this.hBias = 0;
     if (!isFinite(this.heading)) this.heading = p.yaw || 0;
-    const target = (p.yaw || 0) + this.hBias + gauss(R) * (E.bias * Math.PI / 180) * 0.12;
+    const target = (p.yaw || 0) + this.hBias + gauss(R) * (bias * Math.PI / 180) * 0.12;
     let d = target - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.heading += d * (1 - Math.exp(-dt / (E.lag || 0.45)));
-    // --- floor detection: lag + occasional wrong guess ------------------------
+    this.heading += d * (1 - Math.exp(-dt / ((E.lag || 0.45) * (this.state === 'fix' ? 1 : 1.25))));
+    // --- wrong-floor episodes: every time the believed floor starts to differ from the true one (off the ramps)
     if (b.ramp < 0) {
-      if (b.level !== this.level && b.level !== this._pendingLevel && !this._wrongTimer) {
-        this._pendingLevel = b.level; this._levelTimer = 5 + R() * 13;
-      }
-      if (this._pendingLevel) {
-        this._levelTimer -= dt;
-        if (this._levelTimer <= 0) { this.level = this._pendingLevel; this._pendingLevel = null; }
-        if (this._pendingLevel === this.level) this._pendingLevel = null;
-      }
+      const wrong = this.level !== tl;
+      if (wrong && !this._wrongPrev) this.wrongFloorEpisodes = (this.wrongFloorEpisodes || 0) + 1;
+      this._wrongPrev = wrong;
     }
-    if (this._wrongTimer > 0) {
-      this._wrongTimer -= dt;
-      if (this._wrongTimer <= 0) { this._wrongTimer = 0; this.level = this._pendingLevel || b.level; this._pendingLevel = null; }
-    } else if (!this._pendingLevel && this.level === b.level && b.ramp < 0 && E.wf > 0 && R() < dt * E.wf) {
-      // barometer/Wi-Fi confusion: an adjacent floor for 8–20 s (only one that exists here)
-      const i = LEVEL_ORDER.indexOf(b.level);
-      const opts = [LEVEL_ORDER[i - 1], LEVEL_ORDER[i + 1]].filter(lv => lv && this.ctx.world.grids[lv] && this._matchToFloor(lv, b.x, b.z));
-      const lv = opts.length ? opts[Math.floor(R() * opts.length)] : null;
-      if (lv) { this.level = lv; this._wrongTimer = 7 + R() * 9; this.wrongFloorEpisodes = (this.wrongFloorEpisodes || 0) + 1; }
-    }
-    this._signal(E, dt);
   }
 
   _signal(E, dt) {

@@ -15,8 +15,8 @@
 // the phone is open on the Lodestone screen (the caller gates render()).
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=f150c03';
-import { CELL } from '../../world/world.js?v=f150c03';
+import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=c81de75';
+import { CELL } from '../../world/world.js?v=c81de75';
 
 const K0 = 8;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)
@@ -582,6 +582,23 @@ export class Stack3D {
     for (const lv in this.levels) { const s = this.levels[lv].label; spx(s, s.userData.px[0], s.userData.px[1]); }
     this.markGroup.visible = !this.compact;          // escalator / canyon chips only in the full 3D view
     for (const s of this.markGroup.children) spx(s, s.userData.px[0], s.userData.px[1]);
+    // v8: declutter: a chip that would overlap the destination chip or an earlier chip on the route (the steps you
+    // reach first keep their label) hides for this frame, so the reveal never shows a pile of pills
+    if (this.markGroup.visible) {
+      const v = this._dcV || (this._dcV = new THREE.Vector3()), kept = [];
+      const rect = (s) => {
+        v.copy(s.position).project(this.camera);
+        const w = s.userData.px[0], h = s.userData.px[1], x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
+        return [x - w * s.center.x, y - h * (1 - s.center.y), w, h];
+      };
+      const hit = (a, b) => a[0] < b[0] + b[2] + 4 && b[0] < a[0] + a[2] + 4 && a[1] < b[1] + b[3] + 3 && b[1] < a[1] + a[3] + 3;
+      if (this.dest && this.destLabel && this.destLabel.visible) kept.push(rect(this.destLabel));
+      for (const s of this.markGroup.children) {
+        const r = rect(s);
+        s.visible = !kept.some(k => hit(r, k));
+        if (s.visible) kept.push(r);
+      }
+    }
     this.ribCore.uniforms.uTime.value = this.ribGlow.uniforms.uTime.value = this.time;
     this.bgMat.uniforms.uTime.value = this.time;
   }

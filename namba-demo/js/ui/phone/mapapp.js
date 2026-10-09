@@ -10,15 +10,15 @@
 //     stairs ("Take escalator to 2F"), then wait for you to get there
 // Rendering: Canvas2D, cached per-floor base layers, redrawn only while open.
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=f150c03';
-import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=f150c03';
-import { businessBySlot } from '../../world/directory.js?v=f150c03';
-import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=f150c03';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=f150c03';
-import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=f150c03';
-import { hash } from '../../core/rng.js?v=f150c03';
-import { placeArt, reviewsFor, popularTimes } from './art.js?v=f150c03';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=f150c03';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=c81de75';
+import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=c81de75';
+import { businessBySlot } from '../../world/directory.js?v=c81de75';
+import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=c81de75';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=c81de75';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=c81de75';
+import { hash } from '../../core/rng.js?v=c81de75';
+import { placeArt, reviewsFor, popularTimes } from './art.js?v=c81de75';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=c81de75';
 
 const BASE_PPM = 4;          // cached base layer resolution (px per metre)
 const ZOOM_MIN = 0.45, ZOOM_MAX = 14;
@@ -106,7 +106,7 @@ export class MapApp {
     r.querySelectorAll('.mp-chips button').forEach(b => b.addEventListener('click', () => { this.input.value = b.querySelector('span').nextSibling.textContent; clr.hidden = false; this.doSearch(b.dataset.q); }));
     // controls
     this.compassBtn.addEventListener('click', () => { this.headingUp = !this.headingUp; if (!this.headingUp) this.view.rot = 0; this.follow = true; this._dirty = true; });
-    r.querySelector('.mp-locate').addEventListener('click', () => { this.follow = true; this.view.level = this.pos.level; this.view.zoom = Math.max(this.view.zoom, 2.4); this._dirty = true; this._renderFloors(); });
+    r.querySelector('.mp-locate').addEventListener('click', () => { this._warnT = 0; this.follow = true; this.view.level = this.pos.level; this.view.zoom = Math.max(this.view.zoom, 2.4); this._dirty = true; this._renderFloors(); });
     r.querySelector('.mp-grab').addEventListener('click', () => { this.sheetEl.classList.toggle('mp-full'); });
     this._pointer();
     this._renderFloors();
@@ -479,24 +479,36 @@ export class MapApp {
     const p = this.pos, v = this.view;
     const [sx, sy] = this.toScreen(p.x, p.z);
     const same = p.level === v.level;
+    const stale = p.mode === 'gps' && p.state === 'stale', coarse = p.mode === 'gps' && p.state === 'coarse';
     g.save();
     if (same) {
-      const r = Math.max(10, p.acc * v.zoom);
-      g.fillStyle = 'rgba(26,115,232,0.13)'; g.strokeStyle = 'rgba(26,115,232,0.35)'; g.lineWidth = 1;
-      g.beginPath(); g.arc(sx, sy, r, 0, Math.PI * 2); g.fill(); g.stroke();
+      const r = Math.max(10, Math.min(170, p.acc * v.zoom));
+      // v8: stale = a grey, dashed circle (no signal); coarse = the wide Wi-Fi circle; fix = the tight blue one
+      g.fillStyle = stale ? 'rgba(120,130,145,0.12)' : 'rgba(26,115,232,0.13)'; g.strokeStyle = stale ? 'rgba(110,120,135,0.55)' : 'rgba(26,115,232,0.35)'; g.lineWidth = 1;
+      if (stale) g.setLineDash([5, 4]);
+      g.beginPath(); g.arc(sx, sy, r, 0, Math.PI * 2); g.fill(); g.stroke(); g.setLineDash([]);
       // heading cone (map rotation aware): heading yaw -> screen angle
       const ang = -(p.heading - v.rot) - Math.PI / 2; // yaw 0 = up
       const spread = 0.55 + (p.env === 'outdoor' ? 0 : 0.25);
       const gr = g.createRadialGradient(sx, sy, 2, sx, sy, 44);
-      gr.addColorStop(0, 'rgba(26,115,232,0.55)'); gr.addColorStop(1, 'rgba(26,115,232,0)');
+      const ca = stale ? 0.28 : coarse ? 0.4 : 0.55;
+      gr.addColorStop(0, `rgba(26,115,232,${ca})`); gr.addColorStop(1, 'rgba(26,115,232,0)');
       g.fillStyle = gr; g.beginPath(); g.moveTo(sx, sy); g.arc(sx, sy, 44, ang - spread, ang + spread); g.closePath(); g.fill();
     }
     g.shadowColor = 'rgba(0,0,0,0.3)'; g.shadowBlur = 4;
     g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
     g.shadowBlur = 0;
-    g.fillStyle = same ? '#1a73e8' : '#9aa3ad';
-    const pulse = 6 + Math.sin((this._t || 0) * 3) * 0.6;
+    g.fillStyle = !same || stale ? '#9aa3ad' : '#1a73e8';
+    const pulse = 6 + (stale ? 0 : Math.sin((this._t || 0) * 3) * 0.6);
     g.beginPath(); g.arc(sx, sy, pulse, 0, Math.PI * 2); g.fill();
+    // a small honest tag under the dot (the sheet says the same, but the map is where eyes are)
+    if (same && (stale || coarse)) {
+      const txt = stale ? `No GPS · last seen ${this._ageTxt(p.ageS)} ago` : `Approximate · ±${Math.round(p.acc)} m`;
+      g.font = '600 10.5px Inter, sans-serif'; const w = g.measureText(txt).width + 14, y = sy + 15;
+      g.shadowColor = 'rgba(0,0,0,0.25)'; g.shadowBlur = 4; g.fillStyle = 'rgba(255,255,255,0.96)';
+      g.beginPath(); g.roundRect ? g.roundRect(sx - w / 2, y, w, 18, 9) : g.rect(sx - w / 2, y, w, 18); g.fill(); g.shadowBlur = 0;
+      g.fillStyle = stale ? '#5f6368' : '#1a73e8'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, sx, y + 9.5);
+    }
     g.restore();
   }
 
@@ -624,7 +636,15 @@ export class MapApp {
     this.sheetEl.className = `mp-sheet mp-${name}${full ? ' mp-full' : ''}`;
     this.sheetIn.scrollTop = 0;
   }
-  _accTxt() { const p = this.pos; return p.acc < 6 ? 'High accuracy' : p.acc < 12 ? 'Approximate location' : 'Low accuracy — indoor'; }
+  // v8: what the phone honestly knows (positioning.js states: stale = no GPS, the dot frozen; coarse = a Wi-Fi guess; fix = GPS)
+  _ageTxt(s) { s = Math.max(0, Math.round(s)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; }
+  _accTxt() {
+    const p = this.pos;
+    if (p.mode !== 'gps') return `High accuracy (±${Math.round(p.acc)} m)`;
+    if (p.state === 'stale') return `No GPS signal · last seen ${this._ageTxt(p.ageS)} ago`;
+    if (p.state === 'coarse') return `Approximate (Wi\u2011Fi) ±${Math.round(p.acc)} m`;
+    return p.acc < 6 ? `GPS · high accuracy (±${Math.round(p.acc)} m)` : `GPS · ±${Math.round(p.acc)} m`;
+  }
   // v4: the home sheet is the "Where to?" list (Aya's pick on top, the places Maps offers up front, category chips).
   // Nothing routes until the player picks (row click, 1–9, ↑↓ Enter).
   showHome() {
@@ -633,7 +653,7 @@ export class MapApp {
     const z = sp && ZONES[sp.zone];
     this._setSheet('home', `
       <div class="mp-home">${arr ? `<div class="mp-arr"><i>✓</i><div><b>Arrived · ${esc(arr.name)}</b><small>${LEVELS[arr.level].label} · ${esc(zoneShort(arr.zone) || '')}</small></div></div>` : `<div class="mp-here"><i class="mp-here-dot"></i><div><b class="mp-home-t">${esc(z ? z.name : 'Namba')}</b>
-      <small class="mp-home-s">${LEVELS[p.level].label} · ${this._accTxt()} (±${Math.round(p.acc)} m)</small></div></div>`}
+      <small class="mp-home-s">${LEVELS[p.level].label} · ${this._accTxt()}</small></div></div>`}
       <div class="mp-dl"></div></div>`, true);
     this._homeEl = this.sheetIn.querySelector('.mp-home');
     this.list = new DestList(this._homeEl.querySelector('.mp-dl'), {
@@ -713,8 +733,8 @@ export class MapApp {
     const z = sp && ZONES[sp.zone];
     const set = (c, t) => { const e = this._homeEl.querySelector(c); if (e && e.textContent !== t) e.textContent = t; };
     set('.mp-home-t', z ? z.name : 'Namba');
-    set('.mp-home-s', `${LEVELS[p.level].label} · ${this._accTxt()} (±${Math.round(p.acc)} m)`);
-    const dot = this._homeEl.querySelector('.mp-here-dot'); if (dot) dot.classList.toggle('ok', p.acc < 12);
+    set('.mp-home-s', `${LEVELS[p.level].label} · ${this._accTxt()}`);
+    const dot = this._homeEl.querySelector('.mp-here-dot'); if (dot) dot.classList.toggle('ok', p.mode !== 'gps' || p.state === 'fix');
     if (this.list) this.list.refreshRight(it => it.place ? fmtDist(this._crow(it.place)) : null);
   }
 
@@ -722,13 +742,14 @@ export class MapApp {
   // believed floor), or the one-floor route this app manages — the frustration, legibly
   glanceInfo() {
     const p = this.pos, R = this.route;
-    const warn = p.noService ? 'No service' : p.acc > 16 ? 'GPS signal lost' : p.acc > 9 ? 'GPS signal weak' : '';
+    const gpsBad = p.mode === 'gps' && p.state !== 'fix';
+    const warn = p.noService ? 'No service' : gpsBad ? (p.state === 'stale' ? 'No GPS signal' : 'Approximate location') : '';
     const here = `you’re on ${LEVELS[p.level].label}`;
     const angTo = (x, z) => { const dx = x - p.x, dz = z - p.z; let d = Math.atan2(-dx, -dz) - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); return -d * 180 / Math.PI; };
     if (R && R.arrived) return { kind: 'arr', icon: 'arrow', ang: 0, title: 'You have arrived', sub: `${R.target.en} · probably`, warn: '' };
     if (R && !R.failed && R.leg && R.legs.length > 1 && R.leg.ramp >= 0 && R.leg.pts.length) {
       const r = LAYOUT.ramps[R.leg.ramp], to = R.leg.dir > 0 ? r.upper : r.lower, e = R.leg.pts[R.leg.pts.length - 1];
-      return { kind: 'route', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(e[0], e[1]), title: `Take the ${this._rampWord(r)} ${R.leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`, sub: `${fmtDist(Math.hypot(e[0] - p.x, e[1] - p.z))} · ${here}`, warn };
+      return { kind: 'route', icon: gpsBad ? 'lost' : 'arrow', ang: angTo(e[0], e[1]), title: `Take the ${this._rampWord(r)} ${R.leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`, sub: `${fmtDist(Math.hypot(e[0] - p.x, e[1] - p.z))} · ${here}`, warn };
     }
     const t = R && R.target;
     if (!t) {
@@ -738,7 +759,7 @@ export class MapApp {
       if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: sug ? `Where to? · Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
       return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
     }
-    return { kind: 'crow', icon: p.acc > 16 ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
+    return { kind: 'crow', icon: gpsBad ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
   }
   showResults() {
     const mins = this.ctx.clock.minutes;
@@ -902,7 +923,7 @@ export class MapApp {
     this.banner.hidden = false;
     this.banner.innerHTML = `<div class="mp-bn-ic">${legs.length > 1 ? (leg.dir > 0 ? '⬈' : '⬊') : '⬆'}</div><div><b>${esc(step.replace(/^\S+\s/, ''))}</b><small>${esc(sub)}</small></div>`;
     const steps = [];
-    steps.push(`<li><b>Start</b> <span class="mp-dim">${LEVELS[R.level].label} · ±${Math.round(this.pos.acc)} m</span></li>`);
+    steps.push(`<li><b>Start</b> <span class="mp-dim mp-start">${LEVELS[R.level].label} · ${this._accTxt()}</span></li>`);
     legs.forEach((lg, i) => {
       if (i === 0) {
         if (lg.ramp >= 0) { const r = LAYOUT.ramps[lg.ramp]; steps.push(`<li>Walk ${fmtDist(lg.len)} to the ${this._rampWord(r)}</li><li>Take ${this._rampWord(r)} ${lg.dir > 0 ? 'up' : 'down'} to <b>${LEVELS[lg.dir > 0 ? r.upper : r.lower].label}</b></li>`); }
@@ -971,6 +992,8 @@ export class MapApp {
     const p = this.pos, t = R.target;
     // arrived?
     // "arrived" is the phone's belief, not the truth: it can fire 10 m early or late
+    // v8 critic: a coarse Wi-Fi guess can "arrive" and then jump away; the belief moves on with it (no stuck banner)
+    if (R.arrived && !(p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 15)) { R.arrived = false; R.recalc = 0; R.offCount = 0; this._routeSheet(); }
     if (p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 7) {
       if (!R.arrived) { R.arrived = true; this.banner.hidden = false; this.banner.innerHTML = `<div class="mp-bn-ic">✓</div><div><b>You have arrived</b><small>${esc(t.en)}</small></div>`; this.ctx.events.emit('phone:arrive', { id: t.id }); }
       return;
@@ -994,11 +1017,11 @@ export class MapApp {
 
   // the little indignities of every maps app indoors
   _nag(dt) {
-    const p = this.pos, bad = p.mode === 'gps' && p.acc > 9;
+    const p = this.pos, bad = p.mode === 'gps' && p.state !== 'fix';
     this._warnT = (this._warnT || 0) - dt;
     if (this._warnT <= 0) {
       this._warnT = 0.5;
-      const txt = p.noService ? 'No service · showing the saved map' : p.acc > 16 ? 'GPS signal lost · move to an open area' : 'GPS signal weak';
+      const txt = p.noService ? 'No service · showing the saved map' : p.state === 'stale' ? `No GPS signal · last seen ${this._ageTxt(p.ageS)} ago` : 'Approximate location · Wi\u2011Fi';
       if (this.warnEl.textContent !== txt) this.warnEl.textContent = txt;
       this.warnEl.hidden = !bad || !this.phone.isOpen || !this.banner.hidden;
     }
@@ -1014,5 +1037,8 @@ export class MapApp {
   }
 
   // called by the phone every few frames when the sheet shows live data
-  tick() { this._refreshHome(); }
+  tick() {
+    this._refreshHome();
+    if (this.sheet === 'route') { const e = this.sheetIn.querySelector('.mp-start'), t = `${LEVELS[this.pos.level].label} · ${this._accTxt()}`; if (e && e.textContent !== t) e.textContent = t; }
+  }
 }

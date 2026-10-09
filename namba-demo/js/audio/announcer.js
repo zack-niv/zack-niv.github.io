@@ -16,15 +16,19 @@
 // Voices load asynchronously (voiceschanged, plus polling); speech needs a
 // prior user gesture (the title click) — a rejected utterance is skipped.
 // =============================================================================
-import { spokenText } from './phrases.js?v=f150c03';
-import { platformGain, pointGain } from './zones.js?v=f150c03';
+import { spokenText } from './phrases.js?v=c81de75';
+import { platformGain, pointGain } from './zones.js?v=c81de75';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
 const MIN_VOL = 0.06;
 // v7 (platform PA must be clearly heard): while a platform line plays, the beds sit this far down (scaled by how audible
 // the platform is from where you stand, so the concourse above only dips a little). Attack ~0.3 s, release ~1 s.
-const PA_DUCK = { ambience: 0.355, music: 0.355, sfx: 0.7 };   // -9 dB, -9 dB, -3 dB at full platform volume
+// v8 (feedback 2, "could barely hear the Japanese"): speech goes out through speechSynthesis, which tops out at volume 1.0 and
+// cannot be boosted, so the only lever is what sits under it. v7's -3 dB on sfx left the train (rumble, brakes, doors, rolling
+// stock: all sfx emitters) nearly untouched exactly when a platform line is read, and the PA is about that train. Now the beds
+// go to -12 dB and sfx to -9 dB (measured: notes/v8-fixes.md).
+const PA_DUCK = { ambience: 0.25, music: 0.25, sfx: 0.355 };   // -12 dB, -12 dB, -9 dB at full platform volume
 const DUCK_ATTACK = 0.1, DUCK_RELEASE = 0.33, DUCK_HOLD = 0.7;  // setTargetAtTime constants (s): ~0.3 s / ~1 s to settle; hold between lines
 const PLAT_CHIME = 0.85, CHIME = 0.55;                          // chime gain at full volume
 const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
@@ -189,7 +193,8 @@ export class Announcer {
     u.onend = () => { if (c.utter === u) c.uDone = true; };
     u.onerror = (e) => { if (c.utter === u) { c.uErr = e && e.error; c.uDone = true; this._note('error ' + (e && e.error)); } };
     c.utter = u; c.uStarted = false; c.uDone = false; c.uErr = null; c.spoke = true;
-    c.uDeadline = this.t + 3; c.uHard = this.t + 4 + text.length * (p.lang === 'ja' ? 0.35 : 0.2);
+    c.uDeadline = this.t + 6;   // v8: online / natural ja voices can take >3 s to start (the old 3 s dropped the line)
+    c.uHard = this.t + 4 + text.length * (p.lang === 'ja' ? 0.35 : 0.2);
     this.last.spoken.push({ lang: p.lang, voice: voice.name, vol: +u.volume.toFixed(2), text });
     try { this.speech.speak(u); } catch (e) { c.utter = null; c.step++; this._note('speak threw'); }
   }

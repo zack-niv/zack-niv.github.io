@@ -10,10 +10,10 @@
 // All of it is merged into the per-chunk GeoBatches (three extra materials in
 // total: arch_kit, arch_exit, arch_wear).
 // =============================================================================
-import { CELL, EDGE } from '../world.js?v=f150c03';
-import { styleOf } from './styles.js?v=f150c03';
-import { rng, hash } from '../../core/rng.js?v=f150c03';
-import { cellUV, KIT, WEAR } from '../../render/textures/kitatlas.js?v=f150c03';
+import { CELL, EDGE } from '../world.js?v=c81de75';
+import { styleOf } from './styles.js?v=c81de75';
+import { rng, hash } from '../../core/rng.js?v=c81de75';
+import { cellUV, KIT, WEAR } from '../../render/textures/kitatlas.js?v=c81de75';
 
 const UV = (i) => { const [u0, v0, u1, v1] = cellUV(i); return [[u0, v0], [u1, v0], [u1, v1], [u0, v1]]; };
 

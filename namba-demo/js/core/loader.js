@@ -56,11 +56,14 @@ export class Loader {
     this._tip = 0;
     this._t0 = performance.now();
     if (!root) return;
-    root.innerHTML = `
+    // v8: index.html paints this exact markup before any JS runs. Adopt it as is (rebuilding it restarted the entrance
+    // animation and, before v8, swapped the title). Only build it when the page did not ship it.
+    if (!root.querySelector('.nbl-inner')) {
+      root.innerHTML = `
       <div class="nbl-bg"></div>
       <div class="nbl-inner">
         <div class="nbl-kana" lang="ja">なんば</div>
-        <div class="nbl-latin">NAMBA</div>
+        <div class="nbl-latin">Lost in Namba</div>
         <div class="nbl-line" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="nbl-track"><i class="nbl-fill"></i><b class="nbl-train"></b></div>
           <ol class="nbl-stations">${STATIONS.map(([en, ja]) => `<li><span class="nbl-dot"></span><em>${en}</em><small lang="ja">${ja}</small></li>`).join('')}</ol>
@@ -76,6 +79,7 @@ export class Loader {
           <button type="button" class="nbl-go">Continue anyway</button>
         </div>
       </div>`;
+    }
     const q = (s) => root.querySelector(s);
     this.el = { fill: q('.nbl-fill'), train: q('.nbl-train'), pct: q('.nbl-pct'), msg: q('.ld-msg'), line: q('.nbl-line'), tip: q('.nbl-tip'),
       stations: [...root.querySelectorAll('.nbl-stations li')], touch: q('.nbl-touch'), go: q('.nbl-go') };

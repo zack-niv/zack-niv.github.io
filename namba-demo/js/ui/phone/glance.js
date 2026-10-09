@@ -14,7 +14,7 @@
 // Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
-import { icon, logo } from './lodestone.js?v=f150c03';
+import { icon, logo } from './lodestone.js?v=c81de75';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const NOTE_S = 7.5;
@@ -24,10 +24,10 @@ export class Glance {
     this.phone = phone; this.ctx = phone.ctx; this.root = root;
     this.note = null; this._noteT = 0;
     this._key = ''; this._t = 0;
-    this._ang = 0;
     this.touch = !!(this.ctx.input && this.ctx.input.touch);
     root.innerHTML = `<div class="gl"></div>`;
     this.box = root.firstChild;
+    this.hdr = new NavHeader(this.box);
     // polish: the arrival cut-scene — the strip says so (not "on your right · In 5 m") from its first frame
     this.finale = null;
     this.ctx.events.on('demo:arrive', (e) => {
@@ -61,8 +61,8 @@ export class Glance {
     info.typing = M && M.typingFrom && info.kind !== 'note' ? M.typingFrom : null;
     const key = JSON.stringify([info.kind, info.cls, info.trk, info.icon, info.mic, info.live, info.title, info.sub, info.pct != null ? Math.round(info.pct * 20) : -1, info.warn, info.unread, info.rep, info.typing, (this.phone._raises || 0) >= 3]);
     if (key !== this._key) { this._key = key; this._render(info); }
-    this._angFn = info.angFn || null;
-    this._target = info.ang;
+    this.hdr._angFn = info.angFn || null;
+    this.hdr._target = info.ang;
     this._spin(dt);
   }
 
@@ -73,7 +73,8 @@ export class Glance {
     const st = ph.upgradeStage;
     if (st === 'installing' || st === 'calibrating') {
       const L = ph.lodestone, pct = st === 'installing' ? Math.min(1, L.t / L.T_INSTALL) : Math.min(1, L.t / L.T_CALIB);
-      return { kind: 'inst', cls: 'gl-ld', title: st === 'installing' ? 'Installing Lodestone' : 'Learning the building…', sub: st === 'installing' ? 'Lodestone' : 'Magnetic fingerprint', pct };
+      // v8: the same staged words as the calibration screen ("Matching it to Namba’s indoor map")
+      return { kind: 'inst', cls: 'gl-ld', title: st === 'installing' ? 'Installing Lodestone' : 'Finding you indoors…', sub: st === 'installing' ? 'Lodestone' : (L.calibLabel ? L.calibLabel() : 'Reading the magnetic field'), pct };
     }
     if (st === 'ready' && ph.lodestone.state === 'ready') return { cls: 'gl-ld', ...ph.lodestone.glanceInfo() };
     return { cls: 'gl-mp', ...ph.maps.glanceInfo() };
@@ -83,6 +84,35 @@ export class Glance {
     // the key hint teaches itself away: shown until the phone has been raised a few times
     const rep = this.phone.messages && this.phone.messages.pending;
     const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || ((this.phone._raises || 0) >= 3 && i.kind !== 'pick' && !(i.kind === 'arr' && /^Next/.test(i.sub || ''))) ? '' : `<kbd class="gl-k">Q</kbd>`);
+    const tail = i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} ${this.note && this.note.reply ? 'reply' : 'read'}</span>` : k;
+    this.hdr.render(i, tail);
+    // (the island itself carries the on-track state: amber ring while drifting / off)
+    this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');
+    this.root.classList.toggle('trk-off', i.trk === 'trk-off');
+  }
+  _spin(dt) { this.hdr.spin(dt); }
+}
+
+// =============================================================================
+// v8 — the ONE nav header (Zack: "reuse the header in full mode and when app lowered mode too").
+// The glance strip and the raised Lodestone app render the same card from the same data
+// (LodestoneApp.glanceInfo()): the heading-arrow tile, the next milestone (small icon + words), one sub line.
+//   const h = new NavHeader(box); h.set(info) every ~0.25 s; h.spin(dt) every frame (the live arrow).
+// =============================================================================
+export function headerKey(i, extra) {
+  return JSON.stringify([i.kind, i.cls, i.trk, i.icon, i.mic, i.live, i.title, i.sub, i.pct != null ? Math.round(i.pct * 20) : -1, i.warn, extra]);
+}
+export class NavHeader {
+  constructor(box) { this.box = box; this._key = ''; this._ang = 0; this._target = null; this._angFn = null; this._arrow = null; }
+  // info: a glanceInfo() object; tail: extra html at the right (key hints, badges); extra: anything else in the key
+  set(info, tail = '', extra = '') {
+    const key = headerKey(info, [extra, tail]);
+    if (key !== this._key) { this._key = key; this.render(info, tail); }
+    this._angFn = info.angFn || null;
+    this._target = info.ang;
+  }
+  reset() { this._key = ''; }
+  render(i, tail = '') {
     let ic = '';
     if (i.kind === 'note') ic = `<i class="gl-av">${esc((i.title || 'A')[0])}</i>`;
     else if (i.kind === 'inst') ic = `<i class="gl-ic gl-logo">${logo()}</i>`;
@@ -94,15 +124,11 @@ export class Glance {
     // v5: the next milestone's small icon sits in front of its words (the big tile keeps the heading arrow)
     const head = i.kind === 'note' ? `<b>${esc(i.title)} <small>now</small></b>` : `<b>${i.mic ? `<i class="gl-mi">${icon(i.mic)}</i>` : ''}${esc(i.title)}</b>`;
     this.box.className = `gl ${i.cls} gl-${i.kind || 'nav'} ${i.trk || ''}`;
-    // (the island itself carries the on-track state: amber ring while drifting / off)
-    this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');
-    this.root.classList.toggle('trk-off', i.trk === 'trk-off');
-    this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} ${this.note && this.note.reply ? 'reply' : 'read'}</span>` : k}`;
+    this.box.innerHTML = `${ic}<div class="gl-t">${head}${sub}${bar}</div>${tail}`;
     this._arrow = this.box.querySelector('.gl-arrow');
   }
-
   // the arrow turns smoothly toward the target angle (degrees, 0 = straight ahead)
-  _spin(dt) {
+  spin(dt) {
     if (this._angFn) { const v = this._angFn(); if (v != null) this._target = v; }       // live: follows the heading every frame
     const a = this._arrow; if (!a || this._target == null || !isFinite(this._target)) return;
     let d = this._target - this._ang; d = ((d + 540) % 360) - 180;
