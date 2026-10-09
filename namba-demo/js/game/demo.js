@@ -283,7 +283,7 @@ export class Demo {
       this.offered = true; this.upgraded = true;
       this.readyT = this.t; this.readyDist = game.journal.distance;
       this.remReady = this._navRem();
-      game.after(3.0, () => { if (!this.arrived) game.message(this.story.readyText ? this.story.readyText() : UPGRADE.ready); });
+      game.after(3.0, () => { if (!this.arrived) game.message(this.story.readyText ? this.story.readyText(this._sent.has(170)) : UPGRADE.ready); });
     }
   }
 

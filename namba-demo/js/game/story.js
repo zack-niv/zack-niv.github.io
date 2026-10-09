@@ -62,7 +62,7 @@ export class Story {
   // order.js: the drink the player orders at the errand café while Aya is waiting for it
   errandDrink(slot) { return this.errand.state === 'asked' && slot === this.errand.slot ? Object.assign({ errand: true }, ERRAND_DRINK) : null; }
   // Lodestone's first line once it is live: about the latte while that's where it is taking you
-  readyText() { return this.errand.state === 'asked' && (!this._destSlot() || this._destSlot() === this.errand.slot) ? UPGRADE.readyCoffee : UPGRADE.ready; }
+  readyText(second) { return this.errand.state === 'asked' && (!this._destSlot() || this._destSlot() === this.errand.slot) ? UPGRADE.readyCoffee : second ? UPGRADE.ready2 : UPGRADE.ready; }
   get walked() { return Math.max(0, this.game.journal.distance - this.f.walk0); }
   _free() { const g = this.game; return !g.busy && !g.intro && !g.paused && !this.demo.arrived && !g.ended; }
 
@@ -367,9 +367,11 @@ export class Story {
     if (E.at != null && t - E.at < DEMO.orderCool) return false;
     const prog = d.progressOver(30), moving = prog != null && prog >= 15;
     const onTask = d.onTask ? d.onTask() : moving;
-    const why = d._isLost();
-    if (!moving && !onTask && why) { this.whereWhy = why; return true; }
-    if (t >= cap(DEMO.whereAt) && !moving && !onTask) { this.whereWhy = 'time'; return true; }
+    // no 30 s of history yet (just switched leg, e.g. walking back up from the café) = no evidence of being lost
+    const known = prog != null;
+    const why = known ? d._isLost() : null;
+    if (known && !moving && !onTask && why) { this.whereWhy = why; return true; }
+    if (known && t >= cap(DEMO.whereAt) && !moving && !onTask) { this.whereWhy = 'time'; return true; }
     if (t >= cap(DEMO.whereLatest)) { this.whereWhy = 'latest'; return true; }
     return false;
   }

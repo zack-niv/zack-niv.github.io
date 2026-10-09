@@ -80,6 +80,7 @@ export const UPGRADE = {
   offerFine: 'trust me, get Lodestone before you hit Parks 😅 it actually works indoors',   // v9: fine, not in Parks yet
   offerAhead: 'ok Parks is a maze from here 😅 get Lodestone, it actually works indoors', // v9: doing fine, not lost
   ready: 'see? 😌 6F, I\'m 3rd in line',
+  ready2: 'see? 😌 6F. still 2nd in line, hurry 🍤',          // v9: after the "I'm 2nd in line!!" banter
   readyCoffee: 'see? 😌 it even knows which floor my latte is on',
 };
 
