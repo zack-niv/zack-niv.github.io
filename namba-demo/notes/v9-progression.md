@@ -39,9 +39,14 @@ and 2.5–3 h including five headless runs.
 - **Probe** `scratchpad/silent.mjs`: a player who never replies and stays near the start, with the event timeline and
   Messages screenshots at about 60, 110 and 205 s. Results are in §1.1; they are filled in once the run gets a browser slot.
 
-### 1.1 Probe results
+### 1.1 Probe results (summary, details in §9)
 
-(see §9, appended after the run)
+The never-replier timeline in §2 is **confirmed in the live build**:
+
+- the hello chips stay on screen from 14 s to 97 s, under Meet and the latte ask;
+- the tutorial `reply` step is marked done at 45.1 s with **no reply**;
+- the offer is sent at 197 s (`why: time`, "you're lost aren't you 😂") with the Where chips **still pending** at 216 s
+  and 226 s.
 
 ---
 
@@ -104,8 +109,8 @@ latte. Even without that, Hello → Meet → Latte had already talked past him.
 5. **The tutorial `reply` step can't fail** (`story.js:186`). It is marked done when Meet goes out, so the one lesson that
    makes replies matter is skipped for exactly the players who needed it, and nothing teaches replies again later.
 
-(Secondary, phone owner: when the place card's image settles after `render()` sets `scrollTop`, the newest bubble can end
-up hidden behind the chip tray. To be confirmed by the probe screenshot, §9.)
+(Not a phone bug: the probe shows Messages scrolled to the newest bubble every time (`scrollTop == max`). Zack's
+screenshot was scrolled up by hand or cropped; the "Where are you??" bubble sat below the latte ask.)
 
 ---
 
@@ -265,4 +270,30 @@ Pass criteria for every run:
 
 ## 9. Probe evidence
 
-(appended below)
+`notes/v9-shots/progression/silent-probe.mjs.txt` (copy of the scratch script): the real build, `?quality=low&noaudio`,
+title clicked, the player stands still on the platform, never answers, and systems are stepped at 20 Hz.
+
+Event timeline (demo seconds):
+
+```
+  14.0  phone:message  hello [chips]
+  45.1  phone:message  meet                 ← hello unanswered; hello chips stay pending
+  45.1  tutorial:step  reply done           ← no reply was ever given
+  48.6  phone:message  coffee               ← chained 3.5 s after meet; pending chips = hello's
+  95.2  story:where    why=stalled
+  97.5  phone:message  where [chips]        ← replaces the hello chips
+ 195.2  story:engaged  why=time
+ 197.4  demo:offer     why=time  "you're lost aren't you 😂"
+ 216/226  aya.open = where, phone.pendingReply = where:"I'm lost 😭|On my way!"   ← stale chips under the offer
+```
+
+State samples: `open:"hello", chips:"hello:Just landed! 🙌|…"` at 52, 60, 64, 74, 84 and 94 s, while the thread's last
+text was the latte ask. The `_isLost()` reason is `stalled` from 32 s onward.
+
+Screenshots: `notes/v9-shots/progression/silent-110.png` (Where is the newest bubble, while the tutorial `pick` hint
+"Open Aya's link — Enter" shows at the same time: two decisions in one glance) and `silent-205.png` (the offer under the
+unanswered Where).
+
+Caveat: the headless screenshots do not draw the chip tray even while `phone.pendingReply` is set. It looks like the
+`msChipsIn` animation in SwiftShader captures, since Zack's real-GPU screenshot shows the chips. Phase 2 asserts on
+`pendingReply` and on DOM `.ms-chip` presence, not on pixels.

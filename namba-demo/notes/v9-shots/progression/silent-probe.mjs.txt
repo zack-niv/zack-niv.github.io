@@ -1,0 +1,60 @@
+// Read-only progression probe: a player who never replies and stands near the start. Logs Aya's thread + the
+// phone's pending chips over time; screenshots the Messages app at checkpoints.
+//   node silent.mjs [mode]   mode: silent (default) | walkoff (walks forward a bit)
+import { chromium } from '/home/user/zack-niv.github.io/namba-demo/tools/node_modules/playwright/index.mjs';
+import { acquireSlot } from '/home/user/zack-niv.github.io/namba-demo/tools/slot.mjs';
+import { spawn } from 'child_process';
+const ROOT = '/home/user/zack-niv.github.io/namba-demo';
+const OUT = '/tmp/claude-0/-home-user-zack-niv-github-io/3781fcee-d127-5006-a617-a06529c080df/scratchpad';
+const port = 8000 + Math.floor(Math.random() * 900);
+const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
+await new Promise(r => setTimeout(r, 600));
+const release = await acquireSlot('progression-silent');
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1024, height: 576 } });
+const T0 = Date.now(); const log = (...a) => console.log(`[${((Date.now() - T0) / 1000).toFixed(0)}s]`, ...a);
+try {
+  await page.goto(`http://127.0.0.1:${port}/index.html?quality=low&noaudio`);
+  await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 300000 });
+  await page.waitForSelector('.t-begin', { state: 'visible', timeout: 600000 });
+  await page.evaluate(() => { window.__namba.input.requestLock = () => {}; window.__namba.input.exitLock = () => {}; });
+  await page.click('.t-begin', { timeout: 60000 });
+  log('started');
+  await page.evaluate(() => {
+    const c = window.__namba; window.__ev = [];
+    for (const k of ['phone:message', 'phone:reply', 'story:where', 'demo:offer', 'tutorial:step', 'aya:answered', 'story:engaged'])
+      c.events.on(k, (e) => window.__ev.push([+(c.game.demo.t).toFixed(1), k, k === 'phone:message' ? (e.id + ': ' + String(e.text).slice(0, 40) + (e.replies ? ' [chips]' : '')) : JSON.stringify(e).slice(0, 80)]));
+  });
+  const step = (secs, dt = 0.05) => page.evaluate(([secs, dt]) => {
+    const c = window.__namba; const n = Math.round(secs / dt);
+    for (let i = 0; i < n; i++) {
+      c.input.update(); c.clock.update(dt);
+      for (const { sys } of c.systems) if (sys.update) { try { sys.update(dt); } catch (e) { } }
+      for (const { sys } of c.systems) if (sys.lateUpdate) { try { sys.lateUpdate(dt); } catch (e) { } }
+      c.input.endFrame();
+    }
+  }, [secs, dt]);
+  const state = () => page.evaluate(() => {
+    const c = window.__namba, st = c.game.story, ph = c.phone;
+    return { t: +c.game.demo.t.toFixed(0), sent: st.aya.sent.join(','), open: st.aya.open && st.aya.open.msg.id, chips: ph.pendingReply && (ph.pendingReply.msgId + ':' + ph.pendingReply.replies.map(r => r.text).join('|')), errand: st.errand.state, offered: c.game.demo.offered, lost: c.game.demo._isLost() };
+  });
+  const shotMsgs = async (name) => {
+    await page.evaluate(() => window.__namba.phone.open('messages'));
+    await step(0.6);
+    await page.waitForTimeout(400);
+    const vis = await page.evaluate(() => { const l = document.querySelector('.ph-device .ms-list'); const b = [...document.querySelectorAll('.ph-device .ms-list .ms-b')]; const last = b[b.length - 1]; if (!l || !last) return null; const lr = l.getBoundingClientRect(), r = last.getBoundingClientRect(); return { listBottom: Math.round(lr.bottom), lastTop: Math.round(r.top), lastBottom: Math.round(r.bottom), scrollTop: Math.round(l.scrollTop), max: Math.round(l.scrollHeight - l.clientHeight), lastText: last.innerText.slice(0, 40) }; });
+    log('VIS', name, JSON.stringify(vis));
+    try { await page.screenshot({ path: `${OUT}/${name}.png`, timeout: 240000 }); log('shot', name); } catch (e) { log('shot fail', e.message.split('\n')[0]); }
+    await page.evaluate(() => window.__namba.phone.close());
+    await step(0.3);
+  };
+  const marks = [60, 110, 205];
+  for (let i = 0; i < 230; i++) {
+    await step(1.0);
+    const s = await state();
+    if (i % 10 === 0) log('S', JSON.stringify(s));
+    if (marks.length && s.t >= marks[0]) { marks.shift(); log('S', JSON.stringify(s)); await shotMsgs(`silent-${s.t}`); }
+  }
+  log('EVENTS\n' + (await page.evaluate(() => window.__ev.map(e => e.join('  ')).join('\n'))));
+} catch (e) { log('ERR', e.message); }
+await browser.close(); server.kill(); release();
