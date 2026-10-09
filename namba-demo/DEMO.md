@@ -57,11 +57,14 @@ the Oriient team appears only on the end card.
      reads the field.
    - Then the blue dot snaps to the TRUE position with a ±1 m halo, heading is
      true, and the floor is detected instantly ("You're on B1").
-   - **Hero view:** a 3D "exploded" stack of the complex's floors (extruded
-     plates from the layout grid, translucent, the current floor highlighted).
-     The route is drawn as a glowing line through the stack, climbing at the
-     real escalators and stairs, with the destination pin on 6F. Orbit/zoom
-     by drag; it auto-frames you and the route.
+   - **Hero beat (v8):** right after the "You're on 2F" snap card, a 3D
+     "exploded" stack of the complex's floors flies in (translucent plates,
+     the current floor highlighted, the route a glowing line climbing the real
+     escalators to the destination pin on 6F), holds ~2 s, then settles to
+     the everyday view. V / "3D view" brings the stack back (orbit/zoom by drag).
+   - **Everyday view (v8):** a heading-up top-down map of your floor (route,
+     dot + heading cone, next-milestone pin, 2–3 landmark names), under the
+     same header card as the lowered-phone glance strip.
    - Turn-by-turn that is actually right: "Escalator up · 1F → 2F", "Turn
      left at Namba CITY 2F", ETA and floors remaining.
 4. **~3:30–8:00 — Confident navigation.** The phone now *guides*. The player
