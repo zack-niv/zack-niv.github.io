@@ -47,9 +47,14 @@ the Oriient team appears only on the end card.
 3. **The upgrade (~2:30–3:30, or earlier if the player is clearly lost).**
    - Aya: *"you're lost aren't you 😂 install Lodestone — it actually works
      indoors"*, with a tappable link card.
-   - Install (2 s) → **calibration**: *"Learning this building's magnetic
-     fingerprint…"*. A beautiful field-line visualisation, the phone gently
-     swaying, ~3 s.
+   - Install (2 s) → **calibration** (~3 s, v8): *"Finding you indoors · No
+     GPS needed · just your phone's compass"*. One picture in a round window
+     (a compass needle settles, the real floor plan fades in while guesses
+     converge on you, the floor chip pops, the blue dot lands) and four plain
+     steps that tick off: *Reading the magnetic field → Matching it to Namba's
+     indoor map → Finding your floor… 3F → You're here · ±1 m*. The floor bar
+     scans and locks onto your floor; the phone sways a figure-of-8 while it
+     reads the field.
    - Then the blue dot snaps to the TRUE position with a ±1 m halo, heading is
      true, and the floor is detected instantly ("You're on B1").
    - **Hero view:** a 3D "exploded" stack of the complex's floors (extruded
