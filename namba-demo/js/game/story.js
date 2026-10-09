@@ -382,7 +382,8 @@ export class Story {
     const text = () => {
       const o = aya.open, nudged = o && o.nudgeT != null && aya.t - o.nudgeT < 10;   // she just said "hello?? 👀"
       if (why === 'silent') return nudged ? UPGRADE.offerSilentShort : UPGRADE.offerSilent;
-      return why === 'ahead' || (why === 'time' && !demo._isLost()) ? UPGRADE.offerAhead : UPGRADE.offer;
+      if (why === 'ahead') return UPGRADE.offerAhead;
+      return why === 'time' && !demo._isLost() ? (this._inParks() ? UPGRADE.offerAhead : UPGRADE.offerFine) : UPGRADE.offer;
     };
     aya.act(() => { this._offering = false; const words = text(); aya.closeOpen('offer'); demo.offer(why, words); this._installStep(); }, { typing: 1.5, wait: 0.7 });
   }
@@ -393,7 +394,9 @@ export class Story {
     return Math.hypot(p.x - b.door.ox, p.z - b.door.oz) < 15;
   }
   // v9: in Namba Parks (or well along the way) — the fast walker's offer moment
+  //     Only on the Daikichi leg (the café leg's nav distance to Daikichi also shrinks: JOG run, v9 Phase 2)
   _inParks() {
+    if (this.errand.state === 'asked') return false;
     const sp = this.ctx.player && this.ctx.player.space && this.ctx.player.space.id, L = this.demo._lost;
     return (!!sp && /^parks/.test(sp)) || (L.rem != null && L.init && L.rem < L.init * DEMO.aheadFrac);
   }

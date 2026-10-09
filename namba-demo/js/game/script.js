@@ -30,7 +30,7 @@ export const DEMO = {
   latteGiveUp: 25,                  // the latte question: silence = yes (chips withdrawn)
   whereNudge: 25, whereGiveUp: 45,  // "Where are you??": nudge, then she sends Lodestone anyway
   offerGrace: 15,                   // the 195 s fallback waits up to this long for a fresh question / the café counter
-  aheadFrac: 0.45,                  // reaching Parks (or < 45% of the start distance left) before any offer → 'ahead'
+  aheadFrac: 0.3,                   // reaching Parks (or < 30% of the start distance left) before any offer → 'ahead'
   orderCool: 20,                    // no "Where are you??" within this long of buying her latte
 };
 // v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)
@@ -77,6 +77,7 @@ export const UPGRADE = {
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
   offerSilent: 'hellooo?? 👀 ok just install this, it actually works indoors',          // v9: Where went unanswered
   offerSilentShort: 'ok just install this 😅 it actually works indoors',                  // ...right after her nudge
+  offerFine: 'trust me, get Lodestone before you hit Parks 😅 it actually works indoors',   // v9: fine, not in Parks yet
   offerAhead: 'ok Parks is a maze from here 😅 get Lodestone, it actually works indoors', // v9: doing fine, not lost
   ready: 'see? 😌 6F, I\'m 3rd in line',
   readyCoffee: 'see? 😌 it even knows which floor my latte is on',

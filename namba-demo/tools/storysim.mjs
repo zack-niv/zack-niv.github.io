@@ -116,6 +116,10 @@ const results = [
   run({ name: 'fast runner, never replies (past the café before she asks)', speed: 3.2, lost: fine, progress: () => 90,
     rem: (t) => Math.max(20, 600 - 3.2 * Math.max(0, t - 5)), cafeDk: 540,
     expect: (s, d) => s.errand.state === 'dropped' && d.why === 'ahead' && s.tut.isDone('reply') }),
+  run({ name: 'jogger on the latte leg (no "Parks is a maze" in CITY)', speed: 3.2, lost: fine, progress: () => 90,
+    rem: (t) => Math.max(20, 600 - 3.2 * Math.max(0, t - 5)), cafeDk: 200,
+    reply: (id, rs, age) => (age < 2.5 ? null : id === 'where' ? 'lost' : rs[0].id),
+    expect: (s, d) => d.why !== 'ahead' && s.errand.state === 'asked' }),
 ];
 console.log(`\n${results.filter(Boolean).length}/${results.length} scenarios pass`);
 process.exit(results.every(Boolean) ? 0 : 1);
