@@ -13,7 +13,7 @@
 //     5 dir       +1 path goes up there, −1 down, 0 none
 //     6 toLevel   LEVEL_ORDER index of the level the ramp leads to
 // =============================================================================
-import { LEVEL_ORDER } from '../../world/layout.js?v=c81de75';
+import { LEVEL_ORDER } from '../../world/layout.js?v=517b401';
 
 export const STRIDE = 7;
 

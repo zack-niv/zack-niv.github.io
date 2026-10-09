@@ -19,11 +19,19 @@
 //   there ('demo:order') → she suggests Daikichi and a short "next stop" hint
 //   shows. Walking on past the café without it → one tease, never a block.
 // Words in script.js (AYA, UPGRADE, TUTORIAL); measurements in demo.js.
+// v9 (notes/v9-progression.md): every beat is gated on the conversation + whereabouts + time, never time alone.
+//   HELLO? ─reply─► MEET? (On my way / Which way??) ─► LATTE? (Sure / Not today) — each waits for its answer, Aya
+//   nudges ("hello?? 👀") and then follows up naturally (aya.js patience). The latte is asked only if the player is
+//   not already past the café (else the errand is dropped). "Where are you??" needs no fresh question and real
+//   lostness against the ACTIVE target (the café during the errand; demo.setTarget), never while on task or right
+//   after buying her latte. The offer: I'm lost · On my way while lost · early "Which way??" + no progress ·
+//   Where unanswered 45 s ('silent') · reaching Parks first ('ahead') · fallback 195 s (+15 s grace for a fresh
+//   question or the café counter); its words fit the why. The offer closes any open question (no stale chips).
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE } from './script.js?v=c81de75';
-import { businessBySlot } from '../world/directory.js?v=c81de75';
-import { Aya } from './aya.js?v=c81de75';
-import { Tutorial } from './tutorial.js?v=c81de75';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=517b401';
+import { businessBySlot } from '../world/directory.js?v=517b401';
+import { Aya } from './aya.js?v=517b401';
+import { Tutorial } from './tutorial.js?v=517b401';
 
 export class Story {
   constructor(ctx, game, demo) {
@@ -34,7 +42,9 @@ export class Story {
     this.f = { raised: false, maps: false, mapsT: 0, interacted: false, walk0: 0, look: 0, lastYaw: null };
     this.engaged = null; this._offering = false;
     this.helloT = null; this.whereT = null;
+    this._meetDone = false;                  // v9: Meet answered or given up — the latte gate opens
     // v4: the coffee errand. state: 'none' → 'asked' → 'done' (got a coffee) | 'skipped' (walked on without one)
+    // v9: | 'declined' ("Not today 🙈") | 'dropped' (already past the café when she would have asked: never asked)
     const cb = businessBySlot[DEMO.coffeeSlot] || null;
     this.errand = { slot: cb ? DEMO.coffeeSlot : null, biz: cb, name: cb ? cb.en : 'the café', state: 'none', got: null, at: null };
     this.f.picked = false; this.f.picks = 0; this.f.pick2 = false; this.f.atCafe = false;
@@ -52,7 +62,7 @@ export class Story {
   // order.js: the drink the player orders at the errand café while Aya is waiting for it
   errandDrink(slot) { return this.errand.state === 'asked' && slot === this.errand.slot ? Object.assign({ errand: true }, ERRAND_DRINK) : null; }
   // Lodestone's first line once it is live: about the latte while that's where it is taking you
-  readyText() { return this.errand.state === 'asked' && (!this._destSlot() || this._destSlot() === this.errand.slot) ? UPGRADE.readyCoffee : UPGRADE.ready; }
+  readyText(second) { return this.errand.state === 'asked' && (!this._destSlot() || this._destSlot() === this.errand.slot) ? UPGRADE.readyCoffee : second ? UPGRADE.ready2 : UPGRADE.ready; }
   get walked() { return Math.max(0, this.game.journal.distance - this.f.walk0); }
   _free() { const g = this.game; return !g.busy && !g.intro && !g.paused && !this.demo.arrived && !g.ended; }
 
@@ -92,12 +102,13 @@ export class Story {
   _isSuggested(e) { return e.suggested === true || (!!e.slotId && e.slotId === this.suggested); }
   _onOrder(e) {
     const E = this.errand;
-    if (e.kind !== 'cafe' || !e.item || E.state === 'done' || E.state === 'none') return;
+    if (e.kind !== 'cafe' || !e.item || E.state === 'done' || E.state === 'none' || E.state === 'dropped') return;
     const mine = e.slotId === E.slot;
     const was = E.state;
     E.state = 'done'; E.got = { slotId: e.slotId, name: e.name, item: e.item }; E.at = this.t;
+    this.demo.setTarget && this.demo.setTarget('dk');
     this.game.setQuest('coffee', 'done', mine ? `${e.item} from ${E.name}, to go` : `${e.item} from ${e.name || 'a café'} (close enough)`, true);
-    if (was === 'skipped') { this.aya.say('wait is that a coffee?? for ME?? 🥹', { wait: 2.6 }); return; }
+    if (was === 'skipped' || was === 'declined') { this.aya.say('wait is that a coffee?? for ME?? 🥹', { wait: 2.6 }); return; }
     this.aya.say({ text: mine ? AYA.gotCoffee : AYA.gotOtherCoffee.replace('{cafe}', E.name), place: DEMO.slot }, { wait: 2.6, run: () => this._leg2Start() });
   }
   // the second leg: Daikichi becomes Aya's pick and a short "next stop" hint shows (not the full tutorial again)
@@ -120,12 +131,43 @@ export class Story {
   _sendCoffee() {
     const E = this.errand;
     if (!E.slot || E.state !== 'none') return;
-    this.aya.say({ id: 'coffee', text: AYA.coffee.text.replace('{cafe}', E.name), place: E.slot }, { wait: 1.4, run: () => {
-      E.state = 'asked';
-      this._suggest(E.slot);
-      this.game.setQuest('coffee', 'active', null, true);
-      this._orderStep();
-    } });
+    this._coffeeQueued = true;
+    this.aya.say({ id: 'coffee', text: AYA.coffee.text.replace('{cafe}', E.name), place: E.slot, replies: LATTE_REFUSABLE ? AYA.coffeeReplies : AYA.coffeeRepliesYes }, { wait: 1.2,
+      run: () => {
+        E.state = 'asked';
+        this._suggest(E.slot);
+        this.game.setQuest('coffee', 'active', null, true);
+        this.demo.setTarget && this.demo.setTarget('cafe');
+        this._orderStep();
+      },
+      // v9: silence = yes (chips withdrawn after 25 s); the question dies with the errand (ordered / walked past)
+      patience: [null, DEMO.latteGiveUp], valid: () => E.state === 'asked',
+      onReply: (r) => { if (r === 'no') this._declineCoffee(); else this.aya.say(AYA.coffeeYes, { wait: 0.5 }); } });
+  }
+  _declineCoffee() {
+    const E = this.errand; if (E.state !== 'asked') return;
+    E.state = 'declined';
+    this.game.setQuest('coffee', 'hidden', null, true);
+    this.demo.setTarget && this.demo.setTarget('dk');
+    this.aya.say({ text: AYA.coffeeNo, place: DEMO.slot }, { wait: 0.8, run: () => this._leg2Start() });
+  }
+  // v9: Daikichi-distance of the café door; "past the café" = clearly nearer Daikichi than the café is
+  _cafeDkm() {
+    const E = this.errand, d = this.demo;
+    if (this._cafeDk == null && E.biz && d._field && this.ctx.nav) {
+      const b = E.biz, v = this.ctx.nav.nodeAtPoint(b.level, b.door.ox, b.door.oz);
+      const x = v >= 0 ? d._field.dist[v] : null;
+      this._cafeDk = typeof x === 'number' && isFinite(x) ? x : -1;
+    }
+    return this._cafeDk;
+  }
+  _pastCafe(margin) { const c = this._cafeDkm(), rem = this.demo._lost.rem; return c != null && c > 0 && rem != null && rem < c - margin; }
+  // v9: the latte is asked once Meet is answered (or given up), Aya is free, and the player is not already past the café
+  _coffeeGate() {
+    const E = this.errand;
+    if (!E.slot || E.state !== 'none' || this._coffeeQueued || !this._meetDone || this.aya.busy() || this.aya.fresh()) return;
+    if (this._pastCafe(10)) { E.state = 'dropped'; this.ctx.events.emit('story:errand', { state: 'dropped', t: +this.t.toFixed(1) }); return; }
+    this._sendCoffee();
   }
   // at the café without the coffee yet: one line on how to order (the counter prompt does the rest)
   _orderStep() {
@@ -145,28 +187,47 @@ export class Story {
   _checkSkip() {
     const E = this.errand, d = this.demo;
     if (E.state !== 'asked' || !E.biz || !d._field || !this.ctx.nav) return;
-    if (this._cafeDk == null) {
-      const b = E.biz, v = this.ctx.nav.nodeAtPoint(b.level, b.door.ox, b.door.oz);
-      const x = v >= 0 ? d._field.dist[v] : null;
-      this._cafeDk = typeof x === 'number' && isFinite(x) ? x : -1;
-    }
-    const rem = d._lost.rem;
-    if (this._cafeDk <= 0 || rem == null || rem > this._cafeDk - 40 || !this.aya.idle(4)) return;
+    if (!this._pastCafe(40) || !this.aya.idle(4)) return;
     E.state = 'skipped';
     this.game.setQuest('coffee', 'hidden', null, true);
+    this.demo.setTarget && this.demo.setTarget('dk');
     if (this._skipPicked) { this._leg2Start(); return; }      // she already teased you when you picked Daikichi
     this.aya.say({ text: AYA.noCoffee, place: DEMO.slot }, { run: () => this._leg2Start() });
   }
   _sendHello() {
     if (this.helloT != null) return;
-    this.helloT = this.t;
-    this.aya.say(AYA.hello, { typing: 1.3, wait: 0, onReply: () => this._sendMeet(0.9) });
+    this.helloT = this.t; this._helloW = this.walked;
+    // v9: she waits for the answer; "hello?? 👀" after 20 s (or 30 m walked), then the plan anyway
+    this.aya.say(AYA.hello, { typing: 1.3, wait: 0,
+      patience: [DEMO.helloNudge, DEMO.helloNudge + DEMO.helloGiveUp], nudge: AYA.helloNudge,
+      onReply: (r) => { const ack = AYA.helloAck[r]; if (ack) this.aya.say(ack, { wait: 0.5 }); this._sendMeet(0.9, false); },
+      onTimeout: () => this._sendMeet(0.4, true),
+      onExpire: () => this._sendMeet(0.4, true) });
   }
-  _sendMeet(wait) {
+  _sendMeet(wait, anyway) {
     if (this._meetQueued) return;
     this._meetQueued = true;
-    this.aya.say(AYA.meet, { wait, run: () => this.game.setQuest('tempura', 'active', null, true) });
-    this._sendCoffee();
+    const m = Object.assign({}, AYA.meet);
+    if (anyway) m.text = AYA.meetAnyway + m.text;
+    const done = () => { this._meetDone = true; };
+    this.aya.say(m, { wait,
+      run: () => { this.game.setQuest('tempura', 'active', null, true); this._meetW = this.walked; },
+      patience: [null, DEMO.meetGiveUp], onTimeout: done, onExpire: done,
+      onReply: (r, reply) => {
+        done();
+        // "Which way?? 😵": an early cry for help — she points at Maps for now; it earns the offer sooner (see _beforeOffer)
+        if (reply && reply.lost) { this.engaged = this.engaged || 'early'; this.aya.say(AYA.meetLost, { wait: 0.6 }); }
+      } });
+  }
+  // v9: walking on while Aya waits counts as an answer of sorts (the nudge comes sooner, she moves on sooner)
+  _walkPatience() {
+    const o = this.aya.open; if (!o) return;
+    const id = o.msg.id;
+    if (id === 'hello') {
+      if (o.nudged && this._nudgeW == null) this._nudgeW = this.walked;
+      if (!o.nudged && this.walked - this._helloW >= DEMO.helloNudgeM) { if (!this.aya.busy()) this.aya.nudgeNow(); }
+      else if (o.nudged && this.walked - this._nudgeW >= DEMO.helloGiveUpM && !this.aya.busy()) this.aya.closeOpen('walked', true);
+    } else if (id === 'meet' && this._meetW != null && this.walked - this._meetW >= DEMO.meetGiveUpM && !this.aya.busy()) this.aya.closeOpen('walked', true);
   }
 
   _steps() {
@@ -181,14 +242,17 @@ export class Story {
         done: () => this.f.raised,
         hint: () => ({ html: this._raiseHold ? TUTORIAL.raiseHold : TUTORIAL.raise, at: 'phone' }),
         nudge: (n) => { if (n >= 2) this._raiseHold = true; } },
+      // v9: any open question teaches replying; done on a REAL answer (or once the latte was asked: taught 3× by then)
       { id: 'reply', core: true,
-        available: () => aya.open && aya.open.msg.id === 'hello',
-        done: () => aya.answered('hello') || aya.wasSent('meet'),
+        available: () => !!aya.open,
+        done: () => aya.replied > 0 || aya.wasSent('coffee') || (this._meetDone && !aya.open && (!this.errand.slot || this.errand.state === 'dropped')),
         hint: () => (up() ? (aya.rich ? { html: TUTORIAL.reply, at: 'phoneup' } : readHint) : { html: TUTORIAL.replyDown, at: 'phone' }) },
       // v4: "choose where to go" — open Maps and pick a place (Aya's pick is highlighted; any pick counts).
       // Without the phone's destination list (older phone) the v3 rule holds: opening Maps is enough.
       { id: 'pick', core: true, delay: 1.0,
-        available: () => (aya.wasSent('coffee') || (aya.wasSent('meet') && !this.errand.slot)) && !aya.busy(),
+        // v9: never beside fresh latte chips (one glance, one decision); a dropped errand picks from Meet's card
+        available: () => (aya.wasSent('coffee') || (this._meetDone && (!this.errand.slot || this.errand.state === 'dropped'))) && !aya.busy()
+          && !(aya.open && aya.open.msg.id === 'coffee' && aya.fresh()),
         done: () => this.f.picked || (!this.dests && this.f.maps),
         hint: () => {
           if (!up()) return { html: this.dests ? TUTORIAL.pickDown : TUTORIAL.mapsDown, at: 'phone' };
@@ -260,23 +324,34 @@ export class Story {
     if (!this._free()) return;
     // the phone buzzes once you have had a look and a few steps (or after a few seconds anyway)
     if (this.helloT == null && (this.tut.isDone('move') || this.t >= this.tHold + 8)) this._sendHello();
-    // "Landed??" ignored while they walk on: she sends the plan anyway
-    if (this.helloT != null && !aya.answered('hello') && !this._meetQueued && !aya.busy() && (this.t - this.helloT > 30 || this.walked > 40)) this._sendMeet(0);
+    // v9: unanswered questions — walking on brings the nudge / the follow-up sooner; then the latte gate
+    this._walkPatience();
+    this._coffeeGate();
     if (!demo.offered && !this._offering && aya.wasSent('meet')) this._beforeOffer();
     this._checkSkip();
   }
 
   _beforeOffer() {
     const { demo, aya } = this, t = this.t;
-    if (t >= demo._offerAt) { this._offer('time'); return; }                       // fallback: nobody stuck forever
-    if (this.engaged && t >= demo._offerMin && demo._isLost()) { this._offer(this.engaged); return; }
+    // fallback: nobody stuck forever — but not over a fresh question or while buying her latte (≤ +15 s)
+    if (t >= demo._offerAt) {
+      const hold = (aya.fresh() || this._atCafe()) && t < demo._offerAt + DEMO.offerGrace;
+      if (!hold) { this._offer(aya.open && aya.open.msg.id === 'where' ? 'silent' : 'time'); return; }
+    }
+    const prog = demo.progressOver(30), moving = prog != null && prog >= 15;
+    if (this.engaged && t >= demo._offerMin && (demo._isLost() || (this.engaged === 'early' && !moving)) && !aya.fresh()) { this._offer(this.engaged); return; }
+    // the fast walker: reaching Namba Parks before any offer — the maze is ahead, Lodestone shows its worth there
+    if (t >= demo._offerMin && !aya.fresh() && this._inParks()) { this._offer('ahead'); return; }
     // v2's "Where are you??" — v6 (item 1): not before ~95 s (the player is still taking in the station), and then only
     // when they are clearly stalled or wandering: a "lost" reason AND under 15 m of real progress over the last 30 s.
     // Fallback from 150 s unless they are visibly making progress; by 175 s at the latest. Never in the first minute.
-    if (this.whereT == null && aya.idle(10) && this._whereDue(t)) {
+    if (this.whereT == null && aya.idle(10) && !aya.fresh() && this._whereDue(t)) {
       this.whereT = t;
       this.ctx.events.emit('story:where', { t: +t.toFixed(1), why: this.whereWhy });
-      aya.say(AYA.where, { onReply: (r, reply) => {
+      // v9: on the errand she asks about her latte; unanswered → "hello?? 👀", then she sends Lodestone anyway
+      aya.say(this.errand.state === 'asked' ? AYA.whereCoffee : AYA.where, {
+        patience: [DEMO.whereNudge, DEMO.whereGiveUp], nudge: AYA.whereNudge, onTimeout: () => this._offer('silent'),
+        onReply: (r, reply) => {
         if (reply && reply.lost) { this._offer('lost'); return; }
         aya.say(AYA.whereAck[r] || AYA.whereAck.omw, { wait: 0.5 });
         if (demo._isLost()) this._offer('checkin'); else this.engaged = 'checkin';   // answered while clearly lost
@@ -286,13 +361,17 @@ export class Story {
   _whereDue(t) {
     const d = this.demo, cap = (v) => Math.min(v, Math.max(5, d._offerAt - 15));   // ?offerat=N (tests) pulls it all in
     if (t < cap(DEMO.whereMin)) return false;
+    // v9: never right after buying her latte; lostness is against the ACTIVE target (demo.setTarget), so heading
+    // down to Aya's café on CITY 1F is the errand, not a wrong floor; at the café / closing in on it = on task
+    const E = this.errand;
+    if (E.at != null && t - E.at < DEMO.orderCool) return false;
     const prog = d.progressOver(30), moving = prog != null && prog >= 15;
-    let why = d._isLost();
-    // heading down to Aya's café (CITY 1F) is the errand, not a wrong floor
-    const E = this.errand, p = this.ctx.player && this.ctx.player.body;
-    if (why === 'floor' && E.state === 'asked' && E.biz && p && p.level === E.biz.level) why = null;
-    if (!moving && why) { this.whereWhy = why; return true; }
-    if (t >= cap(DEMO.whereAt) && !moving) { this.whereWhy = 'time'; return true; }
+    const onTask = d.onTask ? d.onTask() : moving;
+    // no 30 s of history yet (just switched leg, e.g. walking back up from the café) = no evidence of being lost
+    const known = prog != null;
+    const why = known ? d._isLost() : null;
+    if (known && !moving && !onTask && why) { this.whereWhy = why; return true; }
+    if (known && t >= cap(DEMO.whereAt) && !moving && !onTask) { this.whereWhy = 'time'; return true; }
     if (t >= cap(DEMO.whereLatest)) { this.whereWhy = 'latest'; return true; }
     return false;
   }
@@ -301,7 +380,27 @@ export class Story {
     if (demo.offered || this._offering) return;
     this._offering = true;
     this.ctx.events.emit('story:engaged', { why, t: this.t });
-    aya.act(() => { this._offering = false; demo.offer(why); this._installStep(); }, { typing: 1.5, wait: 0.7 });
+    // v9: the words fit the why — "you're lost aren't you" only to someone who is (or said so)
+    const text = () => {
+      const o = aya.open, nudged = o && o.nudgeT != null && aya.t - o.nudgeT < 10;   // she just said "hello?? 👀"
+      if (why === 'silent') return nudged ? UPGRADE.offerSilentShort : UPGRADE.offerSilent;
+      if (why === 'ahead') return UPGRADE.offerAhead;
+      return why === 'time' && !demo._isLost() ? (this._inParks() ? UPGRADE.offerAhead : UPGRADE.offerFine) : UPGRADE.offer;
+    };
+    aya.act(() => { this._offering = false; const words = text(); aya.closeOpen('offer'); demo.offer(why, words); this._installStep(); }, { typing: 1.5, wait: 0.7 });
+  }
+  // v9: at Aya's café counter with her latte still wanted (the offer fallback waits a few seconds for the order)
+  _atCafe() {
+    const E = this.errand, b = E.biz, p = this.ctx.player && this.ctx.player.body;
+    if (E.state !== 'asked' || !b || !b.door || !p || p.level !== b.level) return false;
+    return Math.hypot(p.x - b.door.ox, p.z - b.door.oz) < 15;
+  }
+  // v9: in Namba Parks (or well along the way) — the fast walker's offer moment
+  //     Only on the Daikichi leg (the café leg's nav distance to Daikichi also shrinks: JOG run, v9 Phase 2)
+  _inParks() {
+    if (this.errand.state === 'asked') return false;
+    const sp = this.ctx.player && this.ctx.player.space && this.ctx.player.space.id, L = this.demo._lost;
+    return (!!sp && /^parks/.test(sp)) || (L.rem != null && L.init && L.rem < L.init * DEMO.aheadFrac);
   }
   _installStep() {
     const ph = () => this.ctx.phone || {};

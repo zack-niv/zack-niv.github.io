@@ -10,7 +10,7 @@
 // RNG rule (see notes/environment.md): only S.r() and the answers of S.solid()/S.outside() may steer the layout;
 // never S.free()/S.areaFree() (they read the final occupancy, which differs between the logic pass and the replay).
 // =============================================================================
-import { mix, WHITE } from './kit.js?v=c81de75';
+import { mix, WHITE } from './kit.js?v=517b401';
 
 export const WOOD = { pale: [0.9, 0.78, 0.6], oak: [0.8, 0.62, 0.42], walnut: [0.5, 0.33, 0.2], dark: [0.33, 0.21, 0.13] };
 export const WOODS = [WOOD.pale, WOOD.oak, WOOD.walnut, WOOD.dark];

@@ -12,38 +12,38 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=c81de75';
-import { Events } from './core/events.js?v=c81de75';
-import { Clock } from './core/clock.js?v=c81de75';
-import { Input } from './core/input.js?v=c81de75';
-import { params } from './core/params.js?v=c81de75';
-import { World } from './world/world.js?v=c81de75';
-import { Nav } from './world/nav.js?v=c81de75';
-import { LAYOUT } from './world/layout.js?v=c81de75';
-import { Loader } from './core/loader.js?v=c81de75';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=c81de75';
+import { Engine } from './core/engine.js?v=517b401';
+import { Events } from './core/events.js?v=517b401';
+import { Clock } from './core/clock.js?v=517b401';
+import { Input } from './core/input.js?v=517b401';
+import { params } from './core/params.js?v=517b401';
+import { World } from './world/world.js?v=517b401';
+import { Nav } from './world/nav.js?v=517b401';
+import { LAYOUT } from './world/layout.js?v=517b401';
+import { Loader } from './core/loader.js?v=517b401';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=517b401';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=c81de75',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=c81de75',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=c81de75', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=c81de75',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=c81de75',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=c81de75',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=c81de75',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=c81de75',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=c81de75',      'Signage',      'build'],
-  ['player',       './player/player.js?v=c81de75',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=c81de75',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=c81de75',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=c81de75',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=c81de75',             'Hud',          'live'],
-  ['game',         './game/game.js?v=c81de75',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=c81de75',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=c81de75',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=517b401',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=517b401',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=517b401', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=517b401',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=517b401',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=517b401',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=517b401',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=517b401',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=517b401',      'Signage',      'build'],
+  ['player',       './player/player.js?v=517b401',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=517b401',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=517b401',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=517b401',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=517b401',             'Hud',          'live'],
+  ['game',         './game/game.js?v=517b401',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=517b401',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=517b401',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -122,8 +122,8 @@ async function boot() {
   loader.finish('nav');
   for (const s of SYSTEMS.filter(s => s[3] === 'live')) await load(s);
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=c81de75').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=c81de75').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=517b401').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=517b401').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

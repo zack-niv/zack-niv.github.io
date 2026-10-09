@@ -3,7 +3,7 @@
 // segment whose profile rises > 1 cm is a tread at the segment's END height,
 // with the riser at the segment start). If a builder sets `ramp.steps`, that
 // count is used instead so visuals and feet stay in agreement.
-import { rampProfile, rampLength, rampLocal } from '../world/layout.js?v=c81de75';
+import { rampProfile, rampLength, rampLocal } from '../world/layout.js?v=517b401';
 
 export function stairSegments(r) {
   return r.steps || Math.max(8, Math.round(rampLength(r) * 3));

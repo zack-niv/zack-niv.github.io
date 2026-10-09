@@ -9,7 +9,7 @@
 // pick what shows. LOD 0 ≈ 1.4k tris, LOD 1 ≈ 400, LOD 2 ≈ 90.
 // =============================================================================
 import * as THREE from 'three';
-import { BIT } from './looks.js?v=c81de75';
+import { BIT } from './looks.js?v=517b401';
 
 export const BONE = { PELVIS: 0, TORSO: 1, HEAD: 2, UARM_L: 3, FARM_L: 4, UARM_R: 5, FARM_R: 6, THIGH_L: 7, SHIN_L: 8, THIGH_R: 9, SHIN_R: 10, GROUND: 11 };
 export const REG = { SKIN: 0, HAIR: 1, TOP: 2, INNER: 3, BOTTOM: 4, SHOES: 5, ACC: 6, ACC2: 7, DARK: 8, WHITE: 9, METAL: 10, LEGWEAR: 11, EYE: 12, SCREEN: 13 };

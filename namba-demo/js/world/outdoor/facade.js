@@ -9,7 +9,7 @@ export const FACADE_U = { uNight: { value: 0 }, uSkyCol: { value: new THREE.Colo
 
 export const FKIND = { office: 0, grid: 1, curtain: 2, apartment: 3, stone: 4, shop: 5 };
 // A MeshAcc whose faces use facade kind `kind` (aKind vertex attribute: ONE shader program for every kind)
-import { MeshAcc } from './meshacc.js?v=c81de75';
+import { MeshAcc } from './meshacc.js?v=517b401';
 export function facadeAcc(kind) { const a = new MeshAcc(); a.kv = FKIND[kind] || 0; a.k = []; return a; }
 
 export function facadeMat(ctx /*, kind (ignored: kind is per-vertex) */) {

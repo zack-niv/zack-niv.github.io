@@ -17,12 +17,12 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=c81de75';
-import { params } from '../core/params.js?v=c81de75';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=c81de75';
-import { Story } from './story.js?v=c81de75';
-import { makeLook, BIT } from '../npc/looks.js?v=c81de75';
-import { showEndCard } from './endcard.js?v=c81de75';
+import { businessBySlot } from '../world/directory.js?v=517b401';
+import { params } from '../core/params.js?v=517b401';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=517b401';
+import { Story } from './story.js?v=517b401';
+import { makeLook, BIT } from '../npc/looks.js?v=517b401';
+import { showEndCard } from './endcard.js?v=517b401';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -30,6 +30,7 @@ const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
 const WAVE = 5;                 // npc/sim.js POSE.WAVE
 const STALL_S = 25, STALL_M = 8;   // lost = under 8 m of net progress toward Daikichi in 25 s
 const WRONG_LEVELS = new Set(['B2', 'B1', '1F']);
+const WRONG_CAFE = new Set(['B2', 'B1']);      // v9: on the latte errand CITY 1F is the right floor
 
 export class Demo {
   constructor(ctx, game) {
@@ -43,6 +44,9 @@ export class Demo {
     this.ended = false;
     this._sent = new Set(); this._canyonSent = false;
     this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0, hist: [] };
+    // v9: "am I lost?" is measured against the ACTIVE target — the café while Aya's latte is wanted, else Daikichi.
+    // _lost (Daikichi) stays the end card's / arrival's source; _tgt is the café leg's own copy (null = Daikichi).
+    this._tgt = null; this._tgtKey = 'dk'; this._cafeField = null;
     this.remReady = null; this.remArrive = null;     // nav distance to the door at the phase boundaries
     this._acc = { before: { n: 0, e: 0, wf: 0 }, after: { n: 0, e: 0, wf: 0 } };
     this._sampleT = 0; this._tpGuard = 0;
@@ -132,7 +136,7 @@ export class Demo {
     // Lodestone's route runs through the Namba Parks canyon: Aya says so as the player reaches the bridge
     if (!this._canyonSent && !game.busy && !game.intro && !game.paused) {
       const sp = ctx.player.space && ctx.player.space.id;
-      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; game.message(CANYON_TEXT); }
+      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; this._banter(CANYON_TEXT); }
     }
     // (v3: the upgrade offer is the story's call — it follows the player engaging with Aya, see story.js)
     // arrival
@@ -192,16 +196,52 @@ export class Demo {
         while (L.hist.length > 2 && L.hist[1][0] < this.t - 62) L.hist.shift();
         // queue banter as the route shortens ("the noren" line only once you are on the dining floor)
         if (this.offered) for (const [at, text] of QUEUE_LINES) {
-          if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); game.message(text); }
+          if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); this._banter(text); }
         }
       }
     }
+    const T = this._tgt;
+    if (T) {
+      if (WRONG_CAFE.has(b.level)) T.wrongT += dt; else T.wrongT = Math.max(0, T.wrongT - dt * 0.5);
+      const d = safe(() => ctx.nav.distance(T.field, b));
+      if (num(d) != null) {
+        T.rem = d; if (T.init == null) T.init = d; if (d < T.best) T.best = d;
+        T.hist.push([this.t, d]);
+        while (T.hist.length > 2 && T.hist[1][0] < this.t - 62) T.hist.shift();
+      }
+    }
+  }
+  // v9: location banter (canyon, queue) waits while Aya's question is fresh, and is dropped when its moment has passed
+  _banter(text) { const a = this.story && this.story.aya; if (a) a.say({ text }, { defer: 12 }); else this.game.message(text); }
+  // v9: which goal "lost" is measured against: 'cafe' (Aya's latte errand) or 'dk' (Daikichi)
+  setTarget(k) {
+    if (k === this._tgtKey) return;
+    const { ctx } = this, L = this._lost, E = this.story && this.story.errand, b = E && E.biz;
+    if (k === 'cafe' && b && b.door && ctx.nav) {
+      if (!this._cafeField) this._cafeField = safe(() => ctx.nav.fieldToPoint('demo:cafe', b.level, b.door.ox, b.door.oz));
+      if (!this._cafeField) return;
+      this._tgtKey = 'cafe';
+      this._tgt = { field: this._cafeField, level: b.level, door: b.door, rem: null, best: Infinity, init: null, hist: [], wrongT: 0, walk0: this.game.journal.distance };
+    } else if (k === 'dk') {
+      this._tgtKey = 'dk'; this._tgt = null;
+      // back on the Daikichi leg: fresh history, so the café detour itself never reads as "stalled" / "walked away"
+      L.hist = []; L.best = L.rem != null ? L.rem : L.best; L.wrongT = 0; this._dkWalk0 = this.game.journal.distance;
+    }
+    ctx.events.emit('demo:target', { target: this._tgtKey, t: +this.t.toFixed(1) });
+  }
+  // v9: doing what Aya asked — within 15 m of the active target's door, or 15 m of progress toward it in 30 s
+  onTask() {
+    const b = this.ctx.player.body, T = this._tgt;
+    const door = T ? T.door : this.biz && this.biz.door, lvl = T ? T.level : this.biz && this.biz.level;
+    if (door && b.level === lvl && Math.hypot(b.x - door.ox, b.z - door.oz) < 15) return true;
+    const p = this.progressOver(30);
+    return p != null && p >= 15;
   }
   // "clearly lost": a wrong floor for a while, walked well away from the goal, or
   // a long walk that has not got any closer. Returns a reason or null.
   _isLost() {
-    const L = this._lost, { game } = this;
-    const walked = game.journal.distance - this._walk0;
+    const L = this._tgt || this._lost, { game } = this;
+    const walked = game.journal.distance - (this._tgt ? this._tgt.walk0 : this._dkWalk0 != null ? this._dkWalk0 : this._walk0);
     if (L.wrongT > 7) return 'floor';
     if (L.rem != null && L.best < Infinity && L.rem - L.best > 75) return 'away';
     if (L.rem != null && L.init && walked > 250 && L.rem > L.init * 0.8) return 'far';
@@ -213,7 +253,7 @@ export class Demo {
   }
   // metres of nav progress toward the door over the last `sec` seconds (null until that much history exists)
   progressOver(sec) {
-    const H = this._lost.hist; if (H.length < 2) return null;
+    const H = (this._tgt || this._lost).hist; if (H.length < 2) return null;
     const t0 = this.t - sec;
     if (H[0][0] > t0 + 1) return null;
     let i = 0;
@@ -223,14 +263,14 @@ export class Demo {
 
   // ---------------------------------------------------------------------------
   // Act 2: the upgrade
-  offer(why = 'time') {
+  offer(why = 'time', text = UPGRADE.offer) {
     if (this.offered) return;
     this.offered = true; this.offerT = this.t; this.offerWhy = why;
     const { ctx, game } = this;
     const ph = ctx.phone;
-    const fallback = () => this.story.aya.say({ id: 'aya_lodestone', text: UPGRADE.offer, link: 'lodestone' }, { typing: 0, wait: 0 });
+    const fallback = () => this.story.aya.say({ id: 'aya_lodestone', text, link: 'lodestone' }, { typing: 0, wait: 0 });
     if (ph && typeof ph.offerLodestone === 'function') {
-      try { ph.offerLodestone({ text: UPGRADE.offer, why }); } catch (e) { console.error('[demo] offerLodestone', e); fallback(); }
+      try { ph.offerLodestone({ text, why }); } catch (e) { console.error('[demo] offerLodestone', e); fallback(); }
     } else fallback();
     ctx.events.emit('demo:offer', { why, t: this.t });
   }
@@ -243,7 +283,7 @@ export class Demo {
       this.offered = true; this.upgraded = true;
       this.readyT = this.t; this.readyDist = game.journal.distance;
       this.remReady = this._navRem();
-      game.after(3.0, () => { if (!this.arrived) game.message(this.story.readyText ? this.story.readyText() : UPGRADE.ready); });
+      game.after(3.0, () => { if (!this.arrived) game.message(this.story.readyText ? this.story.readyText(this._sent.has(170)) : UPGRADE.ready); });
     }
   }
 
@@ -296,7 +336,7 @@ export class Demo {
     if (aya) hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
     ctx.audio?.play?.('notify');
     // v4: her iced latte — handed over (the cup leaves your HUD), or a tease if you came empty-handed
-    const st = this.story, coffee = st.hasCoffee, asked = st.errand.state !== 'none';
+    const st = this.story, coffee = st.hasCoffee, asked = st.errand.state !== 'none' && st.errand.state !== 'dropped';   // v9: 'dropped' = never asked
     // polish: the payoff runs on REAL time like the rest of this cut-scene (game.after / Aya's outbox run on game
     // time, which crawls when frames are slow, so on a slow machine the end card used to arrive first)
     const later = (ms, fn) => setTimeout(() => { if (!this.ended) { try { fn(); } catch (e) { console.error('[arrive]', e); } } }, ms);
@@ -482,7 +522,7 @@ export class Demo {
       before.gained = gain(this._lost.init, this.remArrive != null ? this.remArrive : this._lost.rem); before.detour = P('detourBefore', detour(before.meters, before.gained));
     }
     const E = this.story.errand;
-    const errand = E.state === 'none' ? null : { delivered: !!E.got, item: E.got ? E.got.item : null, cafe: E.got ? E.got.name : E.name, mine: !!(E.got && E.got.slotId === E.slot) };
+    const errand = E.state === 'none' || E.state === 'dropped' ? null : { delivered: !!E.got, item: E.got ? E.got.item : null, cafe: E.got ? E.got.name : E.name, mine: !!(E.got && E.got.slotId === E.slot) };
     return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm, errand };
   }
   async _end() {

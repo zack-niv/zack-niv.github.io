@@ -7,11 +7,11 @@
 // All faces sit just OUTSIDE the walkable spaces, facing out.
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=c81de75';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=c81de75';
-import { facadeMat, facadeAcc, facadeQuad, facadeBox, FACADE_U } from './facade.js?v=c81de75';
-import { PALETTE } from './canyon.js?v=c81de75';
-import { strataFace } from './terraces.js?v=c81de75';
+import { rng } from '../../core/rng.js?v=517b401';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=517b401';
+import { facadeMat, facadeAcc, facadeQuad, facadeBox, FACADE_U } from './facade.js?v=517b401';
+import { PALETTE } from './canyon.js?v=517b401';
+import { strataFace } from './terraces.js?v=517b401';
 
 const BOX = new THREE.BoxGeometry(1, 1, 1);
 const CYL = new THREE.CylinderGeometry(1, 1, 1, 16);
