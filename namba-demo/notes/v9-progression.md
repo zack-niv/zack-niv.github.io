@@ -297,3 +297,54 @@ unanswered Where).
 Caveat: the headless screenshots do not draw the chip tray even while `phone.pendingReply` is set. It looks like the
 `msChipsIn` animation in SwiftShader captures, since Zack's real-GPU screenshot shows the chips. Phase 2 asserts on
 `pendingReply` and on DOM `.ms-chip` presence, not on pixels.
+
+---
+
+## 10. Phase 2: implemented and verified
+
+### What changed
+
+| File | Change | Lines |
+|---|---|---|
+| `js/game/aya.js` | The turn-taking contract (§4.1): `patience` / `nudge` / `onTimeout` / `valid` / `defer` / `keepOpen`. `fresh()`, `closeOpen()`, `nudgeNow()`, `replied`. A statement closes the open question; closing withdraws the phone's chips (`phone.messages.clearReplies()`, feature detected). New event `aya:closed {msgId, reason}` | +55 |
+| `js/game/story.js` | Hello → Meet → Latte gated on replies, patience and walking accelerators (`_walkPatience`); `_coffeeGate` (not past the café → else `dropped`); `_declineCoffee`; Where gated on `!aya.fresh()`, `onTask()` and the order cooldown, with the latte variant + nudge + `silent` give-up; offer paths `early` / `ahead` / grace-held fallback; offer words by why; the offer closes the open question; tutorial `reply` (a real answer) and `pick` (never beside fresh latte chips; works for a dropped errand) | +95 / −25 |
+| `js/game/demo.js` | Lostness against the active target: the café nav field (lazy, on the first `setTarget('cafe')`), `_tgt` with its own history / best / wrong floors (CITY 1F is right), `setTarget()`, `onTask()`, `offer(why, text)`, canyon + queue banter through `aya.say({defer: 12})`. `_lost` (Daikichi) is untouched for arrival and the end card. A dropped errand counts as never asked (no tease, no end-card errand) | +45 |
+| `js/game/script.js` | v9 knobs in `DEMO`; `LATTE_REFUSABLE = true` (**one line flips it**: `false` = *Sure! ☕ / Only for you 😂*); Meet chips; nudges, acks, `meetLost`, latte chips, `coffeeNo`, `whereCoffee` (+ `whereAck.almost`), `offerSilent` / `offerSilentShort` / `offerAhead` | +30 |
+| `tools/walk.mjs` | `REPLY=normal\|instant\|none` (normal = first chip, *I'm lost* at Where); a chip invariant every 0.5 s of game time (`phone.pendingReply.msgId === aya.open.msg.id` and DOM `.ms-chip` present ⇔ pending); a `BEATS` and `CHIPS` summary | +20 |
+| `tools/storysim.mjs` (new) | A Node-only beat-flow simulation (real `story.js` / `aya.js` / `tutorial.js`, fake phone / demo / game): 7 scenarios with chip invariants, in about 1 s | new |
+
+Not touched: `js/ui/phone/*`, `js/npc/*`, `js/audio/*`, `js/analytics.js`, `tutorial.js`. Every `namba_*` source event
+still fires (`story:where`, `demo:offer` with `why` ∈ lost/checkin/early/silent/ahead/time, `tutorial:*`,
+`nav:destination`, `demo:order` with `errand`, `phone:upgrade`, `demo:arrive`, `demo:end`).
+
+### Node simulation: `node tools/storysim.mjs` → 7/7 PASS
+
+| Scenario | Offer | Notes |
+|---|---|---|
+| never replies, standing still | 144.8 s `silent` | Hello 14.1 → *hello?? 👀* 35.6 → Meet ("ok I'll assume you landed 😂 …") 48.6 → latte 70.4 → *how's my latte coming?* 97.7 → *hello?? 👀* 123.9 → *hellooo?? 👀 ok just install this* |
+| never replies, walking (not lost) | 205.9 s `silent` | Where at 177.5 (latest); the offer is held for the fresh question, then uses the short text right after her nudge |
+| instant replier | 99.7 s `lost` | Hello 8.0 → yay 9.8 → Meet 12.8 → latte 16.6 → 🥹🙏 18.2 |
+| bot-like (2.5 s) | 182.2 s `lost` | |
+| early *Which way??* + stuck | 102.3 s `early` | *"lol it's Namba, everyone's lost 😂 …"* |
+| declines the latte | 108.9 s `checkin` | *"🥲 ok ok. just come then"* + Daikichi card; Where uses the plain text |
+| fast runner past the café | 110.6 s `ahead` | errand `dropped` (never asked); tutorial `reply` retires cleanly |
+
+### Browser walks (headless SwiftShader, `quality=low`): each has `ctx.errors []` and 2 console issues, both the bot's own `dbg` warnings
+
+| Run | Hello / Meet / Latte (s) | Where | Offer | Latte ordered | Arrival | Chip checks | End card |
+|---|---|---|---|---|---|---|---|
+| normal | 11.8 (yes 15.7) / 20.2 (omw 24.1) / 27.5 (yes 34.6) | 175.3 *latest*: the latte variant | **182.9 `lost`** | 266.4 | **491.8 s** | 977, **0 bad** | On track 100/100 · ±36 m vs ±0.5 · 26% vs 0% wrong floor · 1 iced latte delivered |
+| `REPLY=none` | 11.7 → nudge 32.2 → give-up 43.7 / 46.2 (*ok I'll assume…*; closed after 25 m walked at 63.7) / 67.0 (silence = yes at 92.0) | 175.2, nudge 203.3 | **205.5 `silent`** (*ok just install this 😅…*) | 266.1 | **492.2 s** | 973, **0 bad** | sane, latte delivered |
+| `REPLY=instant` | 11.7 (0.6 s) / 16.7 / 20.8 | 175.2 | **180.6 `lost`** | 268.4 | **493.7 s** | 980, **0 bad** | sane |
+| `&wander` | 11.7 / 20.0 / 27.4 | 175.2 | **183.3 `lost`** | 318.1 | **544.2 s** | 1083, **0 bad** | On track 81% · 0:27 off route (v7.3 reference: 83%, 0:26) |
+| `JOG=1` | see below | | | | | | |
+
+Notes against the §6 expectations:
+
+- **Wander.** The bot's wrong-way 25 s ends around 60 s, before Where's 95 s floor, and the bot then progresses steadily
+  toward the café. With lostness measured against the café, it is (correctly) never "lost" after that, so Where comes at
+  the 175 s *latest* fallback, not at 95–120 s. Same as v8's bot runs, which also hit `latest`.
+- **Instant.** The latte lands 9 s after "Landed??" (hello itself waits for the first 8 m walked).
+- **Screenshots** (`namba-shots/walk/v9n-05-offer-dev.png`): the thread reads *how's my latte coming? 👀* → *I'm lost
+  😭* → *you're lost aren't you 😂* + Lodestone card. No stale chips: the probe count was 0 and the DOM chip count
+  matched the pending state on every check.
