@@ -42,6 +42,7 @@ try {
   await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=high&noaudio&time=12:10`);
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 400000 });
   log('ready');
+  await page.evaluate(() => { for (const el of document.body.children) if (el.tagName !== 'CANVAS' && !el.querySelector('canvas')) el.style.display = 'none'; });
   const CAM = ['2F', 0, 150, 0];
   await tp([CAM[0], CAM[1], CAM[2], CAM[3], -8]); await step(4);
   // stage: N people in a row in front of the camera, pinned, facing it, each with a forced clip + accessory bits
@@ -90,9 +91,11 @@ try {
   const setNear = (n) => page.evaluate(n => { const R = window.__namba.crowd.renderer; R.tier.near = n; }, n);
   const views = [['front', 0], ['profile', 1.57], ['threeq', 0.7], ['back', 3.14]];
   const rows = [['f_idle', 'f', 'idle', 0], ['m_idle', 'm', 'idle', 0], ['f_walk', 'f', 'walk', 1.2]];
+  const only = process.env.ROWS ? process.env.ROWS.split(',') : null;
   for (const [rn, g, clip, spd] of rows) for (const [vn, turn] of views) {
-    await stage([{ g, clip, spd, bits: ['APRON'], gap: 0, turn }], 1.9);
-    await tp([CAM[0], CAM[1], CAM[2], CAM[3], -14]); await step(0.7);
+    if (only && !only.includes(rn + '_' + vn)) continue;
+    await stage([{ g, clip, spd, bits: ['APRON'], gap: 0, turn }], 1.8);
+    await tp([CAM[0], CAM[1], CAM[2], CAM[3], -6]); await step(0.4);
     await shot(`${rn}_${vn}`);
   }
   // far LOD (instanced) for alignment
