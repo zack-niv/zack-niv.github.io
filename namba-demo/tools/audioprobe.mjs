@@ -55,6 +55,22 @@ await page.evaluate(() => {
 });
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const results = {};
+if (args.series) {
+  await page.evaluate((z) => window.__namba.teleport(z), args.series);
+  await sleep(25000);
+  const ser = await page.evaluate(async () => {
+    const n = window.__namba, a = n.audio, P = window.__probe, an = a.announcer, out = [];
+    const rms = (k) => { const t = P.taps[k]; t.an.getFloatTimeDomainData(t.buf); let s = 0; for (const v of t.buf) s += v * v; return +(10 * Math.log10(Math.max(1e-12, s / t.buf.length))).toFixed(1); };
+    const t0 = performance.now(); let said = false;
+    await new Promise((res) => { const iv = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      if (t > 1.5 && !said) { said = true; a.testPA(); }
+      out.push({ t: +t.toFixed(1), duck: +an.duck.toFixed(2), dryGain: +a.mixer.bus.ambience.dry.gain.value.toFixed(3), amb: rms('ambience'), sfx: rms('sfx'), voice: rms('voice'), cur: an.cur ? an.cur.kind : null, step: an.cur ? an.cur.step : null });
+      if (t > 14) { clearInterval(iv); res(); } }, 500); });
+    return out;
+  });
+  for (const r of ser) console.log(JSON.stringify(r));
+}
 for (const z of zones) {
   await page.evaluate((z) => { window.__namba.teleport(z); }, z);
   // settle: cross-fade + beds synthesized

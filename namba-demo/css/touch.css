@@ -115,3 +115,26 @@ html.is-touch #phone-root kbd { display: none !important; }
   html.is-touch .g-end { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
   html.is-touch .g-pause { overflow-y: auto; touch-action: pan-y; }
 }
+
+/* ---- tutorial hints on touch: never under the right-hand controls, never over the raised phone ------------- */
+html.is-touch .g-tip { white-space: normal; max-width: min(440px, calc(100vw - var(--tu-phone-gap, 300px) - 40px)); }
+html.is-touch .g-tip[data-at="phone"] { right: 150px; }
+html.is-touch .g-tip[data-at="phone"]::after { right: auto; left: calc(100% - 4px); bottom: 50%; transform: translateY(50%) rotate(-45deg); }
+html.is-touch .g-tip[data-at="phoneup"], html.is-touch .g-tip.ph-up { --tx: 0px; left: auto; right: calc(var(--tu-phone-gap, 300px) + 16px); top: 14px; bottom: auto; }
+html.is-touch .g-tip[data-at="phoneup"]::after { display: block; right: -5px; top: calc(50% - 4px); left: auto; transform: rotate(-45deg); }
+html.is-touch .g-tip[data-at="prompt"] { top: auto; bottom: 40%; }
+
+/* ---- the end card on a landscape phone: tighter, scrolls, every link a full-size tap target ------------------ */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .e-wrap { padding: max(14px, env(safe-area-inset-top)) 0 calc(18px + env(safe-area-inset-bottom)); align-items: start; width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); gap: 22px; }
+  html.is-touch .e-line { font-size: 30px; margin-top: 12px; }
+  html.is-touch .e-where { margin-top: 10px; }
+  html.is-touch .e-note { margin-top: 12px; font-size: 13.5px; line-height: 1.5; }
+  html.is-touch .e-btns { margin-top: 14px; }
+  html.is-touch .e-btns .g-btn { min-height: 44px; padding: 10px 18px; }
+  html.is-touch .e-talk { margin-top: 14px; }
+  html.is-touch .e-links { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  html.is-touch .e-link { min-height: 48px; padding: 8px 24px 8px 10px; }
+  html.is-touch .e-right { padding: 14px 16px 10px; }
+  html.is-touch .e-v b { font-size: 24px; }
+}

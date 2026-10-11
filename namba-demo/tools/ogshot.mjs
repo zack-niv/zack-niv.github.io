@@ -1,13 +1,13 @@
 // Share-card capture: raw game frames for og.jpg (v11).  node tools/ogshot.mjs [outDir] [--poses a,b] [--phone] [--w 1600 --h 840]
-// Compose with tools/ogcard.mjs.
+// Use --root DIR to serve another copy of the demo, --out DIR for output.
 import { chromium } from 'playwright';
 import { acquireSlot } from './slot.mjs';
 import { spawn } from 'child_process';
 import path from 'path'; import fs from 'fs';
 import { fileURLToPath } from 'url';
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const a = process.argv.slice(2);
-const out = path.resolve(a.find(x => !x.startsWith('--')) || '/tmp/claude-0/og');
+const a = process.argv.slice(2); const opt0 = (k) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : null; };
+const root = path.resolve(opt0('root') || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'));
+const out = path.resolve(opt0('out') || '/tmp/claude-0/og');
 const opt = (k, d) => { const i = a.indexOf('--' + k); return i >= 0 ? a[i + 1] : d; };
 const poses = opt('poses', 'city_b1,city_1f,walk,nankai_1f').split(',');
 const W = +opt('w', 1600), H = +opt('h', 840);

@@ -202,6 +202,9 @@ export class TouchUI {
         else bottom = Math.max(0, innerHeight - b.top + 4);
       }
     }
+    // where the raised phone starts, measured from the right edge (tutorial hints step left of it: css/touch.css)
+    const gap = ph && ph._scale ? Math.round(340 * ph._scale + 14) : 300;
+    if (gap !== this._gap) { this._gap = gap; document.documentElement.style.setProperty('--tu-phone-gap', gap + 'px'); }
     right = Math.round(right); bottom = Math.round(bottom);
     if (right !== this._r || bottom !== this._b) {
       this._r = right; this._b = bottom;
