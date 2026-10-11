@@ -25,11 +25,11 @@
 //      map only updated near outdoors; sky irradiance follows ctx.exterior.sun.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=c35aedb';
-import { CELL } from '../world/world.js?v=c35aedb';
-import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=c35aedb';
-import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=c35aedb';
-import { EnvMaps } from './lighting/envmaps.js?v=c35aedb';
+import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=0c93ff2';
+import { CELL } from '../world/world.js?v=0c93ff2';
+import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=0c93ff2';
+import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=0c93ff2';
+import { EnvMaps } from './lighting/envmaps.js?v=0c93ff2';
 
 // install as early as possible: before any lit material compiles
 installMaterialHook();
@@ -154,7 +154,7 @@ export class Lighting {
     }
     const out = [];
     return Promise.all(buckets.filter(b => b.jobs.length).map(b => new Promise((resolve, reject) => {
-      const w = new Worker(new URL('./lighting/bakeworker.js?v=c35aedb', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./lighting/bakeworker.js?v=0c93ff2', import.meta.url), { type: 'module' });
       const timer = setTimeout(() => { w.terminate(); reject(new Error('bake worker timeout')); }, 60000);
       w.onmessage = (ev) => {
         const d = ev.data;
@@ -196,6 +196,9 @@ export class Lighting {
       t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter;
       t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.flipY = false;
       t.needsUpdate = true;
+      // v11.1 (iOS crash): on mobile, drop the packed CPU copy once it is on the GPU (~33 MB); CPU sampling uses
+      // this.levels[lv].A/B/C, not these. A lost context reloads the page (core/resilience.js), so no re-upload.
+      if (this.ctx.engine && this.ctx.engine.mobile) t.onUpdate = () => { t.onUpdate = null; t.image = { data: null, width: W, height: H }; };
       return t;
     };
     U.nbA.value = mk(A, THREE.HalfFloatType);

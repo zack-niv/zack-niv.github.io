@@ -12,39 +12,41 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=c35aedb';
-import { Events } from './core/events.js?v=c35aedb';
-import { Clock } from './core/clock.js?v=c35aedb';
-import { Input } from './core/input.js?v=c35aedb';
-import { params } from './core/params.js?v=c35aedb';
-import { World } from './world/world.js?v=c35aedb';
-import { Nav } from './world/nav.js?v=c35aedb';
-import { LAYOUT } from './world/layout.js?v=c35aedb';
-import { Loader } from './core/loader.js?v=c35aedb';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=c35aedb';
-import { bootTouch, TouchUI } from './ui/touch.js?v=c35aedb';
+import { Engine } from './core/engine.js?v=0c93ff2';
+import { Events } from './core/events.js?v=0c93ff2';
+import { Clock } from './core/clock.js?v=0c93ff2';
+import { Input } from './core/input.js?v=0c93ff2';
+import { params } from './core/params.js?v=0c93ff2';
+import { World } from './world/world.js?v=0c93ff2';
+import { Nav } from './world/nav.js?v=0c93ff2';
+import { LAYOUT } from './world/layout.js?v=0c93ff2';
+import { Loader } from './core/loader.js?v=0c93ff2';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=0c93ff2';
+import { bootTouch, TouchUI } from './ui/touch.js?v=0c93ff2';
+import { setCanvasRes } from './render/canvasres.js?v=0c93ff2';
+import { readRecovery, armRecovery } from './core/resilience.js?v=0c93ff2';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=c35aedb',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=c35aedb',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=c35aedb', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=c35aedb',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=c35aedb',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=c35aedb',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=c35aedb',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=c35aedb',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=c35aedb',      'Signage',      'build'],
-  ['player',       './player/player.js?v=c35aedb',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=c35aedb',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=c35aedb',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=c35aedb',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=c35aedb',             'Hud',          'live'],
-  ['game',         './game/game.js?v=c35aedb',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=c35aedb',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=c35aedb',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=0c93ff2',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=0c93ff2',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=0c93ff2', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=0c93ff2',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=0c93ff2',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=0c93ff2',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=0c93ff2',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=0c93ff2',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=0c93ff2',      'Signage',      'build'],
+  ['player',       './player/player.js?v=0c93ff2',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=0c93ff2',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=0c93ff2',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=0c93ff2',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=0c93ff2',             'Hud',          'live'],
+  ['game',         './game/game.js?v=0c93ff2',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=0c93ff2',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=0c93ff2',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -67,6 +69,8 @@ const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) 
 const touchOnly = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
 bootTouch();
 const touchAck = Promise.resolve();
+// v11.1 (iOS crash): did the last run die on screen (jetsam / lost GPU)? Then this boot starts a safe tier.
+const recovery = readRecovery();
 
 async function boot() {
   const canvas = document.getElementById('view');
@@ -81,6 +85,20 @@ async function boot() {
     engine.renderer.setPixelRatio(engine.basePR);
     engine.mobile = true;
   }
+  // v11.1 (iOS crash): world sign/menu/board canvases at fewer real pixels on touch devices. At 2048² they were 272 MB
+  // of 2D canvas + ~250 MB of GPU copies at load (notes/v11.1-ioscrash.md); iOS Safari kills a tab around there.
+  if (touchOnly && !params.has('fullres')) setCanvasRes({ atlas: 0.5, sign: 0.6, board: 0.5 });   // ?fullres: A/B check
+  // after a crash (or ?safe): fewer people, fewer pixels, smaller textures. Applies on any device, quality forced or not.
+  if (recovery) {
+    const S = recovery.safe >= 2;
+    Object.assign(engine.quality, { crowdMax: S ? 140 : 220, drawDist: S ? 55 : 62, callBudget: S ? 240 : 280, maxPR: S ? 0.85 : 1.0, distFloor: 0.45, shadows: false, shadowMap: 0 });
+    engine.renderer.shadowMap.enabled = false;
+    engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
+    engine.renderer.setPixelRatio(engine.basePR);
+    setCanvasRes(S ? { atlas: 0.35, sign: 0.42, board: 0.35 } : { atlas: 0.42, sign: 0.5, board: 0.42 });
+    engine.safe = recovery.safe;
+    console.warn(`[resilience] recovered from ${recovery.reason} at ${recovery.lastStage} (t ${recovery.t}s): safe tier ${recovery.safe}`);
+  }
   const events = new Events();
   const ctx = {
     THREE, engine, scene: engine.scene, camera: engine.camera, events, params, layout: LAYOUT,
@@ -89,6 +107,7 @@ async function boot() {
     ui: { root: document.getElementById('ui'), hud: document.getElementById('hud'), phone: document.getElementById('phone-root'), overlay: document.getElementById('overlay'), title: document.getElementById('title') },
   };
   window.__namba = ctx;
+  armRecovery(ctx, recovery);
   progress('survey', 0.1);
   await frame();
   ctx.world = new World();
@@ -137,8 +156,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=c35aedb').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=c35aedb').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=0c93ff2').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=0c93ff2').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

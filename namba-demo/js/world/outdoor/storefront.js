@@ -8,9 +8,10 @@
 //   F.emit(parent)  -> adds 5 meshes (facades, roofs, shopfronts, signs, solids)
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=c35aedb';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=c35aedb';
-import { FKIND, facadeMat } from './facade.js?v=c35aedb';
+import { rng } from '../../core/rng.js?v=0c93ff2';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=0c93ff2';
+import { FKIND, facadeMat } from './facade.js?v=0c93ff2';
+import { lcanvas } from '../../render/canvasres.js?v=0c93ff2';
 
 const FONT = '"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 
@@ -43,7 +44,7 @@ function fitText(g, text, maxW, size, weight = 700) {
 export function shopAtlas(ctx) {
   return ctx.materials.texture('out_shopatlas', () => {
     const T = SHOP_TILE, W = T.w * T.cols, H = T.h * T.rows;
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const c = lcanvas(W, H, 'atlas');     // v11.1: fewer real px on mobile
     const g = c.getContext('2d');
     const R = rng(4242);
     for (let i = 0; i < T.cols * T.rows; i++) {
@@ -121,7 +122,7 @@ const HTEXT = [['なんば', 'NAMBA'], ['ホテル', 'HOTEL'], ['カラオケ館
 export function signAtlas(ctx) {
   return ctx.materials.texture('out_signatlas', () => {
     const A = SIGN_ATLAS;
-    const c = document.createElement('canvas'); c.width = A.W; c.height = A.H;
+    const c = lcanvas(A.W, A.H, 'atlas');     // v11.1: fewer real px on mobile
     const g = c.getContext('2d');
     g.fillStyle = '#101012'; g.fillRect(0, 0, A.W, A.H);
     const R = rng(777);

@@ -14,6 +14,7 @@
 // self-illumination so printed matter stays readable in dim corners).
 // =============================================================================
 import * as THREE from 'three';
+import { lcanvas } from '../../render/canvasres.js?v=0c93ff2';
 
 const PAD = 4;      // default gutter between regions (px); posters use 8
 
@@ -24,8 +25,7 @@ export class Atlas {
     this._newPage();
   }
   _newPage() {
-    const c = document.createElement('canvas');
-    c.width = c.height = this.size;
+    const c = lcanvas(this.size, this.size, 'atlas');     // v11.1: fewer real px on mobile (drawing space unchanged)
     const g = c.getContext('2d');
     g.fillStyle = '#808080'; g.fillRect(0, 0, this.size, this.size);
     const tex = new THREE.CanvasTexture(c);
@@ -80,11 +80,13 @@ export class Atlas {
     // bleed edge pixels into the padding (mip filtering): up to half the gutter on each side so neighbours never
     // leak in until mip level ~log2(pad/2)+1
     try {
-      const B = Math.max(2, PAD >> 1);
-      g.drawImage(page.canvas, x, y, w, 1, x, y - B, w, B);
-      g.drawImage(page.canvas, x, y + h - 1, w, 1, x, y + h, w, B);
-      g.drawImage(page.canvas, x, y - B, 1, h + 2 * B, x - B, y - B, B, h + 2 * B);
-      g.drawImage(page.canvas, x + w - 1, y - B, 1, h + 2 * B, x + w, y - B, B, h + 2 * B);
+      const B = Math.max(2, PAD >> 1), s = page.canvas.ls || 1;    // source rects are in real px (v11.1 lcanvas)
+      const X0 = Math.floor(x * s), Y0 = Math.floor(y * s), X1 = Math.max(X0, Math.ceil((x + w) * s) - 1), Y1 = Math.max(Y0, Math.ceil((y + h) * s) - 1);
+      const WR = X1 - X0 + 1, HB = Math.ceil((h + 2 * B) * s);
+      g.drawImage(page.canvas, X0, Y0, WR, 1, x, y - B, w, B);
+      g.drawImage(page.canvas, X0, Y1, WR, 1, x, y + h, w, B);
+      g.drawImage(page.canvas, X0, Math.max(0, Math.floor((y - B) * s)), 1, HB, x - B, y - B, B, h + 2 * B);
+      g.drawImage(page.canvas, X1, Math.max(0, Math.floor((y - B) * s)), 1, HB, x + w, y - B, B, h + 2 * B);
     } catch (e) { /* ignore */ }
     page.tex.needsUpdate = true;
     const S = this.size;

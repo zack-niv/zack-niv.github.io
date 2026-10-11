@@ -2,13 +2,13 @@
 // Hand-built dressing: the quest businesses (directory FEATURED), the
 // Takashimaya depachika (B1 food hall) and the 1F cosmetics hall.
 // =============================================================================
-import { Frame, Painter, NullPainter, ChunkBatches, rgb, mix, WHITE, protoUV } from './kit.js?v=c35aedb';
-import * as D from './draw.js?v=c35aedb';
-import { MENU } from './catalog.js?v=c35aedb';
-import { foodItem, aFrame, chair, standingLedges, queuePoints, showcase, mannequin } from './shopbuild.js?v=c35aedb';
-import { rng, hash } from '../../core/rng.js?v=c35aedb';
-import { CELL } from '../world.js?v=c35aedb';
-import { LEVELS, spaceById } from '../layout.js?v=c35aedb';
+import { Frame, Painter, NullPainter, ChunkBatches, rgb, mix, WHITE, protoUV } from './kit.js?v=0c93ff2';
+import * as D from './draw.js?v=0c93ff2';
+import { MENU } from './catalog.js?v=0c93ff2';
+import { foodItem, aFrame, chair, standingLedges, queuePoints, showcase, mannequin } from './shopbuild.js?v=0c93ff2';
+import { rng, hash } from '../../core/rng.js?v=0c93ff2';
+import { CELL } from '../world.js?v=0c93ff2';
+import { LEVELS, spaceById } from '../layout.js?v=0c93ff2';
 
 const K = (h, k = 1) => rgb(h, k);
 const fmt = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;

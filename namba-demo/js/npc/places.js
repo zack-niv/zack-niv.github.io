@@ -4,9 +4,9 @@
 // platforms with door markings, gates, ramps (escalator lanes + admission),
 // businesses (door points, queue slots, seats), gardens, landmarks, staff posts.
 // =============================================================================
-import { LEVELS, rampEnds, rampLength } from '../world/layout.js?v=c35aedb';
-import { BUSINESSES, isOpen } from '../world/directory.js?v=c35aedb';
-import { rng, hash } from '../core/rng.js?v=c35aedb';
+import { LEVELS, rampEnds, rampLength } from '../world/layout.js?v=0c93ff2';
+import { BUSINESSES, isOpen } from '../world/directory.js?v=0c93ff2';
+import { rng, hash } from '../core/rng.js?v=0c93ff2';
 
 // Extra portals at the edges of the modelled world ("the city continues").
 // Validated at runtime; missing ones are skipped.

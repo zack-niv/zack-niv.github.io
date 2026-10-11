@@ -10,17 +10,17 @@
 // Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
 // name, logo or colours anywhere.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=c35aedb';
-import { Stack3D } from './stack3d.js?v=c35aedb';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=0c93ff2';
+import { Stack3D } from './stack3d.js?v=0c93ff2';
 const HERO_S = 4.6;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=c35aedb';
-import { Tracker } from './track.js?v=c35aedb';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=c35aedb';
-import { businessBySlot } from '../../world/directory.js?v=c35aedb';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=c35aedb';
-import { placeArt } from './art.js?v=c35aedb';
-import { LdMap, CAL_DONE } from './ldmap.js?v=c35aedb';
-import { NavHeader } from './glance.js?v=c35aedb';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=0c93ff2';
+import { Tracker } from './track.js?v=0c93ff2';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=0c93ff2';
+import { businessBySlot } from '../../world/directory.js?v=0c93ff2';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=0c93ff2';
+import { placeArt } from './art.js?v=0c93ff2';
+import { LdMap, CAL_DONE } from './ldmap.js?v=0c93ff2';
+import { NavHeader } from './glance.js?v=0c93ff2';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');

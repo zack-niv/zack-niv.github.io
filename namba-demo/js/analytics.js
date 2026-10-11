@@ -71,7 +71,9 @@ export function setupAnalytics(ctx) {
   // ---- the story beats ---------------------------------------------------------------------------------------
   const E = ctx.events, t = () => Math.round((ctx.game && ctx.game.demo && ctx.game.demo.t) || 0);
   const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); };
-  if (ctx.started) started(); else E.on('game:start', started);     // (a test run can start before this module loads)
+  if (ctx.started) started(); else E.on('game:start', started);
+  // v11.1: the previous run died on screen (iOS memory kill / context loss) and this boot is the recovery
+  try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1 }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
   E.on('tutorial:step', (e) => { if (e && e.done) { reach('tutorial'); send('namba_tutorial_step', { step: e.id, t: e.t, nudges: e.nudges }); } });
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
   E.on('nav:destination', (e) => { reach('destination'); send('namba_destination', { app: e.app, slot: e.slotId, place: e.name, suggested: !!e.suggested, via: e.via, t: t() }); });
@@ -116,7 +118,7 @@ export function setupAnalytics(ctx) {
       if (!P || !P.sample || document.hidden) return;
       P.sample(3).then((r) => r && send('namba_perf', {
         at, fps: r.fps != null ? Math.round(r.fps) : null, avg_ms: r.avgMs != null ? +r.avgMs.toFixed(1) : null,
-        p95_ms: r.p95Ms != null ? +r.p95Ms.toFixed(1) : null, calls: r.calls, quality: r.quality, drs: r.drs, crowd: ctx.crowd && ctx.crowd.count,
+        p95_ms: r.p95Ms != null ? +r.p95Ms.toFixed(1) : null, calls: r.calls, quality: r.quality, drs: r.drs, crowd: ctx.crowd && ctx.crowd.count, ...(() => { try { const m = ctx.memEstimate && ctx.memEstimate(); return m ? { tex_mb: Math.round(m.texMB), canvas_mb: Math.round(m.canvasMB) } : {}; } catch (e) { return {}; } })(),
       })).catch(() => { /* optional */ });
     }, delay * 1000);
   }

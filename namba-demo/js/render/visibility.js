@@ -20,12 +20,12 @@
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=c35aedb';
-import { CELL } from '../world/world.js?v=c35aedb';
-import { params } from '../core/params.js?v=c35aedb';
-import { QUALITY_ORDER } from '../core/engine.js?v=c35aedb';
-import * as visFan from './visfan.js?v=c35aedb';
-import { clipIntrusions } from './intrusions.js?v=c35aedb';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=0c93ff2';
+import { CELL } from '../world/world.js?v=0c93ff2';
+import { params } from '../core/params.js?v=0c93ff2';
+import { QUALITY_ORDER } from '../core/engine.js?v=0c93ff2';
+import * as visFan from './visfan.js?v=0c93ff2';
+import { clipIntrusions } from './intrusions.js?v=0c93ff2';
 
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on

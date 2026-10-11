@@ -25,14 +25,15 @@
 //      ctx.signage.facilities (toilets/lockers built here, for the phone).
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../render/geobatch.js?v=c35aedb';
-import { CELL } from './world.js?v=c35aedb';
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from './layout.js?v=c35aedb';
-import { rng, hash } from '../core/rng.js?v=c35aedb';
-import { businessBySlot } from './directory.js?v=c35aedb';
-import { LINES, DESTINATIONS, EXIT_INFO, FACILITIES, FACILITY_INFO, PLATFORM_BOARDS, NANKAI_TRACKS, ZONE_OPERATOR, walkStreet } from '../ui/phone/places.js?v=c35aedb';
-import { computeDirections, STRIDE } from '../ui/phone/routes.js?v=c35aedb';
-import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=c35aedb';
+import { GeoBatch } from '../render/geobatch.js?v=0c93ff2';
+import { CELL } from './world.js?v=0c93ff2';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from './layout.js?v=0c93ff2';
+import { rng, hash } from '../core/rng.js?v=0c93ff2';
+import { businessBySlot } from './directory.js?v=0c93ff2';
+import { LINES, DESTINATIONS, EXIT_INFO, FACILITIES, FACILITY_INFO, PLATFORM_BOARDS, NANKAI_TRACKS, ZONE_OPERATOR, walkStreet } from '../ui/phone/places.js?v=0c93ff2';
+import { computeDirections, STRIDE } from '../ui/phone/routes.js?v=0c93ff2';
+import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=0c93ff2';
+import { lcanvas } from '../render/canvasres.js?v=0c93ff2';
 
 const CHUNK = 48;
 // font sizes are quantised (2 px steps above 14 px) so the glyph cache is reused
@@ -95,7 +96,7 @@ const withTimeout = (p, ms) => Promise.race([p, new Promise(r => setTimeout(() =
 class Atlas {
   constructor(size) { this.size = size; this.pages = []; }
   _page() {
-    const c = document.createElement('canvas'); c.width = c.height = this.size;
+    const c = lcanvas(this.size, this.size, 'sign');     // v11.1: fewer real px on mobile (drawing space unchanged)
     const g = c.getContext('2d');
     const p = { canvas: c, g, shelves: [], top: 0 };
     this.pages.push(p); return p;
@@ -1358,7 +1359,7 @@ export class Signage {
     if (!materials.factories.has('sign_doorway')) materials.define('sign_doorway', () => new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.8 }));
     const quadFace = (b, f, s, cx, cy, cz, nx, nz, w, h) => {
       const r = f.rect; if (!r) return;
-      const S = r.page.canvas.width;
+      const S = r.page.canvas.lw || r.page.canvas.width;
       const u0 = r.x / S, u1 = (r.x + r.w) / S, v1 = 1 - r.y / S, v0 = 1 - (r.y + r.h) / S;
       const rx = nz, rz = -nx; // viewer's right
       const a = [cx - rx * w / 2, cy - h / 2, cz - rz * w / 2], bb = [cx + rx * w / 2, cy - h / 2, cz + rz * w / 2];
@@ -1446,7 +1447,7 @@ export class Signage {
     return r;
   }
   _quadRect(b, r, cx, cy, cz, nx, nz, w, h, mat) {
-    const S = r.page.canvas.width;
+    const S = r.page.canvas.lw || r.page.canvas.width;
     const u0 = r.x / S, u1 = (r.x + r.w) / S, v1 = 1 - r.y / S, v0 = 1 - (r.y + r.h) / S;
     const rx = nz, rz = -nx;
     b.quad(mat || this.pageMats.get(r.page), [cx - rx * w / 2, cy - h / 2, cz - rz * w / 2], [cx + rx * w / 2, cy - h / 2, cz + rz * w / 2], [cx + rx * w / 2, cy + h / 2, cz + rz * w / 2], [cx - rx * w / 2, cy + h / 2, cz - rz * w / 2], { uv: [[u0, v0], [u1, v0], [u1, v1], [u0, v1]] });
