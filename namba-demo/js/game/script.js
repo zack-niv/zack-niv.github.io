@@ -20,6 +20,7 @@ export const DEMO = {
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
   whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
   checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
+  engageQuiet: 40, engageGap: 50,   // v11: a light text after 40 s of no contact while you walk; never more often than 50 s
   floorsM: 150,
   cityDwell: 40,                    // v10 critic: ...or this long in CITY since her tip (slower walkers meet Lodestone before the cap)
   parksNearM: 300,                  // v10: Daikichi leg — in CITY with Daikichi this close by foot = the Parks bridge is ahead                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
@@ -59,21 +60,46 @@ export const AYA = {
   whereCoffee: { id: 'where', text: 'how\'s my latte coming? 👀 the line is moving',
     replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'almost', text: 'Almost there!' }] },
   whereNudge: 'hello?? 👀',
-  // v10: check-ins say what she sees (location sharing): specific to the real state, never a generic timer ping.
-  // {lvl} = the player's floor; {goal} = where the leg goes. Chips: I'm lost / On my way (Almost there on the latte leg)
+  // v11 (V11.md item 3): Aya has NO shared location. She knows only the time vs how long the walk should take, what you
+  // told her, and the photos you send. Internal triggers (behind, wandering, wrong floor, stalled) decide WHEN she checks
+  // in; her WORDS are questions and guesses, never sensor facts. Chips: I'm lost / 📸 Send a pic / On my way.
   checkin: {
-    // v10 critic: shared location (Maps-grade) has no floor, so she can't SEE yours: she infers it from a dot that won't
-    // get closer. ("why are you on B1??" claimed exactly the floor-awareness the story says Maps lacks.)
-    floor: { dk: 'your dot isn\'t getting any closer 😂 wrong floor? I\'m on 6F', cafe: 'your dot isn\'t getting any closer 😂 wrong floor? the café\'s on 1F' },
-    stalledStation: 'still at the station? 👀',
-    stalled: { dk: 'you ok? your dot hasn\'t moved in ages 👀', cafe: 'you ok? your dot hasn\'t moved in ages 👀 the café\'s on 1F' },
-    away: { dk: 'wait where are you going 😅 Parks is the other way', cafe: 'wait where are you going 😅 the café\'s the other way' },
+    floor: { dk: 'you\'re not getting any closer, are you? 😃 it\'s 6F btw, Parks', cafe: 'you\'re not getting any closer, are you? 😃 the café\'s on 1F btw' },
+    stalledStation: 'probably still in the station maze lol 😅 where are you?',
+    stalled: { dk: 'where are you now? 👀', cafe: 'where are you now? 👀 the café\'s on CITY 1F' },
+    away: { dk: 'hmm that\'s taking a while 😅 you\'re heading to Parks, right?', cafe: 'hmm that\'s taking a while 😅 you found Namba CITY, right?' },
     behind: { dk: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces', cafe: 'how\'s my latte coming? 👀 the line is moving' },
   },
-  // v10: location beats (one each)
-  cityTip: 'ooh you\'re in CITY! the café\'s on 1F 👇 right at the bottom of the big escalators',
-  cityTipUp: 'ooh you\'re in CITY! the café\'s on 1F 👆 one floor up, right by the big escalators',     // v10 critic: from B1
-  cityTipDk: 'ooh you\'re in CITY! keep straight on 2F, Parks is at the far end 👉',
+  photoChip: { id: 'photo', text: '📸 Send a pic', photo: true },
+  // v11 (item 2): the photo beat — she can't see you, so she asks to; the photo shows where you are and she reads it
+  // like a local (the true place is fair here: it is in the picture). Recognition lines are built in story.js (_spot).
+  photoAsk: { id: 'photo', text: 'send me a pic of something near you 📸 I\'ll tell you where you are',
+    replies: [{ id: 'photo', text: '📸 Send photo', photo: true }, { id: 'fine', text: 'I\'m good 👍' }] },
+  photoFine: 'ok ok 😌 shout if you need me',
+  photoNone: 'hmm it didn\'t come through 😅 where are you?',
+  spot: {
+    platform: 'omg that\'s the Nankai platforms 🚃 head for the Central Gate, then down to 2F 👇',
+    nankai: 'that\'s Nankai Namba station! go down to 2F 👇 and follow the signs to Namba CITY',
+    nankaiLow: 'that\'s the Nankai station hall! go up to 2F 👆 and follow the signs to Namba CITY',
+    city2: { cafe: 'that\'s Namba CITY 2F{near}! the café\'s one floor down 👇 right at the bottom of the big escalators', dk: 'that\'s Namba CITY 2F{near}! keep straight, Parks is at the far end 👉' },
+    city1: { cafe: 'that\'s CITY 1F{near}! the café\'s right by the big escalators ☕', dk: 'that\'s CITY 1F{near}! go up to 2F 👆 and head south to Parks' },
+    cityB1: { cafe: 'lol that\'s CITY B1{near} 😂 one floor too low, the café\'s on 1F 👆', dk: 'that\'s CITY B1{near} 😂 way too low, go up to 2F 👆 and head south to Parks' },
+    walk: 'that\'s NAMBAWALK 😂 you\'re underground! go up into Namba CITY 👆',
+    street: 'that\'s outside on Midosuji! come back inside to Namba CITY 👉',
+    parks: 'that\'s Parks!! 🌿 take the canyon up, I\'m on 6F',
+    parksHigh: 'omg you\'re close!! I\'m on 6F, Daikichi\'s the one with the noren 👋',
+    other: 'hmm is that near Namba CITY? 😅 head for CITY 2F and follow the signs to Parks',
+  },
+  // v11 (item 2): light engagement in long quiet stretches while you walk (≤ 1 per DEMO.engageGap, never over a
+  // question, never stacking). Before Lodestone, then after it. Each line once.
+  engageBefore: ['take your time, it\'s a maze lol 😅', 'the line just moved!! 🍤 no rush tho', 'the guy in front of me ordered for 6 people 😭'],
+  okAsk: { id: 'ok', text: 'you ok? 😊', replies: [{ id: 'ok', text: 'All good 👍' }, { id: 'lost', text: 'I\'m lost 😭', lost: true }] },
+  okAck: 'yay 😌',
+  okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
+  engageAfter: ['is it working? 😌 told you', 'omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'ok it\'s almost our turn 👀', 'a kid next to me is eating a whole melon pan 😂'],
+  // the player's own texts (no chips: they come from what you do)
+  mineCoffee: 'got your latte! ☕ on my way',
+  mineOtherCoffee: 'got you a latte from {name} ☕',
   // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
@@ -84,7 +110,7 @@ export const AYA = {
   coffee: { id: 'coffee', text: 'oh!! can you bring me an iced latte from {cafe}? Namba CITY 1F, it\'s on your way 🙏 the queue here is forever' },
   otherPick: 'ooh, {name} first? 😂 I\'ll wait…',
   skipCoffeePick: 'straight to the tempura? respect 😂 …my latte though 🥲',
-  gotCoffee: 'omg you\'re an angel 😭☕ ok NOW come: Daikichi, Parks 6F',
+  gotCoffee: 'omg you\'re an angel 😭☕ ok NOW come: Daikichi, Parks 6F',   // v11: answers YOUR text (AYA.mineCoffee)
   gotOtherCoffee: 'that\'s not {cafe}… but I\'ll allow it 😌 now come: Parks 6F',
   noCoffee: 'no latte? 🥲 fine. FINE. the tempura is worth it',
 };
@@ -98,14 +124,14 @@ export const UPGRADE = {
   offerSilent: 'hellooo?? 👀 ok just install this, it actually works indoors',          // v9: Where went unanswered
   offerSilentShort: 'ok just install this 😅 it actually works indoors',                  // ...right after her nudge
   offerFine: 'trust me, get Lodestone before you hit Parks 😅 it actually works indoors',   // v9: fine, not in Parks yet
-  offerFloors: 'you\'re close! but Maps never knows floors in here 😅 use this, it does →',      // v10: latte leg, CITY (critic: no 2nd "1F 👇", right from any floor)
-  offerParks: 'ok Parks is a maze, even I got lost 😅 use this →',                          // v10: entering Parks
+  offerFloors: 'heads up: Maps never knows floors in these malls 😅 use this, it does →',   // v11: no location knowledge
+  offerParks: 'you must be near Parks by now? it\'s a maze in there, even I got lost 😅 use this →',   // v11: no location knowledge
   offerBehind: 'ok you\'re taking forever 😂 get this, it actually works indoors',           // v10: behind, unanswered
-  offerBehindReply: 'lol your dot says otherwise 😂 get this, it actually works indoors',      // v10 critic: answers "Almost there!" / "On my way!"
-  offerAhead: 'ok Parks is a maze from here 😅 get Lodestone, it actually works indoors', // v9: doing fine, not lost
-  ready: 'see? 😌 6F, I\'m 3rd in line',
-  ready2: 'see? 😌 6F. still 2nd in line, hurry 🍤',          // v9: after the "I'm 2nd in line!!" banter
-  readyCoffee: 'see? 😌 it even knows which floor my latte is on',
+  offerBehindReply: 'lol ok but it\'s been a while 😂 get this, it actually works indoors',   // v11: no location knowledge
+  offerAhead: 'Parks is a maze 😅 get Lodestone, it actually works indoors',   // v11: no location knowledge
+  ready: 'did it install? 😌 I\'m on 6F, 3rd in line',   // v11: no location knowledge
+  ready2: 'did it install? 😌 still 2nd in line, hurry 🍤',   // v11: no location knowledge
+  readyCoffee: 'did it install? 😌 it even knows which floor my latte is on',   // v11: no location knowledge
 };
 
 // v3: the in-game tutorial hints (one small line at a time, never a modal). {k:X} renders a key cap.
@@ -141,11 +167,11 @@ export const TUTORIAL = {
 // Queue banter as the route shortens (remaining metres → text), once each.
 export const QUEUE_LINES = [
   [170, 'I\'m 2nd in line!! 🍤'],
-  [45, 'You can see the noren from there, right?? 👋'],
+  [45, 'you must be close now?? look for the noren with 天 on it 👋'],   // v11: a guess, not a sighting
 ];
 // Lodestone routes up through the Namba Parks canyon; Aya texts once, as you reach the bridge.
 // v5: the canyon is the natural way UP now (canyon floor → garden stairs → the glass bridge into Parks 3F), not a detour
-export const CANYON_TEXT = 'take the canyon way up 🌿 out into the garden, up the stairs, then across the glass bridge. trust me';
+export const CANYON_TEXT = 'when you get into Parks, take the canyon way up 🌿 out into the garden, up the stairs, then across the glass bridge. trust me';
 
 export const ARRIVAL = {
   aya: { ja: 'こっちこっち！', en: 'Over here! You made it 😆' },

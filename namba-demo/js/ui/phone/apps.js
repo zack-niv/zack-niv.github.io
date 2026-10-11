@@ -113,7 +113,7 @@ export class MessagesApp {
     if (this.typingFrom === from) { this.typingFrom = null; this._typT = 0; }
     this.msgs.push({ id, from, text: m.text, time, me: false, link: m.link || null, place: m.place || null });
     const reps = Array.isArray(m.replies) ? m.replies.filter(r => r && r.text).slice(0, 3) : [];
-    if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text) })), at: this.phone._now || 0 };
+    if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text), photo: !!r.photo })), at: this.phone._now || 0 };
     if (m.link === 'lodestone') this.phone._noteOffer();
     const reading = this.phone.isOpen && this.phone.app === 'messages';
     if (!reading) this.unread++;
@@ -125,12 +125,42 @@ export class MessagesApp {
     const P = this.pending; if (!P) return false;
     const r = P.replies[i]; if (!r) return false;
     this.pending = null;
-    this.msgs.push({ from: 'me', text: r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
+    // v11: the 📸 chip takes a photo of what is in front of you (the game view) and sends it as an image bubble
+    const img = r.photo ? this._capture() : null;
+    if (r.photo) this._shutter();
+    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
     this.render(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
-    this.ctx.events.emit('phone:reply', { msgId: P.msgId, replyId: r.id, text: r.text, from: P.from });
+    this.ctx.events.emit('phone:reply', { msgId: P.msgId, replyId: r.id, text: r.text, from: P.from, photo: !!r.photo, img: !!img });
     this.phone._badges();
     return true;
+  }
+  // v11: a text the player sends without chips (e.g. "got your latte! ☕" when they buy it)
+  sendMine(text) {
+    if (!text) return;
+    this.msgs.push({ from: 'me', text: String(text), time: this.ctx.clock.hhmm, me: true, sent: true });
+    this.render(true); this.phone._badges && this.phone._badges();
+    this.ctx.events.emit('phone:sent', { text });
+  }
+  // v11: a downscaled snapshot of the current frame. Rendering a frame and copying it in the same task keeps the
+  // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo)
+  _capture() {
+    try {
+      const eng = this.ctx.engine, cv = eng && eng.renderer && eng.renderer.domElement;
+      if (!cv || !cv.width) return null;
+      if (typeof eng.render === 'function') eng.render(0);
+      const w = 360, h = Math.max(1, Math.round(w * cv.height / cv.width));
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(cv, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', 0.72);
+    } catch (e) { console.warn('[messages] photo', e && e.message); return null; }
+  }
+  _shutter() {
+    try {
+      const f = document.createElement('div'); f.className = 'ms-shutter';
+      document.body.appendChild(f); setTimeout(() => f.remove(), 450);
+      this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select', { rate: 1.7, gain: 1.4 });
+    } catch (e) { /* cosmetic */ }
   }
   clearReplies() { if (!this.pending) return; this.pending = null; this.render(); this.phone._badges(); }
   setTyping(from, on) {
@@ -185,7 +215,7 @@ export class MessagesApp {
   _chips() {
     const P = this.pending; if (!P) return '';
     const kb = !(this.ctx.input && this.ctx.input.touch);
-    return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
+    return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip${r.photo ? ' ms-chip-photo' : ''}" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
   }
   // v9.1: keep the newest message in view. Pinning once at render is not enough: the reply tray slides in (0.35 s) and
   // place-card thumbnails load late, and both change the list's height after the fact, which hid the newest text
@@ -212,6 +242,7 @@ export class MessagesApp {
     const bubble = (m, i) => {
       if (m.day) return `<div class="ms-day">${esc(m.day)}</div>`;
       const fresh = sentNow && i === last && m.me ? ' ms-sent' : '';
+      if (m.img) return `<div class="ms-b me ms-photo${fresh}"><img src="${m.img}" alt="Photo you sent"><small>${esc(m.time)}${i === last && m.sent ? ' · Delivered' : ''}</small></div>`;   // v11
       return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}${m.place ? ' ms-has-place' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}${m.place ? this._placeCard(m.place, m.place === lastPl && i === lastPlI) : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
