@@ -15,8 +15,8 @@
 // the phone is open on the Lodestone screen (the caller gates render()).
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=b9f29a9';
-import { CELL } from '../../world/world.js?v=b9f29a9';
+import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=c35aedb';
+import { CELL } from '../../world/world.js?v=c35aedb';
 
 const K0 = 8;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)

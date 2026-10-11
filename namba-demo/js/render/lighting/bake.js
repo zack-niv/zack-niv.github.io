@@ -15,8 +15,8 @@
 // Units: "shader irradiance" — a typical metro corridor floor is ≈ 2.5.
 // Pure JS, no THREE dependency (runs in node for tests).
 // =============================================================================
-import { LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=b9f29a9';
-import { CELL } from '../../world/world.js?v=b9f29a9';
+import { LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=c35aedb';
+import { CELL } from '../../world/world.js?v=c35aedb';
 
 // per-kind photometry: I0 (on-axis intensity, shader units), profile exponent
 // (0 = omni, 1 = Lambertian, >1 = beam), default range (m), default dir

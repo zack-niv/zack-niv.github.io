@@ -1,0 +1,170 @@
+/* =============================================================================
+   Touch play (v11). Owned by the Mobile agent: js/ui/touch.js, js/core/input.js (stick: css/input.css).
+   html.is-touch is set on coarse-pointer devices at boot, or on the first touch on the canvas.
+   ============================================================================= */
+
+/* ---- the page on a phone: the visible viewport, no rubber-banding, no callouts -------------------------- */
+html.is-touch, html.is-touch body { height: var(--vh, 100%); -webkit-touch-callout: none; -webkit-text-size-adjust: 100%; }
+html.is-touch #view { width: 100%; height: 100%; }
+html.is-touch * { -webkit-tap-highlight-color: transparent; }
+
+/* ---- rotate to landscape (index.html #rotate; shown by media query, so it works before any JS has run) ---- */
+#rotate { display: none; }
+@media (pointer: coarse) and (orientation: portrait) {
+  html:not(.portrait-ok) #rotate { display: grid; }
+}
+#rotate { position: fixed; inset: 0; z-index: 200; place-items: center; padding: 24px max(20px, env(safe-area-inset-left)) calc(24px + env(safe-area-inset-bottom));
+  background: radial-gradient(80% 60% at 50% 38%, rgba(242,193,78,.10), transparent 70%), #060608; color: #f4f1ea;
+  font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif; text-align: center; pointer-events: auto; touch-action: manipulation; }
+.rt-card { max-width: 330px; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.rt-kana { font-family: 'Noto Sans JP', sans-serif; font-weight: 900; font-size: 44px; letter-spacing: .12em; line-height: 1;
+  background: linear-gradient(180deg, #fff 30%, #c9c3b6); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rt-latin { font-weight: 600; font-size: 11px; letter-spacing: .6em; opacity: .55; margin: -6px 0 18px; padding-left: .6em; }
+.rt-phone { width: 64px; height: 106px; border-radius: 14px; border: 3px solid #f4f1ea; position: relative; margin: 6px 0 16px;
+  animation: rt-turn 2.6s cubic-bezier(.6,0,.3,1) infinite; box-shadow: 0 0 30px rgba(242,193,78,.18); }
+.rt-phone::before { content: ''; position: absolute; left: 50%; top: 7px; width: 16px; height: 3px; margin-left: -8px; border-radius: 2px; background: #f4f1ea; opacity: .7; }
+.rt-phone::after { content: ''; position: absolute; inset: 14px 6px; border-radius: 4px; background: linear-gradient(160deg, #2a3240, #121418); }
+@keyframes rt-turn { 0%, 18% { transform: rotate(0deg); } 48%, 82% { transform: rotate(-90deg); } 100% { transform: rotate(0deg); } }
+.rt-h { font-size: 21px; font-weight: 700; margin: 0; letter-spacing: -.01em; }
+.rt-p { font-size: 14px; line-height: 1.45; margin: 0; color: rgba(244,241,234,.72); }
+.rt-small { font-size: 12.5px; line-height: 1.45; color: rgba(244,241,234,.5); margin: 8px 0 0; }
+.rt-anyway { appearance: none; border: 1px solid rgba(244,241,234,.28); background: transparent; color: rgba(244,241,234,.8); border-radius: 999px;
+  min-height: 44px; padding: 0 20px; font: 600 14px 'Inter', system-ui, sans-serif; margin-top: 10px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .rt-phone { animation: none; transform: rotate(-90deg); } }
+
+/* ---- the controls layer ------------------------------------------------------------------------------- */
+#touch-ui { position: absolute; inset: 0; pointer-events: none; z-index: 25; --tu-right: 0px; --tu-bottom: 0px;
+  --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --sb: env(safe-area-inset-bottom, 0px);
+  font-family: 'Inter', 'Noto Sans JP', system-ui, sans-serif; color: #f4f1ea; opacity: 0; visibility: hidden; transition: opacity .35s ease, visibility 0s linear .35s; }
+#touch-ui.on { opacity: 1; visibility: visible; transition: opacity .35s ease; }
+#touch-ui button { -webkit-user-select: none; user-select: none; touch-action: none; font: inherit; color: inherit; cursor: pointer; }
+
+/* round glass buttons (the tap target is the whole 52 px circle) */
+.tu-btn { pointer-events: auto; position: relative; width: 52px; height: 52px; border-radius: 50%; padding: 0; display: grid; place-items: center;
+  border: 1.5px solid rgba(244,241,234,.42); background: rgba(12,13,16,.38); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0,0,0,.28); transition: transform .12s ease, background .15s ease, border-color .15s ease, opacity .25s ease; }
+.tu-btn svg { width: 24px; height: 24px; }
+.tu-btn.on { transform: scale(.92); background: rgba(244,241,234,.28); }
+.tu-btn.sel { border-color: rgba(255,204,51,.95); background: rgba(255,204,51,.26); color: #ffd75a; }
+.tu-btn.dim { opacity: .45; }
+
+/* pause: top-right, small and quiet */
+.tu-pause { position: absolute; top: max(10px, env(safe-area-inset-top)); right: calc(12px + var(--sr)); width: 44px; height: 44px; opacity: .8; }
+.tu-pause svg { width: 18px; height: 18px; }
+/* v11 critic: with the phone raised, the top strip left of it belongs to the tutorial hint (it pointed under the pause
+   button), so Pause joins the bottom row: left of Run + Phone (2 x 52 px + 14 px gap), 26 px clear of Run */
+#touch-ui.ph-up .tu-pause { top: auto; right: calc(14px + max(var(--tu-right), var(--sr)) + 118px + 26px); bottom: calc(14px + max(var(--tu-bottom), var(--sb))); }
+
+/* the right-hand cluster: Use above, Run + Phone below; above the lowered phone, left of the raised one */
+.tu-cluster { position: absolute; right: calc(14px + max(var(--tu-right), var(--sr))); bottom: calc(10px + max(var(--tu-bottom), var(--sb)));
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.tu-row { display: flex; gap: 14px; align-items: center; }
+#touch-ui:not(.free) .tu-cluster { opacity: 0; pointer-events: none; }
+#touch-ui:not(.free) .tu-cluster * { pointer-events: none; }
+.tu-cluster { transition: opacity .25s ease; }
+.tu-phone em { display: none; }
+#touch-ui.ph-up .tu-phone > svg { display: none; }
+#touch-ui.ph-up .tu-phone em { display: contents; }
+
+/* Use: the contextual action, a pill with the prompt's own words (shown only when there is something to use) */
+.tu-use { pointer-events: auto; display: flex; align-items: center; gap: 10px; min-height: 56px; max-width: min(300px, 42vw); padding: 6px 18px 6px 8px; border-radius: 30px;
+  border: 1.5px solid rgba(255,204,51,.9); background: rgba(16,14,8,.62); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: 0 6px 22px rgba(0,0,0,.35), 0 0 0 4px rgba(255,204,51,.12); text-align: left;
+  opacity: 0; transform: translateY(8px) scale(.94); transition: opacity .18s ease, transform .18s ease; visibility: hidden; }
+#touch-ui.has-use .tu-use { opacity: 1; transform: none; visibility: visible; }
+.tu-use.on { transform: scale(.95) !important; background: rgba(255,204,51,.3); }
+.tu-use-ic { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: #ffcc33; color: #17130a; }
+.tu-use-ic svg { width: 24px; height: 24px; }
+.tu-use-t { min-width: 0; display: flex; flex-direction: column; }
+.tu-use-t b { font-size: 15px; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tu-use-t small { font-size: 11.5px; line-height: 1.25; color: rgba(244,241,234,.7); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tu-use.disabled { border-color: rgba(244,241,234,.3); box-shadow: 0 6px 22px rgba(0,0,0,.35); }
+.tu-use.disabled .tu-use-ic { background: rgba(244,241,234,.25); color: rgba(244,241,234,.8); }
+
+/* the resting stick: where the left thumb goes (fades while the live stick is out, and once you have walked a bit) */
+.tu-ghost { position: absolute; left: calc(56px + var(--sl)); bottom: calc(40px + var(--sb)); width: 104px; height: 104px; border-radius: 50%;
+  border: 1.5px dashed rgba(244,241,234,.32); display: grid; place-items: center; transition: opacity .4s ease; }
+.tu-ghost i { width: 40px; height: 40px; border-radius: 50%; background: rgba(244,241,234,.22); }
+.tu-ghost span { position: absolute; bottom: -20px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
+#touch-ui:not(.free) .tu-ghost, html.tu-stick-live .tu-ghost { opacity: 0; }
+html:has(#touch-controls.stick-on) .tu-ghost { opacity: 0; }
+
+/* ---- the HUD on touch ----------------------------------------------------------------------------------- */
+/* the E prompt's job moves to the Use button (passive prompts such as "Walk through to tap" stay) */
+html.is-touch .h-prompt .g-key { display: none !important; }
+html.tu-use-on #hud .h-prompt:not(.passive) { opacity: 0 !important; }
+/* the "Click to look around" mouse chip never applies to touch */
+html.is-touch .g-mouse { display: none !important; }
+/* tutorial glyphs that stand for the on-screen buttons */
+.tc-g { display: inline-grid; place-items: center; vertical-align: -6px; width: 22px; height: 22px; border-radius: 50%; margin: 0 2px; }
+.tc-g.use { background: #ffcc33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8.5 12.5V5.8a1.5 1.5 0 0 1 3 0v5.4M11.5 11V4.6a1.5 1.5 0 0 1 3 0V11M14.5 11V6a1.5 1.5 0 0 1 3 0v7.4c0 4-2.6 7.1-6.3 7.1-2.4 0-3.8-1-5.1-2.9l-2.3-3.4a1.5 1.5 0 0 1 2.4-1.8l1.3 1.6' fill='none' stroke='%2317130a' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/15px no-repeat; }
+.tc-g.phone { border: 1.5px solid rgba(244,241,234,.6); background: rgba(12,13,16,.4) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='7' y='2.5' width='10' height='19' rx='2.6' fill='none' stroke='%23f4f1ea' stroke-width='2'/%3E%3C/svg%3E") center/14px no-repeat; }
+
+/* the title screen: no keyboard row on touch */
+html.is-touch #title .t-keys { display: none; }
+/* the pause menu: keyboard explainer lines are hidden; touch.js swaps in a touch line */
+html.is-touch .g-pause .p-hint { display: none; }
+
+/* ---- the phone on touch: bigger tap areas without changing the look (an invisible margin round each target) ---- */
+html.is-touch #phone-root .ms-chip, html.is-touch #phone-root .ph-dock button, html.is-touch #phone-root .dl-next,
+html.is-touch #phone-root .ld-x3d, html.is-touch #phone-root .ld-new, html.is-touch #phone-root .ld-end, html.is-touch #phone-root .ld-pv-go { position: relative; }
+html.is-touch #phone-root .ms-chip::after, html.is-touch #phone-root .dl-next::after, html.is-touch #phone-root .ld-x3d::after,
+html.is-touch #phone-root .ld-new::after, html.is-touch #phone-root .ld-end::after, html.is-touch #phone-root .ld-pv-go::after { content: ''; position: absolute; inset: -6px -4px; }
+html.is-touch #phone-root .ms-chip { min-height: 44px; }
+html.is-touch #phone-root kbd { display: none !important; }
+
+/* ---- short landscape screens (phones): compact the end card, the pause menu and the title ----------- */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .g-end { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
+  html.is-touch .g-pause { grid-template-rows: 100%; }
+  html.is-touch .p-side { padding: max(14px, env(safe-area-inset-top)) 0 12px calc(26px + env(safe-area-inset-left)); overflow-y: auto; touch-action: pan-y; }
+  html.is-touch .p-body { padding: 18px calc(24px + env(safe-area-inset-right)) 18px 3vw; overflow-y: auto; touch-action: pan-y; }
+  html.is-touch .p-kana { font-size: 32px; }
+  html.is-touch .p-en { margin-top: 8px; }
+  html.is-touch .p-where { margin-top: 10px; }
+  html.is-touch .p-nav { margin-top: 8px; }
+  html.is-touch .p-nav button { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+  html.is-touch .p-esc { font-size: 12px; line-height: 1.45; margin-top: 10px; }
+}
+
+/* ---- tutorial hints on touch: never under the right-hand controls, never over the raised phone ------------- */
+html.is-touch .g-tip { white-space: normal; max-width: min(440px, calc(100vw - var(--tu-phone-gap, 300px) - 40px)); }
+html.is-touch .g-tip[data-at="phone"] { right: 150px; }
+html.is-touch .g-tip[data-at="phone"]::after { right: auto; left: calc(100% - 4px); bottom: 50%; transform: translateY(50%) rotate(-45deg); }
+html.is-touch .g-tip[data-at="phoneup"], html.is-touch .g-tip.ph-up { --tx: 0px; left: auto; right: calc(var(--tu-phone-gap, 300px) + 16px); top: 14px; bottom: auto; }
+html.is-touch .g-tip[data-at="phoneup"]::after { display: block; right: -5px; top: calc(50% - 4px); left: auto; transform: rotate(-45deg); }
+html.is-touch .g-tip[data-at="prompt"] { top: auto; bottom: 40%; }
+
+/* ---- the end card on a landscape phone: tighter, scrolls, every link a full-size tap target ------------------ */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .e-wrap { padding: max(14px, env(safe-area-inset-top)) 0 calc(18px + env(safe-area-inset-bottom)); align-items: start; width: calc(100vw - 32px - env(safe-area-inset-left) - env(safe-area-inset-right)); gap: 22px; }
+  html.is-touch .e-line { font-size: 30px; margin-top: 12px; }
+  html.is-touch .e-where { margin-top: 10px; }
+  html.is-touch .e-note { margin-top: 12px; font-size: 13.5px; line-height: 1.5; }
+  html.is-touch .e-btns { margin-top: 14px; }
+  html.is-touch .e-btns .g-btn { min-height: 44px; padding: 10px 18px; }
+  html.is-touch .e-talk { margin-top: 14px; }
+  html.is-touch .e-links { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  html.is-touch .e-link { min-height: 48px; padding: 8px 24px 8px 10px; }
+  html.is-touch .e-right { padding: 14px 16px 10px; }
+  html.is-touch .e-v b { font-size: 24px; }
+}
+html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4px; }
+
+/* ---- the compact (short) phone: panels sized to the screen, never under the status bar ------------------- */
+#phone-root.ph-compact .ld-pick { max-height: calc(100% - 96px - 54px); }
+/* v11 critic: the 3D stack (the reveal hero and "3D view") had a negative band on the compact phone: the steps sheet and
+   controls covered all of it. Here the sheet goes (the instruction card above already says the next step) and the
+   controls sit just above the dock; lodestone.js _bands() frames the stack into what is left */
+#phone-root.ph-compact .ld-main[data-view="stack"] .ld-sheet { display: none; }
+#phone-root.ph-compact .ld-main[data-view="stack"] .ld-ctl { bottom: 104px; }
+/* the category chips in the "Where to?" list (25 px tall at phone scale): a taller invisible tap area */
+html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
+html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }
+html.is-touch #phone-root .dl-chips { padding-top: 6px; padding-bottom: 12px; }
+
+/* v11 critic: area PA captions (top-left) must not run into a tutorial hint, which sits in the top strip while the
+   phone is raised on a landscape phone */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .h-amb { top: 70px; left: calc(16px + env(safe-area-inset-left)); width: min(320px, 44vw); }
+}

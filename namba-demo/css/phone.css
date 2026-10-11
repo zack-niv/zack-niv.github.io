@@ -857,3 +857,13 @@
 .ld-main[data-view="stack"] .ld-sheet { max-height: 150px; }
 .ld-main[data-view="stack"] .ld-ctl { bottom: 254px; }
 .ld-main[data-view="stack"] .ld-ladder button { height: 21px; }
+
+/* v11 (Aya): the 📸 photo — the chip, the sent image bubble, and the camera flash */
+.ms-chip-photo { border-color: #ff9f0a; color: #b25f00; }
+.ms-chip-photo:hover, .ms-chip-photo:focus-visible { background: #ff9f0a; color: #fff; }
+.ms-chip-photo kbd { background: rgba(255,159,10,.16); color: #b25f00; }
+.ms-b.ms-photo { padding: 0; background: none; max-width: 72%; }
+.ms-b.ms-photo img { display: block; width: 100%; height: auto; border-radius: 16px; border: 2px solid #0a84ff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.ms-b.ms-photo small { display: block; text-align: right; }
+.ms-shutter { position: fixed; inset: 0; z-index: 9999; pointer-events: none; background: #fff; animation: msShutter .42s ease-out forwards; }
+@keyframes msShutter { 0% { opacity: .92; } 100% { opacity: 0; } }

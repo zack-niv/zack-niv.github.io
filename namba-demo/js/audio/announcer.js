@@ -16,8 +16,8 @@
 // Voices load asynchronously (voiceschanged, plus polling); speech needs a
 // prior user gesture (the title click) — a rejected utterance is skipped.
 // =============================================================================
-import { spokenText } from './phrases.js?v=b9f29a9';
-import { platformGain, pointGain } from './zones.js?v=b9f29a9';
+import { spokenText } from './phrases.js?v=c35aedb';
+import { platformGain, pointGain } from './zones.js?v=c35aedb';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -28,8 +28,12 @@ const MIN_VOL = 0.06;
 // cannot be boosted, so the only lever is what sits under it. v7's -3 dB on sfx left the train (rumble, brakes, doors, rolling
 // stock: all sfx emitters) nearly untouched exactly when a platform line is read, and the PA is about that train. Now the beds
 // go to -12 dB and sfx to -9 dB (measured: notes/v8-fixes.md).
-const PA_DUCK = { ambience: 0.25, music: 0.25, sfx: 0.355 };   // -12 dB, -12 dB, -9 dB at full platform volume
-const DUCK_ATTACK = 0.1, DUCK_RELEASE = 0.33, DUCK_HOLD = 0.7;  // setTargetAtTime constants (s): ~0.3 s / ~1 s to settle; hold between lines
+// v11 (feedback 5): deeper (on top of the fixed -5/-6 dB bed trim in mixer.js), earlier (the duck starts DUCK_PRE s before the
+// chime, and for delayed platform lines at the melody) and it lets go later (DUCK_HOLD after the speech ends, slow swell back).
+const PA_DUCK = { ambience: 0.18, music: 0.18, sfx: 0.3 };   // -15 dB, -15 dB, -10.5 dB at full volume
+const PRE_DUCK_AMB = 0.35;                                    // ambience/music factor during a delayed line's melody / lead-in (sfx waits for the speech)
+const DUCK_ATTACK = 0.09, DUCK_RELEASE = 0.45, DUCK_HOLD = 1.0;  // setTargetAtTime constants (s): ~0.3 s attack / ~1.4 s release; hold between lines
+const DUCK_PRE = 0.45;                                        // s the duck leads the chime
 const PLAT_CHIME = 0.85, CHIME = 0.55;                          // chime gain at full volume
 const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
 
@@ -97,6 +101,7 @@ export class Announcer {
     if (item.cooldown && this.t - (this._repeat.get(key) ?? -999) < item.cooldown) return null;
     if (this._vol(item) < MIN_VOL) { this._note(`drop(inaudible) ${item.kind} "${key.slice(0, 30)}"`); return null; }
     if (item.chime) this.bank.get('chime:' + item.chime, 2);
+    if (item.delay > 0.5 && (item.platform || item.pa)) this._preDuck(item);   // the melody / lead-in already plays: get the beds out of its way
     if (this.cur && item.prio < this.cur.prio && item.prio <= 1) this._interrupt();
     this.queue.push(item);
     this.queue.sort((a, b) => a.prio - b.prio || a.id - b.id);
@@ -133,6 +138,13 @@ export class Announcer {
       B[n].dry.gain.setTargetAtTime(g, t, tc);
       if (B[n].wetDuck) B[n].wetDuck.gain.setTargetAtTime(g, t, tc);   // the reverb send ducks with the dry signal
     }
+  }
+  // beds down while a delayed PA line's lead-in (melody) plays; the speech's own start deepens it (and extends sfx)
+  _preDuck(item) {
+    const av = Math.min(1, this._vol(item));
+    const v = 1 - (1 - PRE_DUCK_AMB) * av;
+    if (v < this.duck) this._setDuck(v, this.duckSfx);
+    this._relAt = Math.max(this._relAt ?? 0, item.born + 6);   // safety: let go if the line never starts
   }
   _speakable(p) {
     if (!this.useSpeech || !this.speech) return null;
@@ -173,7 +185,7 @@ export class Announcer {
     if (!c.ending) { // chime + caption only: hold the slot for roughly as long as the line would take
       c.ending = true; c.wait = this.t + (c.spoke ? 0.6 : Math.min(4, 1 + c.parts.reduce((a, p) => a + p.text.length * (p.lang === 'ja' ? 0.1 : 0.05), 0))); return;
     }
-    this.cur = null; this._relAt = this.t + DUCK_HOLD;   // beds come back after a beat (the next line may follow at once)
+    this.cur = null; this.lastEnd = this.t; this._relAt = this.t + DUCK_HOLD;   // beds come back after a beat (the next line may follow at once)
   }
 
   _speak(c, p, voice, vol) {
@@ -187,7 +199,7 @@ export class Announcer {
     const mv = this.mixer.volumes;
     // station PA is part of the soundscape: on the platform it goes out at (nearly) the browser's maximum. The master slider
     // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
-    const k = c.platform ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
+    const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
     u.onstart = () => { if (c.utter === u) c.uStarted = true; };
     u.onend = () => { if (c.utter === u) c.uDone = true; };
@@ -208,13 +220,16 @@ export class Announcer {
     if (item.cooldown) this._repeat.set(item._key, this.t);
     const av = Math.min(1, vol);
     item._ducks = true;
-    if (item.platform) this._setDuck(1 - (1 - PA_DUCK.ambience) * av, 1 - (1 - PA_DUCK.sfx) * av);
+    if (item.platform || item.pa) this._setDuck(1 - (1 - PA_DUCK.ambience) * av, 1 - (1 - PA_DUCK.sfx) * av);
     else if (item.prio <= 1) this._setDuck(1 - 0.45 * av); else if (item.prio <= 3) this._setDuck(1 - 0.2 * av);
     else item._ducks = false;
     if (item._ducks) this._relAt = null;
     if (item.chime) {
       const cb = this.bank.peek('chime:' + item.chime);
-      if (cb) { item.node = this._route(item, cb, vol); item.wait = this.t + (item.chime === 'esc' ? 0.9 : 1.6); }
+      if (cb) {
+        const pre = (item.platform || item.pa) ? DUCK_PRE : 0;   // the beds are already going down when the chime arrives
+        item.node = this._route(item, cb, vol, pre); item.wait = this.t + pre + (item.chime === 'esc' ? 0.9 : 1.6);
+      }
     }
     const cap = item.caption ?? (item.kind === 'train' || item.kind === 'station' || item.kind === 'platform' || item.kind === 'escalator');
     if (cap) {
@@ -226,9 +241,9 @@ export class Announcer {
     }
   }
   // the chime plays diffusely (station-wide speakers), at the item's audible level
-  _route(item, buf, vol) {
-    const g = Math.min(1.2, vol) * (item.platform ? PLAT_CHIME : CHIME);
-    return this.mixer.play(buf, { bus: 'voice', gain: g, send: item.send ?? 0.6, lp: item.lp, pan: (item.id % 3 - 1) * 0.12, force: true });
+  _route(item, buf, vol, pre = 0) {
+    const g = Math.min(1.2, vol) * ((item.platform || item.pa) ? PLAT_CHIME : CHIME);
+    return this.mixer.play(buf, { bus: 'voice', gain: g, send: item.send ?? 0.6, lp: item.lp, pan: (item.id % 3 - 1) * 0.12, force: true, when: pre ? this.ac.currentTime + pre : undefined });
   }
 
   stats() { return { voices: this.voiceCount, ja: this.voices.ja ? this.voices.ja.name : null, en: this.voices.en ? this.voices.en.name : null }; }
@@ -242,4 +257,4 @@ export class Announcer {
     };
   }
 }
-export { PRIO, MIN_VOL };
+export { PRIO, MIN_VOL, PA_DUCK };

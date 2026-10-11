@@ -48,17 +48,28 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=b9f29a9';
-import { MapApp } from './phone/mapapp.js?v=b9f29a9';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=b9f29a9';
-import { LodestoneApp } from './phone/lodestone.js?v=b9f29a9';
-import { PhoneStats } from './phone/stats.js?v=b9f29a9';
-import { Glance } from './phone/glance.js?v=b9f29a9';
-import { buzzSound } from './phone/track.js?v=b9f29a9';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=b9f29a9';
+import { Positioning } from './phone/positioning.js?v=c35aedb';
+import { MapApp } from './phone/mapapp.js?v=c35aedb';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=c35aedb';
+import { LodestoneApp } from './phone/lodestone.js?v=c35aedb';
+import { PhoneStats } from './phone/stats.js?v=c35aedb';
+import { Glance } from './phone/glance.js?v=c35aedb';
+import { buzzSound } from './phone/track.js?v=c35aedb';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=c35aedb';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
+// v11: the right safe-area inset (a landscape iPhone's notch side), read once per layout from a CSS probe
+let _sr = null;
+function safeRight() {
+  if (_sr != null) return _sr;
+  try {
+    const d = document.createElement('div'); d.style.cssText = 'position:fixed;right:0;width:env(safe-area-inset-right,0px);height:0;visibility:hidden';
+    document.body.appendChild(d); _sr = d.getBoundingClientRect().width || 0; d.remove();
+  } catch (e) { _sr = 0; }
+  return _sr;
+}
+addEventListener('resize', () => { _sr = null; });
 
 // pose geometry (device units: the phone is 340 x 700)
 const GLANCE_H = 126;          // how much of the phone's top shows in the glance pose (device px)
@@ -181,7 +192,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=b9f29a9'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=c35aedb'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
@@ -328,7 +339,24 @@ export class Phone {
 
   _layout() {
     // scale the 340×700 device to the viewport (held low: the top ~85 % shows when up)
-    const s = Math.max(0.55, Math.min(1.15, (innerHeight * 0.9) / 700, (innerWidth * 0.92) / 340));
+    let s = Math.max(0.55, Math.min(1.15, (innerHeight * 0.9) / 700, (innerWidth * 0.92) / 340));
+    let dh = 700;
+    // v11 touch: legibility first. A 390-px-tall landscape phone would get a 0.55 phone (7-px text, the dock cut off).
+    // Instead the device keeps a readable scale and gets SHORTER (the apps lay out in flexible height), fully on
+    // screen; portrait (the "play anyway" escape) gets a phone as wide as the screen allows.
+    const touch = !!(this.ctx.input && this.ctx.input.touch);
+    this._touch = touch;
+    if (touch) {
+      const W = innerWidth, H = innerHeight;
+      if (H > W) s = Math.max(0.6, Math.min(1, (W - 24) / 340, (H * 0.8) / 700));
+      else s = Math.max(0.6, Math.min(1, H / 470, (W * 0.42) / 340));
+      dh = Math.round(Math.min(700, Math.max(430, (H - 14) / s)));
+    }
+    this._dh = dh;
+    this.wrap.style.height = dh + 'px';
+    this.wrap.style.setProperty('--ph-h', dh + 'px');
+    this.root.classList.toggle('ph-touch', touch);
+    this.root.classList.toggle('ph-compact', dh < 640);
     this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
     this._poseDirty = true;
@@ -594,12 +622,16 @@ export class Phone {
     const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway || this._buzzT > 0;
     if (settled && !moving && !this._poseDirty && !snap) return;
     this._poseDirty = false;
-    const vw = innerWidth, s = this._scale, sg = s * GLANCE_S;
+    const vw = innerWidth, s = this._scale, sg = s * GLANCE_S, DH = this._dh || 700;
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
-    // up: just right of the crosshair (you can still see where you walk), bottom 35 px below the edge
-    const uw = 340 * s, upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
+    // up: just right of the crosshair (you can still see where you walk), bottom 35 px below the edge.
+    // v11 touch: wholly on screen against the right edge (the dock and reply chips are what you tap), clear of the
+    // left thumb's stick; portrait: centred.
+    const uw = 340 * s;
+    let upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
+    if (this._touch) { upY = -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
     // glance: bottom-right corner, only the top GLANCE_H shows
-    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8, Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = 700 * sg - GLANCE_H * sg;
+    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GLANCE_H * sg;
     const sc = lerp(sg, s, u);
     const cx = lerp(gCx, upCx, u);
     let y = lerp(gY, upY, u);

@@ -19,17 +19,17 @@
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
-import { params } from '../core/params.js?v=b9f29a9';
-import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=b9f29a9';
-import { Bank } from './bank.js?v=b9f29a9';
-import { Mixer } from './mixer.js?v=b9f29a9';
-import { acousticFor } from './ir.js?v=b9f29a9';
-import { Announcer } from './announcer.js?v=b9f29a9';
-import { Ambience, moodOf } from './ambience.js?v=b9f29a9';
-import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=b9f29a9';
-import { EXCUSE } from './phrases.js?v=b9f29a9';
-import { Sources } from './sources.js?v=b9f29a9';
-import { Trains, pumpAudioTimers } from './trains.js?v=b9f29a9';
+import { params } from '../core/params.js?v=c35aedb';
+import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=c35aedb';
+import { Bank } from './bank.js?v=c35aedb';
+import { Mixer } from './mixer.js?v=c35aedb';
+import { acousticFor } from './ir.js?v=c35aedb';
+import { Announcer } from './announcer.js?v=c35aedb';
+import { Ambience, moodOf } from './ambience.js?v=c35aedb';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=c35aedb';
+import { EXCUSE } from './phrases.js?v=c35aedb';
+import { Sources } from './sources.js?v=c35aedb';
+import { Trains, pumpAudioTimers } from './trains.js?v=c35aedb';
 
 // name → [recipe, default gain, bus, extra]
 export const SOUNDS = {
@@ -133,7 +133,7 @@ export class Audio {
     this.trains = new Trains(this);
     let biz = (this.ctx.shops && (this.ctx.shops.businesses || this.ctx.shops.BUSINESSES)) || null;
     if (biz) this.sources.build(biz);
-    else import('../world/directory.js?v=b9f29a9').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
+    else import('../world/directory.js?v=c35aedb').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
     this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');

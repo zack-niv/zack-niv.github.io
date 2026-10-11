@@ -142,7 +142,7 @@ export class Aya {
     this.lastSentT = this.t;
     if (c.run) { try { c.run(); } catch (e) { console.error('[aya] run', e); } }
     const m = c.msg; if (!m) return;
-    const replies = m.replies && m.replies.length ? m.replies.map(r => ({ id: r.id, text: r.text })) : null;
+    const replies = m.replies && m.replies.length ? m.replies.map(r => (r.photo ? { id: r.id, text: r.text, photo: true } : { id: r.id, text: r.text })) : null;   // v11: 📸 chip
     if (replies) {
       // one open question at a time
       if (this.open && this.open.msg.id !== m.id) { const o = this.open; this.open = null; this.ctx.events.emit('aya:closed', { msgId: o.msg.id, reason: 'superseded' }); if (o.onExpire) { try { o.onExpire(); } catch (e) { console.error('[aya] expire', e); } } }

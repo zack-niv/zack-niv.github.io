@@ -9,13 +9,15 @@
 //                            smoothing). Player turns by look * sensitivity.
 //   input.lookRad   {x, y}   extra look in radians (gamepad / touch), already
 //                            scaled, sign: +x turns right, +y looks down
-//   input.jog / input.running   brisk walk (Shift, L3, touch stick past ring)
+//   input.jog / input.running   brisk walk (Shift, L3, touch stick pushed past its ring, touch Run toggle)
 //   input.slow                  browse walk (C toggles, Alt holds, LB)
 //   input.shuffle               fine shuffle (hold C for > 0.35 s): queues, counters
 //   input.down(code) / input.pressed(code)   raw keys (KeyboardEvent.code)
 //   input.action(name)          edge-triggered: 'interact' (E / A / touch),
 //                               'phone' (Q / Tab / Y / touch), 'menu' (Esc / Start)
 //   input.device                'kbm' | 'gamepad' | 'touch' (last used)
+//   input.touch                 touch device (coarse pointer, or a touch landed on the canvas); see _touchSetup
+//   input.tap(action) / input.runLatch / input.onTouchMode(fn)   on-screen buttons (js/ui/touch.js), v11
 //   input.settings              persisted user settings (see DEFAULTS)
 //   input.set(key, value)       change + persist a setting, notifies listeners
 //   input.onSettings(fn)        subscribe to settings changes
@@ -69,6 +71,7 @@ export class Input {
     this.enabled = true;
     this.device = 'kbm';
     this.touch = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
+    this.touchOnly = this.touch && (() => { try { return !matchMedia('(any-pointer: fine)').matches; } catch (e) { return true; } })();
     this.settings = loadSettings();
     this._listeners = new Set();
     this._script = null;
@@ -102,7 +105,7 @@ export class Input {
       this.device = 'kbm';
       this.look.x += dx; this.look.y += dy;
     });
-    addEventListener('mousedown', e => { this._pressed.add('Mouse' + e.button); });
+    addEventListener('mousedown', e => { this._pressed.add('Mouse' + e.button); if (!this.touchOnly && !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents)) this.device = 'kbm'; });
     // (keys are NOT cleared on lock loss: opening the phone drops pointer lock and
     // you should keep walking while you glance at it; blur still clears them)
     document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; });
@@ -126,7 +129,8 @@ export class Input {
 
   // ---- pointer lock ---------------------------------------------------------
   requestLock() {
-    if (this.touch || !this.canvas.requestPointerLock) return;
+    // a phone / tablet never locks; a touch laptop locks again as soon as the mouse is the thing in use
+    if ((this.touch && (this.touchOnly || this.device === 'touch')) || !this.canvas.requestPointerLock) return;
     try {
       const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
       if (p && p.catch) p.catch(() => { try { this.canvas.requestPointerLock(); } catch (e) {} });
@@ -165,8 +169,11 @@ export class Input {
     let slow = this.down('AltLeft') || this.down('AltRight') || this._slowLatch;
     // touch stick overrides keyboard while active
     if (this._stick.active) {
-      x = this._stick.vx; y = this._stick.vy; jog = this._stick.jog;
+      x = this._stick.vx; y = this._stick.vy;
+      jog = this._stick.jog || (this.runLatch && Math.hypot(x, y) > 0.2);
     }
+    // the Run toggle switches itself off once you stop (like mobile FPS sprint locks)
+    if (this.runLatch) { this._runIdle = this._stick.active && Math.hypot(x, y) > 0.2 ? 0 : this._runIdle + dt; if (this._runIdle > 1.5) this.runLatch = false; }
     // gamepad
     const pad = this._pollPad(dt);
     if (pad && (Math.abs(pad.x) > 0 || Math.abs(pad.y) > 0)) { x = pad.x; y = pad.y; }
@@ -230,52 +237,81 @@ export class Input {
     return { x: mx, y: -my, jog: this._pad.jogLatch || !!B[7] && (gp.buttons[7].value > 0.5), slow: !!B[4] };
   }
 
-  // ---- touch: left = virtual stick (visible ring), right = drag look --------
+  // ---- touch (v11): left = floating stick, right = drag look ------------------
+  // Mobile-FPS conventions (CoD Mobile / PUBG / Genshin): the stick appears where the left thumb lands (anywhere in
+  // the left ~42 % of the screen) and its base follows a thumb that drifts far past the ring; pushing well past the
+  // ring (or the Run toggle) hurries. Any touch that starts elsewhere on the canvas steers the view: a fixed rate per
+  // CSS pixel (vertical a little slower), light smoothing, and a gentle boost for fast flicks so a corridor 180° is
+  // one swipe. On-screen buttons (js/ui/touch.js) are DOM elements above the canvas and call tap().
+  //   tap(action)      'interact' (also pressed('KeyE')) | 'phone' (KeyQ) | 'menu' (Escape)
+  //   runLatch         the Run toggle; cleared after ~1.5 s without stick input
+  //   stickZone        fraction of the width that spawns the stick (0.42)
+  //   onTouchMode(fn)  called once when the device turns out to be touch (first touch on a fine-pointer device)
+  tap(action) {
+    const code = { interact: 'KeyE', phone: 'KeyQ', menu: 'Escape' }[action];
+    this.device = 'touch';
+    this._actions.add(action); if (code) this._pressed.add(code);
+  }
+  onTouchMode(fn) { if (this.touch) { try { fn(); } catch (e) { console.error(e); } } else this._touchModeFns.push(fn); }
+  _setTouchMode() {
+    if (this._touchModeOn) return;
+    this._touchModeOn = true; this.touch = true;
+    for (const f of this._touchModeFns.splice(0)) { try { f(); } catch (e) { console.error(e); } }
+  }
   _touchSetup() {
-    this._stick = { active: false, id: null, ox: 0, oy: 0, vx: 0, vy: 0, jog: false };
-    this._lookT = { id: null, x: 0, y: 0 };
+    this._stick = { active: false, id: null, ox: 0, oy: 0, vx: 0, vy: 0, jog: false, x: 0, y: 0 };
+    this._lookT = { id: null, x: 0, y: 0, t: 0 };
+    this._touchModeFns = [];
+    this.runLatch = false; this._runIdle = 0;
+    this.stickZone = 0.42;
+    this.stickR = 56;                 // ring radius in CSS px (the knob travels this far)
     const c = this.canvas;
     let ui = null;
-    const ensureUi = () => {
-      if (ui) return ui;
-      ui = this._buildTouchUi();
-      return ui;
+    const ensureUi = () => { if (!ui) ui = this._buildTouchUi(); return ui; };
+    this._ensureTouchUi = ensureUi;
+    if (this.touch) { this._touchModeOn = true; ensureUi(); }
+    const R = () => this.stickR;
+    const place = () => {
+      if (!ui) return;
+      const s = this._stick, r = R();
+      ui.ring.style.transform = `translate(${(s.ox - r).toFixed(1)}px, ${(s.oy - r).toFixed(1)}px)`;
+      ui.knob.style.transform = `translate(${(s.x - 22).toFixed(1)}px, ${(s.y - 22).toFixed(1)}px)`;
     };
-    if (this.touch) ensureUi();
-    const R = 56; // stick radius in px
     c.addEventListener('touchstart', e => {
-      this.touch = true; this.device = 'touch';
+      this.device = 'touch'; this._setTouchMode();
       const u = ensureUi();
       for (const t of e.changedTouches) {
-        if (t.clientX < innerWidth * 0.45 && this._stick.id === null) {
-          Object.assign(this._stick, { active: true, id: t.identifier, ox: t.clientX, oy: t.clientY, vx: 0, vy: 0, jog: false });
-          u.ring.style.transform = `translate(${t.clientX - R}px, ${t.clientY - R}px)`;
-          u.knob.style.transform = `translate(${t.clientX - 22}px, ${t.clientY - 22}px)`;
+        if (t.clientX < innerWidth * this.stickZone && this._stick.id === null) {
+          // keep the whole ring on screen (a thumb landing on the very edge still gets a full stick)
+          const r = R(), m = 8;
+          const ox = Math.max(r + m, Math.min(innerWidth * this.stickZone, t.clientX));
+          const oy = Math.max(r + m, Math.min(innerHeight - r - m, t.clientY));
+          Object.assign(this._stick, { active: true, id: t.identifier, ox, oy, vx: 0, vy: 0, jog: false, x: t.clientX, y: t.clientY });
+          this._stickMove(t.clientX, t.clientY);
           u.root.classList.add('stick-on');
-        } else if (this._lookT.id === null) { Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY }); }
+          place();
+        } else if (this._lookT.id === null) { Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }); }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();   // (a busy main thread can make touches uncancelable: no console noise)
     }, { passive: false });
     c.addEventListener('touchmove', e => {
       for (const t of e.changedTouches) {
         if (t.identifier === this._stick.id) {
-          const dx = t.clientX - this._stick.ox, dy = t.clientY - this._stick.oy;
-          const m = Math.hypot(dx, dy);
-          let k = Math.min(1, m / R);
-          // inner dead zone, then linear; dragging well past the ring = jog
-          const out = k < 0.12 ? 0 : (k - 0.12) / 0.88;
-          this._stick.vx = m > 0 ? dx / m * out : 0; this._stick.vy = m > 0 ? -dy / m * out : 0;
-          this._stick.jog = m > R * 1.45;
-          const kx = m > R ? dx / m * R : dx, ky = m > R ? dy / m * R : dy;
-          if (ui) { ui.knob.style.transform = `translate(${this._stick.ox + kx - 22}px, ${this._stick.oy + ky - 22}px)`; ui.root.classList.toggle('stick-jog', this._stick.jog); }
+          this._stickMove(t.clientX, t.clientY);
+          if (ui) { place(); ui.root.classList.toggle('stick-jog', this._stick.jog || (this.runLatch && (this._stick.vx || this._stick.vy))); }
         } else if (t.identifier === this._lookT.id) {
-          const s = 0.0052 * this.settings.touchSensitivity;
-          this._touchLookPending.x += (t.clientX - this._lookT.x) * s;
-          this._touchLookPending.y += (t.clientY - this._lookT.y) * s;
-          this._lookT.x = t.clientX; this._lookT.y = t.clientY;
+          const L = this._lookT, now = performance.now();
+          const dx = t.clientX - L.x, dy = t.clientY - L.y;
+          const dts = Math.max(0.008, (now - L.t) / 1000);
+          // gentle flick boost: 1x up to ~700 px/s, up to 1.8x at ~2000 px/s
+          const v = Math.hypot(dx, dy) / dts, boost = 1 + 0.8 * Math.min(1, Math.max(0, (v - 700) / 1300));
+          const s = 0.0052 * this.settings.touchSensitivity * boost;
+          this._touchLookPending.x += dx * s;
+          this._touchLookPending.y += dy * s * 0.8 * (this.settings.invertY ? -1 : 1);
+          L.x = t.clientX; L.y = t.clientY; L.t = now;
         }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
     }, { passive: false });
     const end = e => {
       for (const t of e.changedTouches) {
@@ -287,27 +323,35 @@ export class Input {
       }
     };
     c.addEventListener('touchend', end); c.addEventListener('touchcancel', end);
+    // a lost touch stream (app switch, notification shade) must not leave the player walking
+    addEventListener('blur', () => { Object.assign(this._stick, { id: null, active: false, vx: 0, vy: 0, jog: false }); this._lookT.id = null; if (ui) ui.root.classList.remove('stick-on', 'stick-jog'); });
+  }
+  _stickMove(px, py) {
+    const S = this._stick, R = this.stickR;
+    let dx = px - S.ox, dy = py - S.oy, m = Math.hypot(dx, dy);
+    // the base follows a thumb that drifts far out (so reversing direction never needs a long trip back)
+    const FOLLOW = R * 1.9;
+    if (m > FOLLOW) { const k = (m - FOLLOW) / m; S.ox += dx * k; S.oy += dy * k; dx = px - S.ox; dy = py - S.oy; m = FOLLOW; }
+    const k = Math.min(1, m / R);
+    // inner dead zone, then linear
+    const outM = k < 0.14 ? 0 : (k - 0.14) / 0.86;
+    S.vx = m > 0 ? dx / m * outM : 0; S.vy = m > 0 ? -dy / m * outM : 0;
+    // pushed well past the ring, roughly forward = hurry (sprint) — the classic mobile-FPS gesture
+    S.jog = m > R * 1.4 && S.vy > 0.55;
+    const kx = m > R ? dx / m * R : dx, ky = m > R ? dy / m * R : dy;
+    S.x = S.ox + kx; S.y = S.oy + ky;
   }
 
   _buildTouchUi() {
     if (!document.querySelector('link[data-namba="input-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=b9f29a9'; l.dataset.namba = 'input-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=c35aedb'; l.dataset.namba = 'input-css';
       document.head.appendChild(l);
     }
+    // the stick only (the buttons live in js/ui/touch.js)
     const root = document.createElement('div'); root.id = 'touch-controls';
-    root.innerHTML = '<div class="tc-ring"></div><div class="tc-knob"></div>' +
-      '<button class="tc-btn tc-interact" aria-label="Interact">E</button>' +
-      '<button class="tc-btn tc-phone" aria-label="Phone">\u{1F4F1}</button>';
-    document.body.appendChild(root);
-    const btn = (sel, action, code) => {
-      const b = root.querySelector(sel);
-      const fire = e => { e.preventDefault(); e.stopPropagation(); this.device = 'touch'; this._actions.add(action); this._pressed.add(code); b.classList.add('on'); };
-      b.addEventListener('touchstart', fire, { passive: false });
-      b.addEventListener('touchend', e => { e.preventDefault(); b.classList.remove('on'); }, { passive: false });
-      b.addEventListener('click', e => { e.preventDefault(); this._actions.add(action); this._pressed.add(code); });
-    };
-    btn('.tc-interact', 'interact', 'KeyE');
-    btn('.tc-phone', 'phone', 'KeyQ');
+    root.innerHTML = '<div class="tc-ring"></div><div class="tc-knob"></div>';
+    const host = document.getElementById('ui') || document.body;
+    host.insertBefore(root, document.getElementById('phone-root') || null);
     return { root, ring: root.querySelector('.tc-ring'), knob: root.querySelector('.tc-knob') };
   }
 }

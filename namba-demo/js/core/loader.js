@@ -99,7 +99,7 @@ export class Loader {
     if (this._cur && this._cur !== key) this._done.add(this._cur);
     this._cur = key;
     let p = 0;
-    for (const k of this._done) p += STAGES[k][0];
+    for (const k of this._done) p += STAGES[k] ? STAGES[k][0] : 0;   // v11: an unknown stage (a new system) must never break loading
     p += s[0] * Math.max(0, Math.min(1, frac));
     this.set(p / TOTAL, msg || s[2], s[1]);
   }

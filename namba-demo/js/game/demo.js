@@ -17,12 +17,12 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=b9f29a9';
-import { params } from '../core/params.js?v=b9f29a9';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=b9f29a9';
-import { Story } from './story.js?v=b9f29a9';
-import { makeLook, BIT } from '../npc/looks.js?v=b9f29a9';
-import { showEndCard } from './endcard.js?v=b9f29a9';
+import { businessBySlot } from '../world/directory.js?v=c35aedb';
+import { params } from '../core/params.js?v=c35aedb';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=c35aedb';
+import { Story } from './story.js?v=c35aedb';
+import { makeLook, BIT } from '../npc/looks.js?v=c35aedb';
+import { showEndCard } from './endcard.js?v=c35aedb';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -572,6 +572,6 @@ export class Demo {
     game._endCard = false; game._allowUnlock = false;
     game.busy = false; game.clearLook(); game._syncFrozen();
     try { ctx.input.requestLock(); } catch (e) { /* optional */ }
-    game.hud?.caption({ en: 'Free roam. Namba is yours. Q for your phone.', kind: 'thought', duration: 4 });
+    game.hud?.caption({ en: ctx.input && ctx.input.touch ? 'Free roam. Namba is yours. Tap the phone button for your phone.' : 'Free roam. Namba is yours. Q for your phone.', kind: 'thought', duration: 4 });
   }
 }

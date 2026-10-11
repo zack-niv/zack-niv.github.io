@@ -12,38 +12,39 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=b9f29a9';
-import { Events } from './core/events.js?v=b9f29a9';
-import { Clock } from './core/clock.js?v=b9f29a9';
-import { Input } from './core/input.js?v=b9f29a9';
-import { params } from './core/params.js?v=b9f29a9';
-import { World } from './world/world.js?v=b9f29a9';
-import { Nav } from './world/nav.js?v=b9f29a9';
-import { LAYOUT } from './world/layout.js?v=b9f29a9';
-import { Loader } from './core/loader.js?v=b9f29a9';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=b9f29a9';
+import { Engine } from './core/engine.js?v=c35aedb';
+import { Events } from './core/events.js?v=c35aedb';
+import { Clock } from './core/clock.js?v=c35aedb';
+import { Input } from './core/input.js?v=c35aedb';
+import { params } from './core/params.js?v=c35aedb';
+import { World } from './world/world.js?v=c35aedb';
+import { Nav } from './world/nav.js?v=c35aedb';
+import { LAYOUT } from './world/layout.js?v=c35aedb';
+import { Loader } from './core/loader.js?v=c35aedb';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=c35aedb';
+import { bootTouch, TouchUI } from './ui/touch.js?v=c35aedb';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=b9f29a9',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=b9f29a9',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=b9f29a9', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=b9f29a9',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=b9f29a9',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=b9f29a9',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=b9f29a9',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=b9f29a9',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=b9f29a9',      'Signage',      'build'],
-  ['player',       './player/player.js?v=b9f29a9',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=b9f29a9',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=b9f29a9',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=b9f29a9',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=b9f29a9',             'Hud',          'live'],
-  ['game',         './game/game.js?v=b9f29a9',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=b9f29a9',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=b9f29a9',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=c35aedb',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=c35aedb',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=c35aedb', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=c35aedb',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=c35aedb',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=c35aedb',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=c35aedb',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=c35aedb',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=c35aedb',      'Signage',      'build'],
+  ['player',       './player/player.js?v=c35aedb',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=c35aedb',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=c35aedb',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=c35aedb',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=c35aedb',             'Hud',          'live'],
+  ['game',         './game/game.js?v=c35aedb',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=c35aedb',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=c35aedb',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -61,14 +62,25 @@ const progress = (key, frac, msg) => loader.stage(key, frac, msg);
 // let the loading screen repaint, but never wait on a busy GPU process for it (rAF can be late by seconds
 // while uploads / PMREM are queued): whichever comes first, a frame or 50 ms
 const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) { d = true; r(); } }; requestAnimationFrame(f); setTimeout(f, 50); });
-// touch-only device (phone/tablet): polite "best on a computer" card, load continues behind it
-const touchOnly = !params.test && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
-let touchAck = Promise.resolve();
-try { if (touchOnly && sessionStorage.getItem('namba.touchOK') !== '1') touchAck = loader.touchGate(); } catch (e) { if (touchOnly) touchAck = loader.touchGate(); }
+// v11: phones and tablets are first-class (landscape, on-screen controls: js/ui/touch.js). The old "best on a
+// computer" gate is gone; a rotate-to-landscape card (index.html #rotate) shows in portrait instead.
+const touchOnly = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+bootTouch();
+const touchAck = Promise.resolve();
 
 async function boot() {
   const canvas = document.getElementById('view');
   const engine = new Engine(canvas);
+  // v11 mobile default: phones and tablets start on `low` (engine.detectTier: coarse pointer), trimmed further for a
+  // mid-range phone GPU/CPU to hold ~30 fps: a smaller pixel-ratio cap on phone-sized screens, fewer simulated people,
+  // a shorter draw distance and draw-call budget. ?quality=… still forces a tier untouched.
+  if (touchOnly && !engine.qualityForced) {
+    const phone = Math.min(innerWidth, innerHeight) < 600;
+    Object.assign(engine.quality, { crowdMax: phone ? 320 : 420, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further
+    engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
+    engine.renderer.setPixelRatio(engine.basePR);
+    engine.mobile = true;
+  }
   const events = new Events();
   const ctx = {
     THREE, engine, scene: engine.scene, camera: engine.camera, events, params, layout: LAYOUT,
@@ -121,9 +133,12 @@ async function boot() {
   ctx.nav = new Nav(ctx.world);
   loader.finish('nav');
   for (const s of SYSTEMS.filter(s => s[3] === 'live')) await load(s);
+  // v11: phones & tablets (on-screen controls, rotate card, fullscreen). Not a loader stage: it builds no world.
+  try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
+  catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=b9f29a9').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=b9f29a9').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=c35aedb').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=c35aedb').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

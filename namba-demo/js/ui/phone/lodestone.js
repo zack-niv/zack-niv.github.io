@@ -10,17 +10,17 @@
 // Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
 // name, logo or colours anywhere.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=b9f29a9';
-import { Stack3D } from './stack3d.js?v=b9f29a9';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=c35aedb';
+import { Stack3D } from './stack3d.js?v=c35aedb';
 const HERO_S = 4.6;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=b9f29a9';
-import { Tracker } from './track.js?v=b9f29a9';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=b9f29a9';
-import { businessBySlot } from '../../world/directory.js?v=b9f29a9';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=b9f29a9';
-import { placeArt } from './art.js?v=b9f29a9';
-import { LdMap, CAL_DONE } from './ldmap.js?v=b9f29a9';
-import { NavHeader } from './glance.js?v=b9f29a9';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=c35aedb';
+import { Tracker } from './track.js?v=c35aedb';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=c35aedb';
+import { businessBySlot } from '../../world/directory.js?v=c35aedb';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=c35aedb';
+import { placeArt } from './art.js?v=c35aedb';
+import { LdMap, CAL_DONE } from './ldmap.js?v=c35aedb';
+import { NavHeader } from './glance.js?v=c35aedb';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -193,7 +193,10 @@ export class LodestoneApp {
   // the free band of the screen the 3D stack is framed into (px of the 316 x 676 screen)
   _bands(s = this.stack) {
     if (!s) return;
-    if (this.view === 'stack') { s.bandTop = 150; s.bandBottom = 296; s.bandRight = 46; }      // (v3: + the dock)
+    // v11 critic: the compact (short landscape-phone) screen has no room for the steps sheet under the stack, so
+    // css/touch.css hides it there and drops the controls to the dock; the band follows (else it was negative: no 3D)
+    const short = this.phone && this.phone.root && this.phone.root.classList.contains('ph-compact');
+    if (this.view === 'stack') { s.bandTop = short ? 140 : 150; s.bandBottom = short ? 150 : 296; s.bandRight = 46; }      // (v3: + the dock)
     else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 306; s.bandRight = 0; }   // (v5: 306 = + the trip card's route-controls row)
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards

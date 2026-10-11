@@ -15,7 +15,7 @@
 // (no re-parenting, nothing in the scene graph changes).
 // =============================================================================
 import * as THREE from 'three';
-import { LEVEL_ORDER } from '../world/layout.js?v=b9f29a9';
+import { LEVEL_ORDER } from '../world/layout.js?v=c35aedb';
 
 function proxy(list) { const g = new THREE.Group(); g.children = list; return g; }
 

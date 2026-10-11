@@ -12,9 +12,9 @@
 // Pure logic (no DOM / THREE): compute(body) → route { ok, total, eta, steps,
 // pts (x, worldY, z) for the 3D view, marks, ... }.
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds, rampProfile, rampLength } from '../../world/layout.js?v=b9f29a9';
-import { routeLegs, fieldNoEntry } from './routes.js?v=b9f29a9';
-import { businessBySlot } from '../../world/directory.js?v=b9f29a9';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds, rampProfile, rampLength } from '../../world/layout.js?v=c35aedb';
+import { routeLegs, fieldNoEntry } from './routes.js?v=c35aedb';
+import { businessBySlot } from '../../world/directory.js?v=c35aedb';
 
 export const ZONE_SHORT = {
   nankai: 'Nankai Station', city: 'Namba CITY', parks: 'Namba Parks', parksGarden: 'Parks Garden', nambawalk: 'NAMBAWALK',

@@ -14,7 +14,7 @@
 //                                    (drives the faint tunnel rumble upstairs)
 //   AREA[mood]                       soundscape label per ambience mood
 // =============================================================================
-import { LAYOUT, LEVELS } from '../world/layout.js?v=b9f29a9';
+import { LAYOUT, LEVELS } from '../world/layout.js?v=c35aedb';
 
 const PLATFORMS = LAYOUT.spaces.filter(s => s.kind === 'platform' && s.rect);
 const PLAT_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));
@@ -37,7 +37,8 @@ export function platformGain(sp, L) {
   const dy = L.y - LEVELS[sp.level].y;          // + above the platform floor
   const a = Math.abs(dy);
   const open = sp.zone === 'nankai';            // open shed: the whole terminal level hears it, fading with distance
-  const h = open ? Math.pow(clamp01(1 - d / 30), 1.6) : clamp01(1 - d / 6);
+  // v11: the open Nankai shed carries a little further (d/38, ^1.4: 10 m from the platform edge 0.65, was 0.52; 20 m 0.35, was 0.17)
+  const h = open ? Math.pow(clamp01(1 - d / 38), 1.4) : clamp01(1 - d / 6);
   let v;
   if (a <= 2.5) v = 1;
   else if (dy > 0) v = a < 5.5 ? lerp(1, 0.2, (a - 2.5) / 3) : a < 10 ? 0.2 : 0.2 * clamp01(1 - (a - 10) / 3);   // the concourse above

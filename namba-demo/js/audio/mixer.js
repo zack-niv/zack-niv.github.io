@@ -8,6 +8,10 @@
 //   bus.dry/bus.wet share the bus volume (setVolume scales both).
 // =============================================================================
 export const BUSES = ['music', 'sfx', 'voice', 'ambience', 'ui'];
+// v11 (feedback 5, "ambience is still too high to hear the platform / area announcements"): a fixed trim under the user's
+// sliders. The beds and the mall music sit further back so that the PA (chime + the browser's speech, which cannot be made
+// louder) is the clearest thing in the soundscape. The slider still goes from silence to its old maximum minus this trim.
+export const BUS_TRIM = { ambience: 0.5, music: 0.56 };   // -6 dB, -5 dB
 
 export class Mixer {
   constructor(ac, bank) {
@@ -63,7 +67,7 @@ export class Mixer {
   setVolume(bus, v) {
     v = Math.max(0, Math.min(1, +v || 0));
     this.volumes[bus] = v;
-    const g = v * v;
+    const g = v * v * (BUS_TRIM[bus] ?? 1);
     const t = this.now;
     if (bus === 'master') { this.master.gain.setTargetAtTime(0.9 * g, t, 0.05); return; }
     const b = this.bus[bus]; if (!b) return;

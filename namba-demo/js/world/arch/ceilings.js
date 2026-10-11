@@ -12,11 +12,11 @@
 //   room       plain (shops dress their own interiors)
 // Every fixture is emissive geometry + a ctx.lighting.addLight() declaration.
 // =============================================================================
-import { CELL } from '../world.js?v=b9f29a9';
-import { styleOf } from './styles.js?v=b9f29a9';
-import { KELVIN } from './kit.js?v=b9f29a9';
-import { face } from './surfaces.js?v=b9f29a9';
-import { serviceKit } from './details.js?v=b9f29a9';
+import { CELL } from '../world.js?v=c35aedb';
+import { styleOf } from './styles.js?v=c35aedb';
+import { KELVIN } from './kit.js?v=c35aedb';
+import { face } from './surfaces.js?v=c35aedb';
+import { serviceKit } from './details.js?v=c35aedb';
 
 // ceiling rect facing down; rot=true rotates the texture 90° (strips along z)
 function ceilRect(b, mat, x0, z0, x1, z1, y, rot) {
