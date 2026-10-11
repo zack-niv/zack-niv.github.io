@@ -9,8 +9,8 @@ a whole story. Two things hold the score back:
 
 - **Talking past the player.** The offer that answered "I'm lost 😭" was still "you're lost aren't you 😂". I fixed it.
 - **Whereabouts only proven in Node.** In every bot run "Where are you??" came from the 175 s *latest* timer. The
-  whereabouts-driven paths (stalled, away, early, ahead) are proven in Node (`storysim` 8/8) and in one standing-still
-  browser probe (below), not in a real walk.
+  whereabouts-driven paths are proven in Node (`storysim` 8/8). In the browser, only `stalled` is proven, by one
+  standing-still probe (Where at 99.5 s). `away`, `early` and `ahead` are not proven in a real walk.
 
 Shots: `notes/v9-shots/critic/`. Walk shots: `/home/user/namba-shots/walk/c9{n,x,i,w,d}-*`.
 
@@ -26,7 +26,8 @@ All runs used `?quality=low&noaudio` on SwiftShader. The bot now **answers with 
 | silent (`REPLY=none`, before) | 11.7 s | 67.0 s | 175.1 *latest* | **205.5 s** (`silent`) | 265.9 | **491.4 s** | 972 · **0 bad** | `[]` | 2 (`dbg`) |
 | instant (`REPLY=instant`, after) | 11.7 s | 21.9 s | 175.1 *latest* | **180.6 s** (`lost`) | 270.0 | **495.4 s** | 986 · **0 bad** | `[]` | 2 (`dbg`) |
 | lost player (`&wander`, after) | 11.7 s | 27.4 s | 175.2 *latest* | **183.0 s** (`lost`) | 324.2 | **549.4 s** | 1097 · **0 bad** | `[]` | 2 (`dbg`) |
-| declines the latte (`REPLY=decline`, after) | DECLINE_ROW |
+| declines the latte (`REPLY=decline`, after) | 12.2 s | 29.0 s (*Not today* 35.7) | 175.5 *latest* (the plain Where) | **183.7 s** (`lost`) | — | **436.5 s** | 872 · **0 bad** | `[]` | 2 (`dbg`) |
+| standing still, silent (`stand-probe`, after) | 14.0 s | 70.4 s | **99.5 s `stalled`** | **148.6 s** (`silent`) | — | (stops at 166 s) | — | — | — |
 
 `node tools/storysim.mjs`: **8/8 pass**, before and after my fixes. It now also asserts that the offer never asks
 "you're lost aren't you" right after the player said they were lost.
@@ -69,7 +70,15 @@ actually works indoors" (`after-lost-reply-answered.png`, instant and wander run
 **Lost player (wander).** Same beats. The 25 s wrong-way start ends before Where's 95 s floor, so Where again came at
 175 s *latest*, which matches v9's own note.
 
-**Declines the latte.** DECLINE_THREAD
+**Declines the latte.** Graceful all the way through:
+
+> oh!! can you bring me an iced latte…? · **me:** Not today 🙈 · 🥲 ok ok. just come then [Daikichi card] · *(Where, plain
+> version)* Where are you?? … · **me:** I'm lost 😭 · lol I knew it 😂 … · see? 😌 6F, I'm 3rd in line · I'm 2nd in line!! 🍤 ·
+> canyon · noren · THERE you are 🥹 I saved us the two seats at the counter · **next latte's on you though 😌**
+
+Before my fix the last line was "…wait. where's my latte 😑 kidding. (not kidding)", which contradicted her own
+"ok ok". The end card drops the latte from the trip line ("7:16 min · 597 m on foot", `decline-endcard.png`). The quest
+is hidden at once and the bot routed straight to Daikichi.
 
 **"Which way?? 😵" (sim only).** "lol it's Namba, everyone's lost 😂 tap my link, Maps will get you close", then the
 latte ask. If still stuck at 100 s, before: "you're lost aren't you 😂"; **now: "still lost? 😂 ok install Lodestone…"**.
@@ -99,7 +108,9 @@ right after "Which way??" is a bit cheeky, but it is in character.
 **Crowding.** In the walks, no tutorial hint sat beside fresh chips. One case remained in code: a silent player standing
 still gets Where at ~97 s while the `pick` hint ("Open Aya's link — Enter") can show at the same time. That is the
 audit's `silent-110.png`. v9 only held `pick` back for the latte chips. **Fixed:** `pick` now waits while *any* question
-is fresh. STAND_RESULT
+is fresh. Verified in the browser by `stand-probe.mjs.txt` (silent, standing still): Where at **99.5 s, why `stalled`**
+(the whereabouts path, live). The tip is `null` from 103 to 125 s while Where is fresh (`stand-112-where-no-pick-hint.png`:
+chips, no hint). The pick hint returns at 130 s, after her "hello?? 👀". The offer `silent` comes at 148.6 s.
 
 ## 4. v8 regression check
 
@@ -109,16 +120,16 @@ is fresh. STAND_RESULT
 | Maps stale/coarse | `normal-maps-stale.png` ("Approximate (Wi-Fi) ±41 m", "Compass needs calibration", "Directions… once we detect you on 2F") | OK |
 | Gate prompt | `tutorial:step gate` done at 65.5 / 62.6 / 65.2 / 64.6 s in all four walks (a real E tap) | OK |
 | End card | `normal-endcard.png`, `wander-endcard.png`: fair rows, On track 99→100 / 82→100 | OK |
-| Pause menu | MOUSESHOT | |
-| Load | LOADPROBE | |
+| Pause menu | `mouseshot.mjs`: free → paused (chip hidden) → links `_blank` + `noopener noreferrer` → backdrop click resumes → phone chip; `errors []` | OK |
+| Load | `loadprobe.mjs`: `READY 109.9s []` (the machine was loaded by 2 other browsers) | OK |
 
 ## 5. Grades
 
 | goal | before → after | evidence |
 |---|---|---|
 | Turn-taking (no talking past, chips only under their question) | 7 → **8.5** | 0 bad in ~5,000 checks, real keys; the "I'm lost" → "you're lost aren't you" talk-past fixed |
-| Whereabouts gating | **7** | Node: café dropped when passed, `ahead` only on the Daikichi leg, no Where on task or at the counter. Browser: no false Where at the café counter in 5 runs, but every Where came from the 175 s timer |
-| Lostness vs the current target | **7.5** | `demo:target cafe → dk` at the order in every run; the wander bot correctly not "lost" once heading to the café; STAND_GRADE |
+| Whereabouts gating | **7** | Node: café dropped when passed, `ahead` only on the Daikichi leg, no Where on task or at the counter. Browser: no false Where at the café counter in 5 walks; the standing probe proves the `stalled` path live (99.5 s); but every *walking* bot's Where came from the 175 s timer |
+| Lostness vs the current target | **7.5** | `demo:target cafe → dk` at the order (and at *Not today*) in every run; the wander bot correctly not "lost" once heading to the café; the standing probe's Where is `stalled` against the café at 99.5 s; no Where at the café counter in any run |
 | Offer reasons and copy | 6 → **8** | lost / early now answer the reply; silent / ahead / fine read right |
 | Never-stall fallbacks | **9** | silent: nudge → follow-up at every step, offer 205.5 s (≤ 210), arrival 491 s |
 | **v9 progression overall** | 7 → **8** | |
@@ -147,6 +158,10 @@ is fresh. STAND_RESULT
   obvious lever. I didn't add it: it's a new beat, so it's Zack's call.
 - **The chip tray covers the newest bubble** in Zack's own screenshot (the latte text is cut off under the chips). That's
   in `js/ui/phone/apps.js`, outside my files, and headless doesn't draw the tray.
+- After Where's nudge (25 s), the `pick` hint can come back beside the still-open Where chips (130–146 s in the standing
+  probe). That's one phone-down action ("Q, open Maps"), so I left it.
+- Run order: normal and silent ran on the pre-fix build. Instant and wander include the offer-copy fix. Decline and the
+  standing probe include all fixes. All of them pass.
 - `LATTE_REFUSABLE` is still `true`, pending Zack.
 
 ## 8. Would this impress the team? **7.5 / 10**
