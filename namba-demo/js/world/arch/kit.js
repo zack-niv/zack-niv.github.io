@@ -9,9 +9,9 @@
 //   K.reserve(level, x, z, r)   -> keep a disc clear of structure (columns)
 //   K.clear(level, x, z, r)     -> true if no reservation / obstacle overlaps
 // =============================================================================
-import { GeoBatch } from '../../render/geobatch.js?v=253026a';
-import { CELL } from '../world.js?v=253026a';
-import { LEVELS, LEVEL_ORDER } from '../layout.js?v=253026a';
+import { GeoBatch } from '../../render/geobatch.js?v=b9f29a9';
+import { CELL } from '../world.js?v=b9f29a9';
+import { LEVELS, LEVEL_ORDER } from '../layout.js?v=b9f29a9';
 
 export const CHUNK = 48;
 // Namba Parks (z >= 212, every floor from 2F up) is merged into ONE chunk per level: from the canyon, the

@@ -8,9 +8,9 @@
 // in surfaces.js.
 // Openings wider than 16 m are left as open plazas (they are deliberate set-pieces).
 // =============================================================================
-import { CELL } from '../world.js?v=253026a';
-import { styleOf, LINE_BAND } from './styles.js?v=253026a';
-import { face } from './surfaces.js?v=253026a';
+import { CELL } from '../world.js?v=b9f29a9';
+import { styleOf, LINE_BAND } from './styles.js?v=b9f29a9';
+import { face } from './surfaces.js?v=b9f29a9';
 
 const stoneFor = (sp) => styleOf(sp).fascia || 'wall_panel_white';
 

@@ -26,6 +26,7 @@
 //     valid()   polled; false = its premise is gone → closes quietly (chips withdrawn, onExpire)
 //   A statement (no replies) closes the open question (chips withdrawn), unless it is that question's nudge.
 //   say(text, { defer: s })   location banter: waits while a question is fresh, dropped after `s` seconds of waiting
+//   say(text, { stale: fn })  dropped unsent if fn() is true when its turn comes (v10 critic)
 //   aya.fresh()  a question is open and younger than its nudge (or give-up) time — new topics wait for it
 //   aya.closeOpen(reason, timeout?)  · aya.nudgeNow() · aya.replied (real answers so far)
 // Closing withdraws the phone's chips through ctx.phone.messages.clearReplies() (feature-detected).
@@ -54,7 +55,7 @@ export class Aya {
     msg.from = msg.from || 'Aya';
     const typing = opts.typing != null ? opts.typing : Math.min(TYPE_MAX, TYPE_MIN + (msg.text || '').length * TYPE_PER_CHAR);
     this.q.push({ msg, wait: opts.wait != null ? opts.wait : (this.q.length || this.cur ? 0.9 : 0.25), typing, run: opts.run || null, onReply: opts.onReply || null, onExpire: opts.onExpire || null,
-      onTimeout: opts.onTimeout || null, patience: opts.patience || null, nudge: opts.nudge || null, valid: opts.valid || null, keepOpen: !!opts.keepOpen, defer: opts.defer != null ? opts.defer : null, qt: this.t, state: 'wait', t: 0 });
+      onTimeout: opts.onTimeout || null, patience: opts.patience || null, nudge: opts.nudge || null, valid: opts.valid || null, keepOpen: !!opts.keepOpen, defer: opts.defer != null ? opts.defer : null, stale: opts.stale || null, qt: this.t, state: 'wait', t: 0 });
     return msg.id;
   }
   // send right now, outside the queue (the arrival cut-scene runs on real time; the outbox runs on game time)
@@ -112,7 +113,9 @@ export class Aya {
     if (!this.cur && this.q.length) {
       const nx = this.q[0];
       // v9: location banter waits while a question is fresh (and is dropped once its moment has passed)
-      if (nx.defer != null && this.fresh()) { if (this.t - nx.qt > nx.defer) this.q.shift(); }
+      // v10 critic: queued banter whose premise is gone by now (e.g. a directions tip once Lodestone is offered) is dropped
+      if (nx.stale && (() => { try { return !!nx.stale(); } catch (e) { return false; } })()) this.q.shift();
+      else if (nx.defer != null && this.fresh()) { if (this.t - nx.qt > nx.defer) this.q.shift(); }
       else { this.cur = this.q.shift(); this.cur.t = 0; }
     }
     const c = this.cur;

@@ -9,9 +9,9 @@
 // The initial population is placed mid-trip (and seated / queueing / waiting
 // on platforms) so the place is alive from the first frame.
 // =============================================================================
-import { MODE, POSE } from './sim.js?v=253026a';
-import { makeLook, BIT } from './looks.js?v=253026a';
-import { rng } from '../core/rng.js?v=253026a';
+import { MODE, POSE } from './sim.js?v=b9f29a9';
+import { makeLook, BIT } from './looks.js?v=b9f29a9';
+import { rng } from '../core/rng.js?v=b9f29a9';
 
 const gauss = (x, c, w) => Math.exp(-((x - c) * (x - c)) / (2 * w * w));
 const PERSON = {

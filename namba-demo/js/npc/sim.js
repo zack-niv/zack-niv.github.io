@@ -14,10 +14,10 @@
 // range): every 2nd frame. tier 2 (elsewhere): every 4th frame, node hopping
 // along the field (trip progress stays correct; no avoidance).
 // =============================================================================
-import { FieldStore, GridCollider, localPath } from './fields.js?v=253026a';
-import { Places } from './places.js?v=253026a';
-import { rampProfile, LEVELS } from '../world/layout.js?v=253026a';
-import { rng } from '../core/rng.js?v=253026a';
+import { FieldStore, GridCollider, localPath } from './fields.js?v=b9f29a9';
+import { Places } from './places.js?v=b9f29a9';
+import { rampProfile, LEVELS } from '../world/layout.js?v=b9f29a9';
+import { rng } from '../core/rng.js?v=b9f29a9';
 
 export const MODE = { NONE: 0, FIELD: 1, PATH: 2, STAND: 3, RIDE: 4, GATE: 5, FOLLOW: 6 };
 export const POSE = { WALK: 0, STAND: 1, PHONE: 2, SIT: 3, RIDE: 4, WAVE: 5, PHOTO: 6, LOOKUP: 7, BOW: 8, CART: 9, BROWSE: 10, EAT: 11, TALK: 12, NOD: 13, SERVE: 14 };

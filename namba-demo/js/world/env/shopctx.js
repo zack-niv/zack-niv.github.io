@@ -11,11 +11,11 @@
 // centre cell and door cells are reserved: the directory's (x,z) and door
 // points are always reachable.
 // =============================================================================
-import { GeoBatch } from '../../render/geobatch.js?v=253026a';
-import { Frame, Painter, NullPainter } from './kit.js?v=253026a';
-import { rng, hash } from '../../core/rng.js?v=253026a';
-import { CELL } from '../world.js?v=253026a';
-import { LEVELS, spaceById } from '../layout.js?v=253026a';
+import { GeoBatch } from '../../render/geobatch.js?v=b9f29a9';
+import { Frame, Painter, NullPainter } from './kit.js?v=b9f29a9';
+import { rng, hash } from '../../core/rng.js?v=b9f29a9';
+import { CELL } from '../world.js?v=b9f29a9';
+import { LEVELS, spaceById } from '../layout.js?v=b9f29a9';
 
 const FREE = 0, SOLID = 1, RESERVED = 2;
 

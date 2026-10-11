@@ -291,7 +291,7 @@ export class Input {
 
   _buildTouchUi() {
     if (!document.querySelector('link[data-namba="input-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=253026a'; l.dataset.namba = 'input-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=b9f29a9'; l.dataset.namba = 'input-css';
       document.head.appendChild(l);
     }
     const root = document.createElement('div'); root.id = 'touch-controls';
