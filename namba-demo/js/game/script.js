@@ -20,7 +20,7 @@ export const DEMO = {
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
   whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
   checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
-  engageQuiet: 40, engageGap: 50,   // v11: a light text after 40 s of no contact while you walk; never more often than 50 s
+  engageQuiet: 38, engageGap: 40,   // v11: a light text after 38 s of no contact while you walk; never more often than 40 s
   floorsM: 150,
   cityDwell: 40,                    // v10 critic: ...or this long in CITY since her tip (slower walkers meet Lodestone before the cap)
   parksNearM: 300,                  // v10: Daikichi leg — in CITY with Daikichi this close by foot = the Parks bridge is ahead                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
@@ -77,19 +77,28 @@ export const AYA = {
     replies: [{ id: 'photo', text: '📸 Send photo', photo: true }, { id: 'fine', text: 'I\'m good 👍' }] },
   photoFine: 'ok ok 😌 shout if you need me',
   photoNone: 'hmm it didn\'t come through 😅 where are you?',
+  // {lm} = the landmark in the photo ("Megane Square", "the Central Gate", "the escalators"); {esc} = where the escalator
+  // she means is from where you stand ("right ahead", "behind you", "to your left"…)
   spot: {
-    platform: 'omg that\'s the Nankai platforms 🚃 head for the Central Gate, then down to 2F 👇',
-    nankai: 'that\'s Nankai Namba station! go down to 2F 👇 and follow the signs to Namba CITY',
-    nankaiLow: 'that\'s the Nankai station hall! go up to 2F 👆 and follow the signs to Namba CITY',
-    city2: { cafe: 'that\'s Namba CITY 2F{near}! the café\'s one floor down 👇 right at the bottom of the big escalators', dk: 'that\'s Namba CITY 2F{near}! keep straight, Parks is at the far end 👉' },
-    city1: { cafe: 'that\'s CITY 1F{near}! the café\'s right by the big escalators ☕', dk: 'that\'s CITY 1F{near}! go up to 2F 👆 and head south to Parks' },
-    cityB1: { cafe: 'lol that\'s CITY B1{near} 😂 one floor too low, the café\'s on 1F 👆', dk: 'that\'s CITY B1{near} 😂 way too low, go up to 2F 👆 and head south to Parks' },
-    walk: 'that\'s NAMBAWALK 😂 you\'re underground! go up into Namba CITY 👆',
+    platform: 'omg that\'s the Nankai platforms 🚃 the Central Gate is {gate}, then down to 2F 👇',
+    nankai: 'that\'s Nankai Namba, by {lm}! go down to 2F 👇 and follow the signs to Namba CITY',
+    nankai2: 'that\'s Nankai Namba 2F, by {lm}! follow the signs to Namba CITY 👉',
+    nankaiLow: 'that\'s the Nankai station hall, by {lm}! go up to 2F 👆 and follow the signs to Namba CITY',
+    city2: { cafe: 'omg that\'s Namba CITY 2F, by {lm}! the café\'s one floor down 👇 escalator {esc}', dk: 'that\'s Namba CITY 2F, by {lm}! keep straight, Parks is at the far end 👉' },
+    city1: { cafe: 'that\'s CITY 1F, by {lm}! you\'re on the right floor, the café\'s by the big escalators ☕', dk: 'that\'s CITY 1F, by {lm}! go up to 2F 👆 (escalator {esc}) and head south to Parks' },
+    cityB1: { cafe: 'lol that\'s CITY B1, by {lm} 😂 one floor too low, the café\'s on 1F 👆 escalator {esc}', dk: 'that\'s CITY B1, by {lm} 😂 way too low, go up to 2F 👆 and head south to Parks' },
+    walk: 'that\'s NAMBAWALK, by {lm} 😂 you\'re underground! go up into Namba CITY 👆',
     street: 'that\'s outside on Midosuji! come back inside to Namba CITY 👉',
-    parks: 'that\'s Parks!! 🌿 take the canyon up, I\'m on 6F',
-    parksHigh: 'omg you\'re close!! I\'m on 6F, Daikichi\'s the one with the noren 👋',
-    other: 'hmm is that near Namba CITY? 😅 head for CITY 2F and follow the signs to Parks',
+    canyon: 'that\'s the Parks canyon!! 🌿 so pretty right? go up the garden stairs, I\'m on 6F',
+    parks: 'that\'s Namba Parks, by {lm}! 🌿 head up through the canyon, I\'m on 6F',
+    parksHigh: 'omg you\'re close!! that\'s by {lm}, Daikichi\'s on 6F, the one with the noren 👋',
+    other: 'hmm is that by {lm}? 😅 head for Namba CITY 2F and follow the signs to Parks',
+    ramp: 'lol that\'s an escalator 😂 send me another one when you get off',
   },
+  // v11 (lead): she reads what is IN the photo — a wall, the floor or a plain corridor tells her nothing
+  photoBlur: { id: 'photo_again', text: 'hmm that could be anywhere 😅 send one with a sign or a shop in it?',
+    replies: [{ id: 'photo', text: '📸 Send another', photo: true }, { id: 'fine', text: 'I\'m good 👍' }] },
+  photoGiveUp: 'lol ok I\'ll stop playing detective 😂 shout if you\'re stuck',
   // v11 (item 2): light engagement in long quiet stretches while you walk (≤ 1 per DEMO.engageGap, never over a
   // question, never stacking). Before Lodestone, then after it. Each line once.
   engageBefore: ['take your time, it\'s a maze lol 😅', 'the line just moved!! 🍤 no rush tho', 'the guy in front of me ordered for 6 people 😭'],
@@ -127,6 +136,7 @@ export const UPGRADE = {
   offerFloors: 'heads up: Maps never knows floors in these malls 😅 use this, it does →',   // v11: no location knowledge
   offerParks: 'you must be near Parks by now? it\'s a maze in there, even I got lost 😅 use this →',   // v11: no location knowledge
   offerBehind: 'ok you\'re taking forever 😂 get this, it actually works indoors',           // v10: behind, unanswered
+  offerPhoto: 'and honestly? get this, it actually works indoors 😌 →',   // v11: after she read your photo in a check-in
   offerBehindReply: 'lol ok but it\'s been a while 😂 get this, it actually works indoors',   // v11: no location knowledge
   offerAhead: 'Parks is a maze 😅 get Lodestone, it actually works indoors',   // v11: no location knowledge
   ready: 'did it install? 😌 I\'m on 6F, 3rd in line',   // v11: no location knowledge

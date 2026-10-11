@@ -22,6 +22,7 @@ import { Nav } from './world/nav.js';
 import { LAYOUT } from './world/layout.js';
 import { Loader } from './core/loader.js';
 import { precompileVisible, precompileRest } from './render/precompile.js';
+import { bootTouch } from './ui/touch.js';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
@@ -42,6 +43,7 @@ const SYSTEMS = [
   ['phone',        './ui/phone.js',           'Phone',        'live'],
   ['hud',          './ui/hud.js',             'Hud',          'live'],
   ['game',         './game/game.js',          'Game',         'live'],
+  ['touch',        './ui/touch.js',           'TouchUI',      'live'],   // v11: phones & tablets (controls, rotate, fullscreen)
   ['visibility',   './render/visibility.js',  'Visibility',   'live'],
   ['post',         './render/post.js',        'Post',         'live'],
 ];
@@ -61,14 +63,25 @@ const progress = (key, frac, msg) => loader.stage(key, frac, msg);
 // let the loading screen repaint, but never wait on a busy GPU process for it (rAF can be late by seconds
 // while uploads / PMREM are queued): whichever comes first, a frame or 50 ms
 const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) { d = true; r(); } }; requestAnimationFrame(f); setTimeout(f, 50); });
-// touch-only device (phone/tablet): polite "best on a computer" card, load continues behind it
-const touchOnly = !params.test && matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
-let touchAck = Promise.resolve();
-try { if (touchOnly && sessionStorage.getItem('namba.touchOK') !== '1') touchAck = loader.touchGate(); } catch (e) { if (touchOnly) touchAck = loader.touchGate(); }
+// v11: phones and tablets are first-class (landscape, on-screen controls: js/ui/touch.js). The old "best on a
+// computer" gate is gone; a rotate-to-landscape card (index.html #rotate) shows in portrait instead.
+const touchOnly = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+bootTouch();
+const touchAck = Promise.resolve();
 
 async function boot() {
   const canvas = document.getElementById('view');
   const engine = new Engine(canvas);
+  // v11 mobile default: phones and tablets start on `low` (engine.detectTier: coarse pointer), trimmed further for a
+  // mid-range phone GPU/CPU to hold ~30 fps: a smaller pixel-ratio cap on phone-sized screens, fewer simulated people,
+  // a shorter draw distance and draw-call budget. ?quality=… still forces a tier untouched.
+  if (touchOnly && !engine.qualityForced) {
+    const phone = Math.min(innerWidth, innerHeight) < 600;
+    Object.assign(engine.quality, { crowdMax: phone ? 320 : 420, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.5 : 1.35 });
+    engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
+    engine.renderer.setPixelRatio(engine.basePR);
+    engine.mobile = true;
+  }
   const events = new Events();
   const ctx = {
     THREE, engine, scene: engine.scene, camera: engine.camera, events, params, layout: LAYOUT,

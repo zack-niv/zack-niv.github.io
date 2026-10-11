@@ -29,11 +29,21 @@ the Oriient team appears only on the end card.
 
 ## The story (one quest)
 
-> **How Aya knows where you are (v10).** You share your live location with her, as friends do. It is the same coarse
-> indoor fix your Maps app shows, so she can tell *that* you are slow, stalled or wandering ("your dot isn't getting any
-> closer 😂"), but never *which floor* you are on. Floor-aware positioning is exactly what Lodestone adds, so her lines
-> must never claim floor knowledge. Her pacing comes from a realistic walking-time estimate per leg, not from a clock
-> (`V10.md`).
+> **How Aya knows where you are (v11): she doesn't.** You haven't shared your location with her; she is a friend in a
+> queue with a phone. She knows only three things:
+>
+> - **time:** how long the walk to her should take (a realistic walking-time estimate per leg), so she can sense "this
+>   is taking a while";
+> - **what you tell her:** your replies ("I'm lost 😭", "On my way!", "got your latte! ☕");
+> - **the photos you send her** ("send me a pic of something near you 📸"). A photo shows the place, so here she may
+>   name it like a local ("omg that's Namba CITY 2F, by SOU-SOU-KA! the café's one floor down 👇"), but only when
+>   something recognisable (a shop, the gates, the escalators, the platforms, the canyon) is really in the frame.
+>   Otherwise: "hmm that could be anywhere 😅".
+>
+> The game's own sensors (behind pace, wandering, wrong floor, stalled, where you are) may decide *when* she checks
+> in, because she senses "it's taking long". Her *words* are questions and guesses ("you're not getting any closer, are
+> you? 😃", "probably still in the station maze lol"), never facts she couldn't have. Floor-aware positioning is what
+> Lodestone adds. (`V11.md` item 3; audit in `notes/v11-aya.md`.)
 
 1. **0:00 — Arrival.** Spawn `start` (Nankai 3F platform, the rapi:t from the
    airport, 11:20). There is a short, lovely intro with no long text. Aya

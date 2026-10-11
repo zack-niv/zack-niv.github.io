@@ -33,13 +33,15 @@
 // =============================================================================
 import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js';
 import { businessBySlot } from '../world/directory.js';
-import { LEVEL_ORDER } from '../world/layout.js';
+import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js';
 import { Aya } from './aya.js';
 import { Tutorial } from './tutorial.js';
 
 export class Story {
   constructor(ctx, game, demo) {
     this.ctx = ctx; this.game = game; this.demo = demo;
+    // v11: was the 📸 really taken? (registered before Aya's own listener, so her onReply already knows)
+    ctx.events.on('phone:reply', (e) => { if (e && e.photo) this._photoOk = e.img !== false; });
     this.aya = new Aya(ctx, game);
     this.tut = new Tutorial(ctx, game);
     this.t = 0; this._tick = 0;
@@ -94,14 +96,7 @@ export class Story {
     this.f.picked = true; this.f.picks++;
     if (this._leg2) this.f.pick2 = true;
     this.ctx.events.emit('story:pick', { slotId: e.slotId, suggested: this._isSuggested(e), leg: this._leg2 ? 2 : 1 });
-    // a different place than Aya's pick: she reacts lightly, once (the suggestion stays highlighted)
-    if (this._reacted || !this.suggested || this._isSuggested(e) || this.demo.arrived) return;
-    this._reacted = true;
-    const name = e.name || (businessBySlot[e.slotId] && businessBySlot[e.slotId].en) || 'that';
-    const skip = !this._leg2 && e.slotId === DEMO.slot && this.errand.state === 'asked';
-    if (skip) this._skipPicked = true;
-    const text = skip ? AYA.skipCoffeePick : AYA.otherPick.replace('{name}', name);
-    this.aya.say(text, { wait: 1.2 });
+    // v11: no reaction to your pick — Aya can't see your Maps app (V11.md item 3)
   }
   _isSuggested(e) { return e.suggested === true || (!!e.slotId && e.slotId === this.suggested); }
   _onOrder(e) {
@@ -112,6 +107,8 @@ export class Story {
     E.state = 'done'; E.got = { slotId: e.slotId, name: e.name, item: e.item }; E.at = this.t;
     this.demo.setTarget && this.demo.setTarget('dk');
     this.game.setQuest('coffee', 'done', mine ? `${e.item} from ${E.name}, to go` : `${e.item} from ${e.name || 'a café'} (close enough)`, true);
+    // v11: she only knows because YOU text her (she can't see you buy it)
+    this._mine(mine ? AYA.mineCoffee : AYA.mineOtherCoffee.replace('{name}', e.name || 'a café'));
     if (was === 'skipped' || was === 'declined') { this.aya.say('wait is that a coffee?? for ME?? 🥹', { wait: 2.6 }); return; }
     this.aya.say({ text: mine ? AYA.gotCoffee : AYA.gotOtherCoffee.replace('{cafe}', E.name), place: DEMO.slot }, { wait: 2.6, run: () => this._leg2Start() });
   }
@@ -196,8 +193,8 @@ export class Story {
     E.state = 'skipped';
     this.game.setQuest('coffee', 'hidden', null, true);
     this.demo.setTarget && this.demo.setTarget('dk');
-    if (this._skipPicked) { this._leg2Start(); return; }      // she already teased you when you picked Daikichi
-    this.aya.say({ text: AYA.noCoffee, place: DEMO.slot }, { run: () => this._leg2Start() });
+    // v11: she can't know you walked past the café — no text; she finds out at the counter (ARRIVAL.tease)
+    this._leg2Start();
   }
   _sendHello() {
     if (this.helloT != null) return;
@@ -337,7 +334,8 @@ export class Story {
     // v9: unanswered questions — walking on brings the nudge / the follow-up sooner; then the latte gate
     this._walkPatience();
     this._coffeeGate();
-    this._cityTip();
+    this._cityWatch();
+    this._engage();
     if (!demo.offered && !this._offering && aya.wasSent('meet')) this._beforeOffer();
     this._checkSkip();
   }
@@ -388,11 +386,13 @@ export class Story {
     this.whereWhy = kind;
     this.ctx.events.emit('story:where', { t: +t.toFixed(1), why: kind, leg: key, n: n + 1 });
     this._beat(id, kind);
-    aya.say({ id, text, replies: key === 'cafe' ? AYA.whereCoffee.replies : AYA.where.replies }, {
+    const rs = key === 'cafe' ? AYA.whereCoffee.replies : AYA.where.replies;
+    aya.say({ id, text, replies: [rs[0], AYA.photoChip, rs[1]] }, {      // v11: I'm lost · 📸 Send a pic · On my way
       patience: [DEMO.whereNudge, DEMO.whereGiveUp], nudge: AYA.whereNudge,
       onTimeout: () => this._offer(kind === 'behind' ? 'behind' : 'silent'),
       onReply: (r, reply) => {
         if (reply && reply.lost) { this._offer('lost'); return; }
+        if (reply && reply.photo) { this._photoReply(true); return; }          // v11: she reads your photo, then helps
         if (kind === 'behind') { this._behindReplied = true; this._offer('behind'); return; }   // "On my way!" — at that pace? (v10 critic: she answers it)
         aya.say(AYA.whereAck[r] || AYA.whereAck.omw, { wait: 0.5 });
         if (d._isLost()) this._offer('checkin'); else this.engaged = 'checkin';   // answered while clearly lost
@@ -404,7 +404,6 @@ export class Story {
   _cityFloors() {
     const E = this.errand, p = this.ctx.player && this.ctx.player.body;
     if (E.state !== 'asked' || !E.biz || !p || p.level === E.biz.level || !/^city/.test(this._space())) return false;
-    if (this._cityTipT != null && this.t - this._cityTipT < 15) return false;      // let her tip land first
     const rem = this.demo.targetRem ? this.demo.targetRem() : null;
     // v10 critic: ...or still a floor off after a while in CITY — a ~1 m/s first-timer (looks around, reads the phone)
     // reached the 150 m mark only after the 240 s cap, so the cap fired for a MOVING player (storysim 'first-timer')
@@ -422,21 +421,133 @@ export class Story {
     return false;
   }
   // v10 critic: a while in Namba CITY since her tip (her dot-watching: you're in the mall, the hard part is ahead)
-  _cityDwell() { return this._cityTipT != null && this.t - this._cityTipT >= DEMO.cityDwell; }
-  // v10: entering CITY on the latte leg — one light, real tip (the café's floor and landmark)
-  //      (Daikichi leg: keep straight on 2F — the critic's "obvious lever" for the long quiet stretch)
-  _cityTip() {
-    if (this._cityTipT != null || !/^city/.test(this._space())) return;
-    const E = this.errand, p = this.ctx.player && this.ctx.player.body;
-    const latte = E.state === 'asked' && E.biz && p && p.level !== E.biz.level;
-    // v10 critic: directions from Aya are stale once Lodestone is offered (wander: the tip came 66 s after "see? 😌")
-    const gone = () => this.demo.offered || this._offering;
-    if (gone() || (!latte && E.state === 'asked')) return;
-    this._cityTipT = this.t;
-    this._beat('cityTip', latte ? 'place' : 'place-dk');
-    // the arrow points the real way (a player who wandered into CITY B1 is told to go UP to 1F)
-    const up = latte && LEVEL_ORDER.indexOf(p.level) >= 0 && LEVEL_ORDER.indexOf(p.level) < LEVEL_ORDER.indexOf(E.biz.level);
-    this.aya.say({ text: latte ? (up ? AYA.cityTipUp : AYA.cityTip) : AYA.cityTipDk }, { defer: 20, stale: gone });
+  _cityDwell() { return this._cityT != null && this.t - this._cityT >= DEMO.cityDwell; }
+  // v11: when the player first walks into Namba CITY (internal; Aya is never told) — it times the photo ask and the dwell
+  _cityWatch() { if (this._cityT == null && /^city/.test(this._space())) this._cityT = this.t; }
+  _mine(text) { const m = this.ctx.phone && this.ctx.phone.messages; if (m && typeof m.sendMine === 'function') { try { m.sendMine(text); } catch (e) { console.error('[story] mine', e); } } }
+  _moving() {
+    const W = this._wh || (this._wh = []), t = this.t;
+    W.push([t, this.walked]); while (W.length > 2 && W[1][0] < t - 20) W.shift();
+    return W.length > 1 && W[0][0] <= t - 15 && this.walked - W[0][1] >= 12;
+  }
+  // v11 (V11.md item 2): engagement — a friend waiting in a queue texts now and then. After DEMO.engageQuiet s with no
+  // contact while you walk; never over a question, never stacking, never more often than DEMO.engageGap.
+  //   before Lodestone: "you ok? 😊" (a question), the 📸 photo ask (in CITY, or after 2 min), then light lines;
+  //   after it: "is it working? 😌", queue / tempura lines. Each line once.
+  _engage() {
+    const aya = this.aya, d = this.demo, t = this.t;
+    const moving = this._moving();
+    if (d.arrived || this._offering || aya.open || aya.busy() || (d.offered && !d.upgraded) || !this._meetDone) return;
+    if (this.errand.slot && this.errand.state === 'none') return;            // the opening conversation is still going
+    const quiet = aya.t - Math.max(aya.lastSentT, aya.lastReplyT);
+    // the photo ask, timed by where you are (internal): just inside Namba CITY, the first mall floor puzzle (not held by
+    // the engagement gap: it is the beat that matters here; it still never stacks — 8 s of quiet, no open question)
+    if (!this._photoAsked && !d.offered && this._cityT != null && quiet >= 8) { this._lastEngageT = t; this._askPhoto('city'); return; }
+    if (this._lastEngageT != null && t - this._lastEngageT < DEMO.engageGap) return;
+    if (quiet < DEMO.engageQuiet || !moving) return;
+    this._lastEngageT = t;
+    if (!d.offered) {
+      if (!this._okAsked) { this._askOk(); return; }
+      if (!this._photoAsked && t >= 120) { this._askPhoto('quiet'); return; }
+      return this._engageLine(AYA.engageBefore, 'before');
+    }
+    this._engageLine(AYA.engageAfter, 'after');
+  }
+  _engageLine(pool, tag) {
+    const k = '_eng_' + tag; this[k] = this[k] || 0;
+    if (this[k] >= pool.length) return;
+    const text = pool[this[k]++];
+    this._beat('engage', tag); this.ctx.events.emit('story:engage', { t: +this.t.toFixed(1), text });
+    this.aya.say(text, { wait: 0.4 });
+  }
+  _askOk() {
+    this._okAsked = true; this._beat('ok', 'quiet');
+    this.ctx.events.emit('story:engage', { t: +this.t.toFixed(1), text: AYA.okAsk.text });
+    this.aya.say(AYA.okAsk, { patience: [null, 25], onReply: (r, reply) => {
+      if (!(reply && reply.lost)) { this.aya.say(AYA.okAck, { wait: 0.5 }); return; }
+      if (this.t >= this.demo._offerMin) { this._offer('lost'); return; }
+      this.engaged = this.engaged || 'early'; this.aya.say(AYA.okLostEarly, { wait: 0.6 });
+    } });
+  }
+  _askPhoto(why) {
+    this._photoAsked = true; this._beat('photo', why);
+    this.ctx.events.emit('story:engage', { t: +this.t.toFixed(1), text: AYA.photoAsk.text });
+    this.aya.say(AYA.photoAsk, { patience: [null, 30], onReply: (r, reply) => {
+      if (reply && reply.photo) this._photoReply(false); else this.aya.say(AYA.photoFine, { wait: 0.6 });
+    } });
+  }
+  // she looks at your photo. v11 (lead): she reads what is IN it — the camera pose at capture decides whether a landmark
+  // is plausibly in frame; if not, "that could be anywhere 😅" and one more try (2 blurs at most, then she lets it go)
+  _photoReply(fromCheckin) {
+    const aya = this.aya, sc = this._photoOk === false ? { ok: false, why: 'nocapture' } : this._photoScene();
+    const p = this.ctx.player.body, sp = this._space();
+    const follow = () => { if (fromCheckin) { if (this.t >= this.demo._offerMin) this._offer('photo'); else this.engaged = this.engaged || 'checkin'; } };
+    if (!sc.ok) {
+      this._blurs = (this._blurs || 0) + 1;
+      this._beat('spot', 'blur-' + sc.why);
+      this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: false, why: sc.why, space: sp, level: p.level, pitch: +(this.ctx.player.pitch || 0).toFixed(2) });
+      if (this._blurs >= 2) { aya.say(AYA.photoGiveUp, { wait: 1.4, typing: 1.6 }); follow(); return; }
+      aya.say(Object.assign({}, AYA.photoBlur, { id: `photo_again_${this._blurs}` }), { wait: 1.4, typing: 1.6, patience: [null, 30],
+        onReply: (r, reply) => { if (reply && reply.photo) this._photoReply(fromCheckin); else { aya.say(AYA.photoFine, { wait: 0.6 }); follow(); } } });
+      return;
+    }
+    const text = this._spot(sc);
+    this._beat('spot', sc.lm || sc.zone);
+    this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: true, lm: sc.lm, zone: sc.zone, space: sp, level: p.level, text });
+    aya.say(text, { wait: 1.6, typing: 1.8 });
+    follow();
+  }
+  // the camera at capture: pitch (floor / ceiling = nothing), then the most specific landmark within ~22 m inside the
+  // ±35° view cone — a directory shop, a gate, an escalator — or a distinctive zone (platforms, canyon, Parks bridges)
+  _photoScene() {
+    const pl = this.ctx.player, p = pl.body, sp = pl.space || {}, id = sp.id || '', zone = sp.zone || '';
+    const f = { x: -Math.sin(pl.yaw), z: -Math.cos(pl.yaw) }, rt = { x: Math.cos(pl.yaw), z: -Math.sin(pl.yaw) };
+    const inView = (x, z, max) => { const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz); if (d > max) return null; return d < 1.5 || (dx * f.x + dz * f.z) / d > 0.82 ? d : null; };
+    const rel = (x, z) => { const dx = x - p.x, dz = z - p.z, d = Math.hypot(dx, dz) || 1, a = (dx * f.x + dz * f.z) / d, sd = (dx * rt.x + dz * rt.z) / d;
+      return a > 0.7 ? 'right ahead' : a < -0.6 ? 'behind you' : sd > 0 ? 'to your right' : 'to your left'; };
+    if (Math.abs(pl.pitch || 0) > 0.6) return { ok: false, why: (pl.pitch || 0) < 0 ? 'floor' : 'ceiling' };
+    const platform = p.level === '3F' && p.z > -66 && p.z < 60 && p.x > -56 && p.x < 22;
+    const distinct = platform ? 'platform' : /^parks_(canyon|stage)/.test(id) ? 'canyon' : /^parks_bridge_/.test(id) ? 'bridge' : null;
+    let lm = null, bd = 22;
+    for (const k in businessBySlot) {
+      const b = businessBySlot[k]; if (!b || !b.door || b.level !== p.level || !b.en) continue;
+      const d = inView(b.door.ox, b.door.oz, bd); if (d != null) { bd = d; lm = b.en; }
+    }
+    const g = this.game, gates = (g && g._gates) || [];
+    let gateNear = null, gd = Infinity;
+    for (const { gt } of gates) {
+      if (gt.level !== p.level) continue;
+      const x = gt.axis === 'x' ? Math.max(gt.from, Math.min(gt.to, p.x)) : gt.at, z = gt.axis === 'x' ? gt.at : Math.max(gt.from, Math.min(gt.to, p.z));
+      const d = Math.hypot(x - p.x, z - p.z); if (d < gd) { gd = d; gateNear = { x, z, name: gt.name || 'the gates' }; }
+      if (!lm && inView(x, z, 22) != null) lm = `the ${gt.name || 'gates'}`;
+    }
+    const ramps = (LAYOUT && LAYOUT.ramps) || [];
+    const ends = (want) => { let best = null, d0 = Infinity;
+      for (const r of ramps) { if (r.kind !== 'escalator' && r.kind !== 'stairs') continue;
+        const e = rampEnds(r), pt = r.upper === p.level && (!want || r.lower === want) ? e.high : r.lower === p.level && (!want || r.upper === want) ? e.low : null;
+        if (!pt) continue; const d = Math.hypot(pt.x - p.x, pt.z - p.z); if (d < d0) { d0 = d; best = pt; } }
+      return best; };
+    if (!lm) { const e = ends(null); if (e && inView(e.x, e.z, 20) != null) lm = 'the escalators'; }
+    if (!lm && !distinct) return { ok: false, why: 'plain' };
+    // where the escalator she means is: toward the café's floor on the latte leg, else up toward 2F
+    const E = this.errand, want = E.state === 'asked' && E.biz ? (LEVEL_ORDER.indexOf(p.level) > LEVEL_ORDER.indexOf(E.biz.level) ? LEVEL_ORDER[LEVEL_ORDER.indexOf(p.level) - 1] : LEVEL_ORDER[LEVEL_ORDER.indexOf(p.level) + 1]) : '2F';
+    const esc = ends(want);
+    return { ok: true, lm, distinct, zone, id, esc: esc ? rel(esc.x, esc.z) : 'nearby', gate: gateNear ? rel(gateNear.x, gateNear.z) : 'ahead' };
+  }
+  _spot(sc) {
+    const S = AYA.spot, p = this.ctx.player.body, { id, zone } = sc;
+    const leg = this.errand.state === 'asked' ? 'cafe' : 'dk', lvl = p.level;
+    const fill = (t) => t.replace('{lm}', sc.lm || 'the shops').replace('{esc}', sc.esc).replace('{gate}', sc.gate);
+    if (sc.distinct === 'platform') return fill(S.platform);
+    if (sc.distinct === 'canyon') return S.canyon;
+    if (sc.distinct === 'bridge') return fill(S.parks.replace('{lm}', 'the glass bridge'));
+    if (zone === 'nankai' || /^nankai/.test(id)) return fill(lvl === '3F' ? S.nankai : lvl === '2F' ? S.nankai2 : S.nankaiLow);
+    if (zone === 'city' || /^city/.test(id)) return fill(lvl === '2F' ? S.city2[leg] : lvl === '1F' ? S.city1[leg] : S.cityB1[leg]);
+    if (zone === 'nambawalk' || zone === 'link') return fill(S.walk);
+    if (zone === 'street') return S.street;
+    if (/^parks/.test(zone) || /^parks/.test(id)) return fill(LEVEL_ORDER.indexOf(lvl) >= LEVEL_ORDER.indexOf('5F') ? S.parksHigh : S.parks);
+    if (!id) return S.ramp;
+    return fill(S.other);
   }
   _beat(id, why) { this.ctx.events.emit('story:beat', { id, why, t: +this.t.toFixed(1) }); }
   _timer(beat, extra) { this.ctx.events.emit('story:timer', Object.assign({ beat, t: +this.t.toFixed(1) }, extra || {})); }
@@ -451,6 +562,7 @@ export class Story {
       const o = aya.open, nudged = o && o.nudgeT != null && aya.t - o.nudgeT < 10;   // she just said "hello?? 👀"
       if (why === 'silent') return nudged ? UPGRADE.offerSilentShort : UPGRADE.offerSilent;
       if (why === 'floors') return UPGRADE.offerFloors;
+      if (why === 'photo') return UPGRADE.offerPhoto;
       if (why === 'parks') return this._parksFar ? UPGRADE.offerFine : UPGRADE.offerParks;   // far side of CITY: "before you hit Parks"
       if (why === 'behind') return this._behindReplied && UPGRADE.offerBehindReply ? UPGRADE.offerBehindReply : UPGRADE.offerBehind;
       if (why === 'ahead') return UPGRADE.offerAhead;

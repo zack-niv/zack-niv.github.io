@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#08080a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Lost in Namba</title>
 <meta name="description" content="A first-person wander through Namba, Osaka: a tempura lunch is waiting somewhere in this labyrinth. Best with keyboard and mouse, headphones on.">
 <meta property="og:type" content="website">
@@ -22,6 +25,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
 <link rel="stylesheet" href="css/style.css">
 <link rel="stylesheet" href="css/game.css">
+<link rel="stylesheet" href="css/touch.css">
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/three.module.js",
@@ -59,6 +63,18 @@
   <div id="hud"></div>
   <div id="phone-root"></div>
   <div id="overlay"></div>
+</div>
+<!-- v11: phones in portrait. Shown by css/touch.css (media query), wired by js/ui/touch.js bootTouch(). -->
+<div id="rotate" role="dialog" aria-modal="true" aria-labelledby="rt-h">
+  <div class="rt-card">
+    <div class="rt-kana" lang="ja">なんば</div>
+    <div class="rt-latin">Lost in Namba</div>
+    <div class="rt-phone" aria-hidden="true"></div>
+    <h2 class="rt-h" id="rt-h">Turn your phone sideways</h2>
+    <p class="rt-p">Namba is a first-person walk: left thumb walks, right thumb looks.</p>
+    <p class="rt-small">Rotation locked? Unlock it in Control Center. In the LinkedIn app, open the link in your browser (••• → Open in browser).</p>
+    <button type="button" class="rt-anyway">Play upright anyway</button>
+  </div>
 </div>
 <script type="module" src="js/main.js"></script>
 </body>
