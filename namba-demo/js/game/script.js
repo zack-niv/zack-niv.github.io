@@ -105,7 +105,7 @@ export const AYA = {
   okAsk: { id: 'ok', text: 'you ok? 😊', replies: [{ id: 'ok', text: 'All good 👍' }, { id: 'lost', text: 'I\'m lost 😭', lost: true }] },
   okAck: 'yay 😌',
   okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
-  engageAfter: ['is it working? 😌 told you', 'omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'ok it\'s almost our turn 👀', 'a kid next to me is eating a whole melon pan 😂'],
+  engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
   // the player's own texts (no chips: they come from what you do)
   mineCoffee: 'got your latte! ☕ on my way',
   mineOtherCoffee: 'got you a latte from {name} ☕',
