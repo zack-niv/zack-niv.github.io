@@ -12,8 +12,8 @@
 //   others: a greeting and a one-line reply ("Say hi").
 // Emits ctx.events 'demo:order' { slotId, name, item, kind }.
 // =============================================================================
-import { businessBySlot, isOpen } from '../world/directory.js?v=517b401';
-import { DEMO, PEEK } from './script.js?v=517b401';
+import { businessBySlot, isOpen } from '../world/directory.js?v=253026a';
+import { DEMO, PEEK } from './script.js?v=253026a';
 
 const REACH = 1.7;          // metres from the order spot (spec: ~1.6)
 const FACE_DOT = 0.3;       // cos of the largest angle between the view and the staff (about 72 degrees)

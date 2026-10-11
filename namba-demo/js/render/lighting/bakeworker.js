@@ -1,7 +1,7 @@
 // Module worker: bakes light-field levels off the main thread (lighting.js
 // splits the levels over a few workers). Receives a plain-data snapshot of the
 // world (grids, edges, obstacles, the space flags the bake reads).
-import { bakeLevel } from './bake.js?v=517b401';
+import { bakeLevel } from './bake.js?v=253026a';
 
 class GridProxy {
   constructor(g) { Object.assign(this, g); }

@@ -2,10 +2,10 @@
 // Phone apps other than Maps: home screen, Notes (quest checklist), Messages
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
-import { LINES } from './places.js?v=517b401';
-import { businessBySlot } from '../../world/directory.js?v=517b401';
-import { placeArt } from './art.js?v=517b401';
-import { bizSub, levelLabel, zoneShort } from './destinations.js?v=517b401';
+import { LINES } from './places.js?v=253026a';
+import { businessBySlot } from '../../world/directory.js?v=253026a';
+import { placeArt } from './art.js?v=253026a';
+import { bizSub, levelLabel, zoneShort } from './destinations.js?v=253026a';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -187,6 +187,15 @@ export class MessagesApp {
     const kb = !(this.ctx.input && this.ctx.input.touch);
     return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
   }
+  // v9.1: keep the newest message in view. Pinning once at render is not enough: the reply tray slides in (0.35 s) and
+  // place-card thumbnails load late, and both change the list's height after the fact, which hid the newest text
+  // behind the chips (Zack's screenshot). Re-pin after the next frame, after the tray animation, and on image loads.
+  _pin() {
+    const s = this.root.querySelector('.ms-list'); if (!s) return;
+    const go = () => { s.scrollTop = s.scrollHeight; };
+    go(); requestAnimationFrame(go); clearTimeout(this._pinT); this._pinT = setTimeout(go, 420);
+    s.querySelectorAll('img').forEach(i => { if (!i.complete) i.addEventListener('load', go, { once: true }); });
+  }
   _typingHtml() { return this.typingFrom ? `<div class="ms-b ms-typing" aria-label="${esc(this.typingFrom)} is typing"><p><i></i><i></i><i></i></p></div>` : ''; }
   _renderTyping() {
     const list = this.root.querySelector('.ms-list'); if (!list) return;
@@ -211,7 +220,7 @@ export class MessagesApp {
       <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
     this.root.classList.toggle('ms-has-replies', !!this.pending);
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
-    const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight;
+    this._pin();
     this.phone._badges && this.phone._badges();
   }
 }

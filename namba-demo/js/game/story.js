@@ -28,10 +28,10 @@
 //   Where unanswered 45 s ('silent') · reaching Parks first ('ahead') · fallback 195 s (+15 s grace for a fresh
 //   question or the café counter); its words fit the why. The offer closes any open question (no stale chips).
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=517b401';
-import { businessBySlot } from '../world/directory.js?v=517b401';
-import { Aya } from './aya.js?v=517b401';
-import { Tutorial } from './tutorial.js?v=517b401';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=253026a';
+import { businessBySlot } from '../world/directory.js?v=253026a';
+import { Aya } from './aya.js?v=253026a';
+import { Tutorial } from './tutorial.js?v=253026a';
 
 export class Story {
   constructor(ctx, game, demo) {
@@ -252,7 +252,7 @@ export class Story {
       { id: 'pick', core: true, delay: 1.0,
         // v9: never beside fresh latte chips (one glance, one decision); a dropped errand picks from Meet's card
         available: () => (aya.wasSent('coffee') || (this._meetDone && (!this.errand.slot || this.errand.state === 'dropped'))) && !aya.busy()
-          && !(aya.open && aya.open.msg.id === 'coffee' && aya.fresh()),
+          && !(aya.open && aya.fresh()),     // v9 critic: nor beside a fresh "Where are you??" (silent-110.png)
         done: () => this.f.picked || (!this.dests && this.f.maps),
         hint: () => {
           if (!up()) return { html: this.dests ? TUTORIAL.pickDown : TUTORIAL.mapsDown, at: 'phone' };
@@ -385,6 +385,9 @@ export class Story {
       const o = aya.open, nudged = o && o.nudgeT != null && aya.t - o.nudgeT < 10;   // she just said "hello?? 👀"
       if (why === 'silent') return nudged ? UPGRADE.offerSilentShort : UPGRADE.offerSilent;
       if (why === 'ahead') return UPGRADE.offerAhead;
+      // v9 critic: she answers what you just told her ("I'm lost 😭" → "lol I knew it"), never asks it back
+      if (why === 'lost' && UPGRADE.offerLost) return UPGRADE.offerLost;
+      if (why === 'early' && UPGRADE.offerEarly) return UPGRADE.offerEarly;
       return why === 'time' && !demo._isLost() ? (this._inParks() ? UPGRADE.offerAhead : UPGRADE.offerFine) : UPGRADE.offer;
     };
     aya.act(() => { this._offering = false; const words = text(); aya.closeOpen('offer'); demo.offer(why, words); this._installStep(); }, { typing: 1.5, wait: 0.7 });
