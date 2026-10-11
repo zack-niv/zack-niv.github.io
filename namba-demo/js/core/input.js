@@ -290,7 +290,7 @@ export class Input {
           place();
         } else if (this._lookT.id === null) { Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }); }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();   // (a busy main thread can make touches uncancelable: no console noise)
     }, { passive: false });
     c.addEventListener('touchmove', e => {
       for (const t of e.changedTouches) {
@@ -309,7 +309,7 @@ export class Input {
           L.x = t.clientX; L.y = t.clientY; L.t = now;
         }
       }
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
     }, { passive: false });
     const end = e => {
       for (const t of e.changedTouches) {

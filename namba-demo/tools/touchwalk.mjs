@@ -182,10 +182,10 @@ try {
   await tapSel('.ph-dock [data-app="maps"]', 'dock Maps');
   await step(1.0, false); await settle(2); await page.waitForTimeout(400);
   await shot('06-maps');
-  R.mapsItems = await sizes('.ph-view[data-v="maps"] .dl-next, .ph-view[data-v="maps"] .dl-i, .ph-view[data-v="maps"] li');
+  R.mapsItems = await sizes('.ph-view[data-v="maps"] .dl-next, .ph-view[data-v="maps"] .dl-r, .ph-view[data-v="maps"] .dl-chips button');
   log('maps list', JSON.stringify(R.mapsItems.slice(0, 6)));
   for (let i = 0; i < 12 && !(await S()).dest; i++) {
-    if (!(await tapSel('.ph-view[data-v="maps"] .dl-next', 'Aya\'s pick (Next chip)'))) await tapSel('.ph-view[data-v="maps"] .dl-i, .ph-view[data-v="maps"] .dl-list li', 'first place');
+    if (!(await tapSel('.ph-view[data-v="maps"] .dl-next', 'Aya\'s pick (Next chip)'))) await tapSel('.ph-view[data-v="maps"] .dl-r', 'first place');
     await step(0.8, false);
     if (!(await S()).dest) { const go = await rect('.mp-go, .ph-view[data-v="maps"] [class*="go"]'); if (go) { await tapSel('.mp-go, .ph-view[data-v="maps"] [class*="go"]', 'Go'); await step(0.6, false); } }
   }
@@ -226,10 +226,13 @@ try {
       await tapSel('.ms-link', 'Lodestone Get');
       for (let i = 0; i < 40; i++) { await step(0.25, false); const st = (await S()).stage; if (st === 'calibrating' && !R.calShot) { R.calShot = true; await step(1, false); await settle(2); await shot('10-calibrating'); } if (st === 'ready') break; }
       await step(5, false); await settle(2); await page.waitForTimeout(500); await shot('11-lodestone');
-      R.ldButtons = await sizes('.ld-x3d, .ld-new, .ld-end, .ph-view[data-v="lodestone"] .dl-next');
+      R.ldButtons = await sizes('.ld-x3d, .ld-new, .ld-end, .ph-view[data-v="lodestone"] .dl-next, .ph-view[data-v="lodestone"] .dl-r');
       log('lodestone buttons', JSON.stringify(R.ldButtons));
       // pick Daikichi in Lodestone if the list is up (Aya's pick), then the 3D view and back
-      if (await rect('.ph-view[data-v="lodestone"] .dl-next')) { await tapSel('.ph-view[data-v="lodestone"] .dl-next', 'Lodestone: Aya\'s pick'); await step(1, false); }
+      // pick Tempura Daikichi in Lodestone's list (scrolled into view first, then a real tap on the row)
+      const dk = await page.evaluate(() => { const r = [...document.querySelectorAll('.ph-view[data-v="lodestone"] .dl-r')].find(e => /Daikichi/.test(e.textContent)); if (!r) return false; r.scrollIntoView({ block: 'center' }); r.classList.add('__tw'); return true; });
+      if (dk) { await step(0.3, false); await tapSel('.ph-view[data-v="lodestone"] .dl-r.__tw', 'Lodestone: Tempura Daikichi'); await step(1, false); }
+      if (await rect('.ld-pv-go')) { await tapSel('.ld-pv-go', 'Go'); await step(1, false); }
       if (await tapSel('.ld-x3d', '3D view')) { await step(1.5, false); await settle(2); await shot('12-3d'); await tapSel('.ld-x3d', '3D view (back)'); await step(0.8, false); }
       R.ldDest = (await S()).dest;
       await settle(2); await shot('13-lodestone-route');
@@ -240,13 +243,25 @@ try {
     if (s.arrived || s.end) break;
   }
   R.gateUses = used;
-  if (FULL) {
+  // the end card: walked to (--full), or opened directly (demo._end(): the arrival itself is not what this tests)
+  if (!FULL) { await page.evaluate(() => { window.__W.auto = false; window.__namba.input.setScript(null); window.__namba.game.demo._end(); }); }
+  {
     for (let i = 0; i < 400 && !(await S()).end; i++) { await step(0.25); await page.waitForTimeout(100); }
     await page.waitForTimeout(2500); await settle(2);
     await shot('14-endcard');
     R.endButtons = await sizes('.g-end .g-btn, .g-end .e-link');
     R.endScroll = await page.evaluate(() => { const e = document.querySelector('.g-end'); return e ? { sh: e.scrollHeight, ch: e.clientHeight, ov: getComputedStyle(e).overflowY } : null; });
     log('end card', JSON.stringify(R.endButtons), JSON.stringify(R.endScroll));
+    // scroll it with a thumb (a real touch drag), then tap Keep exploring
+    await drag(3, [W * 0.5, H * 0.8], [W * 0.5, H * 0.2], 10);
+    await page.waitForTimeout(800);
+    R.endScrolled = await page.evaluate(() => document.querySelector('.g-end').scrollTop);
+    await settle(1); await shot('14b-endcard-scrolled');
+    R.endLinksTarget = await page.evaluate(() => [...document.querySelectorAll('.g-end a.e-link')].map(a => a.target + ' ' + a.href.slice(0, 40)));
+    await tapSel('.g-end [data-a="roam"]', 'Keep exploring');
+    await page.waitForTimeout(1200);
+    R.roam = await page.evaluate(() => !window.__namba.game._endCard);
+    await step(0.5, false); await settle(2); await shot('14c-roam');
   }
   // ---- pause by touch, then resume by touch ----
   if (!(await S()).end) {

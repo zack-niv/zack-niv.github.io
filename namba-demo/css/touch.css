@@ -51,6 +51,7 @@ html.is-touch * { -webkit-tap-highlight-color: transparent; }
 /* pause: top-right, small and quiet */
 .tu-pause { position: absolute; top: max(10px, env(safe-area-inset-top)); right: calc(12px + var(--sr)); width: 44px; height: 44px; opacity: .8; }
 .tu-pause svg { width: 18px; height: 18px; }
+#touch-ui.ph-up .tu-pause { right: calc(4px + var(--tu-right)); }   /* never on the raised phone's status bar */
 
 /* the right-hand cluster: Use above, Run + Phone below; above the lowered phone, left of the raised one */
 .tu-cluster { position: absolute; right: calc(14px + max(var(--tu-right), var(--sr))); bottom: calc(10px + max(var(--tu-bottom), var(--sb)));
@@ -113,7 +114,15 @@ html.is-touch #phone-root kbd { display: none !important; }
 /* ---- short landscape screens (phones): compact the end card, the pause menu and the title ----------- */
 @media (pointer: coarse) and (max-height: 500px) {
   html.is-touch .g-end { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; }
-  html.is-touch .g-pause { overflow-y: auto; touch-action: pan-y; }
+  html.is-touch .g-pause { grid-template-rows: 100%; }
+  html.is-touch .p-side { padding: max(14px, env(safe-area-inset-top)) 0 12px calc(26px + env(safe-area-inset-left)); overflow-y: auto; touch-action: pan-y; }
+  html.is-touch .p-body { padding: 18px calc(24px + env(safe-area-inset-right)) 18px 3vw; overflow-y: auto; touch-action: pan-y; }
+  html.is-touch .p-kana { font-size: 32px; }
+  html.is-touch .p-en { margin-top: 8px; }
+  html.is-touch .p-where { margin-top: 10px; }
+  html.is-touch .p-nav { margin-top: 8px; }
+  html.is-touch .p-nav button { min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+  html.is-touch .p-esc { font-size: 12px; line-height: 1.45; margin-top: 10px; }
 }
 
 /* ---- tutorial hints on touch: never under the right-hand controls, never over the raised phone ------------- */
@@ -138,3 +147,7 @@ html.is-touch .g-tip[data-at="prompt"] { top: auto; bottom: 40%; }
   html.is-touch .e-right { padding: 14px 16px 10px; }
   html.is-touch .e-v b { font-size: 24px; }
 }
+html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4px; }
+
+/* ---- the compact (short) phone: panels sized to the screen, never under the status bar ------------------- */
+#phone-root.ph-compact .ld-pick { max-height: calc(100% - 96px - 54px); }

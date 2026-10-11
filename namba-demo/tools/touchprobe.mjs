@@ -41,7 +41,7 @@ try {
     await page.waitForTimeout(1200); await frames(2);
     log('after anyway', JSON.stringify(await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('rotate')).display, ok: document.documentElement.classList.contains('portrait-ok') }))));
     await shot('p2-title-portrait');
-    await page.tap('.t-begin'); await page.waitForTimeout(6000); await frames(3);
+    { const bb = await (await page.$('.t-begin')).boundingBox(); await page.touchscreen.tap(bb.x + bb.width / 2, bb.y + bb.height / 2); } await page.waitForTimeout(6000); await frames(3);
     await shot('p3-ingame-portrait');
     await page.evaluate(() => window.__namba.phone.open('messages')); await page.waitForTimeout(1500); await frames(3);
     await shot('p4-phone-portrait');

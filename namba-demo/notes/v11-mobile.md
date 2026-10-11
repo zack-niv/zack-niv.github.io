@@ -1,6 +1,6 @@
 # v11 — Mobile / tablet (item 6) — Mobile agent notes
 
-Status: IN PROGRESS (contracts first; results below once measured).
+Status: built and verified in mobile emulation (see Measurements). Lead: please also relay request 4.
 
 ## Contracts (other agents read this)
 
@@ -38,6 +38,21 @@ Status: IN PROGRESS (contracts first; results below once measured).
 3. **Aya: `js/game/game.js`**, the pause menu's `.p-esc` and `.p-hint` are keyboard-only. `css/touch.css` hides
    both on touch and `touch.js` adds a touch line. Nothing needed unless you prefer to own that copy.
 
-## Measurements
+4. **Aya: `js/game/demo.js:575`**, the free-roam caption "Q for your phone." On touch: "Tap your phone to raise
+   it." (`ctx.input.touch`).
 
-(filled in below)
+## What shipped (files)
+
+| File | What |
+|---|---|
+| `js/core/input.js` | Floating stick (spawns where the left thumb lands in the left 42 %, ring kept on screen, base follows a drifting thumb past 1.9 R, 14 % dead zone, pushed past 1.4 R forward = hurry). Drag look anywhere else: 0.0052 rad/px (≈0.3°/px), vertical ×0.8, flick boost up to 1.8× above 700 px/s, 35 ms smoothing. `tap(action)`, `runLatch` (auto-off after 1.5 s idle), `onTouchMode(fn)`. `preventDefault` only when the event is cancelable. The old E and 📱 buttons are gone (they floated over the loading screen). |
+| `css/input.css` | The stick ring and knob only (amber while hurrying). |
+| `js/ui/touch.js` (new) | `bootTouch()` (html.is-touch, the rotate card's "Play upright anyway", `--vh`); `TouchUI` (registered by main.js, not a loader stage): resting ghost stick, **Use** pill mirroring the HUD prompt, **Phone** (raise/lower), **Run** toggle, **Pause**; fullscreen plus landscape lock on Begin and Resume (Android Chrome and iPad; iPhone degrades to the visible viewport); auto-pause in portrait (and resume), and on `visibilitychange`; patches the title's "Click to begin" and the pause explainer on touch. The right-hand cluster sits above the lowered phone and steps left of the raised one. |
+| `js/ui/touchcopy.js` (new) | Touch wording for every TUTORIAL key that has key caps, with inline glyphs of the real buttons. |
+| `css/touch.css` (new) | Rotate card, controls, HUD-on-touch (no E key cap; the centre prompt hides while Use carries it; no mouse chip), invisible hit-area margins on phone chips, dock and Lodestone buttons, tutorial hints kept clear of the controls and the raised phone, compact pause menu, compact scrollable end card, compact Lodestone pick panel. |
+| `js/ui/phone.js` | Touch layout: a readable scale (0.83 on a 390-px-tall phone, was 0.55) with a **shorter device** (453 instead of 700 device px; `.ph-compact`) wholly on screen at the right edge, plus safe-area aware positions; portrait gets a screen-wide phone. Desktop path unchanged. |
+| `js/main.js` | No more "best on a computer" gate. Mobile quality default (touch-only devices, unless `?quality=` is given): `low` plus crowdMax 320 (phone) / 420 (tablet), drawDist 70/80, callBudget 320/380, pixel-ratio cap 1.5/1.35. |
+| `index.html` | The `#rotate` card (body), the `css/touch.css` link, and the `mobile-web-app-capable` / apple metas (home-screen launches run fullscreen). Viewport meta was already right (`viewport-fit=cover, user-scalable=no`). |
+| `tools/touchwalk.mjs`, `tools/touchprobe.mjs` (new) | Touch-only playthrough and quick probe (portrait: `--w 390 --h 844 --portrait`). |
+
+## Measurements

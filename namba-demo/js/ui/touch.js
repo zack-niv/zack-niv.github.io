@@ -141,8 +141,8 @@ export class TouchUI {
     // buttons act on touchstart (no 300 ms wait, works while the other thumb is walking); click is the fallback
     const bind = (b, fn) => {
       let tt = 0;
-      b.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); tt = performance.now(); b.classList.add('on'); fn(); }, { passive: false });
-      b.addEventListener('touchend', (e) => { e.preventDefault(); b.classList.remove('on'); }, { passive: false });
+      b.addEventListener('touchstart', (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation(); tt = performance.now(); b.classList.add('on'); fn(); }, { passive: false });
+      b.addEventListener('touchend', (e) => { if (e.cancelable) e.preventDefault(); b.classList.remove('on'); }, { passive: false });
       b.addEventListener('touchcancel', () => b.classList.remove('on'));
       b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); if (performance.now() - tt > 600) fn(); });
     };
