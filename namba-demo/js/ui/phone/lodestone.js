@@ -193,7 +193,10 @@ export class LodestoneApp {
   // the free band of the screen the 3D stack is framed into (px of the 316 x 676 screen)
   _bands(s = this.stack) {
     if (!s) return;
-    if (this.view === 'stack') { s.bandTop = 150; s.bandBottom = 296; s.bandRight = 46; }      // (v3: + the dock)
+    // v11 critic: the compact (short landscape-phone) screen has no room for the steps sheet under the stack, so
+    // css/touch.css hides it there and drops the controls to the dock; the band follows (else it was negative: no 3D)
+    const short = this.phone && this.phone.root && this.phone.root.classList.contains('ph-compact');
+    if (this.view === 'stack') { s.bandTop = short ? 140 : 150; s.bandBottom = short ? 150 : 296; s.bandRight = 46; }      // (v3: + the dock)
     else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 306; s.bandRight = 0; }   // (v5: 306 = + the trip card's route-controls row)
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards

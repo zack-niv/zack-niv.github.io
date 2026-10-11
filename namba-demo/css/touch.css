@@ -153,6 +153,11 @@ html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4p
 
 /* ---- the compact (short) phone: panels sized to the screen, never under the status bar ------------------- */
 #phone-root.ph-compact .ld-pick { max-height: calc(100% - 96px - 54px); }
+/* v11 critic: the 3D stack (the reveal hero and "3D view") had a negative band on the compact phone: the steps sheet and
+   controls covered all of it. Here the sheet goes (the instruction card above already says the next step) and the
+   controls sit just above the dock; lodestone.js _bands() frames the stack into what is left */
+#phone-root.ph-compact .ld-main[data-view="stack"] .ld-sheet { display: none; }
+#phone-root.ph-compact .ld-main[data-view="stack"] .ld-ctl { bottom: 104px; }
 /* the category chips in the "Where to?" list (25 px tall at phone scale): a taller invisible tap area */
 html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
 html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }
