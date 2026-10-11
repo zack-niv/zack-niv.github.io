@@ -67,7 +67,7 @@ Tool: `node tools/audioprobe.mjs --out file.json --ff 300` (analyser taps on eac
 stubbed ja voice, speech phase only; legacy = the v10 constants switched at runtime in the same page at the same crowd, so
 the comparison is like for like). Headless crowd around the teleport point is thin (ppl 0 to 15), so absolute beds are lower
 than on a real floor: read the deltas. Machine load was about 20 for all runs (the game ran at a few fps; waits are on state,
-not on seconds). Raw: `notes/v11-audio.json` is not kept; the log is reproduced below.
+not on seconds).
 
 Ambience bus RMS (dBFS), between announcements, legacy then v11:
 
@@ -91,8 +91,7 @@ Duck depth (settled gain factor on the ambience bus, as read from the announcer)
 gain 0.55. Previously a non-platform area line ducked nothing.
 
 PA level: chime on the voice bus about -17 to -19 dBFS RMS at the platform (series sample), i.e. about 35 dB above the ducked
-bed (-53 dBFS); limiter peak never above -3.3 dBFS in any run (the loudest was the Midosuji platform with a train in the
-tunnel). Speech volume handed to `speechSynthesis`: platform 0.98, nankai_gate (shed, 10 m) **0.62 (was 0.48)**, CITY area
+bed (-53 dBFS); limiter peak never above -5.6 dBFS in any run (chime onset at the platform; the speech-phase peaks are -7.9 or lower). Speech volume handed to `speechSynthesis`: platform 0.98, nankai_gate (shed, 10 m) **0.62 (was 0.48)**, CITY area
 0.89 (was about 0.24), canyon 0.54.
 
 Cadence, fast-forward of 300 game seconds per zone (area notices only; train lines are not simulated there), starts at:
@@ -125,6 +124,8 @@ Cadence, fast-forward of 300 game seconds per zone (area notices only; train lin
 
 ## Verification
 
-- `node tools/loadprobe.mjs`: see the lead's report (READY, `[]`).
-- `node tools/audioprobe.mjs --ff 300`: `errors []`, no clipping (limiter peak at most -3.3 dBFS).
-- Caption screenshot of an area line in CITY 2F: `notes/v11-shots/audio/area-pa-caption-city2f.png`.
+- `node tools/loadprobe.mjs`: `READY 245.3s []` (machine load average about 20 at the time, 4 browsers from other agents; the
+  audio changes add no load work: one table, one timer, two constants).
+- `node tools/audioprobe.mjs --ff 300`: `errors []`, limiter peak at most -5.6 dBFS.
+- Caption of an area line in CITY 2F (top-left, `ambient` channel, "案内" tag, JA + EN, caught mid-fade):
+  `notes/v11-shots/audio/area-pa-caption-city2f.png`. Same run: `errors [] []`, one `caption` event, kind `station`, channel `ambient`.
