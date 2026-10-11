@@ -17,6 +17,11 @@ Once every implementer has finished, you own all files in `namba-demo/`. Do not 
    - the files you fixed;
    - what remains, honestly;
    - a 1–10 "would this impress the team" score;
+   - **why that grade** (Zack asked for this in v11): what earned the points, what specifically cost points (each
+     deduction with its weight, e.g. "−0.5: Aya silent for 2.5 min on the latte leg"), and concrete suggestions to
+     reach the next point, ordered by impact per effort;
    - the top 3 risks.
+
+   Put the "why the grade" part in your final report to the lead as well, not only in the notes file.
 
 Hand back within about 75 minutes.
