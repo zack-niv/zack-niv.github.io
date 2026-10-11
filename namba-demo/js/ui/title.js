@@ -33,14 +33,14 @@ export class Title {
         <div class="t-rule"></div>
         <div class="t-tag">Somewhere in this labyrinth, a tempura lunch is waiting.</div>
         <div class="t-tag-ja">この迷宮のどこかで、天ぷらが待っている。</div>
-        <button type="button" class="t-begin"><span class="t-begin-line"></span><span>Click to begin</span><small>クリックしてはじめる</small></button>
+        <button type="button" class="t-begin"><span class="t-begin-line"></span><span>${touch ? 'Tap to begin' : 'Click to begin'}</span><small>${touch ? 'タップしてはじめる' : 'クリックしてはじめる'}</small></button>
       </div>
       <div class="t-drawer" hidden>
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>
         <div class="t-drawer-body"></div>
       </div>
       <div class="t-foot">
-        <div class="t-hint">${touch ? 'Best on a computer with a keyboard and mouse' : 'Best with keyboard &amp; mouse'}<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span></div>
+        <div class="t-hint">${touch ? 'Left thumb walks · drag to look' : 'Best with keyboard &amp; mouse'}<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span></div>
         <div class="t-keys"><span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span></div>
       </div>`;
     const drawer = el.querySelector('.t-drawer');
