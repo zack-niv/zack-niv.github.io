@@ -1,6 +1,6 @@
 # v11 — Mobile / tablet (item 6) — Mobile agent notes
 
-Status: built and verified in mobile emulation (see Measurements). Lead: please also relay request 4.
+Status: DONE. Built and verified in mobile emulation (see Measurements). Lead: please relay requests 1 and 4.
 
 ## Contracts (other agents read this)
 
@@ -56,3 +56,68 @@ Status: built and verified in mobile emulation (see Measurements). Lead: please 
 | `tools/touchwalk.mjs`, `tools/touchprobe.mjs` (new) | Touch-only playthrough and quick probe (portrait: `--w 390 --h 844 --portrait`). |
 
 ## Measurements
+
+All runs are headless Chromium with Playwright mobile emulation (`isMobile`, `hasTouch`; iPhone 13 profile). Every
+decision is a **real touch** (CDP `Input.dispatchTouchEvent` / `touchscreen.tap` on the element's centre). Long walking
+legs use `setScript` steering, as `walk.mjs` does (SwiftShader can't steer a route frame by frame).
+
+### Touch-only playthrough at 844×390 (`tools/touchwalk.mjs`, two runs)
+
+| Step | Result |
+|---|---|
+| Title | "TAP TO BEGIN タップしてはじめる"; the tap starts the game (`started: true`) |
+| Look | 3 right-thumb swipes of 140 px turn the view 121–129° (≈0.3°/px); tutorial `look` done |
+| Stick | Lands where the thumb lands; `move {x:0, y:1}`; 3.2–3.3 m walked in 3.8 s; pushing past the ring sets `jog: true` |
+| Phone | The phone button raises it; Messages chips 104×39 and 175×40 CSS px (plus a 6 px invisible margin = ≥ 44); dock 77×40 |
+| Aya | 5 questions answered by chip taps (hello, meet, coffee, ok, where); chip invariant holds |
+| Maps | Dock tap → Maps; a place row tap (242×56) → destination `city_1e12` |
+| Gate | The **Use** pill appears with the prompt's words, "Tap your ICOCA · 中央改札口 Central Gate · ICOCA ¥…" (300×56); a tap → gate "Open — walk through"; tutorial `gate` done |
+| Lodestone | Offer card "Get" (216×82) tapped → installing → calibrating → ready; tutorial `install` done; guidance shows (shot 8) |
+| Pause | Pause (44×44) → paused; Resume (289×43) → resumed |
+| End card | Readable; scrolls (505 px of content in 390); buttons 200×44 and 141×44; contact links 410×53 (`target=_blank`) |
+| Mouse chip | `display: none` on touch |
+| Errors | `ctx.errors` []. Run 1 logged Chrome's "Ignored attempt to cancel a touchstart… cancelable=false" (busy main thread). Fixed: `preventDefault` only when `e.cancelable` |
+
+Not covered by script: walking the whole route to Daikichi by touch (`--full` exists but takes more than 50 min
+headless) and the 3D-view button tap. The run picked a café, so Lodestone opened in Route view, not on a fresh pick.
+
+### Portrait 390×844 (`tools/touchprobe.mjs --portrait`)
+- The rotate card shows from first paint (CSS only, `display: grid`, full screen), over the loading screen and the title.
+- "Play upright anyway" (203×44) → card gone, `portrait-ok` set, and the title renders full width (shot 12).
+
+### Performance: mobile default vs desktop low (`tools/touchperf.mjs`, same poses, `?test&time=11:20`)
+
+| Pose | Desktop low 1280×720 (PR 0.75) | Mobile default 844×390 @3x (PR 1.5) |
+|---|---|---|
+| start (3F platform) | 532 calls · 769k tris · 152 people | 524 calls · 738k tris · 126 people |
+| Nankai gate | 457 · 342k · 156 | 476 · 343k · 126 |
+| CITY 2F | 354 · 229k · 137 | 378 · 240k · 111 |
+| canyon | 616 · 508k · 142 | 629 · 496k · 107 |
+
+Honest read: the mobile trims cut the crowd by 17–25%. They do **not** cut draw calls or triangles: the near geometry
+dominates, and the call governor only pulls in far chunks (floor 0.55× draw distance), so calls stay at about 380–630,
+the same as desktop low. Pixels: 1266×585 = 0.74 MP vs desktop low's 0.52 MP, with no post. Whether a mid-range phone
+holds 30 fps is **unmeasured**; the first real number will come from PostHog `namba_perf` once `input: 'touch'` is a
+super property (request 1). If it is short, the next lever is a lower `maxPR` (1.25) and capping static chunks by
+distance indoors (`js/render/visibility.js`, not mine).
+
+### Desktop regression
+- `tools/mouseshot.mjs`: free chip, pause, backdrop resume (locked), phone chip all as before; errors []. The phone
+  shot is pixel-identical in layout.
+- `tools/loadprobe.mjs`: `READY 49.4s []` (before the lead's loader fix); `READY 225.9s []` after it, on a machine with
+  all 4 slots busy (systems were up at 23.8 s; the wait was the first frame under contention).
+
+## Screenshots (`notes/v11-shots/mobile/`)
+1 title · 2 controls with the glance card · 3 phone (Messages) · 4 Maps compact · 5 gate Use button · 6 Lodestone offer ·
+7 calibrating · 8 Lodestone route · 9 pause · 10 end card · 11 portrait rotate card · 12 portrait "anyway" title.
+
+## Open / risks
+- Real-device frame rate and touch feel are unmeasured (emulation only). Look sensitivity 0.3°/px with a flick boost is
+  a guess at CoD-like feel; `settings.touchSensitivity` scales it.
+- LinkedIn's iOS in-app browser may be portrait-locked. The card says how to open the link in the browser and offers
+  "Play upright anyway". Portrait play works but is cramped.
+- The compact (453-unit) phone: Messages, Maps list, Lodestone guide and calibration look right. Maps' map view behind
+  the "Where to?" sheet is only a strip. The Lodestone pick panel was capped below the status bar (`touch.css`).
+  Untested: Lodestone's 3D stack and the place preview card in compact height.
+- The passive centre prompt ("Open — walk through") can sit over the resting ghost stick (cosmetic).
+- `demo.js:575` free-roam caption says "Q for your phone" (request 4).

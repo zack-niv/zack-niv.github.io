@@ -572,6 +572,6 @@ export class Demo {
     game._endCard = false; game._allowUnlock = false;
     game.busy = false; game.clearLook(); game._syncFrozen();
     try { ctx.input.requestLock(); } catch (e) { /* optional */ }
-    game.hud?.caption({ en: 'Free roam. Namba is yours. Q for your phone.', kind: 'thought', duration: 4 });
+    game.hud?.caption({ en: ctx.input && ctx.input.touch ? 'Free roam. Namba is yours. Tap the phone button for your phone.' : 'Free roam. Namba is yours. Q for your phone.', kind: 'thought', duration: 4 });
   }
 }
