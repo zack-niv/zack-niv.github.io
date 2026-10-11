@@ -63,7 +63,7 @@ try {
     c.events.on('ic:tap', (e) => { if (e && !e.ok) { W.refused = (W.refused || 0) + 1; W.unstick = 1.4; if (W.refused % 3 === 0) W.laneSide = -(W.laneSide || 1); W.side = W.laneSide || 1; L.ev.push([T(), 'gate-refused', `try#${W.refused} side=${W.side}`]); } });
     // v6: reactive gates — the bot taps with E (game's 'gatetap' interactable); a wrong-way channel makes it side-step
     on('gate:tap', e => `${e.gate} lane=${e.lane}.${e.sub} dir=${e.dir}`); on('gate:blocked', e => `${e.gate} lane=${e.lane}.${e.sub} ${e.reason}`); on('ic:pay', e => `${e.kind} ${e.amount} ok=${e.ok} bal=${e.balance}`); on('story:where', e => `${e.t} ${e.why}`);
-    on('aya:closed', e => `${e.msgId} ${e.reason}`); on('aya:answered', e => `${e.msgId}->${e.replyId}`); on('demo:target', e => e.target); on('story:errand', e => e.state); on('story:engaged', e => e.why);
+    on('aya:closed', e => `${e.msgId} ${e.reason}`); on('aya:answered', e => `${e.msgId}->${e.replyId}`); on('demo:target', e => e.target); on('story:beat', e => `${e.id} why=${e.why}`); on('story:timer', e => `${e.beat}${e.moving ? ' MOVING' : ''} leg=${e.leg || ''}`); on('demo:leg', e => `${e.key} route=${e.routeM}m floors=${e.floors} expect=${e.expected}s`); on('story:errand', e => e.state); on('story:engaged', e => e.why);
     // v9: the chips on the phone must always belong to Aya's open question (state + DOM), checked every frame
     window.__chipBad = []; window.__chipN = 0;
     window.__chipCheck = () => {
@@ -182,9 +182,9 @@ try {
     // v3: Aya's questions wait for an answer — raise the phone on Messages, answer (asking for help when offered), lower it
     const q = REPLY === 'none' ? null : await page.evaluate((thr) => { const st = window.__namba.game.story; const o = st && st.aya.open; if (!o || st.aya.t - o.t < thr) return null; window.__namba.phone.open('messages'); return o.msg.id; }, REPLY === 'instant' ? 0.2 : 2.5);
     // v9 critic: answer with a REAL key (Digit1/2 on window, phone up on Messages) like a player; story.answer() only as a logged fallback
-    if (q) { await step(REPLY === 'instant' ? 0.4 : 0.8); const ki = await page.evaluate(([q, DECL]) => { const o = window.__namba.game.story.aya.open; if (!o || o.msg.id !== q) return -1; const rs = o.msg.replies || []; const i = q === 'where' ? rs.findIndex(r => r.lost) : q === 'coffee' && DECL ? rs.findIndex(r => r.id === 'no') : 0; return Math.max(0, i); }, [q, REPLY === 'decline']);
+    if (q) { await step(REPLY === 'instant' ? 0.4 : 0.8); const ki = await page.evaluate(([q, DECL]) => { const o = window.__namba.game.story.aya.open; if (!o || o.msg.id !== q) return -1; const rs = o.msg.replies || []; const i = /^where/.test(q) ? rs.findIndex(r => r.lost) : q === 'coffee' && DECL ? rs.findIndex(r => r.id === 'no') : 0; return Math.max(0, i); }, [q, REPLY === 'decline']);
       let a = null; if (ki >= 0) { await page.keyboard.press('Digit' + (ki + 1)); await step(0.3); a = await page.evaluate((q) => { const st = window.__namba.game.story; return st.aya.answers[q] != null ? `${q}:${st.aya.answers[q]} (key)` : null; }, q); }
-      if (!a) { a = await page.evaluate((q) => { const r = window.__namba.game.story.answer(q === 'where' ? 'lost' : null); return r && r + ' (FALLBACK: key did not answer)'; }, q); } await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
+      if (!a) { a = await page.evaluate((q) => { const r = window.__namba.game.story.answer(/^where/.test(q) ? 'lost' : null); return r && r + ' (FALLBACK: key did not answer)'; }, q); } await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
     // v4: choose where to go like a player — phone up on Maps (Lodestone once live), press 1 = Aya's pick
     const pk = await page.evaluate(() => {
       const c = window.__namba, st = c.game.story, ph = c.phone;
@@ -295,6 +295,10 @@ try {
   log('BEATS\n' + L.ev.filter(e => /^(phone:message|phone:reply|story:where|story:engaged|demo:offer|aya:closed|demo:target|story:errand|demo:order|phone:upgrade|demo:arrive|demo:end)$/.test(e[1])).map(e => e.join(' | ')).join('\n'));
   log('THREAD\n' + (await page.evaluate(() => (window.__namba.phone.messages.msgs || []).map(m => m.day ? `-- ${m.day} --` : `${m.time || ''} ${m.me ? 'ME ' : 'AYA'}: ${m.text || ''}${m.link ? ' [link]' : ''}${m.place ? ' [place ' + (m.place.name || m.place.id || m.place) + ']' : ''}`).join('\n'))));
   log('CHIPS', JSON.stringify(await page.evaluate(() => ({ checks: window.__chipN, bad: window.__chipBad }))));
+  // v10: every beat with its trigger reason, and every timer-driven fire (target: none for a moving player)
+  log('STORY BEATS ' + L.ev.filter(e => e[1] === 'story:beat').map(e => `${e[2]}@${e[0]}`).join(' · '));
+  log('TIMERS ' + JSON.stringify(L.ev.filter(e => e[1] === 'story:timer').map(e => `${e[2]}@${e[0]}`)));
+  log('LEGS ' + L.ev.filter(e => e[1] === 'demo:leg').map(e => `${e[2]}@${e[0]}`).join(' · '));
 } catch (e) { log('no log', e.message); }
 const real = errors.filter(e => !/GL Driver Message|KHR_parallel|CERT_AUTH/.test(e));
 log('--- console issues:', real.length); console.log([...new Set(real)].slice(0, 25).join('\n'));

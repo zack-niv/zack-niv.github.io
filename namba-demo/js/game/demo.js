@@ -30,7 +30,12 @@ const num = (v) => (typeof v === 'number' && isFinite(v) ? v : null);
 const WAVE = 5;                 // npc/sim.js POSE.WAVE
 const STALL_S = 25, STALL_M = 8;   // lost = under 8 m of net progress toward Daikichi in 25 s
 const WRONG_LEVELS = new Set(['B2', 'B1', '1F']);
-const WRONG_CAFE = new Set(['B2', 'B1']);      // v9: on the latte errand CITY 1F is the right floor
+const WRONG_CAFE = new Set(['B2', 'B1', '4F', '5F', '6F']);   // v9: on the latte errand CITY 1F is the right floor
+const LV = ['B2', 'B1', '1F', '2F', '3F', '4F', '5F', '6F', '7F', '8F'];
+// v10 (V10.md): Aya's expectation for a leg — how long a real person would take, from the route at the leg's start
+const EXP_MPS = 1.25, EXP_SLACK = 60, EXP_FLOOR = 20, BEHIND_K = 1.1, WRONG_S = 20;
+// ...and the pace she sees on your shared dot: 60 s into a leg, a projected arrival past 1.3x her expectation = behind
+const PACE_AFTER = 60, PACE_K = 1.3;
 
 export class Demo {
   constructor(ctx, game) {
@@ -76,6 +81,7 @@ export class Demo {
       const d0 = this._field ? safe(() => ctx.nav.distance(this._field, body)) : null;
       this._lost.init = num(d0) && d0 > 0 ? d0 : 500;
     }
+    this._startLeg('dk', this._lost.init || 500, this.biz && this.biz.level);
     this._walk0 = game.journal.distance;
 
     let tt = 0;
@@ -136,7 +142,9 @@ export class Demo {
     // Lodestone's route runs through the Namba Parks canyon: Aya says so as the player reaches the bridge
     if (!this._canyonSent && !game.busy && !game.intro && !game.paused) {
       const sp = ctx.player.space && ctx.player.space.id;
-      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) { this._canyonSent = true; this._banter(CANYON_TEXT); }
+      if (sp === 'parks_bridge' || (b.level === '2F' && b.x > -6 && b.x < 6 && b.z > 188 && b.z < 206)) this._canyonAt = this._canyonAt != null ? this._canyonAt : this.t;
+      // v10: not on top of a Lodestone offer that is landing right now (Parks entry); dropped if 40 s late
+      if (this._canyonAt != null && (this.offerT == null || this.t - this.offerT > 10)) { this._canyonSent = true; if (this.t - this._canyonAt < 40) this._banter(CANYON_TEXT); }
     }
     // (v3: the upgrade offer is the story's call — it follows the player engaging with Aya, see story.js)
     // arrival
@@ -185,7 +193,8 @@ export class Demo {
   _checkRoute(dt) {
     const { ctx, game } = this;
     const b = ctx.player.body, L = this._lost;
-    if (WRONG_LEVELS.has(b.level)) L.wrongT += dt; else L.wrongT = Math.max(0, L.wrongT - dt * 0.5);
+    const leg0 = this._leg && this._leg.level0;
+    if (WRONG_LEVELS.has(b.level) && !(this._leg && this._leg.key === 'dk' && b.level === leg0)) L.wrongT += dt; else L.wrongT = Math.max(0, L.wrongT - dt * 0.5);
     if (this._field) {
       const d = safe(() => ctx.nav.distance(this._field, b));
       if (num(d) != null) {
@@ -205,7 +214,7 @@ export class Demo {
       if (WRONG_CAFE.has(b.level)) T.wrongT += dt; else T.wrongT = Math.max(0, T.wrongT - dt * 0.5);
       const d = safe(() => ctx.nav.distance(T.field, b));
       if (num(d) != null) {
-        T.rem = d; if (T.init == null) T.init = d; if (d < T.best) T.best = d;
+        T.rem = d; if (T.init == null) { T.init = d; this._startLeg('cafe', d, T.level); } if (d < T.best) T.best = d;
         T.hist.push([this.t, d]);
         while (T.hist.length > 2 && T.hist[1][0] < this.t - 62) T.hist.shift();
       }
@@ -226,9 +235,28 @@ export class Demo {
       this._tgtKey = 'dk'; this._tgt = null;
       // back on the Daikichi leg: fresh history, so the café detour itself never reads as "stalled" / "walked away"
       L.hist = []; L.best = L.rem != null ? L.rem : L.best; L.wrongT = 0; this._dkWalk0 = this.game.journal.distance;
+      this._startLeg('dk', this._navRem() || L.rem || 300, this.biz && this.biz.level);
     }
     ctx.events.emit('demo:target', { target: this._tgtKey, t: +this.t.toFixed(1) });
   }
+  // v10: a leg starts — Aya's expectation: route metres / 1.25 m/s + 60 s + 20 s per floor change
+  _startLeg(key, routeM, targetLevel) {
+    const b = this.ctx.player.body, a = LV.indexOf(b.level), z = LV.indexOf(targetLevel);
+    const floors = a >= 0 && z >= 0 ? Math.abs(z - a) : 0;
+    this._leg = { key, t0: this.t, routeM: Math.round(routeM), floors, level0: b.level, expected: Math.round(routeM / EXP_MPS + EXP_SLACK + EXP_FLOOR * floors) };
+    this.ctx.events.emit('demo:leg', Object.assign({ t: +this.t.toFixed(1) }, this._leg));
+  }
+  // v10: where the player stands against Aya's expectation for this leg
+  legState() {
+    const L = this._leg; if (!L) return null;
+    const elapsed = this.t - L.t0, rem = this.targetRem();
+    const covered = rem != null ? L.routeM - rem : null;
+    const projected = covered == null ? null : covered > 5 ? elapsed * L.routeM / covered : Infinity;
+    const behind = elapsed > L.expected * BEHIND_K || (elapsed >= PACE_AFTER && projected != null && projected > L.expected * PACE_K);
+    return { key: L.key, elapsed, expected: L.expected, projected, behind, routeM: L.routeM };
+  }
+  // v10: nav metres to the active target (the café on the latte leg, else Daikichi)
+  targetRem() { return this._tgt ? this._tgt.rem : this._lost.rem; }
   // v9: doing what Aya asked — within 15 m of the active target's door, or 15 m of progress toward it in 30 s
   onTask() {
     const b = this.ctx.player.body, T = this._tgt;
@@ -242,7 +270,7 @@ export class Demo {
   _isLost() {
     const L = this._tgt || this._lost, { game } = this;
     const walked = game.journal.distance - (this._tgt ? this._tgt.walk0 : this._dkWalk0 != null ? this._dkWalk0 : this._walk0);
-    if (L.wrongT > 7) return 'floor';
+    if (L.wrongT > WRONG_S) return 'floor';         // v10: 20 s on a wrong floor (V10.md)
     if (L.rem != null && L.best < Infinity && L.rem - L.best > 75) return 'away';
     if (L.rem != null && L.init && walked > 250 && L.rem > L.init * 0.8) return 'far';
     // stalled: the nav distance to the door has not dropped by 8 m over the last 25 s (stuck at a gate, dithering in

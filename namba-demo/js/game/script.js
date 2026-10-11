@@ -15,11 +15,12 @@ export const DEMO = {
   coffeeSlot: 'city_1e12',          // v4: Aya's coffee errand (Namba CITY 1F, at the foot of the esc_city_b escalators)
   // v6 pacing (item 9): the ordinary map has to be FELT for ~2-3 min before Lodestone (real statistics need a real
   // "before"), and Aya's "Where are you??" must not arrive while the player is still taking in the station (item 1)
-  offerAt: 195,                     // real seconds of play: Aya sends Lodestone anyway (nobody stays stuck forever) — 3:15
+  // v10 (V10.md): no fixed-clock beats. offerAt is only the never-stall safety cap (logged as 'story:timer' if it fires)
+  offerAt: 240,                     // real seconds of play: the hard cap — nobody stays stuck forever (was 195 / 210)
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
-  whereMin: 95,                     // "Where are you??" never before this, and only when clearly stalled or wandering...
-  whereAt: 150,                     // ...or as a fallback from here (unless the player is making clear progress)...
-  whereLatest: 175,                 // ...and by here at the latest
+  whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
+  checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
+  floorsM: 150,                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
@@ -30,7 +31,7 @@ export const DEMO = {
   latteGiveUp: 25,                  // the latte question: silence = yes (chips withdrawn)
   whereNudge: 25, whereGiveUp: 45,  // "Where are you??": nudge, then she sends Lodestone anyway
   offerGrace: 15,                   // the 195 s fallback waits up to this long for a fresh question / the café counter
-  aheadFrac: 0.3,                   // reaching Parks (or < 30% of the start distance left) before any offer → 'ahead'
+  aheadFrac: 0.3,                   // (v9) reaching Parks (or < 30% of the start distance left) before any offer
   orderCool: 20,                    // no "Where are you??" within this long of buying her latte
 };
 // v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)
@@ -56,6 +57,17 @@ export const AYA = {
   whereCoffee: { id: 'where', text: 'how\'s my latte coming? 👀 the line is moving',
     replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'almost', text: 'Almost there!' }] },
   whereNudge: 'hello?? 👀',
+  // v10: check-ins say what she sees (location sharing): specific to the real state, never a generic timer ping.
+  // {lvl} = the player's floor; {goal} = where the leg goes. Chips: I'm lost / On my way (Almost there on the latte leg)
+  checkin: {
+    floor: { dk: 'why are you on {lvl}?? 😂 I\'m on 6F', cafe: 'why are you on {lvl}?? 😂 the café\'s on 1F' },
+    stalledStation: 'still at the station? 👀',
+    stalled: { dk: 'you ok? your dot hasn\'t moved in ages 👀', cafe: 'you ok? your dot hasn\'t moved in ages 👀 the café\'s on 1F' },
+    away: { dk: 'wait where are you going 😅 Parks is the other way', cafe: 'wait where are you going 😅 the café\'s the other way' },
+    behind: { dk: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces', cafe: 'how\'s my latte coming? 👀 the line is moving' },
+  },
+  // v10: location beats (one each)
+  cityTip: 'ooh you\'re in CITY! the café\'s on 1F 👇 right at the bottom of the big escalators',
   // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
@@ -80,6 +92,9 @@ export const UPGRADE = {
   offerSilent: 'hellooo?? 👀 ok just install this, it actually works indoors',          // v9: Where went unanswered
   offerSilentShort: 'ok just install this 😅 it actually works indoors',                  // ...right after her nudge
   offerFine: 'trust me, get Lodestone before you hit Parks 😅 it actually works indoors',   // v9: fine, not in Parks yet
+  offerFloors: 'it\'s one floor down 👇 Maps never knows floors in here though 😅 use this →',   // v10: latte leg, CITY
+  offerParks: 'ok Parks is a maze, even I got lost 😅 use this →',                          // v10: entering Parks
+  offerBehind: 'ok you\'re taking forever 😂 get this, it actually works indoors',           // v10: behind, unanswered
   offerAhead: 'ok Parks is a maze from here 😅 get Lodestone, it actually works indoors', // v9: doing fine, not lost
   ready: 'see? 😌 6F, I\'m 3rd in line',
   ready2: 'see? 😌 6F. still 2nd in line, hurry 🍤',          // v9: after the "I'm 2nd in line!!" banter
