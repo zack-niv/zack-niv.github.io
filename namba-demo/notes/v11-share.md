@@ -1,7 +1,6 @@
-# v11 Share card (item 1) — IN PROGRESS
+# v11 Share card (item 1) — DONE
 
-Status: copy done, card render pending a browser slot (all 4 headless slots were taken by other agents for ~25 min; the
-first game load then takes minutes under SwiftShader load).
+Status: `og.jpg` re-rendered (1200x630, 130 KB), meta copy shipped, title touch copy applied. `node tools/loadprobe.mjs` printed `READY 198.7s []` (slow only because 4 other browsers were running; no load change from my edits).
 
 ## Done (no browser needed)
 
@@ -32,9 +31,24 @@ Full-bleed first-person Namba CITY / Nankai concourse (real game frame, crowd wa
 stack, no "magnetic".
 
 Before: `notes/v11-shots/player/1_link_preview.webp` (Lodestone stack + "magnetic fingerprint").
-After: pending (`namba-demo/og.jpg`).
+After: `namba-demo/og.jpg` (copy: `notes/v11-shots/share/og_after.jpg`), downscaled to LinkedIn thumbnail size:
+`notes/v11-shots/share/og_after_550px.png`. The game frame is `raw_city_b1.png` (Namba CITY B1 shop street, crowd warmed up,
+HUD hidden) and the phone is the real Messages UI with Aya's text and the Tempura Daikichi place card
+(`phone_clean.png`: transparent, drop-shadow halo thresholded away). Contents: なんば, LOST IN NAMBA, "Six floors, four
+stations, one tempura lunch." / "Can you find it?", "A first-person game · play in your browser". No Lodestone, stack or
+"magnetic".
 
-## Note for the lead / Mobile
+Rebuild: `node tools/ogshot.mjs --out DIR --poses city_b1 --phone city_b1` then
+`node tools/ogcard.mjs --bg DIR/raw_city_b1.png --phone DIR/phone_clean.png --out og.jpg --thumb thumb.png`
+(the phone PNG needs its faint shadow halo removed: alpha < 130 -> 0).
+
+## Other poses tried
+
+Nankai 1F concourse (clear people, but bland), Nankai 2F (empty-looking), CITY 1F atrium (grand but nobody near). The CITY B1
+shop street won: signs, shops, escalator in the distance, a flow of commuters. Alternate backgrounds are in
+`notes/v11-shots/share/` only for city_b1; others lived in `/tmp/claude-0/og/`.
+
+## Note for the lead / Mobile (resolved by the lead)
 
 `main.js` lists a `touch` system but `js/core/loader.js` `STAGES` has no `touch` entry, so in the working tree the loader
 throws (`STAGES[k][0]` of undefined in `Loader.stage`) and the game never becomes ready. Either add
