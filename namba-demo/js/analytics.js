@@ -73,7 +73,7 @@ export function setupAnalytics(ctx) {
   const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); };
   if (ctx.started) started(); else E.on('game:start', started);
   // v11.1: the previous run died on screen (iOS memory kill / context loss) and this boot is the recovery
-  try { const r = ctx.recovered; if (r) { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? Math.round(r.ago / 1000) : null, safe: r.safe || 1 }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
+  try { const r = ctx.recovered; if (r) { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1 }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
   E.on('tutorial:step', (e) => { if (e && e.done) { reach('tutorial'); send('namba_tutorial_step', { step: e.id, t: e.t, nudges: e.nudges }); } });
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
   E.on('nav:destination', (e) => { reach('destination'); send('namba_destination', { app: e.app, slot: e.slotId, place: e.name, suggested: !!e.suggested, via: e.via, t: t() }); });
