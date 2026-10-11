@@ -4,6 +4,7 @@
 //   bark(ctx), groundcover(ctx), paving(ctx), deck(ctx), water normals...
 import * as THREE from 'three';
 import { rng } from '../../core/rng.js';
+import { lcanvas } from '../../render/canvasres.js';
 
 export const FOLIAGE_TILES = { broad: 0, autumn: 1, shrub: 2, ginkgo: 3, narrow: 4, grass: 5, flower: 6, pine: 7 };
 export function tileUV(tile) { const c = tile % 4, r = (tile / 4) | 0; return [c / 4, 1 - (r + 1) / 2, (c + 1) / 4, 1 - r / 2]; } // u0,v0,u1,v1
@@ -74,7 +75,7 @@ export function strata(ctx) {
 // Foliage atlas: 2048x1024, 4x2 tiles of 512.
 export function foliage(ctx) {
   return cache(ctx, 'foliage', () => {
-    const T = 512, c = canvas(T * 4, T * 2), g = c.getContext('2d');
+    const T = 512, c = lcanvas(T * 4, T * 2, 'atlas'), g = c.getContext('2d');   // v11.1: fewer real px on mobile
     const R = rng(4242);
     const tileXY = (t) => [(t % 4) * T, ((t / 4) | 0) * T];
     const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;

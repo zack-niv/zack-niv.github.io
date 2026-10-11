@@ -23,6 +23,8 @@ import { LAYOUT } from './world/layout.js';
 import { Loader } from './core/loader.js';
 import { precompileVisible, precompileRest } from './render/precompile.js';
 import { bootTouch, TouchUI } from './ui/touch.js';
+import { setCanvasRes } from './render/canvasres.js';
+import { readRecovery, armRecovery } from './core/resilience.js';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
@@ -67,6 +69,8 @@ const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) 
 const touchOnly = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
 bootTouch();
 const touchAck = Promise.resolve();
+// v11.1 (iOS crash): did the last run die on screen (jetsam / lost GPU)? Then this boot starts a safe tier.
+const recovery = readRecovery();
 
 async function boot() {
   const canvas = document.getElementById('view');
@@ -81,6 +85,20 @@ async function boot() {
     engine.renderer.setPixelRatio(engine.basePR);
     engine.mobile = true;
   }
+  // v11.1 (iOS crash): world sign/menu/board canvases at fewer real pixels on touch devices. At 2048² they were 272 MB
+  // of 2D canvas + ~250 MB of GPU copies at load (notes/v11.1-ioscrash.md); iOS Safari kills a tab around there.
+  if (touchOnly && !params.has('fullres')) setCanvasRes({ atlas: 0.5, sign: 0.6, board: 0.5 });   // ?fullres: A/B check
+  // after a crash (or ?safe): fewer people, fewer pixels, smaller textures. Applies on any device, quality forced or not.
+  if (recovery) {
+    const S = recovery.safe >= 2;
+    Object.assign(engine.quality, { crowdMax: S ? 140 : 220, drawDist: S ? 55 : 62, callBudget: S ? 240 : 280, maxPR: S ? 0.85 : 1.0, distFloor: 0.45, shadows: false, shadowMap: 0 });
+    engine.renderer.shadowMap.enabled = false;
+    engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
+    engine.renderer.setPixelRatio(engine.basePR);
+    setCanvasRes(S ? { atlas: 0.35, sign: 0.42, board: 0.35 } : { atlas: 0.42, sign: 0.5, board: 0.42 });
+    engine.safe = recovery.safe;
+    console.warn(`[resilience] recovered from ${recovery.reason} at ${recovery.lastStage} (t ${recovery.t}s): safe tier ${recovery.safe}`);
+  }
   const events = new Events();
   const ctx = {
     THREE, engine, scene: engine.scene, camera: engine.camera, events, params, layout: LAYOUT,
@@ -89,6 +107,7 @@ async function boot() {
     ui: { root: document.getElementById('ui'), hud: document.getElementById('hud'), phone: document.getElementById('phone-root'), overlay: document.getElementById('overlay'), title: document.getElementById('title') },
   };
   window.__namba = ctx;
+  armRecovery(ctx, recovery);
   progress('survey', 0.1);
   await frame();
   ctx.world = new World();

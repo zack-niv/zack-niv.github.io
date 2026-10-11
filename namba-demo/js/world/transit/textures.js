@@ -6,6 +6,7 @@
 // =============================================================================
 import * as THREE from 'three';
 import { DESTS, TYPES, LINES } from './timetable.js';
+import { lcanvas } from '../../render/canvasres.js';
 
 export const JP = '"Noto Sans JP","Noto Sans CJK JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
 export const EN = '"Inter","Helvetica Neue",Arial,sans-serif';
@@ -16,7 +17,7 @@ export async function loadFonts() {
   try { await Promise.race([Promise.all([document.fonts.load(`700 32px "Noto Sans JP"`), document.fonts.load(`500 32px "Noto Sans JP"`), document.fonts.load(`600 32px "Inter"`)]), t]); } catch (e) { /* fall back */ }
 }
 
-export function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+export function canvas(w, h) { return lcanvas(w, h, 'board'); }   // v11.1: fewer real px on mobile (drawing space unchanged)
 export function canvasTex(c, { srgb = true, mips = true, aniso = 4, nearest = false } = {}) {
   const t = new THREE.CanvasTexture(c);
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;

@@ -196,6 +196,9 @@ export class Lighting {
       t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearFilter;
       t.generateMipmaps = false; t.colorSpace = THREE.NoColorSpace; t.flipY = false;
       t.needsUpdate = true;
+      // v11.1 (iOS crash): on mobile, drop the packed CPU copy once it is on the GPU (~33 MB); CPU sampling uses
+      // this.levels[lv].A/B/C, not these. A lost context reloads the page (core/resilience.js), so no re-upload.
+      if (this.ctx.engine && this.ctx.engine.mobile) t.onUpdate = () => { t.onUpdate = null; t.image = { data: null, width: W, height: H }; };
       return t;
     };
     U.nbA.value = mk(A, THREE.HalfFloatType);
