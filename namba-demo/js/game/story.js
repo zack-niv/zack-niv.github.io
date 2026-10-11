@@ -454,9 +454,15 @@ export class Story {
     this._engageLine(AYA.engageAfter, 'after');
   }
   _engageLine(pool, tag) {
-    const k = '_eng_' + tag; this[k] = this[k] || 0;
-    if (this[k] >= pool.length) return;
-    const text = pool[this[k]++];
+    // v11 critic: the queue must only move forward. "almost our turn" / "we're next" wait until "I'm 2nd in line!!"
+    // (demo QUEUE_LINES, 170 m) has gone out, else she'd be "next" and then "2nd" again
+    const k = '_engUsed_' + tag, used = this[k] || (this[k] = new Set());
+    const q2 = !!(this.demo && this.demo._sent && this.demo._sent.has(170));
+    const isQ = (s) => /our turn|we're next/.test(s);
+    let i = q2 ? pool.findIndex((s, j) => !used.has(j) && isQ(s)) : -1;     // once she's 2nd, the queue lines come first
+    if (i < 0) i = pool.findIndex((s, j) => !used.has(j) && !isQ(s));
+    if (i < 0) return;
+    used.add(i); const text = pool[i];
     this._beat('engage', tag); this.ctx.events.emit('story:engage', { t: +this.t.toFixed(1), text });
     this.aya.say(text, { wait: 0.4 });
   }

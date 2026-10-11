@@ -85,14 +85,14 @@ export const AREA_PA = {
   terminal: { every: [36, 60], first: 12, gain: 0.95, lines: [
     { ja: 'ただいま、南海線は、平常どおり運転しております。', en: 'The Nankai Line is running on schedule.' },
     { ja: '特急ラピートは、全車両指定席です。特急券をお求めのうえ、ご乗車ください。', en: 'The Rapi:t limited express is all reserved seating. Please buy a limited express ticket.' },
-    { ja: '大きなお荷物をお持ちのお客様は、周りのお客様に、ご注意ください。', en: 'Passengers with large luggage, please take care around other passengers.' },
+    { ja: '大きなお荷物をお持ちのお客様は、周りのお客様のご迷惑にならないよう、ご注意ください。', en: 'Passengers with large luggage, please be considerate of those around you.' },
     { ja: '南海線をご利用いただきまして、ありがとうございます。', en: 'Thank you for using the Nankai Line.' },
     { ja: '駅構内での、歩きながらのスマートフォンの操作は、おやめください。', en: 'Please do not use your phone while walking.' },
   ] },
   // NAMBAWALK (underground arcade)
   arcade: { every: [48, 80], first: 18, gain: 0.85, lines: [
     { ja: 'なんばウォークをご利用いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba Walk.' },
-    { ja: '通路は、多くのお客様が行き交います。お足元にご注意ください。', en: 'Many people pass through this walkway. Please watch your step.' },
+    { ja: '通路が大変混み合っております。お足元にご注意ください。', en: 'The walkway is very crowded. Please watch your step.' },
     { ja: 'お客様にお知らせいたします。自転車の乗り入れは、ご遠慮ください。', en: 'Bicycles are not permitted in the arcade.' },
   ] },
   // Takashimaya and the food hall
@@ -104,7 +104,7 @@ export const AREA_PA = {
   // Namba CITY
   mall: { every: [46, 76], first: 16, gain: 0.9, lines: [
     { ja: '本日もなんばシティにご来館いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba City today.' },
-    { ja: '迷子のお知らせをいたします。赤いシャツの、四歳くらいの男の子が、サービスカウンターでお待ちです。お心当たりの方は、お越しください。', en: 'A lost child notice: a boy of about four in a red shirt is waiting at the service counter. If you know him, please come.' },
+    { ja: '迷子のお知らせをいたします。赤いシャツを着た、四歳くらいの男の子が、サービスカウンターでお待ちです。お心当たりのお客様は、サービスカウンターまでお越しください。', en: 'A lost child notice: a boy of about four in a red shirt is waiting at the service counter. If you know him, please come to the service counter.' },
     { ja: '館内での、歩きながらのスマートフォンのご利用は、おやめください。', en: 'Please do not use your phone while walking in the building.' },
     { ja: 'エレベーターは、ベビーカーや車いすをご利用のお客様を、優先とさせていただきます。', en: 'Elevators are for priority use by passengers with strollers or wheelchairs.' },
     { ja: 'お買い物の際は、お荷物から手を離さないよう、ご注意ください。', en: 'Please keep an eye on your belongings while shopping.' },
@@ -112,8 +112,8 @@ export const AREA_PA = {
   // Namba Parks interior
   parks: { every: [52, 84], first: 18, gain: 0.85, lines: [
     { ja: 'なんばパークスに、ご来館いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba Parks.' },
-    { ja: '屋上の、パークスガーデンは、緑あふれる空中庭園です。ぜひ、お散歩ください。', en: 'The Parks Garden on the roof is a green sky garden. Please take a stroll.' },
-    { ja: '迷子のお知らせをいたします。青い帽子の、三歳くらいの女の子が、インフォメーションでお待ちです。保護者の方は、お越しください。', en: 'A lost child notice: a girl of about three in a blue hat is waiting at the information desk. Parents, please come.' },
+    { ja: '屋上のパークスガーデンは、緑あふれる空中庭園です。どうぞ、お散歩をお楽しみください。', en: 'The Parks Garden on the roof is a green sky garden. Please enjoy a stroll.' },
+    { ja: '迷子のお知らせをいたします。青い帽子をかぶった、三歳くらいの女の子が、インフォメーションカウンターでお待ちです。保護者の方は、インフォメーションカウンターまでお越しください。', en: 'A lost child notice: a girl of about three in a blue hat is waiting at the information counter. Would her parents please come to the information counter.' },
     { ja: 'エスカレーターでは、お子様から、目を離さないでください。', en: 'Please keep an eye on your children on the escalators.' },
   ] },
   // open-air Parks (canyon): rare, softer, as if from a speaker on the terrace
@@ -128,7 +128,7 @@ export const AREA_PA = {
     { ja: 'ホームドアに、寄りかからないでください。', en: 'Please do not lean on the platform doors.' },
   ] },
   nkplatform: { every: [40, 70], first: 20, gain: 1, platform: true, lines: [
-    { ja: '電車とホームの間に、ご注意ください。', en: 'Please mind the gap between the train and the platform.' },
+    { ja: '電車とホームの間が、広く空いております。お足元にご注意ください。', en: 'There is a wide gap between the train and the platform. Please watch your step.' },
     { ja: '黄色い線の内側で、お待ちください。', en: 'Please wait behind the yellow line.' },
     { ja: 'ホームでの、歩きながらのスマートフォンの操作は、危険です。おやめください。', en: 'Using your phone while walking on the platform is dangerous. Please stop.' },
   ] },

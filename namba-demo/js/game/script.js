@@ -106,7 +106,7 @@ export const AYA = {
   okAsk: { id: 'ok', text: 'you ok? 😊', replies: [{ id: 'ok', text: 'All good 👍' }, { id: 'lost', text: 'I\'m lost 😭', lost: true }] },
   okAck: 'yay 😌',
   okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
-  engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'they have sweet potato tempura on the seasonal menu 🍠 we\'re getting it', 'ok I\'m officially starving 😭', 'the staff just brought out fresh shiso leaves 🌿 fancy', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
+  engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'they have sweet potato tempura on the seasonal menu 🍠 we\'re getting it', 'ok I\'m officially starving 😭', 'the staff just brought out fresh shiso leaves 🌿 fancy', 'the old lady behind me just gave me a candy 🍬 Osaka people are the best', 'the guy at the counter got a whole anago and I\'m so jealous 😭', 'they just sold out of kisu 😱 hurry lol', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
   // the player's own texts (no chips: they come from what you do)
   mineCoffee: 'got your latte! ☕ on my way',
   mineOtherCoffee: 'got you a latte from {name} ☕',
@@ -178,7 +178,7 @@ export const TUTORIAL = {
 // Queue banter as the route shortens (remaining metres → text), once each.
 export const QUEUE_LINES = [
   [170, 'I\'m 2nd in line!! 🍤'],
-  [45, 'you must be close now?? look for the noren with 天 on it 👋'],   // v11: a guess, not a sighting
+  [45, 'I\'m right by the door btw, look for the noren with 天 on it 👋'],   // v11 critic: no guess at all (an always-right "you must be close" read as uncanny)
 ];
 // Lodestone routes up through the Namba Parks canyon; Aya texts once, as you reach the bridge.
 // v5: the canyon is the natural way UP now (canyon floor → garden stairs → the glass bridge into Parks 3F), not a detour

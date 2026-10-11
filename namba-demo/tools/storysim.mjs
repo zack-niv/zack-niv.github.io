@@ -65,7 +65,7 @@ function run(sc) {
   const ctx = { events, phone, clock: { hhmm: '11:20' }, player: { body, yaw: 0, space: null }, nav: null };
   const game = { _gates: [{ gt: { id: 'g_nk_central', level: '3F', axis: 'x', at: -66, from: -50, to: 18, name: 'Central Gate' } }], journal: { distance: 0 }, busy: false, intro: false, paused: false, ended: false, started: true, hud: null, interactions: null, setQuest() {}, message: (text) => story.aya.say({ text }) };
   const demo = {
-    t: 0, offered: false, arrived: false, _offerAt: DEMO.offerAt, _offerMin: DEMO.offerMin,
+    t: 0, offered: false, arrived: false, _sent: new Set(), _offerAt: DEMO.offerAt, _offerMin: DEMO.offerMin,
     _lost: { rem: DK_M, init: DK_M }, _field: null, target: 'dk', _leg: null,
     _isLost: () => sc.lost(T.t, demo.target),
     progressOver: () => (T.t < 30 ? null : sc.progress(T.t, demo.target)),
@@ -103,6 +103,7 @@ function run(sc) {
     const nd = sc.dist ? sc.dist(T.t) : (sc.speed || 0) * Math.max(0, T.t - 5);
     game.journal.distance += Math.max(0, nd - dist); dist = nd;
     demo._w = where(dist, demo.target, sc);
+    if (demo.offered && demo.target === 'dk' && demo._w.rem < 170 && !demo._sent.has(170)) { demo._sent.add(170); story.aya.say({ text: 'I\'m 2nd in line!! 🍤' }, { defer: 12 }); }   // demo.js QUEUE_LINES
     body.level = demo._w.level; ctx.player.space = { id: demo._w.space, zone: demo._w.space.split('_')[0] };
     { const q = pose(dist, demo._w.space, body.level); body.x = q.x; body.z = q.z; ctx.player.yaw = q.yaw; ctx.player.pitch = sc.pitch ? sc.pitch(T.t, story._blurs || 0) : 0; }
     phone.now = T.t;
