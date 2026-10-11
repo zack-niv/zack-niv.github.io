@@ -51,7 +51,9 @@ html.is-touch * { -webkit-tap-highlight-color: transparent; }
 /* pause: top-right, small and quiet */
 .tu-pause { position: absolute; top: max(10px, env(safe-area-inset-top)); right: calc(12px + var(--sr)); width: 44px; height: 44px; opacity: .8; }
 .tu-pause svg { width: 18px; height: 18px; }
-#touch-ui.ph-up .tu-pause { right: calc(4px + var(--tu-right)); }   /* never on the raised phone's status bar */
+/* v11 critic: with the phone raised, the top strip left of it belongs to the tutorial hint (it pointed under the pause
+   button), so Pause joins the bottom row: left of Run + Phone (2 x 52 px + 14 px gap), 26 px clear of Run */
+#touch-ui.ph-up .tu-pause { top: auto; right: calc(14px + max(var(--tu-right), var(--sr)) + 118px + 26px); bottom: calc(14px + max(var(--tu-bottom), var(--sb))); }
 
 /* the right-hand cluster: Use above, Run + Phone below; above the lowered phone, left of the raised one */
 .tu-cluster { position: absolute; right: calc(14px + max(var(--tu-right), var(--sr))); bottom: calc(10px + max(var(--tu-bottom), var(--sb)));
@@ -155,3 +157,9 @@ html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4p
 html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
 html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }
 html.is-touch #phone-root .dl-chips { padding-top: 6px; padding-bottom: 12px; }
+
+/* v11 critic: area PA captions (top-left) must not run into a tutorial hint, which sits in the top strip while the
+   phone is raised on a landscape phone */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .h-amb { top: 70px; left: calc(16px + env(safe-area-inset-left)); width: min(320px, 44vw); }
+}
