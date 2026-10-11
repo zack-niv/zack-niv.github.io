@@ -31,6 +31,7 @@ All browser runs used `?quality=low&noaudio` on SwiftShader, and the bot answere
 | persona | code | legs (Aya's expectation) | beats (why @ s) | offer | **Before** (end card) | arrive | chips | timers | errors |
 |---|---|---|---|---|---|---|---|---|---|
 | normal | pre-fix* | café 310 m / 2 fl / 348 s · dk 195 m / 5 fl / 316 s | hello moved 10.4 · meet reply 15.5 · coffee reply 24.7 · cityTip place 113.6 · offer floors 148.8 | **148.8 `floors`** | 160 s · 213 m | 495.2 | 983 · **0 bad** | **0** | `[]` · 2 (bot `dbg`) |
+| **normal (rerun)** | **final** | café 309 m / 347 s · dk 195 m / 316 s | hello 10.8 · meet 16.3 · coffee 25.1 · cityTip 112.9 · offer floors 148.7 | **148.7 `floors`**, new words (`after-floors-offer-thread.png`, `after-floors-offer-peek.png`: "you're close! but Maps never know…") | 159 s · 212 m | 495.9 | 987 · **0 bad** | **0** | `[]` · 2 |
 | **`JOG=1`** (first v10 browser run) | pre-fix* | café 286 m / 329 s · dk 196 m / 317 s | hello 8.1 · meet 13.1 · coffee 21.3 · cityTip 62.5 · offer floors 100.4 | **100.4 `floors`** (held by the 100 s floor) | 111 s · 295 m | 260.4 | 513 · **0 bad** | **0** | `[]` · 2 |
 | `&wander` | final | café 310 m / 348 s · dk 195 m / 316 s | hello 10.4 · meet 15.7 · coffee 24.7 · **check-in `behind` 95.4** → *I'm lost 😭* (key) · offer lost 100.9 · **no CITY tip** (was 167.2) | **100.9 `lost`** | 112 s · 151 m · On track **68% · 0:26 off** | 551.4 | 1099 · **0 bad** | **0** | `[]` · 2 |
 | `REPLY=decline` | final | dk 457 m / 3 fl / 486 s | hello 10.4 · meet 15.7 · coffee reply 24.7 (*Not today*) · cityTip place-dk 113 · offer parks 152.6 (< 300 m approach) | **152.6 `parks`** | 163 s · 218 m | 437.0 | 868 · **0 bad** | **0** | `[]` · 2 |
@@ -112,7 +113,9 @@ a stale Maps and the CITY tip.
   46 s (gate → CITY), so it's borderline, not broken, and realistic: a friend who is waiting doesn't text every 30 s.
   For a 1 m/s player, Aya's silence is about 146 s. The gate and the pick step fill it, but this is the biggest
   remaining pacing risk.
-- After the upgrade, Aya is quiet for 108 s and later 148 s while Lodestone guides. That's the payoff walk, so it's fine.
+- After the upgrade, Aya is quiet for 108 s and later 148 s while Lodestone guides (wander: 213 s, including a 127 s
+  straight 186 m stretch with no Lodestone milestone). That's the payoff walk with the countdown on screen, so it's fine,
+  but it is the longest quiet in the demo.
 
 ## 3. Fixes (files)
 

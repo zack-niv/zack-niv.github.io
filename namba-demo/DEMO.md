@@ -29,6 +29,12 @@ the Oriient team appears only on the end card.
 
 ## The story (one quest)
 
+> **How Aya knows where you are (v10).** You share your live location with her, as friends do. It is the same coarse
+> indoor fix your Maps app shows, so she can tell *that* you are slow, stalled or wandering ("your dot isn't getting any
+> closer 😂"), but never *which floor* you are on. Floor-aware positioning is exactly what Lodestone adds, so her lines
+> must never claim floor knowledge. Her pacing comes from a realistic walking-time estimate per leg, not from a clock
+> (`V10.md`).
+
 1. **0:00 — Arrival.** Spawn `start` (Nankai 3F platform, the rapi:t from the
    airport, 11:20). There is a short, lovely intro with no long text. Aya
    texts: *"Landed? Meet me at Tempura Daikichi — Namba Parks, 6F! I'm
