@@ -151,3 +151,7 @@ html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4p
 
 /* ---- the compact (short) phone: panels sized to the screen, never under the status bar ------------------- */
 #phone-root.ph-compact .ld-pick { max-height: calc(100% - 96px - 54px); }
+/* the category chips in the "Where to?" list (25 px tall at phone scale): a taller invisible tap area */
+html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
+html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }
+html.is-touch #phone-root .dl-chips { padding-top: 6px; padding-bottom: 12px; }

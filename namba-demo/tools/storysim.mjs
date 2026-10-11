@@ -97,7 +97,8 @@ function run(sc) {
   story.begin(DEMO.introHold);
   const bad = []; let freshTopic = 0;
   const dt = 0.05;
-  for (let i = 0; i < 260 / dt; i++) {
+  for (let i = 0; i < (sc.until || 260) / dt; i++) {
+    if (demo.offered && !demo.upgraded && T.t > demo.offerT + 6) demo.upgraded = true;   // v11: install done (engagement resumes)
     T.t += dt; demo.t = T.t;
     const nd = sc.dist ? sc.dist(T.t) : (sc.speed || 0) * Math.max(0, T.t - 5);
     game.journal.distance += Math.max(0, nd - dist); dist = nd;
@@ -132,7 +133,7 @@ function run(sc) {
   const KNOW = /your dot|you'?re in CITY|you'?re in Parks|why are you on|you'?re on \dF|from there|I can see you|I see you/i;
   phone.thread.forEach((m) => { if (!m.me && KNOW.test(m.text || '')) bad.push(`impossible knowledge: "${String(m.text).slice(0, 50)}"`); });
   // v11 (item 2): the longest stretch with no message either way while the player walks (first Aya text → offer)
-  const tl = phone.thread.filter(m => m.t != null).map(m => m.t), endT = demo.offered ? demo.offerT : T.t;
+  const tl = phone.thread.filter(m => m.t != null).map(m => m.t), endT = demo.offered && sc.stopAfterOffer !== false ? demo.offerT : T.t;
   let gap = 0; for (let i = 1; i < tl.length; i++) if (tl[i] <= endT) gap = Math.max(gap, tl[i] - tl[i - 1]);
   if (tl.length) gap = Math.max(gap, endT - Math.max(...tl.filter(x => x <= endT)));
   const engage = evs.filter(e => e[1] === 'story:engage').length;
@@ -210,6 +211,10 @@ const results = [
     pitch: () => 1.2,
     reply: (id, rs, age) => (age < 2.5 ? null : /^where/.test(id) ? 'lost' : rs[0].id),
     expect: (s, d, l) => l.some(x => /stop playing detective/.test(x)) && s._blurs === 2 && l.filter(x => /could be anywhere/.test(x)).length === 1 }),
+  run({ name: 'v11 long Lodestone walk (wander-like: lost at 95 s, arrives ~9 min)', stopAfterOffer: false, until: 545, maxGap: 47,
+    speed: 1.1, lost: (t) => (t > 90 && t < 100 ? 'away' : null), progress: (t) => (t > 90 && t < 100 ? 0 : 25),
+    reply: (id, rs, age) => (age < 2.5 ? null : /^where/.test(id) ? 'lost' : rs[0].id),
+    expect: (s, d, l, tm, ev) => noTimer(tm) && ev.filter(e => e[1] === 'story:engage').length <= 10 }),
 ];
 console.log(`\n${results.filter(Boolean).length}/${results.length} scenarios pass`);
 process.exit(results.every(Boolean) ? 0 : 1);

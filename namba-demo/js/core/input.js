@@ -71,6 +71,7 @@ export class Input {
     this.enabled = true;
     this.device = 'kbm';
     this.touch = (() => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } })();
+    this.touchOnly = this.touch && (() => { try { return !matchMedia('(any-pointer: fine)').matches; } catch (e) { return true; } })();
     this.settings = loadSettings();
     this._listeners = new Set();
     this._script = null;
@@ -104,7 +105,7 @@ export class Input {
       this.device = 'kbm';
       this.look.x += dx; this.look.y += dy;
     });
-    addEventListener('mousedown', e => { this._pressed.add('Mouse' + e.button); });
+    addEventListener('mousedown', e => { this._pressed.add('Mouse' + e.button); if (!this.touchOnly && !(e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents)) this.device = 'kbm'; });
     // (keys are NOT cleared on lock loss: opening the phone drops pointer lock and
     // you should keep walking while you glance at it; blur still clears them)
     document.addEventListener('pointerlockchange', () => { this.locked = document.pointerLockElement === canvas; });
@@ -128,7 +129,8 @@ export class Input {
 
   // ---- pointer lock ---------------------------------------------------------
   requestLock() {
-    if (this.touch || !this.canvas.requestPointerLock) return;
+    // a phone / tablet never locks; a touch laptop locks again as soon as the mouse is the thing in use
+    if ((this.touch && (this.touchOnly || this.device === 'touch')) || !this.canvas.requestPointerLock) return;
     try {
       const p = this.canvas.requestPointerLock({ unadjustedMovement: true });
       if (p && p.catch) p.catch(() => { try { this.canvas.requestPointerLock(); } catch (e) {} });

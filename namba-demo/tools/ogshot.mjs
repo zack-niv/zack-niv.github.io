@@ -41,7 +41,14 @@ try {
     await page.evaluate(() => { const ph = window.__namba.phone; ph.message({ id: 'meet_og', from: 'Aya', text: 'Meet me at Tempura Daikichi. Namba Parks, 6F! I’m already in the queue \u{1F364}', time: '11:20', place: 'parks_6Fdw03' }); ph.open('messages'); });
     await frames(8); await page.waitForTimeout(1500);
     await page.screenshot({ path: path.join(out, 'phone_full.png'), timeout: 180000 });
-    const el = await page.$('.ph-device'); if (el) await el.screenshot({ path: path.join(out, 'phone_dev.png'), timeout: 180000 });
+    // phone only, transparent, on a taller viewport so the dock is not clipped
+    await page.setViewportSize({ width: 900, height: 900 });
+    await page.addStyleTag({ content: 'canvas{visibility:hidden!important} html,body,#ui,#app,#root{background:transparent!important}' });
+    await frames(4); await page.waitForTimeout(1500);
+    const bb = await page.evaluate(() => { const r = document.querySelector('.ph-device').getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+    const pad = 24; const clip = { x: Math.max(0, bb.x - pad), y: Math.max(0, bb.y - pad), width: bb.width + 2 * pad, height: Math.min(900 - Math.max(0, bb.y - pad), bb.height + 2 * pad) };
+    await page.screenshot({ path: path.join(out, 'phone_dev.png'), clip, omitBackground: true, timeout: 180000 });
+    console.log('phone bbox', JSON.stringify(bb));
     console.log('thread', await page.evaluate(() => (window.__namba.phone.messages.msgs || []).map(m => m.text || '').join(' | ')));
   }
 } catch (e) { console.log('ERR', e.message); }

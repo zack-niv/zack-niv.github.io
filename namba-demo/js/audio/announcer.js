@@ -257,4 +257,4 @@ export class Announcer {
     };
   }
 }
-export { PRIO, MIN_VOL };
+export { PRIO, MIN_VOL, PA_DUCK };

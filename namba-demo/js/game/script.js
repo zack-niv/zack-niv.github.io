@@ -20,7 +20,8 @@ export const DEMO = {
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
   whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
   checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
-  engageQuiet: 38, engageGap: 40,   // v11: a light text after 38 s of no contact while you walk; never more often than 40 s
+  engageQuiet: 38, engageGap: 40, engageGapAfter: 45,   // after Lodestone: a little sparser (the app talks too)
+    // v11: a light text after 38 s of no contact while you walk; never more often than 40 s
   floorsM: 150,
   cityDwell: 40,                    // v10 critic: ...or this long in CITY since her tip (slower walkers meet Lodestone before the cap)
   parksNearM: 300,                  // v10: Daikichi leg — in CITY with Daikichi this close by foot = the Parks bridge is ahead                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
@@ -105,7 +106,7 @@ export const AYA = {
   okAsk: { id: 'ok', text: 'you ok? 😊', replies: [{ id: 'ok', text: 'All good 👍' }, { id: 'lost', text: 'I\'m lost 😭', lost: true }] },
   okAck: 'yay 😌',
   okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
-  engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
+  engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'they have sweet potato tempura on the seasonal menu 🍠 we\'re getting it', 'ok I\'m officially starving 😭', 'the staff just brought out fresh shiso leaves 🌿 fancy', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
   // the player's own texts (no chips: they come from what you do)
   mineCoffee: 'got your latte! ☕ on my way',
   mineOtherCoffee: 'got you a latte from {name} ☕',

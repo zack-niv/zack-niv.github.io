@@ -443,7 +443,7 @@ export class Story {
     // the photo ask, timed by where you are (internal): just inside Namba CITY, the first mall floor puzzle (not held by
     // the engagement gap: it is the beat that matters here; it still never stacks — 8 s of quiet, no open question)
     if (!this._photoAsked && !d.offered && this._cityT != null && quiet >= 8) { this._lastEngageT = t; this._askPhoto('city'); return; }
-    if (this._lastEngageT != null && t - this._lastEngageT < DEMO.engageGap) return;
+    if (this._lastEngageT != null && t - this._lastEngageT < (d.offered ? DEMO.engageGapAfter : DEMO.engageGap)) return;
     if (quiet < DEMO.engageQuiet || !moving) return;
     this._lastEngageT = t;
     if (!d.offered) {
