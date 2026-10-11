@@ -12,7 +12,7 @@ const OUT = path.resolve(__tooldir, '../../../namba-shots/walk');
 const Q = process.env.Q || '?quality=low&noaudio';
 const JOG = !!process.env.JOG;
 // v9: how the bot answers Aya — 'normal' (2.5 s; the happy path: first chip, 'I'm lost' at Where), 'instant' (at once),
-// 'none' (never: Aya's patience timers must carry the story)
+// 'none' (never: Aya's patience timers must carry the story), 'decline' (normal, but "Not today 🙈" to the latte)
 const REPLY = process.env.REPLY || 'normal';
 const port = 8000 + Math.floor(Math.random() * 900);
 const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: ROOT, stdio: 'ignore' });
@@ -181,7 +181,10 @@ try {
     const s = await probe();
     // v3: Aya's questions wait for an answer — raise the phone on Messages, answer (asking for help when offered), lower it
     const q = REPLY === 'none' ? null : await page.evaluate((thr) => { const st = window.__namba.game.story; const o = st && st.aya.open; if (!o || st.aya.t - o.t < thr) return null; window.__namba.phone.open('messages'); return o.msg.id; }, REPLY === 'instant' ? 0.2 : 2.5);
-    if (q) { await step(REPLY === 'instant' ? 0.1 : 0.8); const a = await page.evaluate((q) => { const r = window.__namba.game.story.answer(q === 'where' ? 'lost' : null); return r; }, q); await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
+    // v9 critic: answer with a REAL key (Digit1/2 on window, phone up on Messages) like a player; story.answer() only as a logged fallback
+    if (q) { await step(REPLY === 'instant' ? 0.4 : 0.8); const ki = await page.evaluate(([q, DECL]) => { const o = window.__namba.game.story.aya.open; if (!o || o.msg.id !== q) return -1; const rs = o.msg.replies || []; const i = q === 'where' ? rs.findIndex(r => r.lost) : q === 'coffee' && DECL ? rs.findIndex(r => r.id === 'no') : 0; return Math.max(0, i); }, [q, REPLY === 'decline']);
+      let a = null; if (ki >= 0) { await page.keyboard.press('Digit' + (ki + 1)); await step(0.3); a = await page.evaluate((q) => { const st = window.__namba.game.story; return st.aya.answers[q] != null ? `${q}:${st.aya.answers[q]} (key)` : null; }, q); }
+      if (!a) { a = await page.evaluate((q) => { const r = window.__namba.game.story.answer(q === 'where' ? 'lost' : null); return r && r + ' (FALLBACK: key did not answer)'; }, q); } await step(0.6); await page.evaluate(() => { window.__namba.phone.open('maps'); }); await step(0.8); await page.evaluate(() => window.__namba.phone.close()); log('ANSWER', a); }
     // v4: choose where to go like a player — phone up on Maps (Lodestone once live), press 1 = Aya's pick
     const pk = await page.evaluate(() => {
       const c = window.__namba, st = c.game.story, ph = c.phone;
@@ -290,6 +293,7 @@ try {
   log('STUCK', JSON.stringify(L.stuck));
   log('ctx.errors', JSON.stringify(await page.evaluate(() => window.__namba.errors)));
   log('BEATS\n' + L.ev.filter(e => /^(phone:message|phone:reply|story:where|story:engaged|demo:offer|aya:closed|demo:target|story:errand|demo:order|phone:upgrade|demo:arrive|demo:end)$/.test(e[1])).map(e => e.join(' | ')).join('\n'));
+  log('THREAD\n' + (await page.evaluate(() => (window.__namba.phone.messages.msgs || []).map(m => m.day ? `-- ${m.day} --` : `${m.time || ''} ${m.me ? 'ME ' : 'AYA'}: ${m.text || ''}${m.link ? ' [link]' : ''}${m.place ? ' [place ' + (m.place.name || m.place.id || m.place) + ']' : ''}`).join('\n'))));
   log('CHIPS', JSON.stringify(await page.evaluate(() => ({ checks: window.__chipN, bad: window.__chipBad }))));
 } catch (e) { log('no log', e.message); }
 const real = errors.filter(e => !/GL Driver Message|KHR_parallel|CERT_AUTH/.test(e));

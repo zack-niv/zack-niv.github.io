@@ -86,6 +86,8 @@ function run(sc) {
     }
     if (demo.offered && T.t > demo.offerT + 5 && sc.stopAfterOffer !== false) break;
   }
+  // v9 critic: she never asks back what the player just told her ("I'm lost 😭" → "you're lost aren't you 😂")
+  phone.thread.forEach((m, i) => { const prev = phone.thread.slice(0, i).filter(x => x.me).pop(); if (!m.me && m.id === 'aya_lodestone' && prev && /lost|Which way/.test(prev.text) && /lost aren't you/.test(m.text)) bad.push(`offer asks "${m.text.slice(0, 30)}" right after "${prev.text}"`); });
   const ok = !bad.length && demo.offered && demo.offerT <= 210 && (!sc.expect || sc.expect(story, demo, lines));
   console.log(`\n=== ${sc.name}: ${ok ? 'PASS' : 'FAIL'}  offer ${demo.offered ? demo.offerT.toFixed(1) + ' s (' + demo.why + ')' : 'NONE'} · errand ${story.errand.state} · replied ${story.aya.replied}`);
   console.log(lines.join('\n'));

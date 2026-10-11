@@ -75,6 +75,8 @@ export const ERRAND_DRINK = { say: 'iced latte', label: 'iced latte', ja: 'ア�
 
 export const UPGRADE = {
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
+  offerLost: 'lol I knew it 😂 install Lodestone, it actually works indoors',                // v9 critic: answers "I'm lost 😭"
+  offerEarly: 'still lost? 😂 ok install Lodestone, it actually works indoors',              // v9 critic: after "Which way??"
   offerSilent: 'hellooo?? 👀 ok just install this, it actually works indoors',          // v9: Where went unanswered
   offerSilentShort: 'ok just install this 😅 it actually works indoors',                  // ...right after her nudge
   offerFine: 'trust me, get Lodestone before you hit Parks 😅 it actually works indoors',   // v9: fine, not in Parks yet
@@ -130,6 +132,7 @@ export const ARRIVAL = {
   textCoffee: 'THERE you are 🥹 and you brought my latte?? best friend ever. I saved us the two seats at the counter',
   thanks: { ja: 'ありがとう〜！', en: 'Thank youuu! 🥤' },
   tease: '…wait. where\'s my latte 😑 kidding. (not kidding)',
+  teaseDeclined: 'next latte\'s on you though 😌',          // v9 critic: you said "Not today", and she knows it
   sub: { en: 'Tempura Daikichi · 天ぷら 大吉', ja: 'なんばパークス 6F' },
 };
 

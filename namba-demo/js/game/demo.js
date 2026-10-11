@@ -344,7 +344,7 @@ export class Demo {
     later(700, () => text(coffee ? ARRIVAL.textCoffee : ARRIVAL.text));
     if (coffee) {
       later(1500, () => { hud?.caption({ ja: ARRIVAL.thanks.ja, en: ARRIVAL.thanks.en, speaker: 'Aya', duration: 3.6 }); hud?.cup(false); ctx.audio?.play?.('cup'); });
-    } else if (asked) later(2300, () => text(ARRIVAL.tease));
+    } else if (asked) later(2300, () => text(st.errand.state === 'declined' && ARRIVAL.teaseDeclined ? ARRIVAL.teaseDeclined : ARRIVAL.tease));
     await sleep(3100);
 
     // 3) back to the shopfront: the noren, the lanterns, the oil you can hear
