@@ -9,8 +9,8 @@ import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = Object.fromEntries(process.argv.slice(2).reduce((a, v, i, arr) => { if (v.startsWith('--')) a.push([v.slice(2), arr[i + 1] && !arr[i + 1].startsWith('--') ? arr[i + 1] : true]); return a; }, []));
+const root = args.root ? path.resolve(args.root) : path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const zones = (args.zones || 'start,nankai_gate,nankai_2f,city_1f,city_2f,parks_6f,canyon,midosuji').split(',');
 const port = 8000 + Math.floor(Math.random() * 900);
 const server = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'], { cwd: root, stdio: 'ignore' });
@@ -22,7 +22,7 @@ const errs = [];
 page.on('console', m => { if (m.type() === 'error' && !/ERR_CERT|fonts\.g/.test(m.text())) errs.push(m.text().slice(0, 200)); });
 page.on('pageerror', e => errs.push('pageerror ' + e.message));
 await page.goto(`http://127.0.0.1:${port}/index.html?test&quality=medium&play`);
-await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 400000 });
+await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 1200000 });
 console.log('ready');
 await page.evaluate(() => {
   const n = window.__namba, a = n.audio, m = a.mixer, ac = a.ac;
@@ -82,36 +82,40 @@ for (const z of zones) {
   const info = await page.evaluate(() => { const d = window.__namba.audio.debug(); return { area: d.zone.area, mood: d.zone.mood, layers: d.layers, ppl: d.people }; });
   await page.evaluate(() => window.__probe.begin()); await sleep(8000);
   const bed = await page.evaluate(() => window.__probe.end());
-  // PA: platform line when a platform is audible, else the ambient / notice line
-  const pa = await page.evaluate(async () => {
-    const n = window.__namba, a = n.audio, P = window.__probe;
-    const an = a.announcer;
+  // PA 1: a train line (only where a platform is clearly audible); PA 2: the zone's own area notice (forced now)
+  const measure = async (mode) => page.evaluate(async (mode) => {
+    const n = window.__namba, a = n.audio, P = window.__probe, an = a.announcer, amb = a.ambience;
     P.fired.length = 0;
-    let kind = 'platform', gain = null;
-    const r = a.testPA();
-    if (r) gain = r.gain;
-    else {
-      kind = 'notice';
-      const ok = an.say({ kind: 'station', chime: 'pa', gain: 0.9, group: 'probe', parts: [{ lang: 'ja', text: 'ご案内いたします。' }, { lang: 'en', text: 'Announcement.' }] });
-      gain = ok ? 0.9 : null;
-    }
+    let gain = null, ok = false;
+    if (mode === 'train') { const r = a.testPA(); if (!r || r.gain < 0.3) { an.cancelKind('train'); return null; } gain = r.gain; ok = true; }
+    else { amb.timers.pa = 0; ok = true; }
     const duckMin = { amb: 1, sfx: 1 };
     P.begin();
-    const t0 = performance.now();
-    await new Promise((res) => { const iv = setInterval(() => { duckMin.amb = Math.min(duckMin.amb, an.duck); duckMin.sfx = Math.min(duckMin.sfx, an.duckSfx); if (performance.now() - t0 > 6500) { clearInterval(iv); res(); } }, 80); });
-    return { kind, platformGain: gain, duck: duckMin, spoke: P.fired.slice(), levels: P.end(), last: an.last && { kind: an.last.kind, vol: an.last.vol } };
-  });
+    const t0 = performance.now(); let started = null;
+    await new Promise((res) => { const iv = setInterval(() => {
+      duckMin.amb = Math.min(duckMin.amb, an.duck); duckMin.sfx = Math.min(duckMin.sfx, an.duckSfx);
+      if (an.cur && started == null) started = an.last && { kind: an.last.kind, ja: an.last.ja.slice(0, 18), vol: an.last.vol, t: +((performance.now() - t0) / 1000).toFixed(1) };
+      if (performance.now() - t0 > (mode === 'train' ? 7500 : 12000)) { clearInterval(iv); res(); } }, 80); });
+    return { mode, platformGain: gain, started, duck: duckMin, spoke: P.fired.map(f => +f.vol.toFixed(2)), levels: P.end() };
+  }, mode);
+  const pa = await measure('train');
+  await sleep(4000);
+  const pa2 = await measure('area');
   await sleep(2500);
-  results[z] = { info, bed, pa };
+  results[z] = { info, bed, pa, pa2 };
   const f = (o) => o ? `${o.rms}` : '-';
-  console.log(`${z.padEnd(13)} ${info.area}/${info.mood}  BED amb ${f(bed.ambience)} mus ${f(bed.music)} sfx ${f(bed.sfx)} voice ${f(bed.voice)} master ${f(bed.master)} | PA(${pa.kind} g=${pa.platformGain}) duck amb ${pa.duck.amb.toFixed(2)} sfx ${pa.duck.sfx.toFixed(2)} amb ${f(pa.levels.ambience)} voice(chime) ${f(pa.levels.voice)} peak ${pa.levels.out.pk} dBFS speechVol ${pa.spoke.map(s => s.vol.toFixed(2)).join(',')}`);
+  const line = (tag, p) => !p ? `${tag}: none` : `${tag}: g=${p.platformGain ?? '-'} start=${p.started ? p.started.t + 's' : 'NO'} duck amb ${p.duck.amb.toFixed(2)} sfx ${p.duck.sfx.toFixed(2)} | amb ${f(p.levels.ambience)} mus ${f(p.levels.music)} sfx ${f(p.levels.sfx)} chime ${f(p.levels.voice)} out-peak ${p.levels.out.pk} speechVol ${p.spoke.join(',')}`;
+  console.log(`${z.padEnd(13)} ${info.area}/${info.mood} ppl ${info.ppl}\n   BED amb ${f(bed.ambience)} mus ${f(bed.music)} sfx ${f(bed.sfx)} master ${f(bed.master)} out-peak ${bed.out.pk}\n   ${line('TRAIN', pa)}\n   ${line('AREA ', pa2)}`);
 }
 if (args.cadence) {
-  // log PA events (train/transit) for N seconds, in the platform
-  await page.evaluate(() => { window.__namba.teleport('start'); window.__probe.events.length = 0; });
-  await sleep(+args.cadence * 1000);
-  results.cadence = await page.evaluate(() => window.__probe.events);
-  console.log('announce events in', args.cadence, 's:', results.cadence.length);
+  // how often does a line actually START (announcer log) while standing in a zone
+  results.cadence = {};
+  for (const z of (args.cz || 'start,city_2f').split(',')) {
+    await page.evaluate((z) => { window.__namba.teleport(z); window.__probe.starts = []; const an = window.__namba.audio.announcer; if (!window.__probe.hooked) { window.__probe.hooked = true; const st = an._start.bind(an); an._start = (it) => { window.__probe.starts.push({ t: +an.t.toFixed(0), kind: it.kind, ja: (it.parts[0] || {}).text.slice(0, 14) }); st(it); }; } }, z);
+    await sleep(+args.cadence * 1000);
+    results.cadence[z] = await page.evaluate(() => window.__probe.starts);
+    console.log('cadence', z, +args.cadence + ' s:', results.cadence[z].length, JSON.stringify(results.cadence[z].map(s => s.t + ':' + s.kind)));
+  }
 }
 results.errors = errs.concat(await page.evaluate(() => window.__namba.errors.slice()));
 console.log('errors', results.errors);

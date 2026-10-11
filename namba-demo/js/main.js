@@ -22,7 +22,7 @@ import { Nav } from './world/nav.js';
 import { LAYOUT } from './world/layout.js';
 import { Loader } from './core/loader.js';
 import { precompileVisible, precompileRest } from './render/precompile.js';
-import { bootTouch } from './ui/touch.js';
+import { bootTouch, TouchUI } from './ui/touch.js';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
@@ -43,7 +43,6 @@ const SYSTEMS = [
   ['phone',        './ui/phone.js',           'Phone',        'live'],
   ['hud',          './ui/hud.js',             'Hud',          'live'],
   ['game',         './game/game.js',          'Game',         'live'],
-  ['touch',        './ui/touch.js',           'TouchUI',      'live'],   // v11: phones & tablets (controls, rotate, fullscreen)
   ['visibility',   './render/visibility.js',  'Visibility',   'live'],
   ['post',         './render/post.js',        'Post',         'live'],
 ];
@@ -134,6 +133,9 @@ async function boot() {
   ctx.nav = new Nav(ctx.world);
   loader.finish('nav');
   for (const s of SYSTEMS.filter(s => s[3] === 'live')) await load(s);
+  // v11: phones & tablets (on-screen controls, rotate card, fullscreen). Not a loader stage: it builds no world.
+  try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
+  catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
   import('./ui/perf.js').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
   import('./analytics.js').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)

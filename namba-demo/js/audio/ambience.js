@@ -11,7 +11,7 @@
 //    distant trains under the floor, distant PA.
 // =============================================================================
 import { ZONES } from '../world/layout.js';
-import { AMBIENT_PA, DINING_CALLS } from './phrases.js';
+import { AREA_PA, DINING_CALLS } from './phrases.js';
 import { platformLeak } from './zones.js';
 
 // layer name → recipe, bus, base gain
@@ -339,17 +339,26 @@ export class Ambience {
       T.rumble -= dt;
       if (T.rumble <= 0) { T.rumble = 22 + this.rand() * 30; this.mixer.play(`fx:traindist:${Math.floor(this.rand() * 2)}`, { bus: 'ambience', pos: at(40, 90, -1), gain: 0.5, send: 0.3, ref: 8, lp: 420, prio: 6, wait: true }); }
     }
-    // distant PA in big stations, malls, the arcade
-    const pa = MOODS[mood] && MOODS[mood].pa;
-    if (pa && this.sys.announcer) {
+    // area PA (v11): the platform between trains, the station concourses, the arcade, Namba CITY, Parks: short real notices on
+    // a per-mood cadence (phrases.js AREA_PA), spoken at PA level with the beds ducked under them and an EN caption.
+    // Train lines come from transit; these fill the gaps. Shops, restaurant floors and the garden stay silent on purpose.
+    const area = AREA_PA[mood], ann = this.sys.announcer;
+    if (mood !== this._paMood) { this._paMood = mood; if (area) T.pa = Math.min(T.pa, area.first * (0.85 + 0.3 * this.rand())); }
+    if (area && ann && (this.weights[mood] || 0) > 0.7) {
       T.pa -= dt;
       if (T.pa <= 0) {
-        T.pa = 70 + this.rand() * 80;
-        const lines = AMBIENT_PA[pa], ann = this.sys.announcer;
-        if (lines && !ann.cur && !ann.queue.length) {
-          const l = lines[Math.floor(this.rand() * lines.length)];
-          // faint and rare; never over a train announcement (those are first in the queue, and interrupt)
-          ann.say({ kind: 'ambient', distant: true, parts: [{ lang: 'ja', text: l.ja }, { lang: 'en', text: l.en }], chime: 'pa', gain: 0.28, cooldown: 120, caption: false });
+        const idle = !ann.cur && !ann.queue.length && ann.t - (ann.lastEnd ?? -99) > 6;   // never over a train line, never back to back
+        if (!idle) T.pa = 3 + this.rand() * 3;
+        else {
+          T.pa = area.every[0] + this.rand() * (area.every[1] - area.every[0]);
+          const last = (this._paLast = this._paLast || {});
+          let i = Math.floor(this.rand() * area.lines.length);
+          if (area.lines.length > 1 && i === last[mood]) i = (i + 1) % area.lines.length;
+          last[mood] = i;
+          const l = area.lines[i];
+          const item = { kind: 'station', pa: true, chime: 'pa', gain: area.gain, parts: [{ lang: 'ja', text: l.ja }, { lang: 'en', text: l.en }], cooldown: 100, maxAge: 6, caption: true, channel: 'ambient', send: 0.9 };
+          if (area.platform) { if (L.space && L.space.kind === 'platform') item.platform = L.space; else item.gain *= 0.5; }
+          ann.say(item);
         }
       }
     }

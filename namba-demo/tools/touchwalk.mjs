@@ -116,6 +116,8 @@ try {
   });
   await step(3, false); await settle(2);
   await shot('01-ingame');
+  R.perfStart = await page.evaluate(() => { const c = window.__namba, s = c.engine.stats, b = c.player.body; return { calls: s.calls, tris: s.tris, crowd: c.crowd && c.crowd.count, pr: c.engine.renderer.getPixelRatio(), q: c.engine.qualityName, at: `${b.level},${b.x.toFixed(0)},${b.z.toFixed(0)}` }; });
+  log('perf at start', JSON.stringify(R.perfStart));
   R.controls = await sizes('#touch-ui .tu-btn, #touch-ui .tu-use');
   log('controls', JSON.stringify(R.controls));
   // ---- look: a right-thumb drag ----

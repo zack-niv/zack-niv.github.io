@@ -67,26 +67,73 @@ export function departure(track) {
     : { ja: `${no}番線から、和歌山市行き、急行が、発車します。`, en: `The express for Wakayamashi is departing from track ${no}.` };
 }
 
-// ---- ambient PA (faint, rare, only where the PA would plausibly be heard) -------------------------
-export const AMBIENT_PA = {
-  metro: [
-    { ja: '本日も御堂筋線をご利用いただきまして、ありがとうございます。', en: 'Thank you for using the Midosuji Line.' },
+// ---- area PA (v11): the building talking to everyone, per soundscape mood ---------------------------------------
+// Short, real-sounding notices in the register of Osaka Metro / Nankai / mall PAs. Each mood has a handful so that a
+// five-minute visit does not repeat. `every` = [min, max] seconds between notices while you stay in that mood; `gain` =
+// how loud (1 = full, the platform level); `first` = seconds until the first notice after you arrive. Moods with no entry
+// (shops, restaurant floors, the garden) stay silent on purpose.
+export const AREA_PA = {
+  // Midosuji / Sennichimae gate halls and the underground passages
+  metro: { every: [38, 64], first: 14, gain: 0.95, lines: [
+    { ja: 'ただいま、御堂筋線は、平常どおり運転しております。', en: 'The Midosuji Line is running on schedule.' },
+    { ja: '駅構内での、歩きながらのスマートフォンの操作は、大変危険です。おやめください。', en: 'Using your phone while walking is dangerous. Please stop.' },
+    { ja: '改札口の付近では、他のお客様のご迷惑となりますので、立ち止まらないでください。', en: 'Please do not stop near the ticket gates.' },
     { ja: '駅構内は禁煙です。ご協力をお願いいたします。', en: 'Smoking is prohibited in the station.' },
-  ],
-  terminal: [
-    { ja: '南海線をご利用いただきまして、ありがとうございます。', en: 'Thank you for using the Nankai Line.' },
     { ja: 'お忘れ物のないよう、ご注意ください。', en: 'Please make sure you have all your belongings.' },
-  ],
-  arcade: [
+  ] },
+  // Nankai terminal concourse (open shed, airport line)
+  terminal: { every: [36, 60], first: 12, gain: 0.95, lines: [
+    { ja: 'ただいま、南海線は、平常どおり運転しております。', en: 'The Nankai Line is running on schedule.' },
+    { ja: '特急ラピートは、全車両指定席です。特急券をお求めのうえ、ご乗車ください。', en: 'The Rapi:t limited express is all reserved seating. Please buy a limited express ticket.' },
+    { ja: '大きなお荷物をお持ちのお客様は、周りのお客様に、ご注意ください。', en: 'Passengers with large luggage, please take care around other passengers.' },
+    { ja: '南海線をご利用いただきまして、ありがとうございます。', en: 'Thank you for using the Nankai Line.' },
+    { ja: '駅構内での、歩きながらのスマートフォンの操作は、おやめください。', en: 'Please do not use your phone while walking.' },
+  ] },
+  // NAMBAWALK (underground arcade)
+  arcade: { every: [48, 80], first: 18, gain: 0.85, lines: [
     { ja: 'なんばウォークをご利用いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba Walk.' },
-  ],
-  mall: [
-    { ja: '本日もなんばシティにご来館いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba City today.' },
-  ],
-  department: [
+    { ja: '通路は、多くのお客様が行き交います。お足元にご注意ください。', en: 'Many people pass through this walkway. Please watch your step.' },
+    { ja: 'お客様にお知らせいたします。自転車の乗り入れは、ご遠慮ください。', en: 'Bicycles are not permitted in the arcade.' },
+  ] },
+  // Takashimaya and the food hall
+  department: { every: [55, 90], first: 20, gain: 0.8, lines: [
     { ja: '本日もご来店いただきまして、ありがとうございます。', en: 'Thank you for shopping with us today.' },
-  ],
+    { ja: 'お客様にお知らせいたします。地下の食料品売り場は、大変混雑しております。お足元にご注意ください。', en: 'The food hall is very crowded. Please watch your step.' },
+    { ja: 'お買い物の際は、お荷物から手を離さないよう、ご注意ください。', en: 'Please keep an eye on your belongings while shopping.' },
+  ] },
+  // Namba CITY
+  mall: { every: [46, 76], first: 16, gain: 0.9, lines: [
+    { ja: '本日もなんばシティにご来館いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba City today.' },
+    { ja: '迷子のお知らせをいたします。赤いシャツの、四歳くらいの男の子が、サービスカウンターでお待ちです。お心当たりの方は、お越しください。', en: 'A lost child notice: a boy of about four in a red shirt is waiting at the service counter. If you know him, please come.' },
+    { ja: '館内での、歩きながらのスマートフォンのご利用は、おやめください。', en: 'Please do not use your phone while walking in the building.' },
+    { ja: 'エレベーターは、ベビーカーや車いすをご利用のお客様を、優先とさせていただきます。', en: 'Elevators are for priority use by passengers with strollers or wheelchairs.' },
+    { ja: 'お買い物の際は、お荷物から手を離さないよう、ご注意ください。', en: 'Please keep an eye on your belongings while shopping.' },
+  ] },
+  // Namba Parks interior
+  parks: { every: [52, 84], first: 18, gain: 0.85, lines: [
+    { ja: 'なんばパークスに、ご来館いただきまして、ありがとうございます。', en: 'Thank you for visiting Namba Parks.' },
+    { ja: '屋上の、パークスガーデンは、緑あふれる空中庭園です。ぜひ、お散歩ください。', en: 'The Parks Garden on the roof is a green sky garden. Please take a stroll.' },
+    { ja: '迷子のお知らせをいたします。青い帽子の、三歳くらいの女の子が、インフォメーションでお待ちです。保護者の方は、お越しください。', en: 'A lost child notice: a girl of about three in a blue hat is waiting at the information desk. Parents, please come.' },
+    { ja: 'エスカレーターでは、お子様から、目を離さないでください。', en: 'Please keep an eye on your children on the escalators.' },
+  ] },
+  // open-air Parks (canyon): rare, softer, as if from a speaker on the terrace
+  canyon: { every: [70, 110], first: 30, gain: 0.55, lines: [
+    { ja: 'ご来園のお客様にお知らせいたします。植え込みへの立ち入りや、お花を摘むことは、おやめください。', en: 'Please do not walk into the planting beds or pick the flowers.' },
+    { ja: 'なんばパークスへ、ようこそ。ごゆっくり、お楽しみください。', en: 'Welcome to Namba Parks. Please enjoy your visit.' },
+  ] },
+  // platforms between trains (audible on the platform itself; the train lines come from transit)
+  platform: { every: [40, 70], first: 20, gain: 1, platform: true, lines: [
+    { ja: 'ホームでは、走ったり、駆け込み乗車をしたりしないでください。大変危険です。', en: 'Do not run on the platform or rush to board. It is dangerous.' },
+    { ja: '電車の乗り降りの際は、お足元に、ご注意ください。', en: 'Please watch your step when boarding and leaving the train.' },
+    { ja: 'ホームドアに、寄りかからないでください。', en: 'Please do not lean on the platform doors.' },
+  ] },
+  nkplatform: { every: [40, 70], first: 20, gain: 1, platform: true, lines: [
+    { ja: '電車とホームの間に、ご注意ください。', en: 'Please mind the gap between the train and the platform.' },
+    { ja: '黄色い線の内側で、お待ちください。', en: 'Please wait behind the yellow line.' },
+    { ja: 'ホームでの、歩きながらのスマートフォンの操作は、危険です。おやめください。', en: 'Using your phone while walking on the platform is dangerous. Please stop.' },
+  ] },
 };
+AREA_PA.passage = AREA_PA.metro;
 
 // short, clear shop / restaurant calls (spoken at low volume by distance, never babbled)
 export const IRASSHAI = [{ ja: 'いらっしゃいませ', en: 'Welcome' }, { ja: 'いらっしゃいませ、こんにちは', en: 'Welcome, hello' }, { ja: 'ありがとうございました', en: 'Thank you very much' }];

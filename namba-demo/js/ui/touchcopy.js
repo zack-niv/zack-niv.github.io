@@ -37,7 +37,7 @@ export const TUTORIAL_TOUCH = {
 export const TOUCH_TEXT = {
   begin: 'Tap to begin',
   beginJa: 'タップしてはじめる',
-  titleHint: 'Turn your phone sideways<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span>',
+  titleHint: 'Left thumb walks<span class="t-sep">·</span>drag to look<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span>',
   ghost: 'walk',
   pause: 'Tap <b>Resume</b> to keep playing. Left thumb walks, drag on the right looks, tap your phone to raise it.',
 };

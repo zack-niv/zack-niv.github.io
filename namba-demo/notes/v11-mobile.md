@@ -31,7 +31,7 @@ Status: IN PROGRESS (contracts first; results below once measured).
    `orient: innerWidth > innerHeight ? 'land' : 'port'`) to the super properties.
 2. **Share: `js/ui/title.js` copy on touch** (`touch` is already computed there):
    - "Click to begin / クリックしてはじめる" → "Tap to begin / タップしてはじめる";
-   - hint "Best on a computer with a keyboard and mouse" → "Turn your phone sideways · headphones on 🎧";
+   - hint "Best on a computer with a keyboard and mouse" → "Left thumb walks · drag to look · headphones on 🎧";
    - the `.t-keys` row is hidden by `css/touch.css` on touch (no change needed).
 
    Until then `js/ui/touch.js` patches the begin label in the DOM on touch only. It's harmless once title.js does it.

@@ -31,6 +31,22 @@ try {
   log('media', JSON.stringify(await page.evaluate(() => ({ coarse: matchMedia('(pointer: coarse)').matches, anyFine: matchMedia('(any-pointer: fine)').matches, hoverNone: matchMedia('(hover: none)').matches, dpr: devicePixelRatio, w: innerWidth, h: innerHeight }))));
   await page.waitForTimeout(3000);
   await shot('0-loading');
+  if (argv.includes('--portrait')) {
+    // the rotate card shows before any JS; "Play upright anyway" dismisses it (sessionStorage), then the title
+    log('rotate card', JSON.stringify(await page.evaluate(() => { const r = document.getElementById('rotate'); const b = r.getBoundingClientRect(); return { display: getComputedStyle(r).display, w: b.width, h: b.height }; })));
+    await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 600000 });
+    await page.waitForSelector('.t-begin', { state: 'attached', timeout: 600000 }); await page.waitForTimeout(1500);
+    await shot('p1-rotate-over-title');
+    const g = await page.$('#rotate .rt-anyway'); if (g) { const bb = await g.boundingBox(); log('anyway button', JSON.stringify(bb)); await page.touchscreen.tap(bb.x + bb.width / 2, bb.y + bb.height / 2); }
+    await page.waitForTimeout(1200); await frames(2);
+    log('after anyway', JSON.stringify(await page.evaluate(() => ({ display: getComputedStyle(document.getElementById('rotate')).display, ok: document.documentElement.classList.contains('portrait-ok') }))));
+    await shot('p2-title-portrait');
+    await page.tap('.t-begin'); await page.waitForTimeout(6000); await frames(3);
+    await shot('p3-ingame-portrait');
+    await page.evaluate(() => window.__namba.phone.open('messages')); await page.waitForTimeout(1500); await frames(3);
+    await shot('p4-phone-portrait');
+    throw new Error('portrait done');
+  }
   await page.waitForFunction(() => window.__namba && window.__namba.ready, null, { timeout: 400000 });
   log('ready', JSON.stringify(await page.evaluate(() => ({ q: window.__namba.engine.qualityName, touch: window.__namba.input.touch, pr: window.__namba.engine.renderer.getPixelRatio() }))));
   const gate = await page.$('.nbl-touch:not([hidden]) .nbl-go');
