@@ -22,7 +22,7 @@ Shots: `notes/v11-shots/critic/`. Walk shots: `/home/user/namba-shots/walk/cn-*`
 | 3 | Aya can't know where you are | **mostly fixed**: 18 lines reworded, the audit regex in storysim. One tell left: the noren line "you must be close now??" fires at exactly 45 m from the door, so it's always right | **fixed** | 0 audit hits in every storysim and walk thread. The noren line no longer guesses. The photo beat recognises only what is in frame (verified visually). |
 | 4 | Critiques explain the grade | n/a | done | §6 below. |
 | 5 | Announcements audible | **partly** (code and numbers good; speech level unmeasurable headless; captions low contrast on CITY's white ceilings; 6 JA lines stiff) | **partly** | Beds −6 dB, PA duck −15 dB, area PA in every zone with captions (agent's numbers, `notes/v11-audio.md`). I gave the ambient caption a faint smoked backing, moved it below the tutorial strip on phones, and rewrote 6 Japanese lines. Still needs Zack's ears and a native read. |
-| 6 | Mobile / tablet | **partly**: playable, but the compact phone hid the Lodestone 3D (hero and 3D view), Pause collided with the tutorial hint when the phone was up, PR 1.5 gave phones 40% more pixels than desktop low | **fixed in emulation** (see §3) | `critic/6-before-compact-lodestone-no-3d.png` → `critic/6-after-*`. Real-device fps still unmeasured. |
+| 6 | Mobile / tablet | **partly**: playable, but the compact phone hid the Lodestone 3D (hero and 3D view), Pause collided with the tutorial hint when the phone was up, PR 1.5 gave phones 40% more pixels than desktop low | **mostly fixed** (§3, §5): pause and pixels verified; the compact 3D fix is in, but not yet seen in a browser | `critic/6-before-compact-lodestone-no-3d.png`, `critic/6-after-touch-photo-and-pause.png`, `critic/6-tablet-photo-by-touch.png`. Real-device fps still unmeasured. |
 
 ## 2. Runs (final code unless marked)
 
@@ -33,7 +33,10 @@ Shots: `notes/v11-shots/critic/`. Walk shots: `/home/user/namba-shots/walk/cn-*`
 | `walk.mjs &wander` (final) | `lost` offer 103.5 · arrive 550.5 · On track 68% · 0:26 off · chips 1099 / **0 bad** · timers **[]** · silence **45.4 s** (was 144.9) · 9 engagement (0.98/min) · `ctx.errors []` |
 | `walk.mjs REPLY=none` | **not re-run** (slots went to the touch passes). The sim covers it (`never replies, walking steadily`: silence 40 s, 0 timers), and nothing in my changes touches the unanswered paths. |
 | `touchwalk.mjs` 844×390 (agent's code, loaded before my fixes) | Begin by tap · look 119° per 3 swipes · stick 3.5 m · jog by pushing past the ring · 5 chips by tap · Maps place tap → café · **Use pill at the gate** ("Tap your ICOCA", 300×56) · Lodestone Get (216×82) · calibrating · end card scrolls (505/390) · links `_blank` · pause/resume by tap · `ctx.errors []`, console `[]`. **3D view: TAP MISS** (the bug in §3). |
-PLACEHOLDER_RUNS
+| `touchcheck` (mine, scratch) 844×390, final code | 📸 by touch ✓ · pause clear of phone and hint ✓ · Maps dock and place tap ✓ · end card ✓ · `ctx.errors []`. The Lodestone part is invalid (harness, see §5). |
+| `touchcheck` 1180×820 tablet (first tablet pass ever) | Begin, phone, chips, 📸 by touch ✓ · pause ✓. Stopped after the Get tap to free the slot for desktop checks. |
+| `touchperf` variants | §5 |
+| `loadprobe` / `mouseshot` (final) | `READY 127.1s []` · mouseshot: free chip, pause, links `_blank`, backdrop resume (locked), phone chip, `errors []` (desktop unchanged) |
 
 ## 3. Fixes (files)
 
@@ -72,6 +75,10 @@ the noren with 天 on it 👋* · THERE you are 🥹…
     distance, so I kept it;
   - "you must be close now??" at exactly 45 m was the one that would always be right, so it's now an instruction ("I'm
     right by the door btw…").
+- **Recognition honesty, one nuance:** my touch harness teleported facing a wall, and she still said *"by OSAKA
+  UNIFORM!"*. The shop's door was inside the 22 m / ±35° cone, but its sign is barely legible in the 360 px photo
+  (`critic/6-tablet-photo-by-touch.png`). A real player usually frames a view, so this is rare. Tightening the cone to
+  about 15 m, or requiring the sign face to point at the camera, would make it bulletproof.
 - **Spam:** 0.97–0.98 texts/min, never over an open question. After Lodestone it's 6–9 one-liners in a row that you
   can't answer. Charming the first time; on a 9-minute walk it starts to read like a script. That's the next thing to
   improve (§6).
@@ -83,15 +90,15 @@ SwiftShader.
 
 | Check | 844×390 phone | 1180×820 tablet |
 |---|---|---|
-| Begin, look, stick, jog, the phone button, chips, dock | ✓ (touchwalk) | TABLET_A |
-| **📸 Send photo chip by touch** | ✓ chip 99×39 (+ an invisible margin = 51 px), image bubble 176×85, reply *"that's Namba CITY 2F, by OSAKA UNIFORM! keep straight, Parks is at the far end 👉"* (`critic/2-touch-photo-ask.png`) | TABLET_B |
-| Maps place tap | ✓ (a row of 242×56 → the café as destination) | TABLET_C |
+| Begin, look, stick, jog, the phone button, chips, dock | ✓ (touchwalk) | ✓ Begin by tap, the phone button, chips |
+| **📸 Send photo chip by touch** | ✓ chip 99×39 (+ an invisible margin = 51 px), image bubble 176×85, reply *"that's Namba CITY 2F, by OSAKA UNIFORM! keep straight, Parks is at the far end 👉"* (`critic/2-touch-photo-ask.png`) | ✓ chip 120×47, image bubble, *"that's Namba CITY 2F, by OSAKA UNIFORM! keep straight…"* (`critic/6-tablet-photo-by-touch.png`) |
+| Maps place tap | ✓ (a row of 242×56 → the café as destination) | not reached (run stopped for time) |
 | Gate **Use** pill | ✓ "Tap your ICOCA", 300×56 → open (`critic/6-touch-gate-use.png`) | n/a (scripted only at 844) |
-| Lodestone Get | ✓ 216×82 → installing → calibrating → ready | TABLET_D |
-| **3D view tap / reveal 3D** | ✗ before: the stack view had no 3D at all, and the 3D button was never visible (`critic/6-before-compact-lodestone-no-3d.png`). After: COMPACT_AFTER | TABLET_E |
-| Pause vs the raised phone | ✗ before: on the tutorial hint (`critic/6-before-pause-over-hint.png`). ✓ after: in the bottom row left of Run, no overlap (rect check), `critic/6-after-touch-photo-and-pause.png` | TABLET_F |
-| End card | ✓ scrolls (505 in 390), buttons 200×44 / 141×44, links 410×53 `_blank`, Keep exploring by tap (`critic/6-touch-endcard.png`) | TABLET_G |
-| Errors | `ctx.errors []`, console `[]` in all three phone runs | TABLET_H |
+| Lodestone Get | ✓ 216×82 → installing → calibrating → ready | Get tapped (261×100); install not reached (harness) |
+| **3D view tap / reveal 3D** | ✗ before: the stack view had no 3D at all, and the 3D button was never visible (`critic/6-before-compact-lodestone-no-3d.png`). After: **unverified in the browser**. My check harness forced the photo ask before Aya's hello, so the hello stayed pending, and the Lodestone install never ran in either of my compact runs. The fix is CSS plus band numbers, and the logic is straightforward, but **the lead should eyeball the reveal on a phone (or `touchwalk.mjs`, step 11/12) before calling it done** | not reached |
+| Pause vs the raised phone | ✗ before: on the tutorial hint (`critic/6-before-pause-over-hint.png`). ✓ after: in the bottom row left of Run, no overlap (rect check), `critic/6-after-touch-photo-and-pause.png` | ✓ no overlap (pause 602–646 px, phone from 814 px) |
+| End card | ✓ scrolls (505 in 390), buttons 200×44 / 141×44, links 410×53 `_blank`, Keep exploring by tap (`critic/6-touch-endcard.png`) | not reached |
+| Errors | `ctx.errors []`, console `[]` in all three phone runs | none seen up to the stop |
 
 **Performance (`touchperf` poses, 844×390 @3x, the same session, the governor reset per variant):**
 
