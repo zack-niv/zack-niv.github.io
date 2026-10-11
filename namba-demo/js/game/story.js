@@ -408,15 +408,22 @@ export class Story {
     return rem != null && rem < DEMO.floorsM;
   }
   // v10: the Daikichi leg enters Namba Parks (6+ floors, the canyon, split escalators): the moment of maximum need
-  _parksEntry() { return this.errand.state !== 'asked' && /^parks/.test(this._space()); }
+  //      ...or its approach: the last stretch of CITY before the Parks bridge (Daikichi < 300 m by foot, measured walks)
+  _parksEntry() {
+    if (this.errand.state === 'asked') return false;
+    const sp = this._space(), rem = this.demo._lost && this.demo._lost.rem;
+    return /^parks/.test(sp) || (/^city/.test(sp) && rem != null && rem < DEMO.parksNearM);
+  }
   // v10: entering CITY on the latte leg — one light, real tip (the café's floor and landmark)
+  //      (Daikichi leg: keep straight on 2F — the critic's "obvious lever" for the long quiet stretch)
   _cityTip() {
-    if (this._cityTipT != null) return;
+    if (this._cityTipT != null || !/^city/.test(this._space())) return;
     const E = this.errand, p = this.ctx.player && this.ctx.player.body;
-    if (E.state !== 'asked' || !E.biz || !p || p.level === E.biz.level || !/^city/.test(this._space())) return;
+    const latte = E.state === 'asked' && E.biz && p && p.level !== E.biz.level;
+    if (!latte && (E.state === 'asked' || this.demo.offered)) return;
     this._cityTipT = this.t;
-    this._beat('cityTip', 'place');
-    this.aya.say({ text: AYA.cityTip }, { defer: 20 });
+    this._beat('cityTip', latte ? 'place' : 'place-dk');
+    this.aya.say({ text: latte ? AYA.cityTip : AYA.cityTipDk }, { defer: 20 });
   }
   _beat(id, why) { this.ctx.events.emit('story:beat', { id, why, t: +this.t.toFixed(1) }); }
   _timer(beat, extra) { this.ctx.events.emit('story:timer', Object.assign({ beat, t: +this.t.toFixed(1) }, extra || {})); }

@@ -20,7 +20,8 @@ export const DEMO = {
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
   whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
   checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
-  floorsM: 150,                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
+  floorsM: 150,
+  parksNearM: 300,                  // v10: Daikichi leg — in CITY with Daikichi this close by foot = the Parks bridge is ahead                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
   introYaw: -1.35,                  // the opening glance (radians): across the platform at the rapi:t
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
@@ -68,6 +69,7 @@ export const AYA = {
   },
   // v10: location beats (one each)
   cityTip: 'ooh you\'re in CITY! the café\'s on 1F 👇 right at the bottom of the big escalators',
+  cityTipDk: 'ooh you\'re in CITY! keep straight on 2F, Parks is at the far end 👉',
   // v2's nudges: the first now asks (sent when the player stalls, is on a wrong floor or wanders, not on a timer);
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
