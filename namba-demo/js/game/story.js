@@ -33,6 +33,7 @@
 // =============================================================================
 import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js';
 import { businessBySlot } from '../world/directory.js';
+import { LEVEL_ORDER } from '../world/layout.js';
 import { Aya } from './aya.js';
 import { Tutorial } from './tutorial.js';
 
@@ -392,7 +393,7 @@ export class Story {
       onTimeout: () => this._offer(kind === 'behind' ? 'behind' : 'silent'),
       onReply: (r, reply) => {
         if (reply && reply.lost) { this._offer('lost'); return; }
-        if (kind === 'behind') { this._offer('behind'); return; }                 // "On my way!" — at that pace? here, this'll help
+        if (kind === 'behind') { this._behindReplied = true; this._offer('behind'); return; }   // "On my way!" — at that pace? (v10 critic: she answers it)
         aya.say(AYA.whereAck[r] || AYA.whereAck.omw, { wait: 0.5 });
         if (d._isLost()) this._offer('checkin'); else this.engaged = 'checkin';   // answered while clearly lost
       } });
@@ -405,25 +406,37 @@ export class Story {
     if (E.state !== 'asked' || !E.biz || !p || p.level === E.biz.level || !/^city/.test(this._space())) return false;
     if (this._cityTipT != null && this.t - this._cityTipT < 15) return false;      // let her tip land first
     const rem = this.demo.targetRem ? this.demo.targetRem() : null;
-    return rem != null && rem < DEMO.floorsM;
+    // v10 critic: ...or still a floor off after a while in CITY — a ~1 m/s first-timer (looks around, reads the phone)
+    // reached the 150 m mark only after the 240 s cap, so the cap fired for a MOVING player (storysim 'first-timer')
+    return (rem != null && rem < DEMO.floorsM) || this._cityDwell();
   }
   // v10: the Daikichi leg enters Namba Parks (6+ floors, the canyon, split escalators): the moment of maximum need
   //      ...or its approach: the last stretch of CITY before the Parks bridge (Daikichi < 300 m by foot, measured walks)
   _parksEntry() {
     if (this.errand.state === 'asked') return false;
     const sp = this._space(), rem = this.demo._lost && this.demo._lost.rem;
-    return /^parks/.test(sp) || (/^city/.test(sp) && rem != null && rem < DEMO.parksNearM);
+    this._parksFar = false;
+    if (/^parks/.test(sp) || (/^city/.test(sp) && rem != null && rem < DEMO.parksNearM)) return true;
+    // v10 critic: a slower walker crossing CITY on the Daikichi leg — warned before Parks, not at the 240 s cap
+    if (/^city/.test(sp) && this._cityDwell()) { this._parksFar = true; return true; }
+    return false;
   }
+  // v10 critic: a while in Namba CITY since her tip (her dot-watching: you're in the mall, the hard part is ahead)
+  _cityDwell() { return this._cityTipT != null && this.t - this._cityTipT >= DEMO.cityDwell; }
   // v10: entering CITY on the latte leg — one light, real tip (the café's floor and landmark)
   //      (Daikichi leg: keep straight on 2F — the critic's "obvious lever" for the long quiet stretch)
   _cityTip() {
     if (this._cityTipT != null || !/^city/.test(this._space())) return;
     const E = this.errand, p = this.ctx.player && this.ctx.player.body;
     const latte = E.state === 'asked' && E.biz && p && p.level !== E.biz.level;
-    if (!latte && (E.state === 'asked' || this.demo.offered)) return;
+    // v10 critic: directions from Aya are stale once Lodestone is offered (wander: the tip came 66 s after "see? 😌")
+    const gone = () => this.demo.offered || this._offering;
+    if (gone() || (!latte && E.state === 'asked')) return;
     this._cityTipT = this.t;
     this._beat('cityTip', latte ? 'place' : 'place-dk');
-    this.aya.say({ text: latte ? AYA.cityTip : AYA.cityTipDk }, { defer: 20 });
+    // the arrow points the real way (a player who wandered into CITY B1 is told to go UP to 1F)
+    const up = latte && LEVEL_ORDER.indexOf(p.level) >= 0 && LEVEL_ORDER.indexOf(p.level) < LEVEL_ORDER.indexOf(E.biz.level);
+    this.aya.say({ text: latte ? (up ? AYA.cityTipUp : AYA.cityTip) : AYA.cityTipDk }, { defer: 20, stale: gone });
   }
   _beat(id, why) { this.ctx.events.emit('story:beat', { id, why, t: +this.t.toFixed(1) }); }
   _timer(beat, extra) { this.ctx.events.emit('story:timer', Object.assign({ beat, t: +this.t.toFixed(1) }, extra || {})); }
@@ -438,8 +451,8 @@ export class Story {
       const o = aya.open, nudged = o && o.nudgeT != null && aya.t - o.nudgeT < 10;   // she just said "hello?? 👀"
       if (why === 'silent') return nudged ? UPGRADE.offerSilentShort : UPGRADE.offerSilent;
       if (why === 'floors') return UPGRADE.offerFloors;
-      if (why === 'parks') return UPGRADE.offerParks;
-      if (why === 'behind') return UPGRADE.offerBehind;
+      if (why === 'parks') return this._parksFar ? UPGRADE.offerFine : UPGRADE.offerParks;   // far side of CITY: "before you hit Parks"
+      if (why === 'behind') return this._behindReplied && UPGRADE.offerBehindReply ? UPGRADE.offerBehindReply : UPGRADE.offerBehind;
       if (why === 'ahead') return UPGRADE.offerAhead;
       // v9 critic: she answers what you just told her ("I'm lost 😭" → "lol I knew it"), never asks it back
       if (why === 'lost' && UPGRADE.offerLost) return UPGRADE.offerLost;

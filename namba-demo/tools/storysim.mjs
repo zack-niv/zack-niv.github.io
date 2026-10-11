@@ -116,6 +116,8 @@ function run(sc) {
   }
   // v9 critic: she never asks back what the player just told her ("I'm lost 😭" → "you're lost aren't you 😂")
   phone.thread.forEach((m, i) => { const prev = phone.thread.slice(0, i).filter(x => x.me).pop(); if (!m.me && m.id === 'aya_lodestone' && prev && /lost|Which way/.test(prev.text) && /lost aren't you/.test(m.text)) bad.push(`offer asks "${m.text.slice(0, 30)}" right after "${prev.text}"`); });
+  // v10 critic: nothing from Aya directs the player once Lodestone is offered (the app does that now)
+  { const k = phone.thread.findIndex(m => m.id === 'aya_lodestone'); if (k >= 0) phone.thread.slice(k + 1).forEach(m => { if (!m.me && /ooh you're in CITY/.test(m.text || '')) bad.push(`stale CITY tip after the offer: "${m.text.slice(0, 40)}"`); }); }
   const ok = !bad.length && demo.offered && demo.offerT <= DEMO.offerAt + 0.5 && (!sc.expect || sc.expect(story, demo, lines, timers));
   console.log(`\n=== ${sc.name}: ${ok ? 'PASS' : 'FAIL'}  offer ${demo.offered ? demo.offerT.toFixed(1) + ' s (' + demo.why + ')' : 'NONE'} · errand ${story.errand.state} · replied ${story.aya.replied} · timers [${timers.join(', ')}]`);
   console.log('  beats: ' + beats.join(' · '));
@@ -163,7 +165,21 @@ const results = [
   run({ name: 'v10 wrong-floor wanderer (down to B1 on the latte leg)', speed: 1.2, level: (m) => (m > 120 ? ['B1', 'city_b1_main'] : null),
     dist: (t) => 1.2 * Math.max(0, Math.min(t, 110) - 5), lost: (t) => (t > 110 ? 'floor' : null), progress: (t) => (t > 110 ? 0 : 25),
     reply: (id, rs, age) => (age < 2 ? null : /^where/.test(id) ? 'lost' : rs[0].id),
-    expect: (s, d, l) => d.why === 'lost' && l.some(x => /why are you on B1\?\? 😂 the café's on 1F/.test(x)) }),
+    // v10 critic: she infers the floor (Maps-grade shared dot has none), and the tip from B1 points UP
+    expect: (s, d, l) => d.why === 'lost' && l.some(x => /your dot isn't getting any closer 😂 wrong floor\? the café's on 1F/.test(x)) && l.some(x => /café's on 1F 👆/.test(x)) }),
+  // v10 critic: a typical first-timer — looks around, reads the phone: ~1.0 m/s average, replies, never really lost
+  run({ name: 'v10 critic: typical first-timer (1.0 m/s, replies, not lost)', speed: 1.0, lost: fine, progress: () => 16,
+    reply: (id, rs, age) => (age < 3 ? null : /^where/.test(id) ? rs.find(r => r.id !== 'lost').id : rs[0].id),
+    expect: (s, d, l, tm) => noTimer(tm) }),
+  run({ name: 'v10 critic: first-timer who declines (1.0 m/s)', speed: 1.0, lost: fine, progress: () => 16,
+    reply: (id, rs, age) => (age < 3 ? null : id === 'coffee' ? 'no' : /^where/.test(id) ? rs.find(r => r.id !== 'lost').id : rs[0].id),
+    expect: (s, d, l, tm) => noTimer(tm) }),
+  // v10 critic (the browser wander run): lost early, offered at ~100 s, reaches CITY only afterwards — no directions tip
+  // from Aya once Lodestone is on the table (it used to arrive 66 s after "see? 😌 it even knows which floor…")
+  run({ name: 'v10 critic: lost early, enters CITY after the offer (no stale tip)', stopAfterOffer: false,
+    dist: (t) => (t < 100 ? 0.5 * Math.max(0, t - 5) : 47.5 + 1.5 * (t - 100)), lost: fine, progress: (t) => (t < 100 ? 12 : 45),
+    reply: (id, rs, age) => (age < 2 ? null : /^where/.test(id) ? 'lost' : rs[0].id),
+    expect: (s, d, l, tm) => d.why === 'lost' && noTimer(tm) && !l.some(x => /ooh you're in CITY/.test(x)) && l.some(x => /lol I knew it/.test(x)) }),
 ];
 console.log(`\n${results.filter(Boolean).length}/${results.length} scenarios pass`);
 process.exit(results.every(Boolean) ? 0 : 1);
