@@ -68,10 +68,18 @@ export class Audio {
 
   init() {
     if (!this.enabled) return;
-    const kick = () => { this.resume(); if (this.announcer) this.announcer.unlock(); };
+    // v12: these listeners stay for the whole session (cheap early-out once audio runs and speech is proven): iOS needs a
+    // speak() inside a touchend/click to unlock speech, a gesture it did not honour must be retried, and speech that wedged
+    // after a cancel is primed again by the next tap. (v8-v11 removed them after the first pointerdown: no PA voice on iPhone.)
     this._gestures = ['pointerdown', 'keydown', 'touchend', 'click'];
-    this._kick = kick;
-    for (const g of this._gestures) addEventListener(g, kick, { capture: true, passive: true });
+    this._kick = (e) => this._gesture(e);
+    for (const g of this._gestures) addEventListener(g, this._kick, { capture: true, passive: true });
+    // Safari 16.4+: 'playback' keeps the game audible with the ring/silent switch on (the default 'auto' plays Web Audio as
+    // 'ambient', which the switch mutes). Touch devices only: on a desktop it would pause the player's music for nothing.
+    try {
+      const as = navigator.audioSession;
+      if (as && as.type === 'auto' && navigator.maxTouchPoints > 0 && !/[?&]ambientsession\b/.test(location.search)) as.type = 'playback';
+    } catch (e) { /* not supported */ }
     const ev = this.ctx.events;
     ev.on('player:step', (e) => this._step(e));
     ev.on('player:land', (e) => this._land(e));
@@ -108,13 +116,25 @@ export class Audio {
   }
 
   // ---- lifecycle ------------------------------------------------------------------
+  // every user gesture: start / resume Web Audio, and unlock speech from inside the gesture until it is proven. A finger's
+  // pointerdown is not a user activation (HTML spec; WebKit drops speech from it), so only touchend / click / keys / a mouse
+  // button try the speech unlock.
+  _gesture(e) {
+    if (e && e.isTrusted === false) return;
+    const a = this.announcer;
+    if (this.ac && this.ac.state === 'running' && (!a || a.speechReady)) return;
+    this.resume();
+    if (!this.announcer || !this.useSpeech) return;
+    const type = e ? e.type : 'api';
+    if (type === 'pointerdown' && e.pointerType !== 'mouse') return;
+    if (type === 'keydown' && (e.key === 'Escape' || e.repeat)) return;   // Escape is not an activation
+    this.announcer.unlock(type);
+  }
   resume() {
     if (!this.enabled) return Promise.resolve(false);
     try {
       if (!this.ac) this._build(new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }));
       this._wantRunning = true;
-      if (this.announcer && navigator.userActivation && navigator.userActivation.isActive) this.announcer.unlock();
-      if (this._gestures) { for (const g of this._gestures) removeEventListener(g, this._kick, { capture: true }); this._gestures = null; }
       if (this.ac.state !== 'running') return this.ac.resume().then(() => true).catch(() => false);
     } catch (e) { console.warn('[audio] cannot start', e.message); this.enabled = false; return Promise.resolve(false); }
     return Promise.resolve(true);
@@ -368,6 +388,13 @@ export class Audio {
     const d = { master: 0.85, music: 0.8, sfx: 1, voice: 1, ambience: 0.9 };
     try { const s = JSON.parse(localStorage.getItem('namba.audio.v1') || 'null'); if (s) Object.assign(d, s); } catch (e) { /* */ }
     return d;
+  }
+  // v12: the PA speech report (announcer.stats(), see notes/v12-pa.md); before the first gesture there is no announcer yet
+  paStats() {
+    if (this.announcer) return this.announcer.stats();
+    const sp = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
+    let voices = 0; try { voices = sp ? sp.getVoices().length : 0; } catch (e) { /* */ }
+    return { voices, ja: null, unlocked: false, unlockVia: null, attempts: 0, started: 0, ended: 0, errors: [], lastErr: null, tried: 0, noStart: 0, needsPrime: false, speech: !!sp, state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
   }
   stats() {
     if (!this.mixer) return { state: this.enabled ? 'waiting-for-gesture' : 'disabled' };

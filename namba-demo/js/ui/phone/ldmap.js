@@ -326,7 +326,9 @@ export class LdMap {
     const g = cv.getContext('2d'), W = cv.clientWidth || 316, H = cv.clientHeight || 676;
     const s = this.app.phone._scale || 1, dpr = clamp((window.devicePixelRatio || 1) * Math.max(1, s), 1, 2);
     if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
-    const cx = W / 2, cy = 240, R = 104;
+    // (v12: on the wide landscape phone the picture has its own pane: centred in it)
+    const land = !!this.app.phone.land;
+    const cx = W / 2, cy = land ? H / 2 - 14 : 240, R = land ? Math.max(70, Math.min(124, H / 2 - 44, W / 2 - 24)) : 104;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, W, H);
     const [d1, d2, d3, d4] = CAL_DONE;

@@ -4,7 +4,7 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font-family: var(--font); overflow: hidden; overscroll-behavior: none; -webkit-user-select: none; user-select: none; touch-action: none; }
-#view { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#view { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; }   /* v12: dvh = the visible height on iOS (vh is the large viewport) */
 #ui { position: fixed; inset: 0; pointer-events: none; }
 #ui > * { pointer-events: none; }
 /* ---- loading screen (js/core/loader.js) ------------------------------------ */

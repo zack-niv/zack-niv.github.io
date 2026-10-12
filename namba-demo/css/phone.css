@@ -867,3 +867,102 @@
 .ms-b.ms-photo small { display: block; text-align: right; }
 .ms-shutter { position: fixed; inset: 0; z-index: 9999; pointer-events: none; background: #fff; animation: msShutter .42s ease-out forwards; }
 @keyframes msShutter { 0% { opacity: .92; } 100% { opacity: 0; } }
+
+/* =============================================================================
+   v12 (item 2b) — the wide phone: on a short landscape screen the RAISED phone turns sideways (phone.js _setLand).
+   One pane for the picture (map / 3D / calibration) on the left, one side panel (sheet, list, steps) on the right,
+   the dock a slim rail at the right edge (the right thumb), no status bar (iOS hides it in landscape), the Dynamic
+   Island on the left edge. All in device px of the screen (the phone is scaled by --s). notes/v12-phone.md
+   (These rules beat touch.css's #phone-root.ph-compact ones by specificity; touch.css is unchanged.)
+   ============================================================================= */
+#phone-root.ph-land .ph-screen { --rail: 72px; --pan: 268px; --side: calc(var(--rail) + var(--pan) + 6px); --isl: 46px; }
+#phone-root.ph-land .ph-status { display: none; }
+/* the hardware: side buttons on the long edges, the island on the left (the phone was turned counter-clockwise) */
+#phone-root.ph-land .ph-btn { width: auto; height: 4px; left: auto; right: auto; background: linear-gradient(180deg, #6b6e74, #2a2b2e); }
+#phone-root.ph-land .ph-btn-a { bottom: -3px; top: auto; left: 118px; width: 28px; }
+#phone-root.ph-land .ph-btn-b { bottom: -3px; top: auto; left: 168px; width: 54px; }
+#phone-root.ph-land .ph-btn-c { bottom: -3px; top: auto; left: 232px; width: 54px; }
+#phone-root.ph-land .ph-btn-d { top: -3px; left: 190px; width: 84px; background: linear-gradient(0deg, #6b6e74, #2a2b2e); }
+#phone-root.ph-land .ph-wrap[data-pose="up"] .ph-isl { left: 10px; right: calc(100% - 41px); top: calc(50% - 52px); height: 104px; border-radius: 16px; }
+#phone-root.ph-land .ph-homebar { left: calc((100% - var(--side)) / 2 - 70px); right: auto; width: 140px; height: 16px; }
+#phone-root.ph-land .ph-homebar i { width: 110px; }
+/* the dock → a rail on the right edge: 64 x 60 device px per app (≥ 44 CSS px at the phone's scale) */
+#phone-root.ph-land .ph-dock { left: auto; right: 6px; top: 8px; bottom: 8px; width: 64px; height: auto; flex-direction: column; justify-content: center; gap: 8px; padding: 6px 3px; border-radius: 24px; }
+#phone-root.ph-land .ph-dock button { flex: 0 0 60px; padding: 0; justify-content: center; gap: 5px; }
+#phone-root.ph-land .ph-screen[data-stage="installing"] .ph-dock, #phone-root.ph-land .ph-screen[data-stage="calibrating"] .ph-dock { transform: translateX(40px); }
+/* the banner drops over the picture pane (not over the sheet you are reading); toasts sit in the pane too */
+#phone-root.ph-land .ph-notif { top: 8px; left: var(--isl); right: calc(var(--side) + 8px); padding: 8px 11px; gap: 9px; border-radius: 18px; }
+#phone-root.ph-land .ph-notif p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#phone-root.ph-land .ph-n-ic { flex-basis: 30px; height: 30px; }
+#phone-root.ph-land .ph-toast { bottom: 14px; left: calc((100% - var(--side)) / 2); }
+
+/* ---- Maps: the map pane + the side panel (search on top, the sheet under it, full height) ---------------- */
+#phone-root.ph-land .mp-canvas { width: calc(100% - var(--side)); }
+#phone-root.ph-land .mp-top, #phone-root.ph-land .mp-banner { top: 8px; left: auto; right: var(--rail); width: var(--pan); }
+#phone-root.ph-land .mp-sheet, #phone-root.ph-land .mp-sheet.mp-home, #phone-root.ph-land .mp-sheet.mp-full, #phone-root.ph-land .mp-sheet.mp-home.mp-full {
+  top: 60px; bottom: 8px; left: auto; right: var(--rail); width: var(--pan); max-height: none; padding: 10px 0 6px; border-radius: 20px; box-shadow: 0 4px 22px rgba(0,0,0,.16); }
+#phone-root.ph-land .mp-banner:not([hidden]) ~ .mp-sheet { top: 96px; }
+#phone-root.ph-land .mp-grab { display: none; }
+#phone-root.ph-land .mp-floorchip { top: 8px; left: var(--isl); max-width: 190px; }
+#phone-root.ph-land .mp-gpswarn { top: 44px; left: var(--isl); }
+#phone-root.ph-land .mp-ctrls { top: 8px; right: calc(var(--side) + 8px); }
+#phone-root.ph-land .mp-floors { max-height: 250px; }
+#phone-root.ph-land .mp-compass-cal { left: var(--isl); right: calc(var(--side) + 8px); bottom: 10px; padding: 9px 12px; gap: 10px; }
+#phone-root.ph-land .mp-cc-8 { flex-basis: 40px; height: 40px; }
+#phone-root.ph-land .mp-sugg { max-height: 300px; }
+
+/* ---- Lodestone: the map / 3D pane + the side panel (instruction on top, the steps, the trip card) -------- */
+#phone-root.ph-land .ld-map, #phone-root.ph-land .ld-3d, #phone-root.ph-land .ld-field { width: calc(100% - var(--side)); }
+#phone-root.ph-land .ld-main .ld-3d { -webkit-mask-image: none; mask-image: none; }
+#phone-root.ph-land .ld-tap { right: var(--side); width: auto; }
+#phone-root.ph-land .ld-head { top: 8px; left: auto; right: var(--rail); width: var(--pan); }
+#phone-root.ph-land .ld-hdr .gl { min-height: 76px; padding: 10px 13px; gap: 10px; }
+#phone-root.ph-land .ld-hdr .gl-t b { font-size: 16.5px; }
+#phone-root.ph-land .ld-hdr .gl-t span { font-size: 12px; }
+#phone-root.ph-land .ld-trip { left: auto; right: var(--rail); width: var(--pan); bottom: 8px; padding: 10px 13px 11px; }
+#phone-root.ph-land .ld-trip-r.ld-here { display: none; }                 /* (the header already says "you're on 2F · ±1 m") */
+#phone-root.ph-land .ld-trip-a { margin-top: 9px; }
+#phone-root.ph-land .ld-trip-a button { height: 36px; }
+/* the route's steps fill the panel between the header and the trip card, in both views (lodestone.js sets the heights) */
+#phone-root.ph-land .ld-main .ld-sheet, #phone-root.ph-land .ld-main[data-view="stack"] .ld-sheet { display: block; left: auto; right: var(--rail); width: var(--pan);
+  top: calc(var(--ld-hh, 92px) + 16px); bottom: calc(var(--ld-th, 96px) + 16px); max-height: none; padding: 2px 13px; border-radius: 20px; }
+#phone-root.ph-land .ld-main[data-view="stack"] .ld-sheet { bottom: 8px; }
+#phone-root.ph-land .ld-main .ld-steps:empty { display: none; }
+#phone-root.ph-land .ld .ld-steps li { padding: 8px 0; }
+#phone-root.ph-land .ld .ld-steps li span { font-size: 13px; }
+#phone-root.ph-land .ld-main.picking .ld-sheet, #phone-root.ph-land .ld-main.previewing .ld-sheet, #phone-root.ph-land .ld-main.arrived .ld-sheet { display: none; }
+#phone-root.ph-land .ld-main.reveal .ld-sheet { opacity: 0; }
+#phone-root.ph-land .ld-main .ld-sheet { transition: opacity .45s .12s; }
+/* on the pane: 3D view button (guide), the ladder + Route / Me / Done (3D), the "Next" chip */
+#phone-root.ph-land .ld-x3d, #phone-root.ph-land .ld-main.has-next .ld-x3d { right: calc(var(--side) + 10px); bottom: 10px; }
+#phone-root.ph-land .ld-next { left: var(--isl); right: calc(var(--side) + 118px); bottom: 10px; }
+#phone-root.ph-land .ld-main[data-view="stack"] .ld-ladder { top: 10px; right: calc(var(--side) + 6px); }
+#phone-root.ph-land .ld-main[data-view="stack"] .ld-ctl { left: var(--isl); bottom: 10px; }
+#phone-root.ph-land .ld-pick, #phone-root.ph-land .ld-prev { top: 8px; bottom: 8px; left: auto; right: var(--rail); width: var(--pan); max-height: none; }
+#phone-root.ph-land .ld-prev { overflow-y: auto; scrollbar-width: none; }
+#phone-root.ph-land .ld-pv-ph { height: 96px; }
+/* the snap cards: centred on the picture pane */
+#phone-root.ph-land .ld-card, #phone-root.ph-land .ld-card.big { left: calc((100% - var(--side)) / 2); }
+#phone-root.ph-land .ld-card.big { top: 40%; }
+#phone-root.ph-land .ld-main .ld-card:not(.big), #phone-root.ph-land .ld-main[data-view="stack"] .ld-card:not(.big) { top: 12px; bottom: auto; }
+/* the calibration: the picture in the pane, the words + the four steps in the panel, the floor bar under the picture */
+#phone-root.ph-land .ld-c-txt { top: 26px; left: auto; right: var(--rail); width: var(--pan); padding: 0 10px; text-align: left; }
+#phone-root.ph-land .ld-c-txt h2 { font-size: 21px; }
+#phone-root.ph-land .ld-c-steps { top: 118px; left: auto; right: var(--rail); width: var(--pan); padding-left: 10px; gap: 8px; }
+#phone-root.ph-land .ld-c-floors { left: var(--isl); right: calc(var(--side) + 14px); bottom: 14px; }
+
+/* ---- Messages: the thread gets the whole width; the chips line up in a row; no fake keyboard bar ---------- */
+#phone-root.ph-land .ms { padding: 0 var(--rail) 6px var(--isl); }
+#phone-root.ph-land .ms-h { padding: 10px 14px 8px; }
+#phone-root.ph-land .ms-in { display: none; }
+#phone-root.ph-land .ms-b { max-width: 66%; }
+#phone-root.ph-land .ms-b:has(.ms-link), #phone-root.ph-land .ms-b.ms-has-place { max-width: 74%; }
+#phone-root.ph-land .ms-b.ms-photo { max-width: 46%; }
+#phone-root.ph-land .ms-replies { flex-direction: row; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px 8px; padding: 8px 10px 4px; border-radius: 16px 16px 0 0; }
+#phone-root.ph-land .ms-chip { max-width: 100%; }
+
+/* ---- the rest: home, Notes, Transit keep clear of the island and the rail ---------------------------------- */
+#phone-root.ph-land .hs-widget { top: 16px; left: var(--isl); right: calc(var(--rail) + 14px); }
+#phone-root.ph-land .hs-grid { top: 138px; left: var(--isl); right: calc(var(--rail) + 14px); grid-template-columns: repeat(6, 1fr); }
+#phone-root.ph-land .nt { padding: 6px var(--rail) 20px var(--isl); }
+#phone-root.ph-land .tr { padding: 12px calc(var(--rail) + 8px) 16px var(--isl); }

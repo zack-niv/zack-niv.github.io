@@ -190,7 +190,8 @@ export class MapApp {
   // ------------------------------------------------------------- view -----
   get W() { return this.canvas.clientWidth || 300; }
   get H() { return this.canvas.clientHeight || 600; }
-  _anchor() { return [this.W / 2, this.H * (this.sheet === 'home' ? 0.46 : 0.36)]; }
+  // (v12: the wide landscape phone has no sheet over the map: the sheet is a side panel, so the map centres)
+  _anchor() { return [this.W / 2, this.H * (this.phone.land ? 0.5 : this.sheet === 'home' ? 0.46 : 0.36)]; }
   toScreen(x, z) {
     const v = this.view, k = v.zoom, c = Math.cos(v.rot), s = Math.sin(v.rot);
     const dx = x - v.cx, dz = z - v.cz;

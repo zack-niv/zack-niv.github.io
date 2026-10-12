@@ -13,8 +13,15 @@
 // queued items go stale (maxAge) rather than being spoken late.
 //
 // One utterance at a time, ever: a single `cur` item walks chime -> ja -> en.
-// Voices load asynchronously (voiceschanged, plus polling); speech needs a
-// prior user gesture (the title click) — a rejected utterance is skipped.
+// Voices load asynchronously (voiceschanged, plus polling).
+//
+// v12 (iPhone: "can't hear the station Japanese announcements"): iOS WebKit silently DROPS every speak() (no start, no
+// error, nothing) until one speak() runs inside a user-gesture handler; pointerdown from a finger is not one (touchend
+// and click are). v8-v11 spent the only unlock on the first pointerdown and then removed the gesture listeners, so on an
+// iPhone no line was ever spoken while the captions still showed. Now (audio.js `_gesture` + `unlock` below): every
+// touchend / click / key / mouse-down until speech is PROVEN (an onstart/onend of our own utterance) speaks a silent
+// '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
+// `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
 import { spokenText } from './phrases.js';
 import { platformGain, pointGain } from './zones.js';
@@ -36,6 +43,15 @@ const DUCK_ATTACK = 0.09, DUCK_RELEASE = 0.45, DUCK_HOLD = 1.0;  // setTargetAtT
 const DUCK_PRE = 0.45;                                        // s the duck leads the chime
 const PLAT_CHIME = 0.85, CHIME = 0.55;                          // chime gain at full volume
 const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
+const UNLOCK_TEXT = '。';          // Japanese full stop: a real utterance (not blank) that makes no sound; never English
+const UNLOCK_WAIT_MS = 1500;       // an unlock utterance that neither starts nor ends in this long has failed: retry on the next gesture
+const CANCEL_GAP = 0.3;            // s of quiet after speechSynthesis.cancel() before the next speak() (iOS drops a speak() right after a cancel)
+// iOS WebKit ignores utterance.volume: every line plays at full device volume. So far-off (quiet) shop calls, barks and
+// background voices would blare once speech works there; on iOS those are only voiced when they are loud anyway (the PA,
+// station and train lines always are, as before).
+const IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1));
+const IOS_MIN_VOL = 0.45;
+const wall = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export class Announcer {
   constructor(sys) {
@@ -52,12 +68,17 @@ export class Announcer {
     this.log = [];               // debug: recent events
     this._repeat = new Map();    // text key -> time last spoken
     this._pollT = 0;
+    // v12: speech unlock + what the device actually did (stats() -> analytics namba_pa)
+    this._unlocked = false; this.unlockVia = null; this._unlocking = null; this._needsPrime = false;
+    this._cancelAt = -9; this._paused = false; this._noStartRun = 0;
+    this.st = { attempts: 0, tried: 0, started: 0, ended: 0, noStart: 0, errors: [], lastErr: null };
     if (this.speech) {
       this.refreshVoices();
       try { this.speech.addEventListener('voiceschanged', () => this.refreshVoices()); } catch (e) { this.speech.onvoiceschanged = () => this.refreshVoices(); }
     }
   }
   _note(s) { this.log.push(`${this.t.toFixed(1)} ${s}`); if (this.log.length > 14) this.log.shift(); }
+  _err(code) { code = String(code || 'unknown'); this.st.lastErr = code; if (!this.st.errors.includes(code) && this.st.errors.length < 8) this.st.errors.push(code); }
 
   refreshVoices() {
     if (!this.speech) return;
@@ -75,13 +96,60 @@ export class Announcer {
   get hasJaVoice() { return !!(this.speech && this.voices.ja); }
   get hasEnVoice() { return false; }
   get canSpeak() { return !!(this.useSpeech && this.speech && this.voices.ja); }
-  cancelSpeech() { if (this.speech) try { this.speech.cancel(); } catch (e) { /* */ } if (this.cur) this.cur.utter = null; }
-  pauseSpeech(on) { if (this.speech) try { on ? this.speech.pause() : this.speech.resume(); } catch (e) { /* */ } }
-  // iOS / Safari want one (silent) utterance inside a user gesture
-  unlock() {
-    if (!this.speech || this._unlocked) return; this._unlocked = true;
-    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; this.speech.speak(u); } catch (e) { /* */ }
+  _cancel() {
+    if (!this.speech) return;
+    try { this.speech.cancel(); } catch (e) { /* */ }
+    this._cancelAt = this.t;
+    this._needsPrime = true;     // iOS can come out of a cancel unable to start the next utterance: prime it again on the next gesture
+  }
+  // tab hidden / speech switched off: drop the line in flight (PA lines are of the moment, never resumed late)
+  cancelSpeech() { if (this.cur && this.cur.utter) this._interrupt(); else if (this.speech && this.speech.speaking) this._cancel(); }
+  // v12: the pause menu used to speechSynthesis.pause()/resume(); iOS can wedge in the paused state and Chrome holds every later
+  // utterance while paused. Now a pause drops the line in flight and holds the queue (it goes stale on its own).
+  pauseSpeech(on) {
+    this._paused = !!on;
+    if (on) { if (this.cur && this.cur.utter) this._interrupt(); }
+    else if (this.speech) try { if (this.speech.paused) this.speech.resume(); } catch (e) { /* */ }
+  }
+  // speech is proven to work and needs nothing from the next gesture
+  get speechReady() { return !this.speech || (this._unlocked && !this._needsPrime); }
+  // Call from INSIDE a user-gesture handler (touchend / click / keydown / mouse pointerdown): iOS WebKit lifts its speech
+  // restriction only for a speak() made while it is processing a gesture, and drops (silently) every speak() before that.
+  // A silent '。' is spoken; only its onstart/onend marks speech unlocked, so a gesture iOS did not honour is retried on the
+  // next one. Returns true when an attempt was made.
+  unlock(via = 'gesture') {
+    if (!this.speech || this.speechReady) return false;
+    if (this.voiceCount > 0 && !this.voices.ja) return false;   // voices are in and none is Japanese: nothing will ever be spoken
+    if (this.st.attempts >= 24) return false;                  // a device that never confirms: stop spending gestures (stats say so)
+    const now = wall();
+    // one attempt in flight per gesture kind: a tap's click still gets its own try if the touchend's is unconfirmed
+    if (this._unlocking && now - this._unlocking.at < UNLOCK_WAIT_MS && this._unlocking.via === via) return false;
+    // the previous try was accepted (queued / speaking) and simply has not started yet: let it confirm
+    if (this._unlocking && now - this._unlocking.at < UNLOCK_WAIT_MS) { try { if (this.speech.speaking || this.speech.pending) return false; } catch (e) { /* */ } }
+    if (this._unlocking) {   // the previous try never confirmed (timed out), or this gesture's other event tries too (superseded)
+      if (now - this._unlocking.at >= UNLOCK_WAIT_MS) { this._err('unlock-timeout'); this._note('unlock timeout'); }
+      this._unlocking = null;
+    }
+    // a line that is audibly playing already proves speech works
+    if (this.cur && this.cur.utter && this.cur.uStarted) { this._proven('speaking'); return false; }
     this.refreshVoices();
+    let u;
+    try { u = new SpeechSynthesisUtterance(UNLOCK_TEXT); } catch (e) { this._err('unlock-throw'); return false; }
+    try { if (this.voices.ja) u.voice = this.voices.ja; } catch (e) { /* the lang below is enough */ }
+    u.lang = 'ja-JP'; u.volume = 0.01; u.rate = 1.5;   // iOS ignores volume; '。' is silent anyway
+    const att = { u, at: now, via };
+    const ok = () => { if (this._unlocking === att) this._unlocking = null; this._proven(via); };
+    u.onstart = ok; u.onend = ok;
+    u.onerror = (e) => { if (this._unlocking === att) this._unlocking = null; const c = (e && e.error) || 'error'; this._err('unlock:' + c); this._note('unlock error ' + c); };
+    this._unlocking = att; this.st.attempts++;
+    try { if (this.speech.paused) this.speech.resume(); } catch (e) { /* */ }
+    try { this.speech.speak(u); } catch (e) { this._unlocking = null; this._err('unlock-throw'); return false; }
+    this._note(`unlock try #${this.st.attempts} via ${via}`);
+    return true;
+  }
+  _proven(via) {
+    if (!this._unlocked) { this.unlockVia = via; this._note('speech unlocked via ' + via); }
+    this._unlocked = true; this._needsPrime = false; this._noStartRun = 0;
   }
 
   // item: { kind, prio?, parts:[{lang:'ja'|'en', text, say?}], chime?: 'pa'|'esc'|null, gain?, caption?,
@@ -122,7 +190,7 @@ export class Announcer {
 
   _interrupt() {
     const c = this.cur; if (!c) return;
-    if (c.utter && this.speech) try { this.speech.cancel(); } catch (e) { /* */ }
+    if (c.utter && this.speech) this._cancel();
     if (c.node) try { c.node.stop(0.08); } catch (e) { /* */ }
     this._note(`interrupt ${c.kind}`);
     this.cur = null;
@@ -155,7 +223,9 @@ export class Announcer {
   update(dt) {
     this.t += Math.min(dt || 0, 0.25);
     if (this._relAt != null && !(this.cur && this.cur._ducks) && this.t >= this._relAt) { this._relAt = null; this._setDuck(1, 1); }
-    if (this.speech && !this.voices.ja && this.t - this._pollT > 2 && this.t < 60) { this._pollT = this.t; this.refreshVoices(); }
+    // iOS: getVoices() can be empty for a while and voiceschanged is unreliable, so keep polling (2 s, then every 6 s)
+    if (this.speech && !this.voices.ja && this.t - this._pollT > (this.t < 60 ? 2 : 6)) { this._pollT = this.t; this.refreshVoices(); }
+    if (this._paused) return;   // pause menu: the queue waits (and goes stale), nothing new starts
     // stale lines are not spoken late
     if (this.queue.length) this.queue = this.queue.filter(q => this.t - q.born <= q.maxAge);
     if (!this.cur) {
@@ -171,15 +241,24 @@ export class Announcer {
     if (c.wait > this.t) return;
     if (c.utter) { // utterance in flight
       if (c.uDone) { c.utter = null; c.step++; c.wait = this.t + 0.4; }
-      else if (!c.uStarted && this.t > c.uDeadline) { this._note('no-start: ' + (c.uErr || 'timeout')); try { this.speech.cancel(); } catch (e) { /* */ } c.utter = null; c.step++; }
-      else if (this.t > c.uHard) { this._note('hard-timeout'); try { this.speech.cancel(); } catch (e) { /* */ } c.utter = null; c.step++; }
+      else if (!c.uStarted && this.t > c.uDeadline) {
+        // never started: on iOS this is a speak() dropped before speech was unlocked (or after a cancel wedged it). The next
+        // gesture primes speech again (audio.js keeps listening for gestures until speechReady).
+        this._note('no-start: ' + (c.uErr || 'timeout')); this.st.noStart++; this._noStartRun++; if (!c.uErr) this._err('no-start');
+        this._cancel(); c.utter = null; c.step++;
+      }
+      else if (this.t > c.uHard) { this._note('hard-timeout'); this._err('hard-timeout'); this._cancel(); c.utter = null; c.step++; }
       else return;
     }
     while (c.step < c.parts.length) {
       const p = c.parts[c.step];
       const voice = this._speakable(p);
       const vol = this._vol(c);
-      if (voice && vol >= MIN_VOL) { this._speak(c, p, voice, vol); return; }
+      const minVol = IOS && !(c.platform || c.pa) && c.prio >= 2 ? IOS_MIN_VOL : MIN_VOL;
+      if (voice && vol >= minVol) {
+        if (this.t - this._cancelAt < CANCEL_GAP) { c.wait = this._cancelAt + CANCEL_GAP; return; }   // a breath after a cancel
+        this._speak(c, p, voice, vol); return;
+      }
       c.step++; // no voice for this language (or you walked away): skip it
     }
     if (!c.ending) { // chime + caption only: hold the slot for roughly as long as the line would take
@@ -201,9 +280,14 @@ export class Announcer {
     // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
     const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
-    u.onstart = () => { if (c.utter === u) c.uStarted = true; };
-    u.onend = () => { if (c.utter === u) c.uDone = true; };
-    u.onerror = (e) => { if (c.utter === u) { c.uErr = e && e.error; c.uDone = true; this._note('error ' + (e && e.error)); } };
+    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) c.uStarted = true; };
+    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; };
+    u.onerror = (e) => {
+      const code = (e && e.error) || 'error';
+      if (code !== 'interrupted' && code !== 'canceled') this._err(code);    // our own cancels are not failures
+      if (c.utter === u) { c.uErr = code; c.uDone = true; this._note('error ' + code); }
+    };
+    this.st.tried++;
     c.utter = u; c.uStarted = false; c.uDone = false; c.uErr = null; c.spoke = true;
     c.uDeadline = this.t + 6;   // v8: online / natural ja voices can take >3 s to start (the old 3 s dropped the line)
     c.uHard = this.t + 4 + text.length * (p.lang === 'ja' ? 0.35 : 0.2);
@@ -246,11 +330,21 @@ export class Announcer {
     return this.mixer.play(buf, { bus: 'voice', gain: g, send: item.send ?? 0.6, lp: item.lp, pan: (item.id % 3 - 1) * 0.12, force: true, when: pre ? this.ac.currentTime + pre : undefined });
   }
 
-  stats() { return { voices: this.voiceCount, ja: this.voices.ja ? this.voices.ja.name : null, en: this.voices.en ? this.voices.en.name : null }; }
+  // v12 contract (lead -> analytics namba_pa). See notes/v12-pa.md.
+  //   voices: getVoices().length · ja: the ja-JP voice picked (name) or null · unlocked: speech proven by an onstart/onend ·
+  //   unlockVia: the gesture (touchend|click|keydown|pointerdown) or 'line'/'speaking' that proved it · attempts: unlock
+  //   utterances spoken · tried / started / ended: PA utterances handed to speechSynthesis / that started / that ended ·
+  //   noStart: utterances that never started (iOS drops them silently) · errors: distinct codes (max 8) · lastErr
+  stats() {
+    const s = this.st;
+    return { voices: this.voiceCount, ja: this.voices.ja ? this.voices.ja.name : null, unlocked: !!this._unlocked, unlockVia: this.unlockVia,
+      attempts: s.attempts, started: s.started, ended: s.ended, errors: s.errors.slice(), lastErr: s.lastErr,
+      tried: s.tried, noStart: s.noStart, needsPrime: !!this._needsPrime, speech: !!this.speech };
+  }
   debug() {
     return {
       voiceCount: this.voiceCount, ja: this.voices.ja ? `${this.voices.ja.name} (${this.voices.ja.lang})` : null, en: this.voices.en ? `${this.voices.en.name} (${this.voices.en.lang})` : null,
-      useSpeech: this.useSpeech, queue: this.queue.map(q => `${q.kind}:${q.parts[0].text.slice(0, 20)}`), cur: this.cur ? `${this.cur.kind}:${this.cur.parts[0].text.slice(0, 20)}` : null,
+      useSpeech: this.useSpeech, stats: this.stats(), queue: this.queue.map(q => `${q.kind}:${q.parts[0].text.slice(0, 20)}`), cur: this.cur ? `${this.cur.kind}:${this.cur.parts[0].text.slice(0, 20)}` : null,
       last: this.last, log: this.log.slice(-8),
       duck: { amb: +this.duck.toFixed(3), sfx: +this.duckSfx.toFixed(3), ambDb: +(20 * Math.log10(this.duck)).toFixed(1),
         gains: this.mixer ? { ambience: +this.mixer.bus.ambience.dry.gain.value.toFixed(3), music: +this.mixer.bus.music.dry.gain.value.toFixed(3), sfx: +this.mixer.bus.sfx.dry.gain.value.toFixed(3) } : null },

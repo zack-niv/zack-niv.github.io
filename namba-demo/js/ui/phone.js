@@ -75,6 +75,7 @@ addEventListener('resize', () => { _sr = null; });
 const GLANCE_H = 126;          // how much of the phone's top shows in the glance pose (device px)
 const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
+const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
 
 // critically-ish damped spring step (semi-implicit Euler, sub-stepped)
 function spring(s, target, dt, w, z) {
@@ -359,7 +360,31 @@ export class Phone {
     this.root.classList.toggle('ph-compact', dh < 640);
     this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
+    // v12 (item 2b): on a short landscape screen (a phone held sideways) the RAISED phone turns sideways too: a wide,
+    // short landscape phone (~70 % of the screen), its apps side by side (map / 3D left, sheet right, the dock a rail).
+    // The lowered (glance) phone stays the portrait one; raising morphs it wider (_applyPose). notes/v12-phone.md
+    const wide = touch && innerWidth > innerHeight && dh < 640;
+    this._wideOK = wide;
+    this._landW = wide ? Math.round(Math.min(820, Math.max(540, (innerWidth * WIDE_FRAC) / s))) : 340;
+    if (!wide && this.land) this._setLand(false);
+    else if (wide && this.isOpen && !this.land) this._setLand(true);
+    // where the raised phone starts, from the right edge (CSS px): the touch HUD keeps left of it (contract: Shell)
+    this.upGap = Math.round((wide ? this._landW : 340) * s + 12 + (touch ? safeRight() : 0));
+    document.documentElement.style.setProperty('--ph-wide-gap', (wide ? this.upGap : 0) + 'px');
+    if (this.land) document.documentElement.classList.toggle('ph-wide', this.isOpen);
     this._poseDirty = true;
+    this._landDirty = true;
+  }
+  // the wide layout on / off (the class drives css/phone.css .ph-land; the apps re-measure their free bands)
+  _setLand(on) {
+    on = !!on;
+    if (on === !!this.land) return;
+    this.land = on;
+    this.root.classList.toggle('ph-land', on);
+    document.documentElement.classList.toggle('ph-wide', on && this.isOpen);
+    if (!on) { this.wrap.style.width = ''; this._curW = 340; }
+    this._landDirty = true; this._poseDirty = true;
+    try { this.lodestone && this.lodestone.onLayout && this.lodestone.onLayout(); if (this.maps) this.maps._dirty = true; } catch (e) { /* ignore */ }
   }
 
   // ------------------------------------------------------------------ API ---
@@ -369,6 +394,8 @@ export class Phone {
     if (this.isOpen) { if (!hold && this._held) { this._held = false; this._unlockForUse(); } return; }
     this.isOpen = true;
     this._upAt = this._now; this._walkUp = 0; this._raises = (this._raises || 0) + 1;
+    if (this._wideOK) this._setLand(true);
+    document.documentElement.classList.toggle('ph-wide', !!this.land);
     this.wrap.classList.add('open');
     this.root.classList.add('ph-is-open');
     if (!hold) this._unlockForUse();
@@ -385,6 +412,7 @@ export class Phone {
     if (!this.isOpen) return;
     const wasHeld = this._held;
     this.isOpen = false; this._held = false; this._keepUpAfterHold = false;
+    document.documentElement.classList.remove('ph-wide');       // (the wide layout itself stays until it is down: _applyPose)
     this.wrap.classList.remove('open');
     this.root.classList.remove('ph-is-open');
     const a = document.activeElement; if (a && this.root.contains(a)) a.blur();
@@ -558,6 +586,7 @@ export class Phone {
       if (this.isOpen) this.maps.tick();
     }
     this._applyPose(dt);
+    if (this._landDirty) { this._landDirty = false; try { this.lodestone.onLayout(); this.maps._dirty = true; } catch (e) { /* ignore */ } }
     this.maps.update(dt, this.isOpen && this.app === 'maps');
     this.lodestone.update(dt, this.isOpen && this.app === 'lodestone', this.pose === 'glance', this.pose !== 'down');
     if (this.isOpen && this.app === 'transit') this.transit.update(dt);
@@ -624,10 +653,16 @@ export class Phone {
     this._poseDirty = false;
     const vw = innerWidth, s = this._scale, sg = s * GLANCE_S, DH = this._dh || 700;
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
+    // v12: the wide (landscape) phone morphs from the portrait one as it rises, and back as it lowers; the wide
+    // layout drops once the phone is back down to the glance
+    if (this.land && !this.isOpen && u < 0.08) this._setLand(false);
+    const uc = Math.max(0, Math.min(1, u)), ue = uc * uc * (3 - 2 * uc);
+    const PW = this.land ? Math.round(lerp(340, this._landW, ue)) : 340;
+    if (PW !== this._curW) { this._curW = PW; this.wrap.style.width = PW + 'px'; this._landDirty = true; }
     // up: just right of the crosshair (you can still see where you walk), bottom 35 px below the edge.
     // v11 touch: wholly on screen against the right edge (the dock and reply chips are what you tap), clear of the
     // left thumb's stick; portrait: centred.
-    const uw = 340 * s;
+    const uw = PW * s;
     let upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
     if (this._touch) { upY = -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
     // glance: bottom-right corner, only the top GLANCE_H shows
@@ -636,10 +671,10 @@ export class Phone {
     const cx = lerp(gCx, upCx, u);
     let y = lerp(gY, upY, u);
     y += d * (GLANCE_H * sg + 60);                                    // pocketed: slides out of view
-    const rz = lerp(3.2, -1.2, u) + br;
+    const rz = lerp(3.2, this.land ? -0.35 : -1.2, u) + br;           // (a wide phone tilts less: its corners stay on screen)
     const rx = lerp(9, 2.5, tl);                                      // tilted away a little when lowered
     const lift = Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * -14; // a little arc on the way up
-    this.wrap.style.transform = `translate3d(${(cx - 170 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
+    this.wrap.style.transform = `translate3d(${(cx - PW / 2 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
     this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;
     this.wrap.style.filter = u < 0.6 ? `brightness(${(0.88 + u * 0.2).toFixed(3)})` : '';
     // the glance strip's on-screen height (for HUD layout), 0 when not glancing

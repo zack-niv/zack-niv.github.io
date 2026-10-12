@@ -39,6 +39,7 @@ export class Title {
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>
         <div class="t-drawer-body"></div>
       </div>
+      ${touch ? `<div class="t-swipe" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 14.5 12 8.5 18 14.5M6 20 12 14 18 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Swipe up for full screen</span><small>上にスワイプで全画面</small></div>` : ''}
       <div class="t-foot">
         <div class="t-hint">${touch ? 'Left thumb walks · drag to look' : 'Best with keyboard &amp; mouse'}<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span></div>
         <div class="t-keys"><span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span></div>
