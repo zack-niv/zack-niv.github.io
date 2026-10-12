@@ -293,7 +293,10 @@ export class Input {
           this._stickMove(t.clientX, t.clientY);
           u.root.classList.add('stick-on');
           place();
-        } else if (this._lookT.id === null) { Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }); }
+        } else if (this._lookT.id === null) {
+          Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() });
+          if (wideUp) document.documentElement.classList.add('tu-wide-looked');   // the strip's LOOK ghost has done its job
+        }
       }
       if (e.cancelable) e.preventDefault();   // (a busy main thread can make touches uncancelable: no console noise)
     }, { passive: false });

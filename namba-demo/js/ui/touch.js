@@ -185,6 +185,7 @@ export class TouchUI {
     root.id = 'touch-ui';
     root.innerHTML = `
       <div class="tu-ghost" aria-hidden="true"><i></i><span>${TOUCH_TEXT.ghost}</span></div>
+      <div class="tu-lookghost" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M3.5 12h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Look</span></div>
       <button type="button" class="tu-btn tu-pause" aria-label="Pause">${ICON.pause}</button>
       <div class="tu-cluster">
         <button type="button" class="tu-use" aria-label="Use"><span class="tu-use-ic">${ICON.hand}</span><span class="tu-use-t"><b></b><small></small></span></button>

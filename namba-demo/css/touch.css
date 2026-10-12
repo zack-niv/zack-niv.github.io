@@ -89,6 +89,15 @@ html.is-touch * { -webkit-tap-highlight-color: transparent; }
 .tu-ghost span { position: absolute; bottom: -20px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
 #touch-ui:not(.free) .tu-ghost, html.tu-stick-live .tu-ghost { opacity: 0; }
 html:has(#touch-controls.stick-on) .tu-ghost { opacity: 0; }
+/* v12 critic: with the wide phone up, the strip's upper half turns the camera (js/core/input.js); this faint twin of the WALK
+   ghost says so until the first such drag. Hidden on very short screens (bars showing), where the strip has no room. */
+.tu-lookghost { position: absolute; left: calc(56px + var(--sl)); width: 104px; top: max(128px, calc(50% - 72px)); display: none; flex-direction: column; align-items: center; gap: 2px;
+  color: rgba(244,241,234,.6); pointer-events: none; transition: opacity .4s ease; }
+.tu-lookghost svg { width: 30px; height: 30px; }
+.tu-lookghost span { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .9; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+html.ph-wide .tu-lookghost { display: flex; }
+html.tu-wide-looked .tu-lookghost, #touch-ui:not(.free) .tu-lookghost { opacity: 0; }
+@media (max-height: 300px) { .tu-lookghost { display: none !important; } }
 
 /* ---- the HUD on touch ----------------------------------------------------------------------------------- */
 /* the E prompt's job moves to the Use button (passive prompts such as "Walk through to tap" stay) */
