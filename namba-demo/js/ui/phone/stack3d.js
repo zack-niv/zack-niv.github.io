@@ -15,8 +15,8 @@
 // the phone is open on the Lodestone screen (the caller gates render()).
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=0c93ff2';
-import { CELL } from '../../world/world.js?v=0c93ff2';
+import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=9ec3217';
+import { CELL } from '../../world/world.js?v=9ec3217';
 
 const K0 = 8;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)
@@ -404,7 +404,13 @@ export class Stack3D {
     const tex = texCanvas(300, 76, (g, w, h) => {
       g.fillStyle = 'rgba(20,12,2,0.9)'; g.strokeStyle = '#ffb02e'; g.lineWidth = 3;
       const rr = 24; g.beginPath(); g.moveTo(rr, 4); g.arcTo(w - 4, 4, w - 4, h - 4, rr); g.arcTo(w - 4, h - 4, 4, h - 4, rr); g.arcTo(4, h - 4, 4, 4, rr); g.arcTo(4, 4, w - 4, 4, rr); g.closePath(); g.fill(); g.stroke();
-      g.fillStyle = '#ffe2a8'; g.font = '700 30px Inter, "Noto Sans JP", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(d.en, w / 2, h / 2 + 2);
+      // v12: a long name ("Wakakusa Coffee Stand") overflowed the 300-px chip on both sides ("kakusa Coffee Sta"):
+      // shrink the type to fit (down to 20 px), then ellipsize
+      const F = (px) => `700 ${px}px Inter, "Noto Sans JP", system-ui, sans-serif`, room = w - 40;
+      let fs = 30, txt = String(d.en || ''); g.font = F(fs);
+      while (fs > 20 && g.measureText(txt).width > room) { fs -= 1; g.font = F(fs); }
+      if (g.measureText(txt).width > room) { while (txt.length > 4 && g.measureText(txt + '…').width > room) txt = txt.slice(0, -1); txt = txt.trimEnd() + '…'; }
+      g.fillStyle = '#ffe2a8'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, w / 2, h / 2 + 2);
     });
     if (this.destLabel) { this.scene.remove(this.destLabel); this.destLabel.material.map.dispose(); this.destLabel.material.dispose(); }
     this.destLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, sizeAttenuation: false }));

@@ -6,7 +6,7 @@
 // mixed in; with `wrap` the tails of notes wrap around to the start so the
 // result loops seamlessly.
 // =============================================================================
-import { TAU, mtof, rng, Biquad, white, pink, applyEnv, panGains, addMode, clamp } from './dsp.js?v=0c93ff2';
+import { TAU, mtof, rng, Biquad, white, pink, applyEnv, panGains, addMode, clamp } from './dsp.js?v=9ec3217';
 
 export class Track {
   constructor(sr, seconds, wrap = false) {

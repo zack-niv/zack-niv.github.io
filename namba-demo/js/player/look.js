@@ -13,7 +13,7 @@
 // player.addLookSource(fn => iterable of items), and duck-typed
 // ctx.game.interactions.items / ctx.game.items (Map or array) when present.
 import * as THREE from 'three';
-import { LEVELS } from '../world/layout.js?v=0c93ff2';
+import { LEVELS } from '../world/layout.js?v=9ec3217';
 
 export class InteractableSet {
   constructor() { this.items = new Map(); }

@@ -15,6 +15,7 @@
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
+//   namba_pa {at: first|summary, ja, unlocked, unlock_via, tried, started, no_start, errors} (v12: did the PA voice speak?)
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
@@ -70,7 +71,7 @@ export function setupAnalytics(ctx) {
 
   // ---- the story beats ---------------------------------------------------------------------------------------
   const E = ctx.events, t = () => Math.round((ctx.game && ctx.game.demo && ctx.game.demo.t) || 0);
-  const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); };
+  const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); paWatch(); };
   if (ctx.started) started(); else E.on('game:start', started);
   // v11.1: the previous run died on screen (iOS memory kill / context loss) and this boot is the recovery
   try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1 }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
@@ -110,6 +111,20 @@ export function setupAnalytics(ctx) {
     reach('contact');
     send('namba_contact', { kind: a.classList.contains('call') ? 'call' : 'agent', where: a.closest('.g-pause') ? 'pause' : 'endcard', t: t() });
   }, true);
+
+  // ---- v12: did the station PA actually speak on this device? (iOS dropped every line silently until v12) ----------
+  // 'first': once the first PA line has an outcome (spoken / never started / error); 'summary': 90 s into play
+  function paWatch() {
+    const read = () => { try { const a = ctx.audio; return a && (a.paStats ? a.paStats() : a.announcer && a.announcer.stats && a.announcer.stats()); } catch (e) { return null; } };
+    const props = (s, at) => ({ at, voices: s.voices, ja: s.ja || null, unlocked: !!s.unlocked, unlock_via: s.unlockVia || null, attempts: s.attempts, tried: s.tried,
+      started: s.started, ended: s.ended, no_start: s.noStart, errors: (s.errors || []).slice(0, 6).join(',') || null, last_err: s.lastErr || null, state: s.state || null, t: t() });
+    let firstSent = false;
+    const iv = setInterval(() => {
+      const s = read();
+      if (s && !firstSent && (s.started > 0 || s.noStart > 0 || (s.errors && s.errors.length))) { firstSent = true; send('namba_pa', props(s, 'first')); clearInterval(iv); }
+    }, 2000);
+    setTimeout(() => { clearInterval(iv); const s = read(); if (s) send('namba_pa', props(s, 'summary')); }, 90000);
+  }
 
   // ---- real frame rate from real machines (never measured before v7.4) ----------------------------------------
   function perfAt(delay, at) {

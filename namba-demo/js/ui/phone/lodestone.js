@@ -10,17 +10,17 @@
 // Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
 // name, logo or colours anywhere.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=0c93ff2';
-import { Stack3D } from './stack3d.js?v=0c93ff2';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=9ec3217';
+import { Stack3D } from './stack3d.js?v=9ec3217';
 const HERO_S = 4.6;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=0c93ff2';
-import { Tracker } from './track.js?v=0c93ff2';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=0c93ff2';
-import { businessBySlot } from '../../world/directory.js?v=0c93ff2';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=0c93ff2';
-import { placeArt } from './art.js?v=0c93ff2';
-import { LdMap, CAL_DONE } from './ldmap.js?v=0c93ff2';
-import { NavHeader } from './glance.js?v=0c93ff2';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=9ec3217';
+import { Tracker } from './track.js?v=9ec3217';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=9ec3217';
+import { businessBySlot } from '../../world/directory.js?v=9ec3217';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=9ec3217';
+import { placeArt } from './art.js?v=9ec3217';
+import { LdMap, CAL_DONE } from './ldmap.js?v=9ec3217';
+import { NavHeader } from './glance.js?v=9ec3217';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -196,13 +196,19 @@ export class LodestoneApp {
     // v11 critic: the compact (short landscape-phone) screen has no room for the steps sheet under the stack, so
     // css/touch.css hides it there and drops the controls to the dock; the band follows (else it was negative: no 3D)
     const short = this.phone && this.phone.root && this.phone.root.classList.contains('ph-compact');
-    if (this.view === 'stack') { s.bandTop = short ? 140 : 150; s.bandBottom = short ? 150 : 296; s.bandRight = 46; }      // (v3: + the dock)
+    // v12: the wide (landscape) phone gives the 3D its own pane, left of the side panel (css .ph-land): only the floor
+    // ladder (right edge of the pane) and the Route / Me / Done row (bottom) sit on it
+    const land = !!(this.phone && this.phone.land);
+    if (land) { s.bandTop = 10; s.bandBottom = this.view === 'stack' ? 52 : 46; s.bandRight = this.view === 'stack' ? 50 : 0; }
+    else if (this.view === 'stack') { s.bandTop = short ? 140 : 150; s.bandBottom = short ? 150 : 296; s.bandRight = 46; }      // (v3: + the dock)
     else { s.bandTop = this._navBottom || 200; s.bandBottom = this.picking ? 444 : 306; s.bandRight = 0; }   // (v5: 306 = + the trip card's route-controls row)
     s.compact = this.view !== 'stack';
     // guide view: the preview lives in its band only (soft edges), nothing draws under the instruction or trip cards
     try { this.el.c3d.style.setProperty('--ld-band-t', `${Math.round(s.bandTop) - 8}px`); this.el.c3d.style.setProperty('--ld-band-b', `${Math.round(s.bandBottom) - (this.view === 'stack' ? 6 : 40)}px`); } catch (e) { /* ignore */ }
   }
   _set(st) { this.state = st; this.root.dataset.state = st; }
+  // v12: the phone's layout changed (portrait ↔ the wide landscape phone, or a resize): re-frame the 3D and the map
+  onLayout() { this._band = null; this._bandT = 0; this._bands(); }
 
   setMode(m) {
     this.mode = m;
@@ -411,6 +417,16 @@ export class LodestoneApp {
     this._hdrT = (this._hdrT || 0) - dt;
     if (this._hdrT <= 0) { this._hdrT = 0.2; this.hdr.set({ cls: 'gl-ld', ...this.glanceInfo(true) }); }
     this.hdr.spin(dt);
+    // v12: the wide phone's side panel stacks header · steps · trip card (css .ph-land reads these two heights)
+    if (ph.land) {
+      this._hhT = (this._hhT || 0) - dt;
+      if (this._hhT <= 0) {
+        this._hhT = 0.25;
+        const hh = this.el.head.offsetHeight, th = this.el.trip.offsetHeight;
+        if (hh && hh !== this._hh) { this._hh = hh; this.el.main.style.setProperty('--ld-hh', hh + 'px'); }
+        if (th && th !== this._th) { this._th = th; this.el.main.style.setProperty('--ld-th', th + 'px'); }
+      }
+    }
     if (this.view === 'stack') {
       if (S && S.ready) {
         const y = body.ramp >= 0 ? body.y : LEVELS[p.level].y;
@@ -421,7 +437,11 @@ export class LodestoneApp {
     } else {
       // the free band of the map: under the header, above whatever card sits at the bottom (measured, cheap)
       this._bandT = (this._bandT || 0) - dt;
-      if (this._bandT <= 0 || !this._band) {
+      if ((this._bandT <= 0 || !this._band) && this.phone.land) {
+        // v12: the wide phone: the map has its own pane (the header and the cards live in the side panel)
+        this._bandT = 0.3;
+        this._band = { top: 10, bottom: (this.el.map.clientHeight || 429) - 10 };
+      } else if (this._bandT <= 0 || !this._band) {
         this._bandT = 0.3;
         const head = this.el.head, top = head.offsetTop + head.offsetHeight + 6;
         let bot = this.el.main.clientHeight || 676;

@@ -281,7 +281,10 @@ export class Input {
       this.device = 'touch'; this._setTouchMode();
       const u = ensureUi();
       for (const t of e.changedTouches) {
-        if (t.clientX < innerWidth * this.stickZone && this._stick.id === null) {
+        // v12 critic: with the wide landscape phone up (html.ph-wide) the whole free strip is inside the stick zone, so a
+        // player could not turn to aim a photo or read a sign. The strip's upper half looks; the lower half walks.
+        const wideUp = t.clientY < innerHeight * 0.5 && document.documentElement.classList.contains('ph-wide');
+        if (t.clientX < innerWidth * this.stickZone && this._stick.id === null && !wideUp) {
           // keep the whole ring on screen (a thumb landing on the very edge still gets a full stick)
           const r = R(), m = 8;
           const ox = Math.max(r + m, Math.min(innerWidth * this.stickZone, t.clientX));
@@ -290,7 +293,10 @@ export class Input {
           this._stickMove(t.clientX, t.clientY);
           u.root.classList.add('stick-on');
           place();
-        } else if (this._lookT.id === null) { Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() }); }
+        } else if (this._lookT.id === null) {
+          Object.assign(this._lookT, { id: t.identifier, x: t.clientX, y: t.clientY, t: performance.now() });
+          if (wideUp) document.documentElement.classList.add('tu-wide-looked');   // the strip's LOOK ghost has done its job
+        }
       }
       if (e.cancelable) e.preventDefault();   // (a busy main thread can make touches uncancelable: no console noise)
     }, { passive: false });
@@ -344,7 +350,7 @@ export class Input {
 
   _buildTouchUi() {
     if (!document.querySelector('link[data-namba="input-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=0c93ff2'; l.dataset.namba = 'input-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=9ec3217'; l.dataset.namba = 'input-css';
       document.head.appendChild(l);
     }
     // the stick only (the buttons live in js/ui/touch.js)

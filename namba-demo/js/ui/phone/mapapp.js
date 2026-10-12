@@ -10,15 +10,15 @@
 //     stairs ("Take escalator to 2F"), then wait for you to get there
 // Rendering: Canvas2D, cached per-floor base layers, redrawn only while open.
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=0c93ff2';
-import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=0c93ff2';
-import { businessBySlot } from '../../world/directory.js?v=0c93ff2';
-import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=0c93ff2';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=0c93ff2';
-import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=0c93ff2';
-import { hash } from '../../core/rng.js?v=0c93ff2';
-import { placeArt, reviewsFor, popularTimes } from './art.js?v=0c93ff2';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=0c93ff2';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=9ec3217';
+import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=9ec3217';
+import { businessBySlot } from '../../world/directory.js?v=9ec3217';
+import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=9ec3217';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=9ec3217';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=9ec3217';
+import { hash } from '../../core/rng.js?v=9ec3217';
+import { placeArt, reviewsFor, popularTimes } from './art.js?v=9ec3217';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=9ec3217';
 
 const BASE_PPM = 4;          // cached base layer resolution (px per metre)
 const ZOOM_MIN = 0.45, ZOOM_MAX = 14;
@@ -190,7 +190,8 @@ export class MapApp {
   // ------------------------------------------------------------- view -----
   get W() { return this.canvas.clientWidth || 300; }
   get H() { return this.canvas.clientHeight || 600; }
-  _anchor() { return [this.W / 2, this.H * (this.sheet === 'home' ? 0.46 : 0.36)]; }
+  // (v12: the wide landscape phone has no sheet over the map: the sheet is a side panel, so the map centres)
+  _anchor() { return [this.W / 2, this.H * (this.phone.land ? 0.5 : this.sheet === 'home' ? 0.46 : 0.36)]; }
   toScreen(x, z) {
     const v = this.view, k = v.zoom, c = Math.cos(v.rot), s = Math.sin(v.rot);
     const dx = x - v.cx, dz = z - v.cz;

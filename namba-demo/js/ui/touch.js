@@ -13,17 +13,75 @@
 //     · Run: a sprint toggle (also: push the stick past its ring)
 //     · Pause: the menu (there is no Esc on a phone)
 //     · fullscreen + landscape lock on Begin and on Resume where the browser allows it (Android Chrome, iPad);
-//       iPhone Safari has no element fullscreen: the page is sized to the visible viewport instead
+//       iPhone Safari has no element fullscreen: the page is sized to the visible viewport instead, and (v12) the
+//       TITLE becomes a scrollable page with a "swipe up for full screen" cue: Safari collapses its bars when the
+//       document scrolls, then we re-lock (see iosSwipe below). Tap to begin never needs the swipe.
 //     · auto-pause while the device is held in portrait (and resume on turning back, if we paused)
 //     · touch wording for the tutorial (js/ui/touchcopy.js) and a few desktop-only lines hidden by css/touch.css
 // Layout: the right-hand cluster sits above the lowered phone, and steps left of the raised phone, so a raised phone
 // never covers a control and the controls never cover the phone.
 // =============================================================================
-import { applyTouchCopy, TOUCH_TEXT } from './touchcopy.js?v=0c93ff2';
+import { applyTouchCopy, TOUCH_TEXT } from './touchcopy.js?v=9ec3217';
 
 const PORTRAIT_OK = 'namba.portraitOK';
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
 const portrait = () => innerHeight > innerWidth * 1.05;
+
+// ---- v12: iPhone Safari "swipe up for full screen" -----------------------------------------------------------------
+// iPhone has no element Fullscreen API, and Safari only collapses its tab/URL bars when the *document* scrolls, which
+// our html/body lock (css/style.css) forbade. So, only in the iPhone-Safari case, the title screen is a scrollable page
+// (a spacer a little taller than the viewport; the canvas and UI are position:fixed, so nothing moves) with a small cue.
+// When the visible height grows (bars collapsed) the cue fades and the page re-locks AT THAT SCROLL POSITION (the
+// spacer stays, overflow hidden, so the bars do not come back). Beginning always locks. Never a nag in game.
+//   html.ios-iphone   iPhone, not standalone, no element fullscreen (the Settings tip shows)
+//   html.ios-swipe    the title is a scrollable page (cue shown unless .ios-lock)
+//   html.ios-lock     bars collapsed, or the game began: no document scroll
+const BARS_SLACK = 40;                                    // px below the full landscape height that counts as "bars showing"
+export function iphoneSafari() {
+  try {
+    const ua = navigator.userAgent || '';
+    if (!/iPhone|iPod/.test(ua)) return false;
+    if (/LinkedInApp|FBAN|FBAV|Instagram|MicroMessenger|Twitter|GSA\/|Line\/|Snapchat|Barcelona/.test(ua)) return false;   // in-app browsers: no collapsing bars
+    if (navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches)) return false;
+    // v12 critic: NOT gated on the absence of requestFullscreen. Recent iOS builds can expose the method on an iPhone
+    // and still not leave the Safari bars (Zack: "the Safari bar did not go away" after Begin, which calls it), and a
+    // check on it would silently switch this whole fix off on his phone. If element fullscreen ever works on iPhone,
+    // Begin still calls it (goFullscreen) and the scrollable title costs nothing.
+    return coarse();
+  } catch (e) { return false; }
+}
+const fullLandscapeH = () => Math.min(screen.width || 9999, screen.height || 9999);   // iOS reports portrait dims: the short side is the landscape height
+export const iosSwipe = {
+  on: false, base: 0, begun: false,
+  init() {
+    if (!iphoneSafari()) return;
+    const html = document.documentElement;
+    html.classList.add('ios-iphone');
+    this.on = true;
+    const sp = document.createElement('div');
+    sp.id = 'swipe-spacer'; sp.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(sp);
+    this.base = innerHeight;
+    const re = () => this.sync();
+    addEventListener('resize', re);
+    if (window.visualViewport) visualViewport.addEventListener('resize', re);
+    addEventListener('orientationchange', () => setTimeout(() => { this.base = innerHeight; this.sync(); }, 300));
+    this.sync();
+  },
+  begin() { this.begun = true; this.sync(); },            // the game started: lock, whatever the bars are doing
+  sync() {
+    if (!this.on) return;
+    const html = document.documentElement, h = innerHeight, full = fullLandscapeH();
+    if (innerHeight > innerWidth * 1.05) return;           // portrait: the rotate card is up; nothing to do
+    if (!this.base || h < this.base) this.base = h;        // the smallest visible height seen = "bars showing"
+    const barsGone = h >= full - BARS_SLACK || h >= this.base + BARS_SLACK;
+    const swipe = !this.begun && !barsGone && h < full - BARS_SLACK;
+    html.classList.toggle('ios-swipe', !this.begun || barsGone);   // scrollable until locked for good
+    html.classList.toggle('ios-lock', this.begun || barsGone);
+    html.classList.toggle('ios-cue', swipe);
+    if (this.begun) { html.classList.remove('ios-cue'); }
+  },
+};
 
 export function bootTouch() {
   const html = document.documentElement;
@@ -42,6 +100,8 @@ export function bootTouch() {
   // iOS: keep the layout at the visible viewport height (the toolbar comes and goes)
   const vh = () => html.style.setProperty('--vh', `${innerHeight}px`);
   vh(); addEventListener('resize', vh); addEventListener('orientationchange', () => setTimeout(vh, 250));
+  // safe-area insets as plain variables, so the HUD (outside #touch-ui) can keep clear of the notch side
+  iosSwipe.init();
 }
 
 // fullscreen + landscape lock (needs a user gesture; silently does nothing where unsupported)
@@ -125,6 +185,7 @@ export class TouchUI {
     root.id = 'touch-ui';
     root.innerHTML = `
       <div class="tu-ghost" aria-hidden="true"><i></i><span>${TOUCH_TEXT.ghost}</span></div>
+      <div class="tu-lookghost" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M3.5 12h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Look</span></div>
       <button type="button" class="tu-btn tu-pause" aria-label="Pause">${ICON.pause}</button>
       <div class="tu-cluster">
         <button type="button" class="tu-use" aria-label="Use"><span class="tu-use-ic">${ICON.hand}</span><span class="tu-use-t"><b></b><small></small></span></button>
@@ -155,6 +216,7 @@ export class TouchUI {
   update(dt) {
     if (!this.active || !this.el) return;
     const { ctx } = this, g = ctx.game, ph = ctx.phone, inp = ctx.input;
+    if (iosSwipe.on && !iosSwipe.begun && g && g.started) iosSwipe.begin();      // v12: Begin locks the page for good
     // portrait: pause under the rotate card (only while it is actually shown), resume when turned back
     const rotUp = portrait() && !document.documentElement.classList.contains('portrait-ok');
     if (g && g.started && !g._endCard) {
@@ -191,9 +253,12 @@ export class TouchUI {
     el.phone.setAttribute('aria-label', s.up ? 'Lower phone' : 'Raise phone');
     el.phone.classList.toggle('dim', !s.phoneOK);
   }
-  // the right-hand cluster: above the lowered phone; left of the raised one
+  // the right-hand cluster: above the lowered phone; left of the raised one. v12: while the wide landscape phone is up
+  // (Phone sets html.ph-wide; it is right-aligned and full height) the buttons stack in a column in the free strip just
+  // left of it (css/touch.css), and the tutorial hint's offset is the wide phone's own upGap
   _place() {
-    const ph = this.ctx.phone, r = this.el.root;
+    const ph = this.ctx.phone, r = this.el.root, de = document.documentElement;
+    const wide = de.classList.contains('ph-wide');
     let right = 0, bottom = 0;
     if (ph && ph.wrap && ph.pose !== 'down') {
       const b = ph.device ? ph.device.getBoundingClientRect() : null;
@@ -203,13 +268,16 @@ export class TouchUI {
       }
     }
     // where the raised phone starts, measured from the right edge (tutorial hints step left of it: css/touch.css)
-    const gap = ph && ph._scale ? Math.round(340 * ph._scale + 14) : 300;
-    if (gap !== this._gap) { this._gap = gap; document.documentElement.style.setProperty('--tu-phone-gap', gap + 'px'); }
+    const gap = wide && ph && ph.upGap ? Math.round(ph.upGap + 4) : ph && ph._scale ? Math.round(340 * ph._scale + 14) : 300;
+    if (gap !== this._gap) { this._gap = gap; de.style.setProperty('--tu-phone-gap', gap + 'px'); }
     right = Math.round(right); bottom = Math.round(bottom);
     if (right !== this._r || bottom !== this._b) {
       this._r = right; this._b = bottom;
       r.style.setProperty('--tu-right', right + 'px');
       r.style.setProperty('--tu-bottom', bottom + 'px');
+      // the HUD hints live outside #touch-ui: they read the same numbers from <html>
+      de.style.setProperty('--tu-b', bottom + 'px');
+      de.style.setProperty('--tu-r', right + 'px');
     }
   }
 }
