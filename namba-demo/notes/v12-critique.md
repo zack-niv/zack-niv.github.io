@@ -51,10 +51,10 @@ Shots: `notes/v12-shots/critic/`.
 | `critic12` (mine, scratch) iPhone UA, portrait load → landscape | wide race, strip look, photo by touch, glance, pause: `errors []`, `ctx.errors []` |
 | `critic12 title` iPhone Safari UA **with `requestFullscreen` present** at 852×270 | `ios-iphone ios-swipe ios-cue`, scrollHeight 430; real touch swipe → scrollY 129; resize to 393 → `ios-lock`; LinkedIn UA → `is-touch` only, no scroll |
 | `paprobe` final: `basic` (iOS) and `desktop` | both `errors []`, `ctx.errors []` (numbers in the scorecard) |
-| `memprobe` 852×393 @3 | MEMPROBE_RESULT |
-| `mouseshot` | MOUSESHOT_RESULT |
+| `memprobe` 852×393 @3 (final code) | canvas+GPU: title **280**, 30 s play **288**, phone up/Maps **293**, Lodestone 3D **304**, world tour 388 MB (v11.1: 280 / 294 / 298 / 309 / 384): **no regression**; the wide phone costs nothing measurable. `ctx.errors []` |
+| `mouseshot` (final code) | free chip, pause links `_blank`, backdrop click resumes (locked), phone chip, `errors []`: desktop unchanged |
 
-A headless note: one touchwalk shot (`09-offer`) caught the Dynamic Island mid-morph from the glance card into the
+A headless note: one touchwalk shot (`critic/headless-island-midmorph-artifact.png`) caught the Dynamic Island mid-morph from the glance card into the
 landscape pill, a big black blob over the thread. That is SwiftShader: a frame takes seconds, so a 0.42 s CSS
 transition gets photographed half-way. In every settled shot it's the correct 31×104 pill (`2b-wide-phone-raised-852.png`).
 Worth one look on a real phone, though: the morph sweeps across the panel.
@@ -64,9 +64,10 @@ Worth one look on a real phone, though: the morph sweeps across the panel.
 | File | Change | Why |
 |---|---|---|
 | `js/core/input.js` (`touchstart`) | While `html.ph-wide`, a touch in the **upper half** of the screen is a look touch even inside the stick zone (the lower half still spawns the stick) | The wide phone leaves a ~244 px strip that is entirely stick zone, so turning was impossible with the phone up: no aiming the 📸, no turning to read a sign |
+| `js/ui/touch.js` (`_build`) + `css/touch.css` | A faint **"⟷ LOOK" ghost** in the strip (the twin of the WALK ghost), shown only while `html.ph-wide`; it fades after the first strip look (`html.tu-wide-looked`, set in `input.js`) and is hidden under 300 px of height (bars showing) | Nobody would guess that the top of the strip turns the camera. `critic/2b-look-ghost-852.png` |
 | `js/ui/touch.js` (`iphoneSafari()`) | No longer bails out when `requestFullscreen`/`webkitRequestFullscreen` exists on an iPhone; +LINE, Snapchat, Threads to the in-app list | iPhone builds that expose the method still keep the bars (Zack's report after Begin). The old check would have silently disabled the whole swipe-up fix on his phone. Begin still calls `goFullscreen()`, harmless if it ever works. |
 
-Both edits are small and touch-only. Desktop is untouched (`walk.mjs` and `mouseshot`).
+All three edits are small and touch-only: desktop is untouched (`walk.mjs`, `mouseshot`). The final `touchwalk` and `memprobe` ran with the first two edits; the LOOK ghost was checked afterwards in `critic12` (2b row) only.
 
 ## 4. What remains (honest)
 
@@ -76,9 +77,8 @@ Both edits are small and touch-only. Desktop is untouched (`walk.mjs` and `mouse
   the PA. Nothing reports the bars. Ask him for one screenshot after swiping.
 - **"One click" is not achievable on iPhone Safari.** One swipe on the title, or Add to Home Screen (the Settings tip).
   Say so plainly rather than let him expect a click.
-- **Discoverability of the strip look:** nothing tells you that the top of the strip turns the camera while the
-  phone is up. The fallback is natural (walking lowers the phone in 1 s), but the photo retry ("send one with a sign
-  in it") is exactly when a player wants to aim. A faint "LOOK" ghost in the strip (twin of "WALK") would close it.
+- **The strip look is a new gesture that no real thumb has tried yet.** The split at half height is a guess, and the
+  LOOK ghost is the only cue. Watch Zack's first raise.
 - **The glance card's second line is about 9–10 CSS px** at 0.75 scale. Legible on a retina phone, but at the limit.
 - **After Lodestone, Aya is still a monologue**: 6 unanswerable one-liners in the normal walk (the v11 point, unchanged).
 - **Real-device fps** is still read only from PostHog `namba_perf`; this round added DOM and layout, not geometry.
@@ -91,7 +91,8 @@ Both edits are small and touch-only. Desktop is untouched (`walk.mjs` and `mouse
   is now as strong as on desktop.
 - **+ The PA has a real root cause and a self-reporting fix**: a chain of three faults with WebKit code evidence, a
   headless model of iOS's speech gate that shows old 0/5 → new 2/2, and `namba_pa` so his next play gives the answer.
-- **+ The touch controls Zack loved are untouched**, and the new look zone only exists while the wide phone is up.
+- **+ The touch controls Zack loved are untouched**: the new look zone (with its LOOK ghost) only exists while the
+  wide phone is up.
 - **+ Invariants held**: storysim 19/19, desktop walk 0 bad chips, 0 timers, 45.8 s max silence, `ctx.errors []`
   in every run.
 
@@ -103,8 +104,8 @@ Both edits are small and touch-only. Desktop is untouched (`walk.mjs` and `mouse
   the cue is a small text on a busy title (the JA line is low-contrast over the blue train).
 - **−0.25: after Lodestone, Aya talks at you**: 6 unanswerable texts in a row in the normal walk.
 - **−0.25: visuals unchanged since v9**: low-poly crowd, flat signage. The phone UI now outclasses the world it sits in.
-- **−0.25: small phone-only rough edges**: the strip look is invisible, the glance second line is about 9–10 px, and the
-  island morph sweeps over the panel for 0.4 s.
+- **−0.25: small phone-only rough edges**: the strip look is new and untested by a thumb, the glance second line is
+  about 9–10 px, and the island morph sweeps over the panel for 0.4 s.
 
 **To reach 9, ordered by impact per effort.**
 1. **Zack plays once on the iPhone, then read PostHog `namba_pa` + `namba_perf` (input=touch)**, and ask for one
@@ -112,10 +113,9 @@ Both edits are small and touch-only. Desktop is untouched (`walk.mjs` and `mouse
 2. **If `namba_pa` says `attempts > 0, unlocked false`**: speak the first real PA line itself inside the Begin
    gesture (a short platform chime line, not `。`), so the very utterance that needs the gesture is one you hear.
    *30 min.*
-3. **A "LOOK" ghost in the strip while `ph-wide`** (`touch.js` + `touch.css`, the twin of the WALK ghost). *20 min.*
-4. **Make 2 after-Lodestone texts answerable** ("is it working? 😌" → *it's magic 🤯* / *still lost 😭*; "send me a pic
+3. **Make 2 after-Lodestone texts answerable** ("is it working? 😌" → *it's magic 🤯* / *still lost 😭*; "send me a pic
    of the canyon 🌿" reusing the photo beat). *About an hour; it's the best conversation the demo doesn't have yet.*
-5. **Glance card on phones: bump the note line to ≥ 11 CSS px** (font, not scale). *15 min.*
+4. **Glance card on phones: bump the note line to ≥ 11 CSS px** (font, not scale). *15 min.*
 
 ## 6. Top 3 risks
 
