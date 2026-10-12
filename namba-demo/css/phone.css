@@ -972,3 +972,5 @@
    (for its invisible ::after tap margin), which also hit the absolutely-placed 3D view button: it fell into the flow,
    off the screen, on every touch device (phone and tablet). The button keeps its place; the ::after still works. */
 html.is-touch #phone-root .ld-x3d { position: absolute; }
+/* the "Next: Aya's pick" chip on the wide phone's map pane: the name gets the room ("Café …" before) */
+#phone-root.ph-land .dl-next-lode small { display: none; }

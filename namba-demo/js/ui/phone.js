@@ -74,6 +74,7 @@ addEventListener('resize', () => { _sr = null; });
 // pose geometry (device units: the phone is 340 x 700)
 const GLANCE_H = 126;          // how much of the phone's top shows in the glance pose (device px)
 const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
+const GLANCE_S_COMPACT = 0.75; // v12: the same on a phone-sized (compact) touch screen
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
 const WALK_LOWER_WIDE_S = 1.0; // v12: the wide phone covers the crosshair and the look area: walking lowers it to the
@@ -367,6 +368,8 @@ export class Phone {
     // The lowered (glance) phone stays the portrait one; raising morphs it wider (_applyPose). notes/v12-phone.md
     const wide = touch && innerWidth > innerHeight && dh < 640;
     this._wideOK = wide;
+    // v12 (lead / Zack: the lowered card was 301×100 at 852×393, too big): a phone-sized screen holds it further away
+    this._gS = touch && dh < 640 ? GLANCE_S_COMPACT : GLANCE_S;
     this._landW = wide ? Math.round(Math.min(820, Math.max(540, (innerWidth * WIDE_FRAC) / s))) : 340;
     if (!wide && this.land) this._setLand(false);
     else if (wide && this.isOpen && !this.land) this._setLand(true);
@@ -653,7 +656,7 @@ export class Phone {
     const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway || this._buzzT > 0;
     if (settled && !moving && !this._poseDirty && !snap) return;
     this._poseDirty = false;
-    const vw = innerWidth, s = this._scale, sg = s * GLANCE_S, DH = this._dh || 700;
+    const vw = innerWidth, s = this._scale, sg = s * (this._gS || GLANCE_S), DH = this._dh || 700;
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
     // v12: the wide (landscape) phone morphs from the portrait one as it rises, and back as it lowers; the wide
     // layout drops once the phone is back down to the glance

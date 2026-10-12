@@ -98,7 +98,29 @@ position was already clamped inside the canvas (`stack3d.js` `_frame`, `rMax`), 
 |---|---|
 | `phoneshots` 844×390 before / after, 852×393 after, 1180×820 after (to the 3D view) | all states reached by real taps; `ctx.errors []`, console `[]` |
 | `tools/mouseshot.mjs` (desktop) | free chip, pause, links `_blank`, backdrop resume (locked), phone chip, **errors []**: desktop unchanged (wide mode needs touch; the `.ld-x3d` rule is `html.is-touch` only) |
+| `tools/touchwalk.mjs` **852×393, run 3 (final code: glance 0.75, chip fit)** | wide phone (dock 49×50), glance card ≈ 212×78 readable and clear of Run/Phone (`852-glance-0.75.png`), chips, first place, gate Use 300×56, Lodestone Get 342×58, calibrating, the hero (stack + Done) at 11/13, end card 505/393 scrolls, **`errors []`**. The same two timing misses (see below). |
+| `tools/touchwalk.mjs` 844×390, run 2 (after the lead's checkpoint) | **wide phone** (`phone up … dock 49x50`), Shell's HUD column clear of the stick (`touchwalk-04-phone-up-with-shell-hud.png`), chips by touch, Maps pick, gate Use, Lodestone Get (338×58), calibrating, end card (scrolls), Keep exploring, Pause/Resume: **`errors []`** |
 | `tools/touchwalk.mjs` (844×390, run 1) | Begin → look → stick → chips → Maps pick → gate Use → Lodestone Get → calibrating → end card → pause, `ctx.errors []`. **But that run showed the portrait phone** and still "TAP MISS 3D view" (during the hero, the button is hidden by design). A probe on the same working tree right after (raise by the real touch Phone button) gave `ph-land` + `html.ph-wide` as expected; my guess is the file was swapped under the run (a checkpoint/stash around 09:30). Run 2 is below. |
+
+### The two TAP MISS lines in touchwalk (lead's item 2): both are the walk's timing, not hidden buttons
+
+- **"3D view"**: touchwalk taps it 5 s after Lodestone is ready, while the reveal hero is still playing. The hero IS the
+  3D view (`touchwalk2/11-lodestone.png`: the stack, Route / Me / **Done**), and the 3D view button is hidden in the
+  3D view by design (Done is the way back). Out of the hero, the button is there and works by touch: phoneshots tap →
+  `view: 'stack'` at 852×393 (77×29 CSS + the 6 px invisible margin) and at 1180×820 (93×36), then Done (50×27) back.
+  It also missed in v11 for a second reason, now fixed (the `position: relative` bug above). Suggestion for the tool
+  owner: wait for `!lodestone._heroT` before tapping `.ld-x3d`.
+- **"Aya's pick (Next chip)"**: the "Next: Aya's pick" chip only exists while a route to somewhere else is active.
+  At that step nothing is routed yet, so Aya's pick is the first row of "Where to?", and touchwalk's own fallback taps
+  it ("first place"). Same miss in run 1 with the portrait phone, so not the layout. On the wide phone the Lodestone
+  Next chip sits on the map pane (`844-after-6-lodestone-floormap.png`); it now shows the place name without "from
+  Aya" (it was "Café …").
+
+### The lowered (glance) card on phones (lead's item 1)
+
+`GLANCE_S` 0.97 → **0.75 on a compact touch screen** (`GLANCE_S_COMPACT`; desktop and tablet keep 0.97).
+`GLANCE_H` stays 126 device px, so the visible strip scales with it. At 852×393: card ≈ 301×100 → **≈ 212×78 CSS px**
+(computed: 340 × 0.836 × 0.75 wide, 126 × 0.836 × 0.75 tall). Verified in touchwalk run 3 (`852-glance-0.75.png`): "Aya · Landed?? Welcome to Osaka! · tap reply" reads fine, and the card sits under the Run/Phone column.
 
 ## Shots (`notes/v12-shots/phone/`)
 
@@ -110,8 +132,8 @@ position was already clamped inside the canvas (`stack3d.js` `_frame`, `rMax`), 
 
 ## Unsure / for the critic
 
-- **The tutorial hint** sits on the wide phone's top-left in every after-shot (Shell's, contract above).
-- **The HUD cluster** (Pause · Run · Phone) lands on the stick's ghost ring in the 244 px strip (Shell's).
+- The tutorial hint over the phone and the HUD on the stick (seen in my scratch runs) are fixed by Shell: touchwalk run 2
+  shows the HUD as a column clear of the stick and no hint on the phone.
 - **Walking lowers the wide phone after 1.0 s.** Right for steering by the world, but a player who wants to read the
   map while walking gets the glance strip instead. An "expand again when the stick is released" behaviour was
   considered and not built (it would fight players who stop to look around).
