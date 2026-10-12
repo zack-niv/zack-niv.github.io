@@ -4,7 +4,7 @@ Files touched: `js/ui/touch.js`, `css/touch.css`, `css/style.css` (`#view` heigh
 Not touched: `css/game.css`, `js/game/game.js`, `index.html` (everything was doable from `touch.css`, so desktop styles cannot change).
 Test rig: `/tmp/.../scratchpad/shell.mjs` (Playwright Chromium, iPhone UA, `isMobile` + `hasTouch`, `Element.requestFullscreen` deleted,
 `screen` faked to 393x852 so the "full landscape height" is 393; bars = `page.setViewportSize` 852x270 -> 852x393). "Before" = commit `b13fa5c`
-(old CSS/JS served by route interception), "after" = the working tree. Shots in `notes/v12-shots/shell/{before,after,after3}/`.
+(old CSS/JS served by route interception), "after" = the working tree. Shots in `notes/v12-shots/shell/`: `before/` (old code), `after/` (title, PA, hint, pause, peek), `after3/` (hint beside the phone, raised wide phone, pause with both quests), `android/`, `mouse/`, `touchwalk/`.
 
 ## 1. iPhone Safari: swipe up for full screen (no extra clicks)
 
@@ -22,7 +22,7 @@ the *document* scrolls. iPhone has no element Fullscreen API (`goFullscreen()` s
 
 Verified in emulation (log lines from `shell.mjs`): at 852x270 `html` is `ios-swipe ios-cue`, `scrollHeight` 430 > 270; a real CDP touch swipe moves
 `scrollY` 0 -> 97; resizing to 852x393 gives `ios-lock`, cue opacity 0, `scrollY` kept (37); back to 852x270 the cue returns (opacity 1); Begin
--> `ios-lock`. Android UA (Fullscreen API present) and desktop: no spacer, no cue, no classes (the run with `--ua android` and `mouseshot`).
+-> `ios-lock`. Android UA (Fullscreen API present, `android/title-270.png`): html class is just `is-touch`, `scrollHeight` 270 = viewport (no scroll), cue opacity 0. Desktop: `mouseshot` unchanged (`mouse/2-pause.png` is the old desktop pause layout).
 
 ## 2. The title fits the visible height
 
@@ -78,3 +78,20 @@ Shots: `after/title-270.png`, `title-330.png`, `title-390.png`, `title-393-colla
 - With bars up (about 270 px) the game itself is playable (HUD verified at 852x270) but cramped; the swipe cue is the cure and only exists on the title.
 - The hidden non-phone hints under `ph-wide` mean a player who raises the phone before "looking" never sees the look hint; low risk.
 - `ios-lock` after `Begin` with bars still up leaves `scrollY` as is (e.g. 37) on a page whose body is overflow hidden; harmless but untested on device.
+
+## Before / after numbers (852x393 unless stated; `shell.mjs` logs)
+
+| item | before (b13fa5c) | after |
+|---|---|---|
+| title @270: `.t-main` top vs `.t-place` bottom | overlaps, なんば cut off (`before/title-270.png`) | 105 vs 33, no overlap (`after/title-270.png`) |
+| PA captions (2 live) | 2 boxes, 327x117 px, over the stick (`amb/stick` overlap true) and the hint (`before/pa-393.png`) | 1 box 387x70, clear of stick and hint (`after/pa-393.png`) |
+| pause, both quests + both cards @393 | cards at y 291-406, scroll needed (scrollHeight 424 > 393) | cards at y 196-302, no scroll (`before/pause2-393.png` -> `after3/pause2-393.png`) |
+| pause @270 | 424 tall, cards need a 154 px scroll | 318 tall, scroll 48 px, both cards reachable by real touch (`pause2-270-scrolled.png`) |
+| raised wide phone @270: hint | hint x 281-618 covers the phone (`tip/phone` overlap true) | hint x 12-260 in the strip, no overlaps (`after3/raised-270.png`) |
+| tutorial hint "phone" vs Run | ended under the Run button (shot 4) | ends 16 px left of Run, level with it (`after3/tip-phone-393.png`) |
+
+Tests: `touchwalk.mjs` (844x390): passes (Begin by tap, look 109 deg per 3 swipes, stick, jog, chips, Maps pick -> destination, Use at the gate,
+Lodestone Get -> calibrating -> route, end card scrolls 115 px, links `_blank`, pause/resume), `ctxErrors []`, console `[]`. Two `TAP MISS (not
+visible)` lines appear in Phone-owned screens (the "Aya's pick (Next chip)" in the Maps pick step and "3D view" in Lodestone); the walk carries on
+(destination set, Lodestone reached). I did not touch those; likely the Phone agent's WIP layout, worth a look by the lead.
+`mouseshot.mjs`: errors `[]`, free/pause/phone states as before. `shell.mjs`: `errors []`, `ctx.errors []` in every run.
