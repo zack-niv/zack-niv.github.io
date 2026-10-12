@@ -968,3 +968,7 @@
 #phone-root.ph-land .tr { padding: 12px calc(var(--rail) + 8px) 16px var(--isl); }
 /* while choosing a place, the list owns the panel (the header would show through it) */
 #phone-root.ph-land .ld-main.picking .ld-head, #phone-root.ph-land .ld-main.previewing .ld-head { opacity: 0; pointer-events: none; }
+/* v12 root cause of v11's "3D view: TAP MISS" on touch: touch.css gives every phone tap target `position: relative`
+   (for its invisible ::after tap margin), which also hit the absolutely-placed 3D view button: it fell into the flow,
+   off the screen, on every touch device (phone and tablet). The button keeps its place; the ::after still works. */
+html.is-touch #phone-root .ld-x3d { position: absolute; }

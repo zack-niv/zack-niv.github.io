@@ -4,9 +4,9 @@ Zack: "the phone looks squeezed into half - making the apps within (mainly the m
 
 ## Decision: on a phone held sideways, the raised phone turns sideways too
 
-**Why (evidence, 844×390, same script, same state):** before, the portrait phone on a 390 px-tall screen leaves the map
-13,456 CSS px² of visible map on the Maps route view (and **0** on the "Where to?" view with Aya's banner and the compass
-toast, i.e. Zack's shot reproduced exactly: `before-844/2-maps-pick.png`). The phone was ~299×381 CSS px and every row of
+**Why (evidence, 844×390, same script, same state):** before, the portrait phone on a 390 px-tall screen leaves
+10,896 CSS px² of visible map on the Maps route view (and **0** on the "Where to?" view with Aya's banner and the compass
+toast, i.e. Zack's shot reproduced exactly: `v12-shots/phone/844-before-2-maps-pick.png`). The phone was ~299×381 CSS px and every row of
 chrome (status bar 50, banner 90, search 50, toast, chips, sheet, dock 90 device px) stacks vertically in 429 px.
 Collapsing the chrome in portrait (the alternative) wins back at most the status bar, the banner and the toast:
 ~150 device px of height on a 316 px-wide screen, and the sheet still eats the bottom half. The landscape layout puts
@@ -54,9 +54,54 @@ People also really do turn their phone for maps.
 | `js/ui/phone/lodestone.js` | `_bands()` for the wide pane; `onLayout()`; the map band = the whole pane; `--ld-hh` / `--ld-th` (header and trip card heights) for the panel's steps list. |
 | `js/ui/phone/mapapp.js` | `_anchor()`: centred in the pane when wide (no sheet over the map). |
 | `js/ui/phone/ldmap.js` | calibration picture centred in the pane when wide. |
-| `css/phone.css` | the `.ph-land` block at the end. |
+| `css/phone.css` | the `.ph-land` block at the end; the touch 3D view button fix (`position: absolute`, below). |
 | `css/touch.css` | **unchanged.** Its 3 `#phone-root.ph-compact` rules still apply to the portrait compact phone ("play upright anyway"); the `.ph-land` rules override them by specificity / load order (phone.css loads last). |
 
-## Numbers / shots
+## Numbers (same script, same states: `phoneshots.mjs` in the agent scratchpad; real touch taps; SwiftShader)
 
-(filled in below after the runs; shots in `notes/v12-shots/phone/`)
+Visible map / 3D area in CSS px² (grid-sampled with `elementFromPoint`, or the 3D band × the phone's scale²):
+
+| View | 844×390 before | 844×390 after | 852×393 after |
+|---|---|---|---|
+| Maps "Where to?" + Aya's banner + compass toast (Zack's shot) | **0** (banner over the map, toast over the header and "Where to?") | map pane 275×345, banner/toast inside the pane | 278×347 pane |
+| Maps route | **10,896** | **85,088** (7.8×) | 86,656 |
+| Lodestone floor map (guide) | **≈ 0** (header + Next chip + trip card cover the whole screen: `844-before-6`) | ≈ 98,000 (pane 287×359, band = pane) | ≈ 98,000 |
+| Lodestone reveal hero / 3D view | **27,579** band (264×104 CSS px) | **75,367** (2.7×) | 76,797 |
+
+- Phone on screen: 299×381 → 597×381 CSS px (844); 603×384 (852). Scale unchanged (0.83 / 0.836): same type size.
+- Tap targets (CSS px): dock rail 49×50 (was 77×40), reply chips 96–168×36–38 (+ touch.css's invisible 6 px margin
+  → ≥ 48), list rows 193–202×38–40 (+ margin), Lodestone New place / End route 97×31 (+ margin), 3D view 76×28 (+ margin).
+- 1180×820 tablet: `ph-touch` only (not compact) → the same portrait phone as before (device 357×712);
+  hero band 68,760 as before. **And the 3D view button now works on touch** (see below).
+- `ctx.errors []`, console `[]` in every run (844 before/after, 852 after, 1180 after).
+
+## Found on the way: the 3D view button was dead on every touch device (root cause)
+
+`css/touch.css` gives each phone tap target `position: relative` (to hang an invisible `::after` tap margin on it). For
+`.ld-x3d`, which is absolutely positioned, that pulled it into the flow, off screen. That is v11's "3D view: TAP MISS" in
+touchwalk and the critic's "the 3D button was never visible". Fix in `phone.css`: `html.is-touch #phone-root .ld-x3d
+{ position: absolute; }` (same specificity, loads later). Verified: tap → `view: 'stack'` at 852×393 and 1180×820.
+I checked the other targets in that rule (`.ms-chip`, dock buttons, `.dl-next`, `.ld-new`, `.ld-end`, `.ld-pv-go`):
+all are in-flow elements, so `relative` is harmless there.
+
+## Shots (`notes/v12-shots/phone/`)
+
+- `844-before-*` / `844-after-*`: 1 Messages with chips · 2 Maps pick (+ banner + compass toast) · 3 Maps route ·
+  4 calibration · 5 Lodestone reveal hero (held) · 6 Lodestone floor map.
+- `852-after-*`: the same plus 7 the 3D view (by touch), 8 Messages after Lodestone, 11 walking (glance).
+- `844-after-10-walk-phone-up-lowering.png`: 0.9 s into a walk in the canyon, the wide phone already dropping;
+  `844-after-11-walk-lowered.png`: walking, full view of the canyon, the glance strip says "Turn left".
+
+## Unsure / for the critic
+
+- **The tutorial hint** sits on the wide phone's top-left in every after-shot (Shell's, contract above).
+- **The HUD cluster** (Pause · Run · Phone) lands on the stick's ghost ring in the 244 px strip (Shell's).
+- **Walking lowers the wide phone after 1.0 s.** Right for steering by the world, but a player who wants to read the
+  map while walking gets the glance strip instead. An "expand again when the stick is released" behaviour was
+  considered and not built (it would fight players who stop to look around).
+- **Looking around with the wide phone up:** the look area (right half) is under the phone, so you can't turn
+  while it is up; you lower it (Phone button) or start walking. Before, a ~110 px gap was left for it.
+- **Destination chip in the 3D** ("kakusa Coffee Sta"): a long name overflows its sprite. Pre-existing (same in the
+  before-shot), only for long names (Daikichi and Café Mitsubachi fit).
+- The width morph was judged from stills only; the motion itself (raise → widen) wants a look on a real phone.
+- Real iPhone safe areas (the notch side) are handled by the existing `safeRight()`; not testable here.
