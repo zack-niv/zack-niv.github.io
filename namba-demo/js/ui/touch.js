@@ -41,10 +41,12 @@ export function iphoneSafari() {
   try {
     const ua = navigator.userAgent || '';
     if (!/iPhone|iPod/.test(ua)) return false;
-    if (/LinkedInApp|FBAN|FBAV|Instagram|MicroMessenger|Twitter|GSA\//.test(ua)) return false;   // in-app browsers: no collapsing bars
+    if (/LinkedInApp|FBAN|FBAV|Instagram|MicroMessenger|Twitter|GSA\/|Line\/|Snapchat|Barcelona/.test(ua)) return false;   // in-app browsers: no collapsing bars
     if (navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches)) return false;
-    const el = document.documentElement;
-    if (el.requestFullscreen || el.webkitRequestFullscreen) return false;
+    // v12 critic: NOT gated on the absence of requestFullscreen. Recent iOS builds can expose the method on an iPhone
+    // and still not leave the Safari bars (Zack: "the Safari bar did not go away" after Begin, which calls it), and a
+    // check on it would silently switch this whole fix off on his phone. If element fullscreen ever works on iPhone,
+    // Begin still calls it (goFullscreen) and the scrollable title costs nothing.
     return coarse();
   } catch (e) { return false; }
 }

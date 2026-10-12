@@ -281,7 +281,10 @@ export class Input {
       this.device = 'touch'; this._setTouchMode();
       const u = ensureUi();
       for (const t of e.changedTouches) {
-        if (t.clientX < innerWidth * this.stickZone && this._stick.id === null) {
+        // v12 critic: with the wide landscape phone up (html.ph-wide) the whole free strip is inside the stick zone, so a
+        // player could not turn to aim a photo or read a sign. The strip's upper half looks; the lower half walks.
+        const wideUp = t.clientY < innerHeight * 0.5 && document.documentElement.classList.contains('ph-wide');
+        if (t.clientX < innerWidth * this.stickZone && this._stick.id === null && !wideUp) {
           // keep the whole ring on screen (a thumb landing on the very edge still gets a full stick)
           const r = R(), m = 8;
           const ox = Math.max(r + m, Math.min(innerWidth * this.stickZone, t.clientX));
