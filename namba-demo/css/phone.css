@@ -966,3 +966,5 @@
 #phone-root.ph-land .hs-grid { top: 138px; left: var(--isl); right: calc(var(--rail) + 14px); grid-template-columns: repeat(6, 1fr); }
 #phone-root.ph-land .nt { padding: 6px var(--rail) 20px var(--isl); }
 #phone-root.ph-land .tr { padding: 12px calc(var(--rail) + 8px) 16px var(--isl); }
+/* while choosing a place, the list owns the panel (the header would show through it) */
+#phone-root.ph-land .ld-main.picking .ld-head, #phone-root.ph-land .ld-main.previewing .ld-head { opacity: 0; pointer-events: none; }

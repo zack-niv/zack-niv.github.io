@@ -279,3 +279,13 @@ html.ios-iphone .g-settings::after { content: 'Play full screen: Share \2192  Ad
    free strip just left of it (touch.js _place() already measures the device), Pause on top of the column ------------- */
 html.ph-wide #touch-ui .tu-row { flex-direction: column; gap: 12px; }
 html.ph-wide #touch-ui.ph-up .tu-pause { top: max(10px, env(safe-area-inset-top)); bottom: auto; right: calc(14px + max(var(--tu-right), var(--sr)) + 4px); }
+/* the wide phone leaves a free strip on the left (width = 100vw - --ph-wide-gap, about 244 px at 852): the phone-up hint, the PA
+   caption, the stick and the button column all live in it. The hint stays glued to the phone's left edge and wraps; the
+   caption steps below it, one at a time, narrow; Pause (top of the button column) is kept clear of both. */
+html.ph-wide .g-tip[data-at="phoneup"], html.ph-wide .g-tip.ph-up { right: calc(var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 12px); top: 10px; --tx: 0px;
+  max-width: calc(100vw - var(--ph-wide-gap, 300px) - var(--tu-sl, 0px) - 12px - 76px); }
+@media (pointer: coarse) and (max-height: 500px) {
+  body:has(#phone-root.ph-is-open) .h-amb { top: 62px; }
+  html.ph-wide #hud .h-amb { top: 98px; left: calc(10px + var(--tu-sl, 0px)); width: calc(100vw - var(--ph-wide-gap, 300px) - var(--tu-sl, 0px) - 22px); }
+  html.ph-wide .h-amb-en { display: none; }
+}

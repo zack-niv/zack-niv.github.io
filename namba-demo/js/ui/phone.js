@@ -76,6 +76,8 @@ const GLANCE_H = 126;          // how much of the phone's top shows in the glanc
 const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
+const WALK_LOWER_WIDE_S = 1.0; // v12: the wide phone covers the crosshair and the look area: walking lowers it to the
+                               // glance strip (which carries the next step) after ~1 s instead of 3.5 s
 
 // critically-ish damped spring step (semi-implicit Euler, sub-stepped)
 function spring(s, target, dt, w, z) {
@@ -618,7 +620,7 @@ export class Phone {
     if (running) { this.close(); return; }
     if (this._held) { this._walkUp = 0; return; }                    // holding it up on purpose
     this._walkUp = moving ? this._walkUp + dt : Math.max(0, this._walkUp - dt * 2);
-    if (this._walkUp > WALK_LOWER_S) this.close();
+    if (this._walkUp > (this.land ? WALK_LOWER_WIDE_S : WALK_LOWER_S)) this.close();
   }
 
   // the hand: spring-driven transform (lift, tilt, settle) + walking bob
