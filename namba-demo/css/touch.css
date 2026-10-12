@@ -134,6 +134,7 @@ html.is-touch .g-tip { white-space: normal; max-width: min(440px, calc(100vw - v
    left of the Run + Phone pair (2 x 52 + 14 px gap, plus the safe area), level with them, and wraps inside what is left
    between the walk stick and the buttons. The text flows as ordinary inline text (the desktop's nowrap flex row split
    "walk up to a lane, then [hand]" into columns). */
+html.is-touch .g-tip { background: rgba(10, 11, 14, .8); border-color: rgba(255, 255, 255, .16); text-shadow: 0 1px 6px rgba(0, 0, 0, .6); }   /* v12: a firmer backing over light floors */
 html.is-touch .g-tip-t { display: block; min-width: 0; text-wrap: balance; }
 html.is-touch .g-tip[data-at="phone"] { right: calc(var(--tu-sr, 0px) + 14px + 118px + 16px); bottom: calc(max(var(--tu-b, 0px), var(--tu-sb, 0px)) + 18px);
   max-width: min(380px, calc(100vw - var(--tu-sr, 0px) - var(--tu-sl, 0px) - 150px - 190px)); }
@@ -286,6 +287,9 @@ html.ph-wide #touch-ui.ph-up .tu-pause { top: max(10px, env(safe-area-inset-top)
 html.ph-wide .g-tip[data-at="phoneup"], html.ph-wide .g-tip.ph-up { right: calc(var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 12px + 76px); top: 10px; --tx: 0px; border-radius: 18px; font-size: 12px; padding: 7px 12px 7px 10px;
   max-width: calc(100vw - var(--ph-wide-gap, 300px) - var(--tu-sl, 0px) - 12px - 76px - 12px); }
 html.ph-wide .g-tip[data-at="phoneup"]::after, html.ph-wide .g-tip.ph-up::after { display: none; }
+/* hints that are not about the raised phone ("Drag on the right to look around": the right side IS the phone) step out of the
+   way while the wide phone is up; they come back when it is lowered */
+html.ph-wide .g-tip.ph-up { opacity: 0 !important; visibility: hidden !important; }
 @media (pointer: coarse) and (max-height: 500px) {
   body:has(#phone-root.ph-is-open) .h-amb { top: 62px; }
   html.ph-wide #hud .h-amb { top: 84px; left: calc(10px + var(--tu-sl, 0px)); width: calc(100vw - var(--ph-wide-gap, 300px) - 76px - var(--tu-sl, 0px) - 22px); }

@@ -54,6 +54,7 @@ People also really do turn their phone for maps.
 | `js/ui/phone/lodestone.js` | `_bands()` for the wide pane; `onLayout()`; the map band = the whole pane; `--ld-hh` / `--ld-th` (header and trip card heights) for the panel's steps list. |
 | `js/ui/phone/mapapp.js` | `_anchor()`: centred in the pane when wide (no sheet over the map). |
 | `js/ui/phone/ldmap.js` | calibration picture centred in the pane when wide. |
+| `js/ui/phone/stack3d.js` | the destination name chip fits its text (shrinks 30 → 20 px, then "…"). |
 | `css/phone.css` | the `.ph-land` block at the end; the touch 3D view button fix (`position: absolute`, below). |
 | `css/touch.css` | **unchanged.** Its 3 `#phone-root.ph-compact` rules still apply to the portrait compact phone ("play upright anyway"); the `.ph-land` rules override them by specificity / load order (phone.css loads last). |
 
@@ -84,6 +85,21 @@ touchwalk and the critic's "the 3D button was never visible". Fix in `phone.css`
 I checked the other targets in that rule (`.ms-chip`, dock buttons, `.dl-next`, `.ld-new`, `.ld-end`, `.ld-pv-go`):
 all are in-flow elements, so `relative` is harmless there.
 
+## The 3D destination chip ("kakusa Coffee Sta", lead's nit)
+
+Not the pane edge: the name was drawn at a fixed 30 px, centred on a 300-px texture, so "Wakakusa Coffee Stand"
+overflowed it on both sides. The same clip shows in the before-shot and on the tablet (where the chip is mid-screen).
+`stack3d.js` now measures the name and shrinks the type to fit (down to 20 px), then ellipsizes. The chip's on-screen
+position was already clamped inside the canvas (`stack3d.js` `_frame`, `rMax`), and the canvas is the pane.
+
+## Test runs
+
+| Run | Result |
+|---|---|
+| `phoneshots` 844×390 before / after, 852×393 after, 1180×820 after (to the 3D view) | all states reached by real taps; `ctx.errors []`, console `[]` |
+| `tools/mouseshot.mjs` (desktop) | free chip, pause, links `_blank`, backdrop resume (locked), phone chip, **errors []**: desktop unchanged (wide mode needs touch; the `.ld-x3d` rule is `html.is-touch` only) |
+| `tools/touchwalk.mjs` (844×390, run 1) | Begin → look → stick → chips → Maps pick → gate Use → Lodestone Get → calibrating → end card → pause, `ctx.errors []`. **But that run showed the portrait phone** and still "TAP MISS 3D view" (during the hero, the button is hidden by design). A probe on the same working tree right after (raise by the real touch Phone button) gave `ph-land` + `html.ph-wide` as expected; my guess is the file was swapped under the run (a checkpoint/stash around 09:30). Run 2 is below. |
+
 ## Shots (`notes/v12-shots/phone/`)
 
 - `844-before-*` / `844-after-*`: 1 Messages with chips · 2 Maps pick (+ banner + compass toast) · 3 Maps route ·
@@ -101,7 +117,5 @@ all are in-flow elements, so `relative` is harmless there.
   considered and not built (it would fight players who stop to look around).
 - **Looking around with the wide phone up:** the look area (right half) is under the phone, so you can't turn
   while it is up; you lower it (Phone button) or start walking. Before, a ~110 px gap was left for it.
-- **Destination chip in the 3D** ("kakusa Coffee Sta"): a long name overflows its sprite. Pre-existing (same in the
-  before-shot), only for long names (Daikichi and Café Mitsubachi fit).
 - The width morph was judged from stills only; the motion itself (raise → widen) wants a look on a real phone.
 - Real iPhone safe areas (the notch side) are handled by the existing `safeRight()`; not testable here.
