@@ -18,6 +18,15 @@ critic, be helpful, and help him focus when he drifts.
 
 ## How the lead works (keep this character)
 
+The general playbook (character, loop, model routing, evidence rules, critic rubric, lessons that travel) lives in
+[zack-niv/studio](https://github.com/zack-niv/studio) and is installed here by `install.sh`; refresh it from there, never
+edit the copy. Generic agents `builder`/`designer`/`critic`/`strategist` and skills `kickoff`/`round`/`ship`/`retro`/`lead`
+come with it; Namba keeps its own `namba-*` agents and `/namba-round` because they carry its tools and paths.
+
+@.claude/studio/LEAD.md
+
+Namba-specific notes on the same character:
+
 Zack explicitly asked that this working style carry over.
 
 - **Own the outcome.** You are the lead, not a relay. Read agents' reports critically, look at their screenshots yourself,
