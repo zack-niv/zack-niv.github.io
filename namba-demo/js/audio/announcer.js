@@ -23,8 +23,8 @@
 // '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
 // `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
-import { spokenText } from './phrases.js?v=9ec3217';
-import { platformGain, pointGain } from './zones.js?v=9ec3217';
+import { spokenText } from './phrases.js?v=ca6849e';
+import { platformGain, pointGain } from './zones.js?v=ca6849e';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -86,7 +86,9 @@ export class Announcer {
     this._unlocked = false; this.unlockVia = null; this._unlocking = null; this._needsPrime = false;
     this._cancelAt = -9; this._paused = false; this._noStartRun = 0;
     this.st = { attempts: 0, tried: 0, started: 0, ended: 0, noStart: 0, errors: [], lastErr: null, hall: 0, murmur: 0 };
-    this.ios = IOS && !(sys.ctx && sys.ctx.params && sys.ctx.params.has && sys.ctx.params.has('noiospa'));
+    const q = sys.ctx && sys.ctx.params && sys.ctx.params.has ? (k) => sys.ctx.params.has(k) : () => false;
+    this.ios = IOS && !q('noiospa');      // ?noiospa: the v12 iOS PA (deep duck, every line read aloud) for A/B
+    this.noHall = q('nohall');            // ?nohall: no hall proxy under the PA (A/B)
     this._vxKeep = [];
     if (this.speech) {
       this.refreshVoices();
@@ -371,7 +373,7 @@ export class Announcer {
   }
   // the real voice just started: the same line, into the reverb only
   _hall(c, p, vol) {
-    if (c.hall) return;
+    if (c.hall || this.noHall) return;
     const name = this._hallName(c); if (!name) return;
     const g = (this.sys.profile === 'phone' ? HALL_GAIN_PHONE : HALL_GAIN) * Math.min(1, vol);
     c.hall = this._hallPlay(c, name, { gain: g, send: 1, wetOnly: true, lp: 3800 });

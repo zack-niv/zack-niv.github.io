@@ -12,41 +12,41 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=9ec3217';
-import { Events } from './core/events.js?v=9ec3217';
-import { Clock } from './core/clock.js?v=9ec3217';
-import { Input } from './core/input.js?v=9ec3217';
-import { params } from './core/params.js?v=9ec3217';
-import { World } from './world/world.js?v=9ec3217';
-import { Nav } from './world/nav.js?v=9ec3217';
-import { LAYOUT } from './world/layout.js?v=9ec3217';
-import { Loader } from './core/loader.js?v=9ec3217';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=9ec3217';
-import { bootTouch, TouchUI } from './ui/touch.js?v=9ec3217';
-import { setCanvasRes } from './render/canvasres.js?v=9ec3217';
-import { readRecovery, armRecovery } from './core/resilience.js?v=9ec3217';
+import { Engine } from './core/engine.js?v=ca6849e';
+import { Events } from './core/events.js?v=ca6849e';
+import { Clock } from './core/clock.js?v=ca6849e';
+import { Input } from './core/input.js?v=ca6849e';
+import { params } from './core/params.js?v=ca6849e';
+import { World } from './world/world.js?v=ca6849e';
+import { Nav } from './world/nav.js?v=ca6849e';
+import { LAYOUT } from './world/layout.js?v=ca6849e';
+import { Loader } from './core/loader.js?v=ca6849e';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=ca6849e';
+import { bootTouch, TouchUI } from './ui/touch.js?v=ca6849e';
+import { setCanvasRes } from './render/canvasres.js?v=ca6849e';
+import { readRecovery, armRecovery } from './core/resilience.js?v=ca6849e';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=9ec3217',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=9ec3217',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=9ec3217', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=9ec3217',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=9ec3217',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=9ec3217',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=9ec3217',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=9ec3217',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=9ec3217',      'Signage',      'build'],
-  ['player',       './player/player.js?v=9ec3217',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=9ec3217',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=9ec3217',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=9ec3217',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=9ec3217',             'Hud',          'live'],
-  ['game',         './game/game.js?v=9ec3217',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=9ec3217',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=9ec3217',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=ca6849e',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=ca6849e',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=ca6849e', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=ca6849e',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=ca6849e',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=ca6849e',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=ca6849e',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=ca6849e',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=ca6849e',      'Signage',      'build'],
+  ['player',       './player/player.js?v=ca6849e',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=ca6849e',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=ca6849e',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=ca6849e',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=ca6849e',             'Hud',          'live'],
+  ['game',         './game/game.js?v=ca6849e',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=ca6849e',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=ca6849e',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -156,8 +156,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=9ec3217').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=9ec3217').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=ca6849e').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=ca6849e').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

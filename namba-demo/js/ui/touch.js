@@ -21,7 +21,7 @@
 // Layout: the right-hand cluster sits above the lowered phone, and steps left of the raised phone, so a raised phone
 // never covers a control and the controls never cover the phone.
 // =============================================================================
-import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=9ec3217';
+import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=ca6849e';
 
 const PORTRAIT_OK = 'namba.portraitOK';
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };

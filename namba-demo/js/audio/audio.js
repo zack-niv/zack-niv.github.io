@@ -19,17 +19,17 @@
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
-import { params } from '../core/params.js?v=9ec3217';
-import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=9ec3217';
-import { Bank } from './bank.js?v=9ec3217';
-import { Mixer } from './mixer.js?v=9ec3217';
-import { acousticFor } from './ir.js?v=9ec3217';
-import { Announcer } from './announcer.js?v=9ec3217';
-import { Ambience, moodOf } from './ambience.js?v=9ec3217';
-import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=9ec3217';
-import { EXCUSE } from './phrases.js?v=9ec3217';
-import { Sources } from './sources.js?v=9ec3217';
-import { Trains, pumpAudioTimers } from './trains.js?v=9ec3217';
+import { params } from '../core/params.js?v=ca6849e';
+import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=ca6849e';
+import { Bank } from './bank.js?v=ca6849e';
+import { Mixer } from './mixer.js?v=ca6849e';
+import { acousticFor } from './ir.js?v=ca6849e';
+import { Announcer } from './announcer.js?v=ca6849e';
+import { Ambience, moodOf } from './ambience.js?v=ca6849e';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=ca6849e';
+import { EXCUSE } from './phrases.js?v=ca6849e';
+import { Sources } from './sources.js?v=ca6849e';
+import { Trains, pumpAudioTimers } from './trains.js?v=ca6849e';
 
 // name → [recipe, default gain, bus, extra]
 export const SOUNDS = {
@@ -157,7 +157,7 @@ export class Audio {
     this.trains = new Trains(this);
     let biz = (this.ctx.shops && (this.ctx.shops.businesses || this.ctx.shops.BUSINESSES)) || null;
     if (biz) this.sources.build(biz);
-    else import('../world/directory.js?v=9ec3217').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
+    else import('../world/directory.js?v=ca6849e').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
     this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');
@@ -246,8 +246,7 @@ export class Audio {
     const inten = e.intensity != null ? e.intensity : Math.min(1.5, (e.speed || 1.4) / 1.5);
     // v3: -6 dB (0.8 -> 0.4). Hard floors keep +1 dB of that so they stay clearly audible; soft ones sit lower.
     const hard = surf === 'tile' || surf === 'stone' || surf === 'metal' || surf === 'wood';
-    // v13: +2 dB of your own steps on a phone — with no keys under your fingers they are the stick's feedback
-    const g = (hard ? 0.45 : 0.38) * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24) * (this.profile === 'phone' ? 1.25 : 1);
+    const g = (hard ? 0.45 : 0.38) * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
     const L = this.L;
     const outdoor = L && L.outdoorish;
     // polished floors: the occasional rubber squeak, likelier on turns

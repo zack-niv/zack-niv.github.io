@@ -2,7 +2,7 @@
 // DSP toolkit for offline sample synthesis (runs in the synthesis worker or on
 // the main thread). Pure functions on Float32Arrays — no Web Audio, no DOM.
 // =============================================================================
-import { rng, hash } from '../core/rng.js?v=9ec3217';
+import { rng, hash } from '../core/rng.js?v=ca6849e';
 export { rng, hash };
 
 export const TAU = Math.PI * 2;

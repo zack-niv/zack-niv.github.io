@@ -12,9 +12,11 @@ export const BUSES = ['music', 'sfx', 'voice', 'ambience', 'ui'];
 // sliders. The beds and the mall music sit further back so that the PA (chime + the browser's speech, which cannot be made
 // louder) is the clearest thing in the soundscape. The slider still goes from silence to its old maximum minus this trim.
 export const BUS_TRIM = { ambience: 0.5, music: 0.56 };   // -6 dB, -5 dB
-// v13 (Zack on a phone: "it lacks the ambience ... footsteps are not heard"): the phone profile's mix gain (+10 dB) ahead
-// of the glue compressor and limiter (setProfile). Desktop is untouched.
-export const PHONE_MAKEUP = 3.16;
+// v13 (Zack on a phone: "it lacks the ambience ... footsteps are not heard"): the phone profile (setProfile) lifts the mix
+// +7 dB ahead of the glue compressor / limiter, and the beds and your steps further on their buses (the beds are what a
+// phone loses most; the PA chime is already loud and iOS reads the voice at full volume anyway). Desktop is untouched.
+export const PHONE_MAKEUP = 2.24;                                                       // +7 dB
+export const PHONE_TRIM = { ambience: 1.6, music: 1.26, sfx: 1.12, ui: 1, voice: 0.89 };   // +4, +2, +1, 0, -1 dB
 
 export class Mixer {
   constructor(ac, bank) {
@@ -90,6 +92,8 @@ export class Mixer {
     try { this.master.disconnect(); } catch (e) { /* not connected */ }
     this.master.connect(hp); hp.connect(pres); pres.connect(makeup); makeup.connect(this.comp);
     this.master.connect(exLp); exLp.connect(exDrive); exDrive.connect(sh); sh.connect(exHp); exHp.connect(exLp2); exLp2.connect(exG); exG.connect(makeup);
+    // a hotter mix into the same glue settings would pump the beds down at every footstep: a higher, softer glue
+    this.comp.threshold.value = -6; this.comp.ratio.value = 4; this.comp.knee.value = 6;
     this._phone = { hp, pres, makeup, exG };
   }
 
@@ -97,7 +101,7 @@ export class Mixer {
   setVolume(bus, v) {
     v = Math.max(0, Math.min(1, +v || 0));
     this.volumes[bus] = v;
-    const g = v * v * (BUS_TRIM[bus] ?? 1);
+    const g = v * v * (BUS_TRIM[bus] ?? 1) * (this.profile === 'phone' ? PHONE_TRIM[bus] ?? 1 : 1);
     const t = this.now;
     if (bus === 'master') { this.master.gain.setTargetAtTime(0.9 * g, t, 0.05); return; }
     const b = this.bus[bus]; if (!b) return;
