@@ -641,7 +641,18 @@ export class Stack3D {
     if (!this.shared) { this.renderer.render(this.scene, this.camera); return; }
     const now = performance.now();
     if (now - (this._blitAt || 0) < 30) return;               // ~30 fps is plenty for the stack, and halves the copies
-    if (this._withMain(() => this.renderer.render(this.scene, this.camera), true)) { this._blitAt = now; this.frames = (this.frames || 0) + 1; }
+    if (this._withMain(() => this.renderer.render(this.scene, this.camera), true)) { this._blitAt = now; this.frames = (this.frames || 0) + 1; if (this.frames === 3) this._selfCheck(); }
+  }
+  // v13 critic (R1): the copy relies on the browser handing back the frame just drawn (no preserveDrawingBuffer). If a
+  // WebKit build hands back a cleared buffer the copy is pure black (our backdrop never is: its blue channel is > 0), so
+  // report it once (analytics namba_stack3d) and let Lodestone fall back to its 2D map instead of a black pane.
+  _selfCheck() {
+    try {
+      const c = this.canvas, d = this.out.getImageData(Math.floor(c.width / 2), Math.min(c.height - 1, 3), 1, 1).data;
+      this.blank = d[0] === 0 && d[1] === 0 && d[2] === 0;
+      this.ctx.events.emit('lodestone:stack3d', { ok: !this.blank, mode: 'shared', w: c.width, h: c.height });
+      if (this.blank && this.onBlank) this.onBlank();
+    } catch (e) { /* ignore */ }
   }
   // pre-compile shaders / upload buffers behind the install bar (shared: in the exact state render() uses, so the
   // program keys match — no-tone-mapping, sRGB output to the canvas)

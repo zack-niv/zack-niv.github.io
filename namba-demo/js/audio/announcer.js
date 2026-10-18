@@ -89,6 +89,7 @@ export class Announcer {
     const q = sys.ctx && sys.ctx.params && sys.ctx.params.has ? (k) => sys.ctx.params.has(k) : () => false;
     this.ios = IOS && !q('noiospa');      // ?noiospa: the v12 iOS PA (deep duck, every line read aloud) for A/B
     this.noHall = q('nohall');            // ?nohall: no hall proxy under the PA (A/B)
+    this.hallDesk = q('hall');            // v13 critic: the proxy is a phone-speaker fix; desktop keeps its v12 PA unless ?hall
     this._vxKeep = [];
     if (this.speech) {
       this.refreshVoices();
@@ -187,7 +188,7 @@ export class Announcer {
     if (item.cooldown && this.t - (this._repeat.get(key) ?? -999) < item.cooldown) return null;
     if (this._vol(item) < MIN_VOL) { this._note(`drop(inaudible) ${item.kind} "${key.slice(0, 30)}"`); return null; }
     if (item.chime) this.bank.get('chime:' + item.chime, 2);
-    const hn = this._hallName(item); if (hn) { this.bank.get(hn, 4); this._vxTouch(hn); }
+    const hn = this._hallOn() && this._hallName(item); if (hn) { this.bank.get(hn, 4); this._vxTouch(hn); }
     if (item.delay > 0.5 && (item.platform || item.pa)) this._preDuck(item);   // the melody / lead-in already plays: get the beds out of its way
     if (this.cur && item.prio < this.cur.prio && item.prio <= 1) this._interrupt();
     this.queue.push(item);
@@ -355,6 +356,7 @@ export class Announcer {
 
   // ---- v13: the hall's answer to the PA (see the note at the top) ------------------------------------------------------
   // which lines get one: station-wide speakers (platform / area PA, train, station, escalator); not shop calls or barks
+  _hallOn() { return !this.noHall && (this.hallDesk || this.ios || this.sys.profile === 'phone'); }
   _hallName(item) {
     if (!(item.platform || item.pa || item.kind === 'train' || item.kind === 'station' || item.kind === 'platform' || item.kind === 'escalator')) return null;
     const ja = item.parts.find(p => p.lang === 'ja'); if (!ja) return null;
@@ -373,7 +375,7 @@ export class Announcer {
   }
   // the real voice just started: the same line, into the reverb only
   _hall(c, p, vol) {
-    if (c.hall || this.noHall) return;
+    if (c.hall || !this._hallOn()) return;
     const name = this._hallName(c); if (!name) return;
     const g = (this.sys.profile === 'phone' ? HALL_GAIN_PHONE : HALL_GAIN) * Math.min(1, vol);
     c.hall = this._hallPlay(c, name, { gain: g, send: 1, wetOnly: true, lp: 3800 });

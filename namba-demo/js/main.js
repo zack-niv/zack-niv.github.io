@@ -78,12 +78,12 @@ async function boot() {
   // v11 mobile default: phones and tablets start on `low` (engine.detectTier: coarse pointer), trimmed further for a
   // mid-range phone GPU/CPU to hold ~30 fps: a smaller pixel-ratio cap on phone-sized screens, fewer simulated people,
   // a shorter draw distance and draw-call budget. ?quality=… still forces a tier untouched.
+  engine.mobile = touchOnly;   // v13 critic: also with ?quality forced (the Lodestone shared renderer, the phone audio profile)
   if (touchOnly && !engine.qualityForced) {
     const phone = Math.min(innerWidth, innerHeight) < 600;
     Object.assign(engine.quality, { crowdMax: phone ? 320 : 420, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further
     engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
     engine.renderer.setPixelRatio(engine.basePR);
-    engine.mobile = true;
   }
   // v11.1 (iOS crash): world sign/menu/board canvases at fewer real pixels on touch devices. At 2048² they were 272 MB
   // of 2D canvas + ~250 MB of GPU copies at load (notes/v11.1-ioscrash.md); iOS Safari kills a tab around there.

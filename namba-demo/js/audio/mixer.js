@@ -16,7 +16,7 @@ export const BUS_TRIM = { ambience: 0.5, music: 0.56 };   // -6 dB, -5 dB
 // +7 dB ahead of the glue compressor / limiter, and the beds and your steps further on their buses (the beds are what a
 // phone loses most; the PA chime is already loud and iOS reads the voice at full volume anyway). Desktop is untouched.
 export const PHONE_MAKEUP = 2.24;                                                       // +7 dB
-export const PHONE_TRIM = { ambience: 1.6, music: 1.26, sfx: 1.12, ui: 1, voice: 0.89 };   // +4, +2, +1, 0, -1 dB
+export const PHONE_TRIM = { ambience: 1.5, music: 1.26, sfx: 1.5, ui: 1, voice: 0.89 };   // +3.5, +2, +3.5, 0, -1 dB (v13 critic: steps keep their desktop balance over the beds)
 
 export class Mixer {
   constructor(ac, bank) {

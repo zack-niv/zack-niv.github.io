@@ -565,7 +565,7 @@ export class Phone {
       else this._placeCue();
       return;
     }
-    const waiting = (A.reply && this.messages && this.messages.pending) || (A.offer && this.upgradeStage === 'offer');
+    const waiting = !!(this.messages && this.messages.pending) || (A.offer && this.upgradeStage === 'offer');   // (v13 critic: any unanswered text, not only this one)
     if (!this._alertQ && waiting && A.n <= ALERT_AGAIN.length && this._now - A.at >= ALERT_AGAIN[A.n - 1]) {
       this._alertQ = true; this.glance.showNote(A.msg);                              // the note card comes back with it
     }
@@ -577,7 +577,7 @@ export class Phone {
       if (A.n > 1) this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('phone_buzz');   // (the first one buzzed in notify)
       this._showCue(A);
     }
-    if (!waiting && !this._alertQ && A.n > 0) this._alertMsg = null;
+    if (!waiting && !this._alertQ && A.n > 0 && this._alertT <= 0) this._alertMsg = null;   // (v13 critic: not in the frame it pops)
   }
   _endAlert(opened) {
     this._alertT = 0; this._poseDirty = true;
@@ -768,7 +768,7 @@ export class Phone {
     this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;
     this.wrap.style.filter = u < 0.6 ? `brightness(${(0.88 + u * 0.2).toFixed(3)})` : '';
     // the glance strip's on-screen height (for HUD layout), 0 when not glancing
-    const gh = pose === 'glance' ? Math.round(GH * sg) : 0;
+    const gh = pose === 'glance' ? Math.round(GLANCE_H * s * (this._gS || GLANCE_S)) : 0;   // (v13 critic: the resting card, not the alert pop: no restyle per frame)
     if (gh !== this._gh) { this._gh = gh; document.documentElement.style.setProperty('--phone-glance-h', gh + 'px'); }
   }
 }

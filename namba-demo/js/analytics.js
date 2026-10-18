@@ -84,6 +84,7 @@ export function setupAnalytics(ctx) {
   try { const h = ctx.lastRunHidden; if (h) send('namba_run_hidden', { last_stage: h.lastStage || null, ago_s: h.ago != null ? h.ago : null, ...memProps(h) }); } catch (e) { /* optional */ }
   E.on('tutorial:step', (e) => { if (e && e.done) { reach('tutorial'); send('namba_tutorial_step', { step: e.id, t: e.t, nudges: e.nudges }); } });
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
+  E.on('lodestone:stack3d', (e) => send('namba_stack3d', { ok: !!(e && e.ok), mode: e && e.mode, w: e && e.w, h: e && e.h }));   // v13: does the shared-renderer copy work on this device?
   E.on('nav:destination', (e) => { reach('destination'); send('namba_destination', { app: e.app, slot: e.slotId, place: e.name, suggested: !!e.suggested, via: e.via, t: t() }); });
   E.on('gate:tap', (e) => { if (e && e.player && !e.auto && !gateSent) { gateSent = true; reach('gate'); send('namba_gate_tap', { gate: e.gate, t: t() }); } });
   E.on('aya:answered', (e) => { if (e && !e.auto) send('namba_reply', { msg: e.msgId, reply: e.replyId, lost: !!e.lost, t: t() }); });   // v9: which chip each player picks

@@ -190,6 +190,7 @@ export class LodestoneApp {
     const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ, shared });
     s.init();
     s.onUser = () => { this._userMoved = true; };
+    s.onBlank = () => { try { this.el.c3d.style.visibility = 'hidden'; } catch (e) { /* ignore */ } if (this.view === 'stack') this.setView('guide'); };   // v13: 2D map only
     this._bands(s);
     return s;
   }
@@ -221,6 +222,7 @@ export class LodestoneApp {
   // hero: the reveal's brief 3D fly-in (v8 critic); any other view change (V, Done, a tap) cancels the auto-settle
   setView(v, hero = false) {
     if (this.state !== 'ready' || v === this.view) return;
+    if (v === 'stack' && this.stack && this.stack.blank) return;      // v13: the 3D copy came back black on this device
     this._heroT = hero ? HERO_S : 0; if (!hero) this._heroWait = 0;
     this.view = v;
     this.el.main.dataset.view = v;

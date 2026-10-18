@@ -325,6 +325,7 @@ export class TouchUI {
       const b = ph.device ? ph.device.getBoundingClientRect() : null;
       if (b && b.width > 0) {
         if (ph.isOpen) right = Math.max(0, innerWidth - b.left + 10);
+        else if (ph._sp && ph._sp.a.x > 0.005 && this._b != null) bottom = this._b;   // v13 critic: hold the cluster while an alert pops the card
         else bottom = Math.max(0, innerHeight - b.top + 4);
       }
     }
