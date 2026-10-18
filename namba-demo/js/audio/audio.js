@@ -144,6 +144,10 @@ export class Audio {
     this.ac = ac;
     this.bank = new Bank(ac, { useWorker: worker });
     this.mixer = new Mixer(ac, this.bank);
+    // v13: phones & tablets get the small-speaker profile (mixer.js setProfile); ?audioprofile=desktop|phone forces one
+    const ap = params.get('audioprofile');
+    this.profile = ap === 'phone' || ap === 'desktop' ? ap : (this.ctx.engine && this.ctx.engine.mobile ? 'phone' : 'desktop');
+    this.mixer.setProfile(this.profile);
     this.mixer.hrtf = !(this.ctx.engine && this.ctx.engine.qualityName === 'low');
     for (const [k, v] of Object.entries(this._vols)) this.mixer.setVolume(k, v);
     this.announcer = new Announcer(this);
@@ -169,6 +173,13 @@ export class Audio {
   // ---- per-frame --------------------------------------------------------------------
   update(dt) {
     if (!this.mixer || !this.ctx.player) return;
+    // v13: iOS puts a running context into 'interrupted' (or 'suspended') when something else takes the audio session — a
+    // call, Siri, the speech voice's own session — and does not always bring it back: the whole soundscape then stays
+    // silent while the PA voice still speaks. Ask again every 1.5 s while it should be running (a tap also resumes it).
+    if (this._wantRunning && this.ac.state !== 'running' && this.ac.state !== 'closed' && !(typeof document !== 'undefined' && document.hidden)) {
+      this._wdT = (this._wdT || 0) + (dt || 0);
+      if (this._wdT > 1.5) { this._wdT = 0; this.resumes = (this.resumes || 0) + 1; this.ac.resume().catch(() => {}); }
+    } else this._wdT = 0;
     const L = this._listenerState();
     this.L = L;
     // listener = camera
@@ -235,7 +246,8 @@ export class Audio {
     const inten = e.intensity != null ? e.intensity : Math.min(1.5, (e.speed || 1.4) / 1.5);
     // v3: -6 dB (0.8 -> 0.4). Hard floors keep +1 dB of that so they stay clearly audible; soft ones sit lower.
     const hard = surf === 'tile' || surf === 'stone' || surf === 'metal' || surf === 'wood';
-    const g = (hard ? 0.45 : 0.38) * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24);
+    // v13: +2 dB of your own steps on a phone — with no keys under your fingers they are the stick's feedback
+    const g = (hard ? 0.45 : 0.38) * (0.45 + 0.5 * inten) * (e.final ? 0.6 : 1) * (0.88 + Math.random() * 0.24) * (this.profile === 'phone' ? 1.25 : 1);
     const L = this.L;
     const outdoor = L && L.outdoorish;
     // polished floors: the occasional rubber squeak, likelier on turns
@@ -400,7 +412,7 @@ export class Audio {
     if (!this.mixer) return { state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
     const a = this.ambience;
     return {
-      state: this.ac.state, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
+      state: this.ac.state, profile: this.profile, resumes: this.resumes || 0, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
       layers: Object.values(a.layers).filter(l => l.em).map(l => l.name), sources: [...this.sources.live.keys()], oneShots: this.mixer.liveOneShots,
       trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => `${t.tr.id}:${t.phase}`),
       speech: this.announcer.hasJaVoice ? 'ja-JP voice' : 'chime + caption (no ja-JP voice; English is never spoken)', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },

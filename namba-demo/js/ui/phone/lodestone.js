@@ -184,7 +184,10 @@ export class LodestoneApp {
     } catch (e) { console.error('[lodestone warm]', e); this.ctx.errors && this.ctx.errors.push('lodestone: ' + e.message); }
   }
   _makeStack() {
-    const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ });
+    // v12.1: phones / tablets (and any recovered run) draw the stack with the game's renderer: no second WebGL context
+    const P = this.ctx.params, E = this.ctx.engine;
+    const shared = P.has('ldshared') || (!P.has('ldctx') && !!(E && (E.mobile || E.safe)));
+    const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ, shared });
     s.init();
     s.onUser = () => { this._userMoved = true; };
     this._bands(s);
@@ -321,6 +324,9 @@ export class LodestoneApp {
     ph.home && ph.home.addLodestone();
     ph._dockAddLodestone && ph._dockAddLodestone();
     ph.messages && ph.messages.markInstalled();
+    // v12.1 (iOS memory): from here on Lodestone guides; on a phone the Maps app's floor plans (~6 MB of canvas per
+    // floor) go now, and are redrawn on demand if Maps is opened again
+    if (this.ctx.engine && this.ctx.engine.mobile && ph.maps && ph.maps.base) { for (const b of ph.maps.base.values()) b.canvas.width = b.canvas.height = 0; ph.maps.base.clear(); }
     if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest || null); } catch (e) { console.error(e); } }
     this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this._shownLevel = ph.pos.level;

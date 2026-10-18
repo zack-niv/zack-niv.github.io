@@ -42,6 +42,18 @@ export const TOUCH_TEXT = {
   pause: 'Tap <b>Resume</b> to keep playing. Left thumb walks, drag on the right looks, tap your phone to raise it.',
 };
 
+// v13: the opening thumb coach (js/ui/touch.js coach()): the screen splits into the two areas the thumbs own. Each
+// side clears itself the moment the player has done it (a few metres walked, a real look around).
+export const COACH_TEXT = {
+  walkKick: 'Left thumb',
+  walk: 'Walk',
+  walkSub: 'push further to hurry',
+  lookKick: 'Right thumb',
+  look: 'Look around',
+  lookSub: 'drag anywhere on this side',
+  done: 'Nice',
+};
+
 let applied = false;
 export function applyTouchCopy() {
   if (applied) return;

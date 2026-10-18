@@ -21,7 +21,7 @@
 // Layout: the right-hand cluster sits above the lowered phone, and steps left of the raised phone, so a raised phone
 // never covers a control and the controls never cover the phone.
 // =============================================================================
-import { applyTouchCopy, TOUCH_TEXT } from './touchcopy.js?v=9ec3217';
+import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=9ec3217';
 
 const PORTRAIT_OK = 'namba.portraitOK';
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
@@ -181,11 +181,19 @@ export class TouchUI {
   }
 
   _build() {
+    const C = COACH_TEXT;
     const root = document.createElement('div');
     root.id = 'touch-ui';
     root.innerHTML = `
       <div class="tu-ghost" aria-hidden="true"><i></i><span>${TOUCH_TEXT.ghost}</span></div>
       <div class="tu-lookghost" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M3.5 12h17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Look</span></div>
+      <div class="tu-coach" aria-hidden="true">
+        <div class="tcz tcz-walk"><div class="tcz-lab"><small>${C.walkKick}</small><b>${C.walk}</b><em>${C.walkSub}</em><span class="tcz-bar"><u></u></span><strong class="tcz-ok">${C.done}</strong></div>
+          <div class="tcz-ring"><i class="tcz-thumb"></i></div></div>
+        <div class="tcz tcz-look"><div class="tcz-lab"><small>${C.lookKick}</small><b>${C.look}</b><em>${C.lookSub}</em><span class="tcz-bar"><u></u></span><strong class="tcz-ok">${C.done}</strong></div>
+          <div class="tcz-drag"><i class="tcz-trail"></i><i class="tcz-thumb"></i></div></div>
+      </div>
+      <div class="tu-point" aria-hidden="true"><i class="tcz-ripple"></i><i class="tcz-thumb"></i></div>
       <button type="button" class="tu-btn tu-pause" aria-label="Pause">${ICON.pause}</button>
       <div class="tu-cluster">
         <button type="button" class="tu-use" aria-label="Use"><span class="tu-use-ic">${ICON.hand}</span><span class="tu-use-t"><b></b><small></small></span></button>
@@ -197,7 +205,7 @@ export class TouchUI {
     const host = this.ctx.ui && this.ctx.ui.root || document.getElementById('ui') || document.body;
     host.insertBefore(root, (this.ctx.ui && this.ctx.ui.overlay) || null);
     const q = (s) => root.querySelector(s);
-    this.el = { root, ghost: q('.tu-ghost'), pause: q('.tu-pause'), cluster: q('.tu-cluster'), use: q('.tu-use'), useB: q('.tu-use-t b'), useS: q('.tu-use-t small'), run: q('.tu-run'), phone: q('.tu-phone') };
+    this.el = { root, coach: q('.tu-coach'), walkZ: q('.tcz-walk'), lookZ: q('.tcz-look'), point: q('.tu-point'), ghost: q('.tu-ghost'), pause: q('.tu-pause'), cluster: q('.tu-cluster'), use: q('.tu-use'), useB: q('.tu-use-t b'), useS: q('.tu-use-t small'), run: q('.tu-run'), phone: q('.tu-phone') };
     const inp = this.ctx.input;
     // buttons act on touchstart (no 300 ms wait, works while the other thumb is walking); click is the fallback
     const bind = (b, fn) => {
@@ -240,6 +248,59 @@ export class TouchUI {
     this.state = st;
     if (changed) this._paint();
     this._place();
+    this._coachTick(dt);
+  }
+
+  // ---- v13: the thumb coach -----------------------------------------------------------------------------------------
+  // Called by js/game/tutorial.js every frame while it runs on a touch device:
+  //   coach({ zones: { look, walk, lookDone, walkDone } | null, target: { sel, last } | null, nudge })
+  // zones: the screen splits into the two thumb areas (left = the walk stick's zone, right = drag to look), each with a
+  //   ghost thumb doing the gesture and a progress line; a side says "Nice" and fades the moment it is done.
+  // target: a ghost thumb taps on the real control the current hint is about (the Phone button, a reply, Maps in the
+  //   dock, Aya's pick, Use). It follows the control every frame and hides when that control is not on screen.
+  coach(s) { this._co = s || null; }
+  _coachTick(dt) {
+    const el = this.el, s = this._co, de = document.documentElement;
+    if (!el || !el.coach) return;
+    const z = s && s.zones;
+    const zoneOn = !!z && this.state.free && !this.state.up;
+    if (zoneOn !== el.coach.classList.contains('on')) el.coach.classList.toggle('on', zoneOn);
+    if (zoneOn !== de.classList.contains('tu-coaching')) de.classList.toggle('tu-coaching', zoneOn);
+    if (z) {
+      const set = (zEl, p, done) => {
+        const v = Math.max(0, Math.min(1, p || 0)).toFixed(2);
+        if (zEl._p !== v) { zEl._p = v; zEl.style.setProperty('--p', v); }
+        if (!!done !== zEl.classList.contains('done')) zEl.classList.toggle('done', !!done);
+      };
+      set(el.walkZ, z.walk, z.walkDone); set(el.lookZ, z.look, z.lookDone);
+      const n = s.nudge || 0; if (el.coach._n !== n) { el.coach._n = n; el.coach.classList.toggle('nudge', n > 0); }
+    }
+    // the tap pointer: re-find the control a few times a second (apps re-render), place it every frame
+    const t = !zoneOn && s && s.target && this.state.playing ? s.target : null;
+    let pt = null;
+    if (t) {
+      this._ptT = (this._ptT || 0) - dt;
+      if (this._ptT <= 0 || this._ptSel !== t.sel || !(this._ptEl && this._ptEl.isConnected)) {
+        this._ptT = 0.25; this._ptSel = t.sel;
+        const all = Array.from(document.querySelectorAll(t.sel)).filter(e => e.offsetParent !== null && e.getClientRects().length);
+        this._ptEl = all.length ? all[t.last ? all.length - 1 : 0] : null;
+      }
+      const e = this._ptEl;
+      if (e) {
+        const r = e.getBoundingClientRect();
+        if (r.width > 4 && r.height > 4 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight) {
+          // a small control: its centre; a wide card or chip: towards its right end, so the thumb does not hide the words
+          const x = r.width > 90 ? r.right - Math.min(34, r.width * 0.18) : r.left + r.width / 2;
+          pt = [Math.round(x), Math.round(r.top + r.height / 2)];
+        }
+      }
+    }
+    const P = el.point;
+    if (!pt) { if (P.classList.contains('on')) P.classList.remove('on'); return; }
+    const k = pt[0] + ',' + pt[1];
+    if (P._k !== k) { P._k = k; P.style.transform = `translate(${pt[0]}px, ${pt[1]}px)`; }
+    if (!P.classList.contains('on')) P.classList.add('on');
+    const n = (s && s.nudge) || 0; if (P._n !== n) { P._n = n; P.classList.toggle('nudge', n > 0); }
   }
   _paint() {
     const { el } = this, s = this.state, r = el.root;

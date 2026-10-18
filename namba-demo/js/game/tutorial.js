@@ -19,6 +19,7 @@
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
 import { params } from '../core/params.js?v=9ec3217';
+import { TUTORIAL } from './script.js?v=9ec3217';
 
 const KEY = 'namba.tutorial.v3';
 const NUDGE_S = [12, 26, 42];          // seconds a step may sit idle before each nudge
@@ -124,7 +125,28 @@ export class Tutorial {
       if (teachNow && this.age > (this.cur.delay || 0.35)) { try { h = this.cur.hint(); } catch (e) { h = null; } }
       if (h) st.shown = true;
     }
+    const T = this.ctx.touch;
+    if (T && T.active && T.coach) h = this._touchCoach(T, h);
     this._render(h);
+  }
+  // v13 (touch): the opening look + walk steps become the two-thumb coach (the zones carry the words, so the one-line
+  // hint stays hidden), and every later hint gets a ghost thumb tapping the real control it is about.
+  _touchCoach(T, h) {
+    const id = this.cur && this.cur.id, st = id && this.state[id];
+    const ph = this.ctx.phone, up = !!(ph && ph.isOpen);
+    const nudge = st ? st.nudges : 0;
+    const L = !!(this.state.look && this.state.look.done), M = !!(this.state.move && this.state.move.done);
+    // both thumbs done: the zones stay ~1.3 s more, so the last one to be done still says "Nice" before they fade
+    if (L && M && this._coached && this._coachEnd == null) this._coachEnd = this.t + 1.3;
+    const hold = this._coachEnd != null && this.t < this._coachEnd;
+    if (!this.off && this.state.look && this.state.move && (hold || (!this._coachEnd && (id === 'look' || id === 'move')))) {
+      const S = this.game.story || {}, f = S.f || {};
+      this._coached = true;
+      T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M }, nudge });
+      return up ? h : null;
+    }
+    T.coach(h ? { target: touchTarget(id, h, ph, up), nudge } : null);
+    return h;
   }
   // the player just did something on-topic (raised the phone, walked): the idle clock restarts
   poke(id) { const st = id ? this.state[id] : (this.cur && this.state[this.cur.id]); if (st) st.idle = 0; }
@@ -145,5 +167,22 @@ export class Tutorial {
     el.classList.remove('nudge');
     if (on) { void el.offsetWidth; el.classList.add('nudge'); }
   }
+}
+// the on-screen control a touch hint is about ({ sel, last }: the last match = the newest message card), or null
+function touchTarget(id, h, ph, up) {
+  const at = h.at;
+  if (at === 'phone' && !up) return { sel: '#touch-ui .tu-phone' };
+  if (at === 'prompt') return { sel: '#touch-ui.has-use .tu-use' };
+  if (!up || !ph) return null;
+  const v = `#phone-root .ph-view[data-v="${ph.app}"]`;
+  if (id === 'reply') return { sel: `${v} .ms-replies .ms-chip` };
+  if (id === 'install') return ph.app === 'messages' ? { sel: `${v} .ms-link`, last: true } : { sel: '#phone-root .ph-dock [data-app="messages"]' };
+  if (id === 'pick' || id === 'pick2') {
+    if (h.html === TUTORIAL.maps) return { sel: '#phone-root .ph-dock [data-app="maps"]' };
+    if (h.html === TUTORIAL.pickMsg) return { sel: `${v} .ms-place`, last: true };
+    return { sel: `${v} .dl-next, ${v} .dl-r.aya` };
+  }
+  if (id === 'order' || id === 'gate' || id === 'gateAgain') return { sel: '#touch-ui.has-use .tu-use' };
+  return null;
 }
 function safeTrue(fn) { try { return !!fn(); } catch (e) { return false; } }

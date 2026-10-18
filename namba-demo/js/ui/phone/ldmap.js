@@ -50,7 +50,11 @@ export class LdMap {
   }
   baseFor(level) {
     let b = this.base.get(level);
-    if (b) return b;
+    if (b) { if (this.base.size > 1) { this.base.delete(level); this.base.set(level, b); } return b; }     // (most recent last)
+    // v12.1 (iOS memory): a phone keeps the floor plans of the two floors used last (~6 MB each); a dropped one is
+    // redrawn in a few ms if you go back
+    const keep = this.ctx.engine && this.ctx.engine.mobile ? 2 : Infinity;
+    while (this.base.size >= keep) { const [k, old] = this.base.entries().next().value; old.canvas.width = old.canvas.height = 0; this.base.delete(k); }
     const grid = this.ctx.world.grids[level]; if (!grid) return null;
     const ppm = this.app.phone.lowQ ? 3 : 4;
     const c = document.createElement('canvas');
