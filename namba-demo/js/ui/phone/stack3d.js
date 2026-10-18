@@ -20,8 +20,8 @@
 // Shared mode draws the stack with the game's own renderer into the bottom-left corner of its drawing buffer, BEFORE
 // the game frame (phone.update runs before engine.render, which then overwrites every pixel), and copies that corner
 // into this canvas (a 2D context) in the same task: no preserveDrawingBuffer, no readPixels, no extra GPU context.
-// The copy can never be bigger than the game's drawing buffer, so the stack is never sharper than the game itself
-// (on screen it is the same resolution or better). ~30 fps, only while it is visible.
+// A stack taller than the game's drawing buffer (the portrait phone in a landscape game) is drawn in horizontal bands
+// (a view offset per band), so it keeps its own resolution. ~30 fps, only while it is visible.
 //   ?ldctx   force the old separate renderer on a touch device (A/B)   ?ldshared   force shared mode on desktop
 // =============================================================================
 import * as THREE from 'three';
@@ -158,14 +158,15 @@ export class Stack3D {
     const geo = new THREE.PlaneGeometry(2, 2);
     const mat = new THREE.ShaderMaterial({
       depthTest: false, depthWrite: false,
-      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.9999, 1.0); }',
+      // uV: the tile's slice of the full-frame v (shared mode draws a tall stack in horizontal bands): (bottom, height)
+      vertexShader: 'varying vec2 vUv; uniform vec2 uV; void main(){ vUv = vec2(uv.x, uV.x + uv.y * uV.y); gl_Position = vec4(position.xy, 0.9999, 1.0); }',
       fragmentShader: `varying vec2 vUv; uniform float uTime;
         void main(){ vec2 p = vUv - vec2(0.5, 0.52);
           float r = length(p * vec2(0.85, 1.0));
           vec3 c = mix(vec3(0.050, 0.085, 0.150), vec3(0.012, 0.018, 0.035), smoothstep(0.0, 0.85, r));
           c += vec3(0.02, 0.05, 0.08) * (1.0 - smoothstep(0.0, 0.5, abs(vUv.y - 0.62))) * 0.6;
           gl_FragColor = vec4(c, 1.0); }`,
-      uniforms: { uTime: { value: 0 } },
+      uniforms: { uTime: { value: 0 }, uV: { value: new THREE.Vector2(0, 1) } },
     });
     const m = new THREE.Mesh(geo, mat); m.renderOrder = -100; m.frustumCulled = false;
     this.scene.add(m);
@@ -475,10 +476,10 @@ export class Stack3D {
     const c = this.canvas, W = c.clientWidth, H = c.clientHeight; if (!W || !H) return;
     let pr = Math.max(1, Math.min(this.low ? 1.25 : 2, (window.devicePixelRatio || 1) * this._cssScale()));
     if (this.shared) {
-      // the corner of the game's drawing buffer is the canvas we draw in: never larger than it (in 0.05 steps, so the
-      // game's dynamic resolution does not reallocate this canvas every few frames)
+      // the corner of the game's drawing buffer is where we draw: never wider than it (a taller stack is drawn in
+      // bands, _withMain); in 0.05 steps, so the game's dynamic resolution does not reallocate this canvas every few frames
       const M = this.renderer.domElement;
-      pr = Math.floor(Math.min(pr, (M.width - 1) / W, (M.height - 1) / H) * 20) / 20;
+      pr = Math.floor(Math.min(pr, (M.width - 1) / W) * 20) / 20;
       if (!(pr > 0.1)) return;
     }
     if (!force && W === this._w && H === this._h && pr === this._pr) return;
@@ -566,7 +567,8 @@ export class Stack3D {
     this.camera.lookAt(c.tx, c.ty, c.tz);
     // shift the picture centre into the free band between header and sheet
     const H = this._h, W = this._w, shift = (this.bandTop - this.bandBottom) / 2;
-    this.camera.setViewOffset(W, H, this.bandRight / 2, -shift, W, H);
+    this._vo = [this.bandRight / 2, -shift];
+    this.camera.setViewOffset(W, H, this._vo[0], this._vo[1], W, H);
     this.camera.updateMatrixWorld();
     // level emphasis
     const cur = this.curLevel;
@@ -654,18 +656,32 @@ export class Stack3D {
   // of renderer state touched is put back, so the game frame that follows renders exactly as before.
   _withMain(fn, blit) {
     const R = this.renderer, M = R.domElement, c = this.canvas, dw = c.width, dh = c.height;
-    if (!dw || !dh || dw > M.width || dh > M.height) { this.resize(true); return false; }
+    if (!dw || !dh || dw > M.width || M.height < 16) { this.resize(true); return false; }
     const rt = R.getRenderTarget(), tm = R.toneMapping, ex = R.toneMappingExposure, ac = R.autoClear, sct = R.getScissorTest(), ca = R.getClearAlpha();
     R.getViewport(this._vp); R.getScissor(this._sc); R.getClearColor(this._cc);
-    const pr = R.getPixelRatio(), w = dw / pr, h = dh / pr;
+    const pr = R.getPixelRatio(), cam = this.camera, W = this._w, H = this._h, vo = this._vo || [0, 0];
+    const bandH = Math.min(dh, M.height), n = blit ? Math.ceil(dh / bandH) : 1;
+    const ribs = [this.ribCore, this.ribGlow], bgV = this.bgMat.uniforms.uV.value;
     try {
       R.setRenderTarget(null);
       R.toneMapping = THREE.NoToneMapping; R.toneMappingExposure = 1; R.autoClear = true;
-      R.setViewport(0, 0, w, h); R.setScissor(0, 0, w, h); R.setScissorTest(true);
+      R.setScissorTest(true);
       R.setClearColor(0x050810, 1);
-      fn();
-      if (blit) this.out.drawImage(M, 0, M.height - dh, dw, dh, 0, 0, dw, dh);
+      for (let i = 0; i < n; i++) {
+        // band i: device rows [y0, y0 + bh) of this canvas, top down
+        const y0 = i * bandH, bh = Math.min(bandH, dh - y0), w = dw / pr, h = bh / pr;
+        if (n > 1) {
+          const cy = y0 * H / dh, ch = bh * H / dh;              // the band in the canvas's CSS px
+          cam.setViewOffset(W, H, vo[0], vo[1] + cy, W, ch); cam.updateProjectionMatrix();
+          for (const m of ribs) m.uniforms.uRes.value.set(W, ch);          // the ribbon is screen-space: px of this band
+          bgV.set(1 - (y0 + bh) / dh, bh / dh);
+        }
+        R.setViewport(0, 0, w, h); R.setScissor(0, 0, w, h);
+        fn();
+        if (blit) this.out.drawImage(M, 0, M.height - bh, dw, bh, 0, y0, dw, bh);
+      }
     } finally {
+      if (n > 1) { cam.setViewOffset(W, H, vo[0], vo[1], W, H); cam.updateProjectionMatrix(); for (const m of ribs) m.uniforms.uRes.value.set(W, H); bgV.set(0, 1); }
       R.toneMapping = tm; R.toneMappingExposure = ex; R.autoClear = ac;
       R.setClearColor(this._cc, ca);
       R.setViewport(this._vp); R.setScissor(this._sc); R.setScissorTest(sct);

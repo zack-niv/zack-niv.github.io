@@ -105,7 +105,7 @@ export function armRecovery(ctx, rec) {
       mem = { tex: e.texMB, cv: e.canvasMB, gl: glContexts, heap: pm ? Math.round(pm.usedJSHeapSize / 1048576) : undefined, ld: st ? (st.shared ? 'shared' : 'ctx') : undefined };
     } catch (e) { /* ignore */ }
   };
-  const mark = (s) => { stage = s; stageAt = performance.now(); if (running) { sampleMem(/^lodestone_/.test(s)); write(); } };
+  const mark = (s) => { stage = s; stageAt = performance.now(); if (running) { sampleMem(/^lodestone_(installing|calibrating|ready)$/.test(s)); write(); } };
   const E = ctx.events;
   E.on('game:ready', () => mark('title'));
   E.on('game:start', () => mark('play'));

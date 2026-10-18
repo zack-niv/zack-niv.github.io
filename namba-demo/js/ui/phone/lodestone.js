@@ -324,7 +324,7 @@ export class LodestoneApp {
     ph.home && ph.home.addLodestone();
     ph._dockAddLodestone && ph._dockAddLodestone();
     ph.messages && ph.messages.markInstalled();
-    // v12.1 (iOS memory): from here on Lodestone guides; on a phone the Maps app's floor plans (~6 MB of canvas per
+    // v12.1 (iOS memory): from here on Lodestone guides; on a phone the Maps app's floor plans (~2.5 MB of canvas per
     // floor) go now, and are redrawn on demand if Maps is opened again
     if (this.ctx.engine && this.ctx.engine.mobile && ph.maps && ph.maps.base) { for (const b of ph.maps.base.values()) b.canvas.width = b.canvas.height = 0; ph.maps.base.clear(); }
     if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest || null); } catch (e) { console.error(e); } }
