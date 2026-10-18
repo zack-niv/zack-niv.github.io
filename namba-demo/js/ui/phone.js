@@ -592,7 +592,7 @@ export class Phone {
     this._cueN++;
     const who = esc(A.msg.title || 'Aya');
     c.querySelector('.ph-cue-t').innerHTML = A.offer ? `<b>${who} sent you an app</b><span>Tap your phone to see it</span>`
-      : A.reply ? `<b>${who} texted you</b><span>Tap your phone to reply</span>` : `<b>New message</b><span>Tap your phone to read it</span>`;
+      : A.reply ? `<b>${who} texted you</b><span>Tap your phone to reply</span>` : `<b>${who} texted you</b><span>Tap your phone to read it</span>`;
     c.hidden = false; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in');
     this._placeCue();
   }
