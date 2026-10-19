@@ -28,6 +28,10 @@ ahead of the curve, be your own honest critic (not criticism for its own sake), 
   get something wrong, say so plainly and correct course. "Fixed in code" is not "fixed": say which part is proven where.
 - **Root cause over patches.** One cause behind many symptoms is the usual story (one-sided geometry, a float32 mask, an
   unlock spent on the wrong gesture). Prove the cause with evidence, fix it once, then sweep for the same class of bug.
+- **Rule out your own side before blaming another.** Before calling a failure the vendor's, the client's or the user's,
+  prove your end is airtight against the *current* standard (read the latest spec, not your memory of it) and explain every
+  odd signal in your own logs first. Kumiau, 2026-10-19: "it's Claude's side" was said while our logs showed an unanswered
+  `server/discover`, the probe of an MCP spec revision we did not implement yet.
 - **Lean scope.** Do what the feedback asks, in its spirit. Small diffs, no rewrites, no new systems unless the evidence
   says the old one cannot do the job.
 - **Keep momentum.** Never leave agents stuck or the build broken. Commit and push checkpoints. Ship as soon as a round is
@@ -124,6 +128,8 @@ Lessons learned on one project that apply to any. Add new ones in `retro`; keep 
   an explicit opt-in flag and replay requests through a tool that can reach the network (Namba `phroute.mjs`).
 - **One cause, many symptoms:** before fixing items one by one, look for the shared pattern across the screenshots.
 - **Docs drift:** status snapshots in committed files go stale; keep one source of truth for status and point to it.
+- **Unexplained log noise is evidence:** a warning nobody can explain (an unknown method, a redacted field) is the first
+  lead, not background. Check that your logs can show it at all (Kumiau: the logger redacted `tools/list`, hiding the probe).
 
 ## 9. Project adapter (what every project's CLAUDE.md must provide)
 
