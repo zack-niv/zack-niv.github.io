@@ -4,7 +4,7 @@
 // resonances, textures are granular populations of tiny events.
 // Each export returns Float32Array (mono) or [L,R] (stereo).
 // =============================================================================
-import { TAU, rng, Biquad, white, pink, brown, applyEnv, addMode, normalize, normalizeRms, smoothRandom, foldLoop, filt, onePoleLP, clamp, peak, softclip, scale } from './dsp.js?v=9ec3217';
+import { TAU, rng, Biquad, white, pink, brown, applyEnv, addMode, normalize, normalizeRms, smoothRandom, foldLoop, filt, onePoleLP, clamp, peak, softclip, scale } from './dsp.js?v=ca6849e';
 
 // ---- footsteps -------------------------------------------------------------------
 // Surface acoustic recipes. Each step = heel impact + (rolled) toe slap,

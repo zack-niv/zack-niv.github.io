@@ -10,17 +10,17 @@
 // Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
 // name, logo or colours anywhere.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=9ec3217';
-import { Stack3D } from './stack3d.js?v=9ec3217';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=ca6849e';
+import { Stack3D } from './stack3d.js?v=ca6849e';
 const HERO_S = 4.6;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=9ec3217';
-import { Tracker } from './track.js?v=9ec3217';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=9ec3217';
-import { businessBySlot } from '../../world/directory.js?v=9ec3217';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=9ec3217';
-import { placeArt } from './art.js?v=9ec3217';
-import { LdMap, CAL_DONE } from './ldmap.js?v=9ec3217';
-import { NavHeader } from './glance.js?v=9ec3217';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=ca6849e';
+import { Tracker } from './track.js?v=ca6849e';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=ca6849e';
+import { businessBySlot } from '../../world/directory.js?v=ca6849e';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=ca6849e';
+import { placeArt } from './art.js?v=ca6849e';
+import { LdMap, CAL_DONE } from './ldmap.js?v=ca6849e';
+import { NavHeader } from './glance.js?v=ca6849e';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');
@@ -184,9 +184,13 @@ export class LodestoneApp {
     } catch (e) { console.error('[lodestone warm]', e); this.ctx.errors && this.ctx.errors.push('lodestone: ' + e.message); }
   }
   _makeStack() {
-    const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ });
+    // v12.1: phones / tablets (and any recovered run) draw the stack with the game's renderer: no second WebGL context
+    const P = this.ctx.params, E = this.ctx.engine;
+    const shared = P.has('ldshared') || (!P.has('ldctx') && !!(E && (E.mobile || E.safe)));
+    const s = new Stack3D(this.ctx, this.el.c3d, { low: this.phone.lowQ, shared });
     s.init();
     s.onUser = () => { this._userMoved = true; };
+    s.onBlank = () => { try { this.el.c3d.style.visibility = 'hidden'; } catch (e) { /* ignore */ } if (this.view === 'stack') this.setView('guide'); };   // v13: 2D map only
     this._bands(s);
     return s;
   }
@@ -218,6 +222,7 @@ export class LodestoneApp {
   // hero: the reveal's brief 3D fly-in (v8 critic); any other view change (V, Done, a tap) cancels the auto-settle
   setView(v, hero = false) {
     if (this.state !== 'ready' || v === this.view) return;
+    if (v === 'stack' && this.stack && this.stack.blank) return;      // v13: the 3D copy came back black on this device
     this._heroT = hero ? HERO_S : 0; if (!hero) this._heroWait = 0;
     this.view = v;
     this.el.main.dataset.view = v;
@@ -321,6 +326,9 @@ export class LodestoneApp {
     ph.home && ph.home.addLodestone();
     ph._dockAddLodestone && ph._dockAddLodestone();
     ph.messages && ph.messages.markInstalled();
+    // v12.1 (iOS memory): from here on Lodestone guides; on a phone the Maps app's floor plans (~2.5 MB of canvas per
+    // floor) go now, and are redrawn on demand if Maps is opened again
+    if (this.ctx.engine && this.ctx.engine.mobile && ph.maps && ph.maps.base) { for (const b of ph.maps.base.values()) b.canvas.width = b.canvas.height = 0; ph.maps.base.clear(); }
     if (!this.stack) { try { this.stack = this._makeStack(); this.stack.setDestination(this.dest || null); } catch (e) { console.error(e); } }
     this._rt = 0; this._lastPos = [1e9, 1e9, ''];
     this._shownLevel = ph.pos.level;

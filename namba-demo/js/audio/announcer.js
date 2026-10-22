@@ -23,8 +23,8 @@
 // '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
 // `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
-import { spokenText } from './phrases.js?v=9ec3217';
-import { platformGain, pointGain } from './zones.js?v=9ec3217';
+import { spokenText } from './phrases.js?v=ca6849e';
+import { platformGain, pointGain } from './zones.js?v=ca6849e';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -51,6 +51,20 @@ const CANCEL_GAP = 0.3;            // s of quiet after speechSynthesis.cancel() 
 // station and train lines always are, as before).
 const IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1));
 const IOS_MIN_VOL = 0.45;
+// v13 (Zack on an iPhone: "announcements don't sound like a natural part of the surroundings"). The speech voice is dry,
+// centred and, on iOS, always at full device volume; under it the beds dropped a further 15 dB, so every line landed in a
+// silent, roomless station. Now:
+//   * iOS ducks the beds gently (its voice is loud whatever we do; the station keeps living under it);
+//   * the hall answers the PA: a PA-horn formant voice with the line's own mora timing ('vx:' recipe) plays ONLY into the
+//     station reverb while the real voice reads the line (start on the utterance's onstart, fade on its onend), so the
+//     line gets the space's tail and the platform's speaker-to-speaker echoes (ir.js slaps) that speech cannot be routed to;
+//   * on iOS a PA line you only overhear (a platform below / far along the shed: volume under IOS_PA_NEAR) is not read at
+//     full volume in your ear: you hear it as it really sounds from there, the muffled speakers in the hall (+ caption).
+const PA_DUCK_IOS = { ambience: 0.5, sfx: 0.68 };             // -6 dB, -3.4 dB
+const IOS_PA_NEAR = 0.35;
+const HALL_GAIN = 0.45, HALL_GAIN_PHONE = 0.32;               // proxy level into the reverb (phone: its mix sits +10 dB hotter)
+const HALL_KEEP = 6;                                          // proxies kept synthesized (≈ 0.4 MB each); older ones are dropped
+const hashText = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0) % 97 + 1; };
 const wall = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export class Announcer {
@@ -71,7 +85,12 @@ export class Announcer {
     // v12: speech unlock + what the device actually did (stats() -> analytics namba_pa)
     this._unlocked = false; this.unlockVia = null; this._unlocking = null; this._needsPrime = false;
     this._cancelAt = -9; this._paused = false; this._noStartRun = 0;
-    this.st = { attempts: 0, tried: 0, started: 0, ended: 0, noStart: 0, errors: [], lastErr: null };
+    this.st = { attempts: 0, tried: 0, started: 0, ended: 0, noStart: 0, errors: [], lastErr: null, hall: 0, murmur: 0 };
+    const q = sys.ctx && sys.ctx.params && sys.ctx.params.has ? (k) => sys.ctx.params.has(k) : () => false;
+    this.ios = IOS && !q('noiospa');      // ?noiospa: the v12 iOS PA (deep duck, every line read aloud) for A/B
+    this.noHall = q('nohall');            // ?nohall: no hall proxy under the PA (A/B)
+    this.hallDesk = q('hall');            // v13 critic: the proxy is a phone-speaker fix; desktop keeps its v12 PA unless ?hall
+    this._vxKeep = [];
     if (this.speech) {
       this.refreshVoices();
       try { this.speech.addEventListener('voiceschanged', () => this.refreshVoices()); } catch (e) { this.speech.onvoiceschanged = () => this.refreshVoices(); }
@@ -169,6 +188,7 @@ export class Announcer {
     if (item.cooldown && this.t - (this._repeat.get(key) ?? -999) < item.cooldown) return null;
     if (this._vol(item) < MIN_VOL) { this._note(`drop(inaudible) ${item.kind} "${key.slice(0, 30)}"`); return null; }
     if (item.chime) this.bank.get('chime:' + item.chime, 2);
+    const hn = this._hallOn() && this._hallName(item); if (hn) { this.bank.get(hn, 4); this._vxTouch(hn); }
     if (item.delay > 0.5 && (item.platform || item.pa)) this._preDuck(item);   // the melody / lead-in already plays: get the beds out of its way
     if (this.cur && item.prio < this.cur.prio && item.prio <= 1) this._interrupt();
     this.queue.push(item);
@@ -192,6 +212,7 @@ export class Announcer {
     const c = this.cur; if (!c) return;
     if (c.utter && this.speech) this._cancel();
     if (c.node) try { c.node.stop(0.08); } catch (e) { /* */ }
+    this._hallStop(c, 0.15);
     this._note(`interrupt ${c.kind}`);
     this.cur = null;
     this._relAt = this.t + DUCK_HOLD;
@@ -210,7 +231,7 @@ export class Announcer {
   // beds down while a delayed PA line's lead-in (melody) plays; the speech's own start deepens it (and extends sfx)
   _preDuck(item) {
     const av = Math.min(1, this._vol(item));
-    const v = 1 - (1 - PRE_DUCK_AMB) * av;
+    const v = 1 - (1 - (this.ios ? 0.62 : PRE_DUCK_AMB)) * av;
     if (v < this.duck) this._setDuck(v, this.duckSfx);
     this._relAt = Math.max(this._relAt ?? 0, item.born + 6);   // safety: let go if the line never starts
   }
@@ -255,6 +276,7 @@ export class Announcer {
       const voice = this._speakable(p);
       const vol = this._vol(c);
       const minVol = IOS && !(c.platform || c.pa) && c.prio >= 2 ? IOS_MIN_VOL : MIN_VOL;
+      if (voice && this.ios && (c.platform || c.pa) && vol < IOS_PA_NEAR && p.lang === 'ja' && this._murmur(c, vol)) return;
       if (voice && vol >= minVol) {
         if (this.t - this._cancelAt < CANCEL_GAP) { c.wait = this._cancelAt + CANCEL_GAP; return; }   // a breath after a cancel
         this._speak(c, p, voice, vol); return;
@@ -280,9 +302,10 @@ export class Announcer {
     // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
     const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
-    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) c.uStarted = true; };
-    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; };
+    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } };
+    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); };
     u.onerror = (e) => {
+      this._hallStop(c);
       const code = (e && e.error) || 'error';
       if (code !== 'interrupted' && code !== 'canceled') this._err(code);    // our own cancels are not failures
       if (c.utter === u) { c.uErr = code; c.uDone = true; this._note('error ' + code); }
@@ -304,8 +327,9 @@ export class Announcer {
     if (item.cooldown) this._repeat.set(item._key, this.t);
     const av = Math.min(1, vol);
     item._ducks = true;
-    if (item.platform || item.pa) this._setDuck(1 - (1 - PA_DUCK.ambience) * av, 1 - (1 - PA_DUCK.sfx) * av);
-    else if (item.prio <= 1) this._setDuck(1 - 0.45 * av); else if (item.prio <= 3) this._setDuck(1 - 0.2 * av);
+    const D = this.ios ? PA_DUCK_IOS : PA_DUCK;
+    if (item.platform || item.pa) this._setDuck(1 - (1 - D.ambience) * av, 1 - (1 - D.sfx) * av);
+    else if (item.prio <= 1) this._setDuck(1 - (this.ios ? 0.25 : 0.45) * av); else if (item.prio <= 3) this._setDuck(1 - 0.2 * av);
     else item._ducks = false;
     if (item._ducks) this._relAt = null;
     if (item.chime) {
@@ -330,6 +354,44 @@ export class Announcer {
     return this.mixer.play(buf, { bus: 'voice', gain: g, send: item.send ?? 0.6, lp: item.lp, pan: (item.id % 3 - 1) * 0.12, force: true, when: pre ? this.ac.currentTime + pre : undefined });
   }
 
+  // ---- v13: the hall's answer to the PA (see the note at the top) ------------------------------------------------------
+  // which lines get one: station-wide speakers (platform / area PA, train, station, escalator); not shop calls or barks
+  _hallOn() { return !this.noHall && (this.hallDesk || this.ios || this.sys.profile === 'phone'); }
+  _hallName(item) {
+    if (!(item.platform || item.pa || item.kind === 'train' || item.kind === 'station' || item.kind === 'platform' || item.kind === 'escalator')) return null;
+    const ja = item.parts.find(p => p.lang === 'ja'); if (!ja) return null;
+    const text = spokenText(ja.say || ja.text, 'ja');
+    return `vx:${hashText(text)}:${text}`;
+  }
+  _hallPlay(c, name, opts) {
+    const buf = this.bank.peek(name); if (!buf) return null;
+    this._vxTouch(name);
+    return this.mixer.play(buf, { bus: 'voice', force: true, ...opts });
+  }
+  // keep the proxies of the last HALL_KEEP lines (requested or played); drop the rest so memory stays flat
+  _vxTouch(name) {
+    const k = this._vxKeep, i = k.indexOf(name); if (i >= 0) k.splice(i, 1); k.push(name);
+    while (k.length > HALL_KEEP) this.bank.drop(k.shift());
+  }
+  // the real voice just started: the same line, into the reverb only
+  _hall(c, p, vol) {
+    if (c.hall || !this._hallOn()) return;
+    const name = this._hallName(c); if (!name) return;
+    const g = (this.sys.profile === 'phone' ? HALL_GAIN_PHONE : HALL_GAIN) * Math.min(1, vol);
+    c.hall = this._hallPlay(c, name, { gain: g, send: 1, wetOnly: true, lp: 3800 });
+    if (c.hall) this.st.hall++;
+  }
+  _hallStop(c, tc = 0.35) { if (c && c.hall) { try { c.hall.stop(tc); } catch (e) { /* ended */ } c.hall = null; } }
+  // iOS, a PA line you only overhear: the speakers in the hall, muffled by distance (no full-volume voice in your ear)
+  _murmur(c, vol) {
+    const name = this._hallName(c); if (!name) return false;
+    const node = this._hallPlay(c, name, { gain: 0.55 * Math.min(1, vol / IOS_PA_NEAR), send: 1, lp: 1500 });
+    if (!node) return false;
+    this.st.murmur++; this._note(`murmur ${c.kind} vol=${vol.toFixed(2)}`);
+    c.hall = node; c.step = c.parts.length; c.ending = true; c.wait = this.t + node.src.buffer.duration + 0.4;
+    return true;
+  }
+
   // v12 contract (lead -> analytics namba_pa). See notes/v12-pa.md.
   //   voices: getVoices().length · ja: the ja-JP voice picked (name) or null · unlocked: speech proven by an onstart/onend ·
   //   unlockVia: the gesture (touchend|click|keydown|pointerdown) or 'line'/'speaking' that proved it · attempts: unlock
@@ -338,7 +400,7 @@ export class Announcer {
   stats() {
     const s = this.st;
     return { voices: this.voiceCount, ja: this.voices.ja ? this.voices.ja.name : null, unlocked: !!this._unlocked, unlockVia: this.unlockVia,
-      attempts: s.attempts, started: s.started, ended: s.ended, errors: s.errors.slice(), lastErr: s.lastErr,
+      attempts: s.attempts, started: s.started, ended: s.ended, errors: s.errors.slice(), lastErr: s.lastErr, hall: s.hall, murmur: s.murmur,
       tried: s.tried, noStart: s.noStart, needsPrime: !!this._needsPrime, speech: !!this.speech };
   }
   debug() {

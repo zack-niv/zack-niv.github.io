@@ -350,7 +350,7 @@ export class Input {
 
   _buildTouchUi() {
     if (!document.querySelector('link[data-namba="input-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=9ec3217'; l.dataset.namba = 'input-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/input.css?v=ca6849e'; l.dataset.namba = 'input-css';
       document.head.appendChild(l);
     }
     // the stick only (the buttons live in js/ui/touch.js)

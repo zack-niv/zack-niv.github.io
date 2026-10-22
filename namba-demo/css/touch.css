@@ -179,6 +179,26 @@ html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4p
    controls sit just above the dock; lodestone.js _bands() frames the stack into what is left */
 #phone-root.ph-compact .ld-main[data-view="stack"] .ld-sheet { display: none; }
 #phone-root.ph-compact .ld-main[data-view="stack"] .ld-ctl { bottom: 104px; }
+/* v13: a landscape phone now holds the desktop's portrait phone at ~0.6 (js/ui/phone.js _layout): what you must read or
+   tap is set larger in device px (x ~0.6 on screen: 8 px text would become ~10 px, a 27 px chip ~35 px + its tap margin).
+   The reply chips are filled buttons on touch, so a text that wants an answer looks like it wants a tap. */
+html.is-touch #phone-root.ph-compact .ms-b p { font-size: 16.5px; line-height: 1.3; padding: 9px 13px; }
+html.is-touch #phone-root.ph-compact .ms-b small { font-size: 11px; }
+html.is-touch #phone-root.ph-compact .ms-replies { gap: 9px; padding: 10px 12px 8px; }
+html.is-touch #phone-root.ph-compact .ms-chip { min-height: 58px; padding: 10px 18px 10px 16px; border-radius: 24px; font-size: 17px; }
+html.is-touch #phone-root.ph-compact .ms-l-t b { font-size: 16.5px; }
+html.is-touch #phone-root.ph-compact .ms-l-t small { font-size: 12.5px; }
+html.is-touch #phone-root.ph-compact .ms-link em { font-size: 16px; padding: 10px 18px; border-radius: 18px; }
+html.is-touch #phone-root.ph-compact .ph-dock button { font-size: 11.5px; }
+html.is-touch #phone-root.ph-compact .gl-note .gl-t b { font-size: 17px; }
+html.is-touch #phone-root.ph-compact .gl-note .gl-t p { font-size: 16.5px; line-height: 1.2; }
+html.is-touch #phone-root.ph-compact .gl-read { font-size: 14px; padding: 8px 12px 8px 10px; border-radius: 14px; }
+html.is-touch #phone-root.ph-compact .gl-t b { font-size: 19px; }
+html.is-touch #phone-root .ms-chip { background: #0a84ff; color: #fff; border-color: #0a84ff; box-shadow: 0 4px 14px rgba(10,132,255,.32); animation: msChipBeat 1.5s ease-in-out .5s 3; }
+html.is-touch #phone-root .ms-chip:active { background: #0062d1; }
+html.is-touch #phone-root .ms-chip-photo { background: #ff9f0a; border-color: #ff9f0a; color: #fff; box-shadow: 0 4px 14px rgba(255,159,10,.32); }
+@keyframes msChipBeat { 50% { box-shadow: 0 0 0 4px rgba(10,132,255,.25), 0 4px 18px rgba(10,132,255,.5); } }
+@media (prefers-reduced-motion: reduce) { html.is-touch #phone-root .ms-chip { animation: none; } }
 /* the category chips in the "Where to?" list (25 px tall at phone scale): a taller invisible tap area */
 html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
 html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }
@@ -305,3 +325,78 @@ html.ph-wide .g-tip.ph-up { opacity: 0 !important; visibility: hidden !important
   html.ph-wide .h-amb-en { display: none; }
 }
 @media (pointer: coarse) and (max-height: 300px) { html.ph-wide #hud .h-amb { top: 62px; } }
+
+/* ==== v13 tutorial: the thumb coach (js/ui/touch.js coach(), driven by js/game/tutorial.js) ====================
+   The opening look + walk steps split the screen into the two areas the thumbs own: left 42 % = the walk stick's
+   zone (js/core/input.js stickZone), the rest = drag to look. A ghost thumb does each gesture; each side says "Nice"
+   and fades as soon as the player has done it. Later hints get the same ghost thumb, tapping the real control. */
+.tu-coach { position: absolute; inset: 0; opacity: 0; transition: opacity .5s ease; --ct: 244,241,234; --ca: 255,204,51; }
+.tu-coach.on { opacity: 1; }
+.tcz { position: absolute; top: 0; bottom: 0; transition: opacity .6s ease .9s; }
+.tcz-walk { left: 0; width: 42%; background: radial-gradient(70% 60% at calc(108px + var(--sl)) calc(100% - 92px - var(--sb)), rgba(var(--ca),.13), rgba(var(--ca),0) 70%); }
+.tcz-look { left: 42%; right: 0; background: radial-gradient(55% 55% at 50% 50%, rgba(var(--ct),.09), rgba(var(--ct),0) 70%); }
+.tcz-look::before { content: ''; position: absolute; left: 0; top: 16%; bottom: 16%; border-left: 1.5px dashed rgba(var(--ct),.3); }
+.tcz.done { opacity: 0; }
+/* the labels */
+.tcz-lab { position: absolute; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 14px 9px; border-radius: 16px;
+  background: rgba(10,11,14,.52); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); text-shadow: 0 1px 6px rgba(0,0,0,.6); transition: background .25s ease; }
+.tcz.done .tcz-lab { background: rgba(10,11,14,0); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tcz-lab small { font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(var(--ca),.95); }
+.tcz-lab b { font-size: 21px; font-weight: 700; line-height: 1.15; letter-spacing: -.01em; }
+.tcz-lab em { font-style: normal; font-size: 12px; line-height: 1.3; color: rgba(var(--ct),.72); }
+.tcz-lab small, .tcz-lab b, .tcz-lab em, .tcz-bar { transition: opacity .25s ease; }
+.tcz-bar { display: block; width: 72px; height: 3px; margin-top: 7px; border-radius: 2px; background: rgba(var(--ct),.22); overflow: hidden; }
+.tcz-bar u { display: block; height: 100%; width: calc(var(--p, 0) * 100%); background: rgb(var(--ca)); border-radius: inherit; transition: width .2s linear; }
+.tcz-ok { position: absolute; left: 14px; top: 50%; transform: translateY(-50%) scale(.85); font-size: 22px; font-weight: 700; color: rgb(var(--ca)); opacity: 0; transition: opacity .25s ease, transform .25s ease; white-space: nowrap; }
+.tcz-ok::before { content: '✓ '; }
+.tcz.done .tcz-lab small, .tcz.done .tcz-lab b, .tcz.done .tcz-lab em, .tcz.done .tcz-bar { opacity: 0; }
+.tcz.done .tcz-ok { opacity: 1; transform: translateY(-50%); }
+.tcz-drag { transition: opacity .25s ease; }
+.tcz.done .tcz-ring, .tcz.done .tcz-drag { opacity: 0; }
+.tcz-walk .tcz-lab { left: calc(40px + var(--sl)); bottom: calc(40px + var(--sb) + 104px + 14px); }
+.tcz-look .tcz-lab { left: 50%; top: calc(50% - 30px); transform: translate(-50%, -100%); align-items: center; text-align: center; }
+.tcz-look .tcz-ok { left: 50%; transform: translate(-50%, -50%) scale(.85); }
+.tcz-look.done .tcz-ok { transform: translate(-50%, -50%); }
+/* the ghost thumb (shared with the tap pointer) */
+.tcz-thumb { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; border-radius: 50%; background: rgba(var(--ct),.42);
+  border: 2px solid rgba(255,255,255,.85); box-shadow: 0 0 0 6px rgba(var(--ca),.16), 0 4px 14px rgba(0,0,0,.35); }
+/* walk: a stick ring where the resting ghost stick is; the thumb pushes forward, holds, curves, lets go */
+.tcz-ring { position: absolute; left: calc(56px + var(--sl)); bottom: calc(40px + var(--sb)); width: 104px; height: 104px; border-radius: 50%;
+  border: 2px solid rgba(var(--ct),.45); background: rgba(12,13,16,.18); transition: opacity .2s ease; }
+.tcz-ring .tcz-thumb { left: 50%; top: 50%; animation: tczWalk 2.6s ease-in-out infinite; }
+@keyframes tczWalk { 0% { transform: translate(0,0) scale(.8); opacity: 0; } 10% { transform: translate(0,0); opacity: 1; } 32%, 52% { transform: translate(0,-34px); }
+  70% { transform: translate(24px,-24px); opacity: 1; } 88% { transform: translate(0,0); opacity: 1; } 100% { transform: translate(0,0) scale(.8); opacity: 0; } }
+html:has(#touch-controls.stick-on) .tcz-ring, html.tu-coaching .tu-ghost { opacity: 0; }
+/* look: the thumb drags sideways over a faint double arrow */
+.tcz-drag { position: absolute; left: 50%; top: calc(50% + 6px); width: 170px; height: 36px; margin-left: -85px; }
+.tcz-trail { position: absolute; left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; background: linear-gradient(90deg, rgba(var(--ct),0), rgba(var(--ct),.45) 30%, rgba(var(--ct),.45) 70%, rgba(var(--ct),0)); }
+.tcz-trail::before, .tcz-trail::after { content: ''; position: absolute; top: -4px; width: 8px; height: 8px; border: solid rgba(var(--ct),.55); border-width: 0 0 2px 2px; }
+.tcz-trail::before { left: 6px; transform: rotate(45deg); }
+.tcz-trail::after { right: 6px; transform: rotate(-135deg); }
+.tcz-drag .tcz-thumb { left: 50%; top: 50%; animation: tczLook 3s ease-in-out infinite; }
+@keyframes tczLook { 0% { transform: translateX(0) scale(.8); opacity: 0; } 10% { transform: translateX(0); opacity: 1; } 40% { transform: translateX(-62px); }
+  75% { transform: translateX(62px); opacity: 1; } 100% { transform: translateX(62px) scale(.8); opacity: 0; } }
+.tu-coach.nudge .tcz:not(.done) .tcz-lab b { animation: tczNudge 1.1s ease 2; }
+@keyframes tczNudge { 50% { transform: scale(1.06); color: rgb(var(--ca)); } }
+/* short screens (Safari bars showing): the walk label sits beside the ring, the look label closer to the trail */
+@media (max-height: 330px) {
+  .tcz-walk .tcz-lab { left: calc(56px + var(--sl) + 104px + 14px); bottom: calc(40px + var(--sb) + 18px); }
+  .tcz-lab b { font-size: 18px; }
+  .tcz-look .tcz-lab { top: calc(50% - 22px); }
+}
+/* the tap pointer: a ghost thumb tapping on the control the hint is about (placed by js, in viewport px) */
+.tu-point { position: absolute; left: 0; top: 0; width: 0; height: 0; opacity: 0; transition: opacity .3s ease; z-index: 3; --ct: 244,241,234; --ca: 255,204,51; }
+.tu-point.on { opacity: 1; }
+.tu-point .tcz-thumb { left: 0; top: 0; animation: tczTap 1.6s ease-in-out infinite; }
+.tcz-ripple { position: absolute; left: -24px; top: -24px; width: 48px; height: 48px; border-radius: 50%; border: 2px solid rgba(var(--ca),.9); animation: tczRipple 1.6s ease-out infinite; }
+@keyframes tczTap { 0% { transform: translate(14px,18px) scale(1.05); opacity: .2; } 22% { transform: translate(0,0) scale(1.05); opacity: 1; } 34% { transform: scale(.82); } 48% { transform: scale(1); opacity: 1; } 78% { opacity: 1; } 100% { transform: translate(14px,18px) scale(1.05); opacity: .2; } }
+/* a steady halo around the control, so a still frame (or a glance) always shows where to tap */
+.tu-point::before { content: ''; position: absolute; left: -27px; top: -27px; width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(var(--ca),.85);
+  box-shadow: 0 0 0 4px rgba(var(--ca),.14), 0 0 18px rgba(var(--ca),.45); animation: tczHalo 1.6s ease-in-out infinite; }
+@keyframes tczHalo { 0%, 100% { transform: scale(1); opacity: .95; } 50% { transform: scale(.9); opacity: .7; } }
+@keyframes tczRipple { 0%, 34% { transform: scale(.5); opacity: 0; } 40% { transform: scale(.6); opacity: .9; } 85%, 100% { transform: scale(1.6); opacity: 0; } }
+.tu-point.nudge .tcz-ripple { border-width: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  .tcz-thumb, .tcz-ripple, .tu-point::before { animation: none !important; }
+  .tcz-ring .tcz-thumb { transform: translate(0,-30px); }
+}

@@ -16,11 +16,11 @@
 // tunnel walls / soffit / street canopy for exits.
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../../render/geobatch.js?v=9ec3217';
-import { CELL } from '../world.js?v=9ec3217';
-import { LEVELS, rampProfile, rampLength, rampEnds, rampFlat, ESC_TRANSITION } from '../layout.js?v=9ec3217';
-import { styleOf } from './styles.js?v=9ec3217';
-import { KELVIN } from './kit.js?v=9ec3217';
+import { GeoBatch } from '../../render/geobatch.js?v=ca6849e';
+import { CELL } from '../world.js?v=ca6849e';
+import { LEVELS, rampProfile, rampLength, rampEnds, rampFlat, ESC_TRANSITION } from '../layout.js?v=ca6849e';
+import { styleOf } from './styles.js?v=ca6849e';
+import { KELVIN } from './kit.js?v=ca6849e';
 
 const STEP = 0.4;   // chain pitch along the step path (m)
 const SPEED = 0.5;  // m/s (= world.conveyor)

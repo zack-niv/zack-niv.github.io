@@ -3,12 +3,12 @@
 // keys, e.g. 'fs:tile:sneaker:3', 'mus:bossa', 'bed:hvac:tile', 'ir:platform',
 // 'ir:platform'. Worker-safe (imported by worker.js). (No synthesized speech: the PA uses real voices.)
 // =============================================================================
-import * as F from './foley.js?v=9ec3217';
-import * as M from './music.js?v=9ec3217';
-import * as B from './beds.js?v=9ec3217';
-import * as T from './trainsfx.js?v=9ec3217';
-import { impulse } from './ir.js?v=9ec3217';
-import { walla } from './formant.js?v=9ec3217';
+import * as F from './foley.js?v=ca6849e';
+import * as M from './music.js?v=ca6849e';
+import * as B from './beds.js?v=ca6849e';
+import * as T from './trainsfx.js?v=ca6849e';
+import { impulse } from './ir.js?v=ca6849e';
+import { walla, formantVoice } from './formant.js?v=ca6849e';
 
 const mono = (a) => [a];
 
@@ -17,6 +17,7 @@ export function rateFor(name, base) {
   const cap = Math.min(base, 48000);
   const kind = name.split(':')[0];
   if (kind === 'ir') return base;
+  if (kind === 'vx') return Math.min(cap, 16000);   // PA hall proxy: heard only through the reverb, band-limited to 4 kHz
   if (kind === 'mus') return Math.min(cap, 24000); // long loops: speaker EQ cuts >7.5 kHz anyway
   if (kind === 'mel' || kind === 'chime') return Math.min(cap, 32000);
   if (kind === 'bed') { const v = name.split(':')[1]; return v === 'leaves' || v === 'water' || v === 'steps' ? Math.min(cap, 32000) : Math.min(cap, 24000); }
@@ -88,6 +89,10 @@ export function synthesize(name, base) {
       break;
     }
     case 'ir': ch = impulse(sr, p[1]); break;
+    // v13: 'vx:<seed>:<japanese text>' — a PA-horn formant voice with the line's own mora timing. Never heard as a voice: it
+    // feeds the station reverb while the browser's (dry, un-routable) speech voice reads the line, so the hall answers the
+    // PA (announcer.js _hall), or, muffled, is the PA you overhear from afar on iOS (_murmur). Text may contain ':'.
+    case 'vx': { const text = name.slice(name.indexOf(':', 3) + 1); ch = mono(formantVoice(sr, text, { lang: 'ja', seed: +p[1] || 1, f0: 232, rate: 1.25, gender: 'f', pa: true, breath: 0.03 })); break; }
     default: throw new Error('unknown recipe ' + name);
   }
   return { channels: ch, sampleRate: sr, loop };

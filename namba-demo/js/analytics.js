@@ -13,6 +13,8 @@
 //   namba_start · namba_tutorial_step {step} · namba_tutorial_done · namba_destination {app, slot, suggested, via}
 //   namba_gate_tap (first) · namba_lost_prompt · namba_lodestone_offer · namba_lodestone_install · namba_lodestone_ready
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
+//   namba_recovered {last_stage, reason, ago_s, safe, since_stage_s, tex_mb, canvas_mb, heap_mb, gl_contexts, ld_mode}
+//   namba_run_hidden {last_stage, ago_s, …same memory props} (v12.1: last tab hidden and never back)
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
 //   namba_pa {at: first|summary, ja, unlocked, unlock_via, tried, started, no_start, errors} (v12: did the PA voice speak?)
@@ -21,6 +23,9 @@ const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project AP
 const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
+
+// v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
+const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null }; };
 
 export function setupAnalytics(ctx) {
   const q = new URLSearchParams(location.search);
@@ -74,9 +79,12 @@ export function setupAnalytics(ctx) {
   const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); paWatch(); };
   if (ctx.started) started(); else E.on('game:start', started);
   // v11.1: the previous run died on screen (iOS memory kill / context loss) and this boot is the recovery
-  try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1 }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
+  try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1, ...memProps(r) }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
+  // v12.1: the last run's tab went hidden and never came back (a background discard, or a kill announced as hidden)
+  try { const h = ctx.lastRunHidden; if (h) send('namba_run_hidden', { last_stage: h.lastStage || null, ago_s: h.ago != null ? h.ago : null, ...memProps(h) }); } catch (e) { /* optional */ }
   E.on('tutorial:step', (e) => { if (e && e.done) { reach('tutorial'); send('namba_tutorial_step', { step: e.id, t: e.t, nudges: e.nudges }); } });
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
+  E.on('lodestone:stack3d', (e) => send('namba_stack3d', { ok: !!(e && e.ok), mode: e && e.mode, w: e && e.w, h: e && e.h }));   // v13: does the shared-renderer copy work on this device?
   E.on('nav:destination', (e) => { reach('destination'); send('namba_destination', { app: e.app, slot: e.slotId, place: e.name, suggested: !!e.suggested, via: e.via, t: t() }); });
   E.on('gate:tap', (e) => { if (e && e.player && !e.auto && !gateSent) { gateSent = true; reach('gate'); send('namba_gate_tap', { gate: e.gate, t: t() }); } });
   E.on('aya:answered', (e) => { if (e && !e.auto) send('namba_reply', { msg: e.msgId, reply: e.replyId, lost: !!e.lost, t: t() }); });   // v9: which chip each player picks

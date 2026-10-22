@@ -12,6 +12,11 @@ export const BUSES = ['music', 'sfx', 'voice', 'ambience', 'ui'];
 // sliders. The beds and the mall music sit further back so that the PA (chime + the browser's speech, which cannot be made
 // louder) is the clearest thing in the soundscape. The slider still goes from silence to its old maximum minus this trim.
 export const BUS_TRIM = { ambience: 0.5, music: 0.56 };   // -6 dB, -5 dB
+// v13 (Zack on a phone: "it lacks the ambience ... footsteps are not heard"): the phone profile (setProfile) lifts the mix
+// +7 dB ahead of the glue compressor / limiter, and the beds and your steps further on their buses (the beds are what a
+// phone loses most; the PA chime is already loud and iOS reads the voice at full volume anyway). Desktop is untouched.
+export const PHONE_MAKEUP = 2.24;                                                       // +7 dB
+export const PHONE_TRIM = { ambience: 1.5, music: 1.26, sfx: 1.5, ui: 1, voice: 0.89 };   // +3.5, +2, +3.5, 0, -1 dB (v13 critic: steps keep their desktop balance over the beds)
 
 export class Mixer {
   constructor(ac, bank) {
@@ -24,6 +29,7 @@ export class Mixer {
     const lim = this.lim = ac.createDynamicsCompressor();
     lim.threshold.value = -2; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.001; lim.release.value = 0.08;
     master.connect(comp); comp.connect(lim); lim.connect(ac.destination);
+    this.profile = 'desktop';
     // reverb
     this.verbIn = ac.createGain();
     this.verbOut = ac.createGain(); this.verbOut.gain.value = 1;
@@ -63,11 +69,39 @@ export class Mixer {
   }
   get now() { return this.ac.currentTime; }
 
+  // ---- output profile (v13) ---------------------------------------------------------
+  // 'phone': a phone's own speaker reproduces almost nothing below ~300 Hz, and the whole mix was mastered for headphones
+  // / desktop speakers (the platform bed measured -38 dBFS RMS, -40 in the 350 Hz-9 kHz band a phone plays; the tunnel bed
+  // loses 26 dB there, distant trains 24 dB). So on phones and tablets: cut the sub-bass a phone cannot play (it only eats
+  // compressor headroom), give the lows harmonics a small speaker CAN play (rumble, tunnels, trains: "virtual bass"), add a
+  // little presence, and raise the whole mix into the glue compressor / limiter. 'desktop' = the old chain, untouched.
+  setProfile(name) {
+    if (name !== 'phone' || this.profile === 'phone') return;
+    this.profile = 'phone';
+    const ac = this.ac;
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 85; hp.Q.value = 0.6;
+    const pres = ac.createBiquadFilter(); pres.type = 'peaking'; pres.frequency.value = 2600; pres.Q.value = 0.8; pres.gain.value = 2.5;
+    const makeup = this.makeup = ac.createGain(); makeup.gain.value = PHONE_MAKEUP;
+    // harmonics of the lows: < 220 Hz, rectified (octave up), kept to 160-900 Hz, mixed in ~10 dB under the lows
+    const exLp = ac.createBiquadFilter(); exLp.type = 'lowpass'; exLp.frequency.value = 220; exLp.Q.value = 0.7;
+    const exDrive = ac.createGain(); exDrive.gain.value = 3;
+    const sh = ac.createWaveShaper(); sh.curve = harmonicCurve(); sh.oversample = 'none';
+    const exHp = ac.createBiquadFilter(); exHp.type = 'highpass'; exHp.frequency.value = 160; exHp.Q.value = 0.7;
+    const exLp2 = ac.createBiquadFilter(); exLp2.type = 'lowpass'; exLp2.frequency.value = 900; exLp2.Q.value = 0.7;
+    const exG = ac.createGain(); exG.gain.value = 0.3;
+    try { this.master.disconnect(); } catch (e) { /* not connected */ }
+    this.master.connect(hp); hp.connect(pres); pres.connect(makeup); makeup.connect(this.comp);
+    this.master.connect(exLp); exLp.connect(exDrive); exDrive.connect(sh); sh.connect(exHp); exHp.connect(exLp2); exLp2.connect(exG); exG.connect(makeup);
+    // a hotter mix into the same glue settings would pump the beds down at every footstep: a higher, softer glue
+    this.comp.threshold.value = -6; this.comp.ratio.value = 4; this.comp.knee.value = 6;
+    this._phone = { hp, pres, makeup, exG };
+  }
+
   // ---- volumes (perceptual: v^2) -------------------------------------------------
   setVolume(bus, v) {
     v = Math.max(0, Math.min(1, +v || 0));
     this.volumes[bus] = v;
-    const g = v * v * (BUS_TRIM[bus] ?? 1);
+    const g = v * v * (BUS_TRIM[bus] ?? 1) * (this.profile === 'phone' ? PHONE_TRIM[bus] ?? 1 : 1);
     const t = this.now;
     if (bus === 'master') { this.master.gain.setTargetAtTime(0.9 * g, t, 0.05); return; }
     const b = this.bus[bus]; if (!b) return;
@@ -123,7 +157,7 @@ export class Mixer {
   emitter(opts = {}) { return new Emitter(this, opts); }
 
   // Play a one-shot. buf: AudioBuffer or recipe name (skipped if not yet synthesized,
-  // unless opts.wait). opts: bus, gain, rate, when, send, pos {x,y,z} | pan, lp, hrtf, ref, loop
+  // unless opts.wait). opts: bus, gain, rate, when, send, pos {x,y,z} | pan, lp, hrtf, ref, loop, wetOnly (reverb only)
   play(buf, opts = {}) {
     if (typeof buf === 'string') {
       const b = this.bank.peek(buf);
@@ -156,7 +190,7 @@ export class Mixer {
     } else if (opts.pan) {
       const sp = ac.createStereoPanner(); sp.pan.value = opts.pan; tail.connect(sp); out = sp;
     }
-    out.connect(bus.dry);
+    if (!opts.wetOnly) out.connect(bus.dry);
     if (opts.send) { const s = ac.createGain(); s.gain.value = opts.send * (opts.pos ? this.wetFalloff(opts.pos.x, opts.pos.y, opts.pos.z, opts.ref ?? 2) : 1); tail.connect(s); s.connect(bus.wet); }
     const when = opts.when ?? ac.currentTime;
     src.start(when, opts.offset || 0);
@@ -165,6 +199,14 @@ export class Mixer {
     src.onended = () => { this.liveOneShots--; try { src.disconnect(); g.disconnect(); out.disconnect(); tail.disconnect(); } catch (e) { /* already */ } };
     return { src, gain: g, panner: opts.pos ? out : null, stop: (t = 0.05) => { try { g.gain.setTargetAtTime(0, ac.currentTime, t); src.stop(ac.currentTime + t * 6); } catch (e) { /* stopped */ } } };
   }
+}
+
+// full-wave rectifier with a soft top: a low tone in, its octave (and even harmonics) out, at a level proportional to the
+// input (no threshold, so a quiet rumble gets its harmonics too) and no fundamental; the DC goes in the high-pass after it
+function harmonicCurve(n = 1025) {
+  const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(1.5 * Math.abs(x)) / Math.tanh(1.5); }
+  return c;
 }
 
 export function setPannerPos(p, x, y, z, t) {

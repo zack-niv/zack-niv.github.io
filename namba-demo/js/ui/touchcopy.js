@@ -4,7 +4,7 @@
 // keeps its desktop line). Glyphs: <i class="tc-g use"></i> = the Use button, <i class="tc-g phone"></i> = the phone
 // button (drawn by css/touch.css to match the real buttons).
 // =============================================================================
-import { TUTORIAL } from '../game/script.js?v=9ec3217';
+import { TUTORIAL } from '../game/script.js?v=ca6849e';
 
 const USE = '<i class="tc-g use"></i>';
 const PH = '<i class="tc-g phone"></i>';
@@ -40,6 +40,18 @@ export const TOUCH_TEXT = {
   titleHint: 'Left thumb walks<span class="t-sep">·</span>drag to look<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span>',
   ghost: 'walk',
   pause: 'Tap <b>Resume</b> to keep playing. Left thumb walks, drag on the right looks, tap your phone to raise it.',
+};
+
+// v13: the opening thumb coach (js/ui/touch.js coach()): the screen splits into the two areas the thumbs own. Each
+// side clears itself the moment the player has done it (a few metres walked, a real look around).
+export const COACH_TEXT = {
+  walkKick: 'Left thumb',
+  walk: 'Walk',
+  walkSub: 'push further to hurry',
+  lookKick: 'Right thumb',
+  look: 'Look around',
+  lookSub: 'drag anywhere on this side',
+  done: 'Nice',
 };
 
 let applied = false;

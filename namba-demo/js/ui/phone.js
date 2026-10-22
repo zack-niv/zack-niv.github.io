@@ -48,14 +48,14 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=9ec3217';
-import { MapApp } from './phone/mapapp.js?v=9ec3217';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=9ec3217';
-import { LodestoneApp } from './phone/lodestone.js?v=9ec3217';
-import { PhoneStats } from './phone/stats.js?v=9ec3217';
-import { Glance } from './phone/glance.js?v=9ec3217';
-import { buzzSound } from './phone/track.js?v=9ec3217';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=9ec3217';
+import { Positioning } from './phone/positioning.js?v=ca6849e';
+import { MapApp } from './phone/mapapp.js?v=ca6849e';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=ca6849e';
+import { LodestoneApp } from './phone/lodestone.js?v=ca6849e';
+import { PhoneStats } from './phone/stats.js?v=ca6849e';
+import { Glance } from './phone/glance.js?v=ca6849e';
+import { buzzSound } from './phone/track.js?v=ca6849e';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=ca6849e';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -74,7 +74,17 @@ addEventListener('resize', () => { _sr = null; });
 // pose geometry (device units: the phone is 340 x 700)
 const GLANCE_H = 126;          // how much of the phone's top shows in the glance pose (device px)
 const GLANCE_S = 0.97;         // scale vs. the raised phone (held a touch further away)
-const GLANCE_S_COMPACT = 0.75; // v12: the same on a phone-sized (compact) touch screen
+const GLANCE_S_COMPACT = 0.9;  // v12: the same on a phone-sized (compact) touch screen (v13: 0.9 of the smaller v13 scale =
+                               // the v12 card size, ~185 px wide at 750 x 342)
+// v13 (Zack: "people weren't paying attention to the phone, nor understood what to do with it", mainly on phones): a text
+// that arrives while the phone is lowered makes it buzz up into view for a few seconds (bigger, more of it showing, a
+// green glow), rattles it, vibrates the real phone, and on touch a "tap your phone" cue points at it. An unanswered
+// text (or Aya's Lodestone link) nudges again later.
+const ALERT_S = 4.2;           // seconds the lowered phone stays popped up
+const ALERT_H = 176;           // device px of the phone's top that show while it is popped up (vs GLANCE_H)
+const ALERT_GROW = 1.12;       // its scale vs the raised phone's
+const ALERT_AGAIN = [13, 32];  // seconds after an unanswered text: nudge again (then it stays quiet)
+const CUE_MAX = 4;             // touch: the "tap your phone" cue shows on the first few alerts
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
 const WALK_LOWER_WIDE_S = 1.0; // v12: the wide phone covers the crosshair and the look area: walking lowers it to the
@@ -111,7 +121,8 @@ export class Phone {
     this._upAt = 0;            // time the phone was raised (no auto-lower right away)
     this._lastPhoneInput = -1e9;
     // springs: raise (0 glance .. 1 up), tilt (lags: lift, then tilt, then settle), pocket (1 = down)
-    this._sp = { u: { x: 0, v: 0 }, tilt: { x: 0, v: 0 }, d: { x: 1, v: 0 } };
+    this._sp = { u: { x: 0, v: 0 }, tilt: { x: 0, v: 0 }, d: { x: 1, v: 0 }, a: { x: 0, v: 0 } };   // a: the alert pop (v13)
+    this._alertT = 0; this._alertQ = null; this._alertMsg = null; this._cueN = 0;
     this._bob = { x: 0, y: 0 };
     this._now = 0;
   }
@@ -196,7 +207,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=9ec3217'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=ca6849e'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
@@ -316,7 +327,8 @@ export class Phone {
           <div class="ph-glare"></div>
         </div>
       </div>
-      <div class="ph-peek" hidden></div>`;
+      <div class="ph-peek" hidden></div>
+      <button type="button" class="ph-cue" hidden><span class="ph-cue-t"></span><i aria-hidden="true"></i></button>`;
     this.wrap = r.querySelector('.ph-wrap');
     this.device = r.querySelector('.ph-device');
     this.views = {};
@@ -325,8 +337,9 @@ export class Phone {
       time: r.querySelector('.ph-time'), sig: r.querySelectorAll('.ph-sig i'), net: r.querySelector('.ph-net'), bat: r.querySelector('.ph-bat'),
       batB: r.querySelector('.ph-bat b'), batI: r.querySelector('.ph-bat i'), notif: r.querySelector('.ph-notif'), toast: r.querySelector('.ph-toast'),
       peek: r.querySelector('.ph-peek'), isl: r.querySelector('.ph-isl'), sigBox: r.querySelector('.ph-sig'),
-      dock: r.querySelector('.ph-dock'), screen: r.querySelector('.ph-screen'),
+      dock: r.querySelector('.ph-dock'), screen: r.querySelector('.ph-screen'), cue: r.querySelector('.ph-cue'),
     };
+    this.el.cue.addEventListener('click', (e) => { e.stopPropagation(); if (this._canUse()) this.open(this._alertMsg && this._alertMsg.app || 'messages'); });
     this.el.dock.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { this._lastPhoneInput = this._now; this._showApp(b.dataset.app); }));
     if (this.ctx.input && this.ctx.input.touch) this.el.dock.querySelector('.ph-d-k').remove();
     r.querySelector('.ph-homebar').addEventListener('click', () => this._showApp(this.app === 'home' ? (this.upgradeStage === 'ready' ? 'lodestone' : 'maps') : 'home'));
@@ -352,9 +365,12 @@ export class Phone {
     this._touch = touch;
     if (touch) {
       const W = innerWidth, H = innerHeight;
-      if (H > W) s = Math.max(0.6, Math.min(1, (W - 24) / 340, (H * 0.8) / 700));
-      else s = Math.max(0.6, Math.min(1, H / 470, (W * 0.42) / 340));
-      dh = Math.round(Math.min(700, Math.max(430, (H - 14) / s)));
+      if (H > W) { s = Math.max(0.6, Math.min(1, (W - 24) / 340, (H * 0.8) / 700)); dh = Math.round(Math.min(700, Math.max(430, (H - 14) / s))); }
+      // v13 (Zack: "on mobile the phone layout looks odd, it should look more like on desktop"): a landscape phone gets
+      // the desktop's portrait phone, uniformly scaled down, nearly the desktop's proportions (340 x ~540 at 750 x 342,
+      // vs the v11 squat 340 x 451 and the v12 sideways phone). Text ~8-9 px CSS at 0.61; css/touch.css lifts the
+      // texts and buttons you must read or tap. A tablet (H >= 560) is the desktop phone at scale 1.
+      else { s = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340)); dh = Math.round(Math.min(700, Math.max(430, (H - 12) / s))); }
     }
     this._dh = dh;
     this.wrap.style.height = dh + 'px';
@@ -366,7 +382,8 @@ export class Phone {
     // v12 (item 2b): on a short landscape screen (a phone held sideways) the RAISED phone turns sideways too: a wide,
     // short landscape phone (~70 % of the screen), its apps side by side (map / 3D left, sheet right, the dock a rail).
     // The lowered (glance) phone stays the portrait one; raising morphs it wider (_applyPose). notes/v12-phone.md
-    const wide = touch && innerWidth > innerHeight && dh < 640;
+    // v13: off by default (the desktop-style portrait phone above); ?widephone brings the v12 sideways phone back for an A/B
+    const wide = touch && innerWidth > innerHeight && dh < 640 && !!(this.ctx.params && this.ctx.params.has && this.ctx.params.has('widephone'));
     this._wideOK = wide;
     // v12 (lead / Zack: the lowered card was 301×100 at 852×393, too big): a phone-sized screen holds it further away
     this._gS = touch && dh < 640 ? GLANCE_S_COMPACT : GLANCE_S;
@@ -407,6 +424,7 @@ export class Phone {
     this.maps._dirty = true;
     if (this.app === 'messages') this.messages.onShow();
     this.glance.clearNote(true);
+    this._endAlert(true);
     this._badges();
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_open');
     this.ctx.events.emit('phone:open', { app: this.app });
@@ -512,6 +530,10 @@ export class Phone {
         clearTimeout(this._nT); this._nT = setTimeout(() => { this.el.notif.hidden = true; }, 5000);
       } else if (!this.isOpen) {
         this.glance.showNote(msg);
+        // v13: buzz up into view (once the phone is lowered, not pocketed: _alertTick)
+        const offer = this.upgradeStage === 'offer' && this._play - (this._offerAt || 0) < 1;
+        this._alertMsg = { msg, offer, reply: !!msg.reply, at: this._now, n: 0, app: 'messages' };
+        this._alertQ = true;
       }
       this._badges();
     }
@@ -519,11 +541,67 @@ export class Phone {
   }
   // a short vibration (Lodestone off-route): the device rattles, the glance card flashes, a soft buzz
   vibrate() {
+    this._rattle();
+    buzzSound(this.ctx);
+  }
+  // the device rattles + the glance card flashes + the real phone vibrates (no sound: callers choose it)
+  _rattle(pattern = [70, 60, 70]) {
     this._buzzT = 0.62;
     const isl = this.el.isl; isl.classList.remove('buzz'); void isl.offsetWidth; isl.classList.add('buzz');
     clearTimeout(this._bzT); this._bzT = setTimeout(() => isl.classList.remove('buzz'), 900);
-    buzzSound(this.ctx);
-    try { const inp = this.ctx.input; if (inp && inp.touch && navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate([70, 60, 70]); } catch (e) { /* ignore */ }
+    try { const inp = this.ctx.input; if (inp && inp.touch && navigator.vibrate && navigator.userActivation && navigator.userActivation.hasBeenActive) navigator.vibrate(pattern); } catch (e) { /* ignore */ }
+  }
+
+  // ---- v13: the lowered phone asks for attention ------------------------------------------------------------------
+  // _alertQ: a text arrived while lowered → pop now, or as soon as the phone is back in the glance pose (not while
+  // pocketed: intro / pause). An unanswered text (pending reply chips, or the Lodestone offer) pops again at ALERT_AGAIN.
+  _alertTick(dt) {
+    const A = this._alertMsg;
+    if (this.isOpen || !A) { if (this._alertT > 0 || this.root.classList.contains('ph-alert')) this._endAlert(); return; }
+    if (this._alertT > 0) {
+      this._alertT -= dt; this._poseDirty = true;
+      if (this.pose !== 'glance') { this._alertT = 0; this._alertQ = true; }       // pocketed mid-pop: pop again later
+      if (this._alertT <= 0) this._endAlert();
+      else this._placeCue();
+      return;
+    }
+    const waiting = !!(this.messages && this.messages.pending) || (A.offer && this.upgradeStage === 'offer');   // (v13 critic: any unanswered text, not only this one)
+    if (!this._alertQ && waiting && A.n <= ALERT_AGAIN.length && this._now - A.at >= ALERT_AGAIN[A.n - 1]) {
+      this._alertQ = true; this.glance.showNote(A.msg);                              // the note card comes back with it
+    }
+    if (this._alertQ && this.pose === 'glance' && !this._wantDown()) {
+      this._alertQ = false; A.n++; A.at = A.n === 1 ? this._now : A.at;
+      this._alertT = ALERT_S; this._poseDirty = true;
+      this.root.classList.add('ph-alert');
+      this._rattle(A.n === 1 ? [80, 70, 80] : [60]);
+      if (A.n > 1) this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('phone_buzz');   // (the first one buzzed in notify)
+      this._showCue(A);
+    }
+    if (!waiting && !this._alertQ && A.n > 0 && this._alertT <= 0) this._alertMsg = null;   // (v13 critic: not in the frame it pops)
+  }
+  _endAlert(opened) {
+    this._alertT = 0; this._poseDirty = true;
+    this.root.classList.remove('ph-alert');
+    if (this.el && this.el.cue) this.el.cue.hidden = true;
+    if (opened) { this._alertQ = false; this._alertMsg = null; }
+  }
+  // touch: a cue left of the lowered phone, level with its card ("Aya texted · tap your phone")
+  _showCue(A) {
+    const c = this.el.cue;
+    if (!this._touch || this._cueN >= CUE_MAX) { c.hidden = true; return; }
+    this._cueN++;
+    const who = esc(A.msg.title || 'Aya');
+    c.querySelector('.ph-cue-t').innerHTML = A.offer ? `<b>${who} sent you an app</b><span>Tap your phone to see it</span>`
+      : A.reply ? `<b>${who} texted you</b><span>Tap your phone to reply</span>` : `<b>${who} texted you</b><span>Tap your phone to read it</span>`;
+    c.hidden = false; c.classList.remove('in'); void c.offsetWidth; c.classList.add('in');
+    this._placeCue();
+  }
+  _placeCue() {
+    const c = this.el.cue; if (c.hidden) return;
+    const r = this.el.isl.getBoundingClientRect();
+    if (!r.width) return;
+    const top = Math.round(Math.max(8, Math.min(innerHeight - 60, r.top + r.height / 2))), right = Math.round(innerWidth - r.left + 12);
+    if (top !== this._cueY || right !== this._cueX) { this._cueY = top; this._cueX = right; c.style.top = top + 'px'; c.style.right = right + 'px'; }
   }
   toastIn(t) {
     this.el.toast.textContent = t; this.el.toast.hidden = false;
@@ -569,6 +647,7 @@ export class Phone {
     this.messages.update(dt);
     if (this.el.screen.dataset.stage !== this.upgradeStage) this.el.screen.dataset.stage = this.upgradeStage;   // (the dock hides during install / calibration)
     if (this._buzzT > 0) { this._buzzT -= dt; this._poseDirty = true; }
+    this._alertTick(dt);
     if (this.isOpen && this.upgradeStage === 'offer' && !this.typing && inp && (inp.pressed('Enter') || inp.pressed('KeyE') || inp.pressed('KeyI'))) this.installLodestone();
     if (this._keepUpAfterHold && !this._busyUpgrade() && this._now - this._upAt > 1) { this._keepUpAfterHold = false; if (!this._held) this.close(true); }
     this._autoPose(dt);
@@ -636,7 +715,10 @@ export class Phone {
       spring(S.tilt, uT, dt, uT ? 9.5 : 15, uT ? 0.5 : 0.9);      // tilts toward you a beat after the lift, with a small settle
       spring(S.d, dT, dt, 11, 1);
     }
-    const settled = Math.abs(S.u.x - uT) < 1e-3 && Math.abs(S.u.v) < 1e-3 && Math.abs(S.tilt.x - uT) < 1e-3 && Math.abs(S.tilt.v) < 1e-3 && Math.abs(S.d.x - dT) < 1e-3 && Math.abs(S.d.v) < 1e-3;
+    const aT = this._alertT > 0 && pose === 'glance' ? 1 : 0;           // v13: the alert pop (a springy rise, a slower settle)
+    if (snap) { S.a.x = aT; S.a.v = 0; } else spring(S.a, aT, dt, aT ? 11 : 7, aT ? 0.55 : 0.95);
+    const settled = Math.abs(S.u.x - uT) < 1e-3 && Math.abs(S.u.v) < 1e-3 && Math.abs(S.tilt.x - uT) < 1e-3 && Math.abs(S.tilt.v) < 1e-3 && Math.abs(S.d.x - dT) < 1e-3 && Math.abs(S.d.v) < 1e-3
+      && Math.abs(S.a.x - aT) < 1e-3 && Math.abs(S.a.v) < 1e-3;
     // walking bob / turning sway
     const p = this.ctx.player;
     let bx = 0, by = 0, br = 0;
@@ -656,7 +738,9 @@ export class Phone {
     const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway || this._buzzT > 0;
     if (settled && !moving && !this._poseDirty && !snap) return;
     this._poseDirty = false;
-    const vw = innerWidth, s = this._scale, sg = s * (this._gS || GLANCE_S), DH = this._dh || 700;
+    const vw = innerWidth, s = this._scale, a = Math.max(0, S.a.x), DH = this._dh || 700;
+    // (v13: popped up by an alert; on a desktop a gentler pop: the card is already large there)
+    const sg = lerp(s * (this._gS || GLANCE_S), s * (this._touch ? ALERT_GROW : GLANCE_S * 1.04), a), GH = lerp(GLANCE_H, this._touch ? ALERT_H : 150, a);
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
     // v12: the wide (landscape) phone morphs from the portrait one as it rises, and back as it lowers; the wide
     // layout drops once the phone is back down to the glance
@@ -671,19 +755,20 @@ export class Phone {
     let upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
     if (this._touch) { upY = -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
     // glance: bottom-right corner, only the top GLANCE_H shows
-    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GLANCE_H * sg;
+    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GH * sg;
     const sc = lerp(sg, s, u);
     const cx = lerp(gCx, upCx, u);
     let y = lerp(gY, upY, u);
-    y += d * (GLANCE_H * sg + 60);                                    // pocketed: slides out of view
-    const rz = lerp(3.2, this.land ? -0.35 : -1.2, u) + br;           // (a wide phone tilts less: its corners stay on screen)
+    y += d * (GH * sg + 60);                                          // pocketed: slides out of view
+    // (a wide phone tilts less: its corners stay on screen; v13: popped up by an alert, it turns toward you a little)
+    const rz = lerp(3.2 - a * 2.4, this.land ? -0.35 : -1.2, u) + br;
     const rx = lerp(9, 2.5, tl);                                      // tilted away a little when lowered
     const lift = Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * -14; // a little arc on the way up
     this.wrap.style.transform = `translate3d(${(cx - PW / 2 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
     this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;
     this.wrap.style.filter = u < 0.6 ? `brightness(${(0.88 + u * 0.2).toFixed(3)})` : '';
     // the glance strip's on-screen height (for HUD layout), 0 when not glancing
-    const gh = pose === 'glance' ? Math.round(GLANCE_H * sg) : 0;
+    const gh = pose === 'glance' ? Math.round(GLANCE_H * s * (this._gS || GLANCE_S)) : 0;   // (v13 critic: the resting card, not the alert pop: no restyle per frame)
     if (gh !== this._gh) { this._gh = gh; document.documentElement.style.setProperty('--phone-glance-h', gh + 'px'); }
   }
 }

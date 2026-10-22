@@ -19,17 +19,17 @@
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
-import { params } from '../core/params.js?v=9ec3217';
-import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=9ec3217';
-import { Bank } from './bank.js?v=9ec3217';
-import { Mixer } from './mixer.js?v=9ec3217';
-import { acousticFor } from './ir.js?v=9ec3217';
-import { Announcer } from './announcer.js?v=9ec3217';
-import { Ambience, moodOf } from './ambience.js?v=9ec3217';
-import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=9ec3217';
-import { EXCUSE } from './phrases.js?v=9ec3217';
-import { Sources } from './sources.js?v=9ec3217';
-import { Trains, pumpAudioTimers } from './trains.js?v=9ec3217';
+import { params } from '../core/params.js?v=ca6849e';
+import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=ca6849e';
+import { Bank } from './bank.js?v=ca6849e';
+import { Mixer } from './mixer.js?v=ca6849e';
+import { acousticFor } from './ir.js?v=ca6849e';
+import { Announcer } from './announcer.js?v=ca6849e';
+import { Ambience, moodOf } from './ambience.js?v=ca6849e';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=ca6849e';
+import { EXCUSE } from './phrases.js?v=ca6849e';
+import { Sources } from './sources.js?v=ca6849e';
+import { Trains, pumpAudioTimers } from './trains.js?v=ca6849e';
 
 // name → [recipe, default gain, bus, extra]
 export const SOUNDS = {
@@ -144,6 +144,10 @@ export class Audio {
     this.ac = ac;
     this.bank = new Bank(ac, { useWorker: worker });
     this.mixer = new Mixer(ac, this.bank);
+    // v13: phones & tablets get the small-speaker profile (mixer.js setProfile); ?audioprofile=desktop|phone forces one
+    const ap = params.get('audioprofile');
+    this.profile = ap === 'phone' || ap === 'desktop' ? ap : (this.ctx.engine && this.ctx.engine.mobile ? 'phone' : 'desktop');
+    this.mixer.setProfile(this.profile);
     this.mixer.hrtf = !(this.ctx.engine && this.ctx.engine.qualityName === 'low');
     for (const [k, v] of Object.entries(this._vols)) this.mixer.setVolume(k, v);
     this.announcer = new Announcer(this);
@@ -153,7 +157,7 @@ export class Audio {
     this.trains = new Trains(this);
     let biz = (this.ctx.shops && (this.ctx.shops.businesses || this.ctx.shops.BUSINESSES)) || null;
     if (biz) this.sources.build(biz);
-    else import('../world/directory.js?v=9ec3217').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
+    else import('../world/directory.js?v=ca6849e').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
     this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');
@@ -169,6 +173,13 @@ export class Audio {
   // ---- per-frame --------------------------------------------------------------------
   update(dt) {
     if (!this.mixer || !this.ctx.player) return;
+    // v13: iOS puts a running context into 'interrupted' (or 'suspended') when something else takes the audio session — a
+    // call, Siri, the speech voice's own session — and does not always bring it back: the whole soundscape then stays
+    // silent while the PA voice still speaks. Ask again every 1.5 s while it should be running (a tap also resumes it).
+    if (this._wantRunning && this.ac.state !== 'running' && this.ac.state !== 'closed' && !(typeof document !== 'undefined' && document.hidden)) {
+      this._wdT = (this._wdT || 0) + (dt || 0);
+      if (this._wdT > 1.5) { this._wdT = 0; this.resumes = (this.resumes || 0) + 1; this.ac.resume().catch(() => {}); }
+    } else this._wdT = 0;
     const L = this._listenerState();
     this.L = L;
     // listener = camera
@@ -400,7 +411,7 @@ export class Audio {
     if (!this.mixer) return { state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
     const a = this.ambience;
     return {
-      state: this.ac.state, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
+      state: this.ac.state, profile: this.profile, resumes: this.resumes || 0, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
       layers: Object.values(a.layers).filter(l => l.em).map(l => l.name), sources: [...this.sources.live.keys()], oneShots: this.mixer.liveOneShots,
       trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => `${t.tr.id}:${t.phase}`),
       speech: this.announcer.hasJaVoice ? 'ja-JP voice' : 'chime + caption (no ja-JP voice; English is never spoken)', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
