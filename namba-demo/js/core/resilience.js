@@ -24,6 +24,12 @@
 // stages of their own), seconds since that stage (sinceStage), a memory estimate taken at each stage (mem: tex / canvas
 // MB, heap MB where the browser has it, WebGL contexts, Lodestone's stack mode) and, instead of being cleared when the
 // tab is hidden, a `hidden` flag.
+//
+// v14 (Zack: "it often crashes and I don't have any logs"): the marker is now a flight recorder. It also carries
+//   cr   the last stages with their play time ("tutorial_raise@31"), so a crash shows the path, not one stage
+//   q    the quality tier the dead run used (the recovered event's own super properties describe the NEW run)
+//   err  the last JS errors (window error / unhandled rejection), which also go out live as namba_error
+//   geo  geometry MB (vertex + index buffers in the scene) next to tex / canvas: the estimate missed all of it
 // =============================================================================
 const KEY = 'namba_run';
 const FRESH_MS = 20 * 60 * 1000;      // a localStorage marker older than this is stale (not "the last run")
@@ -54,7 +60,7 @@ export function readRecovery() {
   store.clear();
   // a run whose tab was hidden and never came back is not (provably) a crash: no safe tier, but report it
   if (m && m.hidden && !m.reason) {
-    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null };
+    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null, crumbs: m.cr || null, quality: m.q || null, errs: m.err || null };
     if (!forced) return null;
   }
   if (!m && !forced) return null;
@@ -64,6 +70,7 @@ export function readRecovery() {
     ago: m ? Math.round((Date.now() - (m.at || Date.now())) / 1000) : 0,
     safe: forced || Math.min(2, prevSafe + 1),     // a second crash in safe mode steps down once more
     sinceStage: m ? m.ss : null, mem: m ? m.mem || null : null,
+    crumbs: m ? m.cr || null : null, quality: m ? m.q || null : null, errs: m ? m.err || null : null,
   };
 }
 let hiddenRun = null;
@@ -89,10 +96,29 @@ export function armRecovery(ctx, rec) {
   let stage = 'loading', running = true, stageAt = performance.now(), mem = null;
   let reloading = false;      // our own reload after a lost context must keep its marker
   const playT = () => Math.round((ctx.game && ctx.game.demo && ctx.game.demo.t) || 0);
+  const crumbs = [], errs = [];         // v14: the flight recorder (see the header)
+  const q = () => { const e = ctx.engine; return e ? e.qualityName + (e.qualityForced ? '!' : '') : undefined; };
+  const snapshot = (reason, hidden) => ({ stage, t: playT(), at: Date.now(), ss: Math.round((performance.now() - stageAt) / 1000), mem: mem || undefined, safe, reason: reason || undefined, hidden: hidden || undefined,
+    q: q(), cr: crumbs.length ? crumbs.join(' ') : undefined, err: errs.length ? errs.slice() : undefined });
   const write = (reason, hidden) => {
     if ((document.hidden || reloading) && !reason && !hidden) return;
-    if (running || reason) store.set({ stage, t: playT(), at: Date.now(), ss: Math.round((performance.now() - stageAt) / 1000), mem: mem || undefined, safe, reason: reason || undefined, hidden: hidden || undefined });
+    if (running || reason) store.set(snapshot(reason, hidden));
   };
+  // JS errors: kept for the marker, and handed to analytics live ('app:error'; analytics.js sends namba_error)
+  ctx.errorLog = [];
+  const onErr = (kind, msg, where) => {
+    try {
+      const m = String(msg || 'unknown').slice(0, 160), w = where ? String(where).replace(/^.*\/namba-demo\//, '').replace(/\?v=[a-z0-9]+/, '').slice(0, 80) : '';
+      if (errs.length && errs[errs.length - 1].startsWith(m.slice(0, 60))) return;      // the same error every frame: once
+      errs.push(w ? `${m} @${w}` : m); if (errs.length > 4) errs.shift();
+      const e = { kind, msg: m, where: w || null, stage, t: playT() };
+      if (ctx.errorLog.length < 30) ctx.errorLog.push(e);
+      ctx.events && ctx.events.emit('app:error', e);
+      write();
+    } catch (e) { /* never throw from the error handler */ }
+  };
+  addEventListener('error', (e) => { if (e && e.message) onErr('error', e.message, e.filename ? `${e.filename}:${e.lineno}` : ''); });
+  addEventListener('unhandledrejection', (e) => { const r = e && e.reason; onErr('rejection', r && (r.message || r), r && r.stack ? String(r.stack).split('\n')[1] : ''); });
   // the memory picture at each stage (memEstimate walks the scene: at most every 20 s, except Lodestone's stages)
   let memAt = -1e9;
   const sampleMem = (force) => {
@@ -102,10 +128,13 @@ export function armRecovery(ctx, rec) {
     try {
       const e = memEstimate(ctx), pm = performance.memory;
       const st = ctx.phone && ctx.phone.lodestone && ctx.phone.lodestone.stack;
-      mem = { tex: e.texMB, cv: e.canvasMB, gl: glContexts, heap: pm ? Math.round(pm.usedJSHeapSize / 1048576) : undefined, ld: st ? (st.shared ? 'shared' : 'ctx') : undefined };
+      mem = { tex: e.texMB, cv: e.canvasMB, geo: e.geoMB, gl: glContexts, heap: pm ? Math.round(pm.usedJSHeapSize / 1048576) : undefined, ld: st ? (st.shared ? 'shared' : 'ctx') : undefined };
     } catch (e) { /* ignore */ }
   };
-  const mark = (s) => { stage = s; stageAt = performance.now(); if (running) { sampleMem(/^lodestone_(installing|calibrating|ready)$/.test(s)); write(); } };
+  const mark = (s) => {
+    if (s !== stage) { crumbs.push(`${s}@${playT()}`); if (crumbs.length > 12) crumbs.shift(); }
+    stage = s; stageAt = performance.now(); if (running) { sampleMem(/^lodestone_(installing|calibrating|ready)$/.test(s)); write(); }
+  };
   const E = ctx.events;
   E.on('game:ready', () => mark('title'));
   E.on('game:start', () => mark('play'));
@@ -134,7 +163,7 @@ export function armRecovery(ctx, rec) {
       ctx.contextLost = true;
       reloading = true;
       sampleMem(true);
-      store.set({ stage, t: playT(), at: Date.now(), ss: Math.round((performance.now() - stageAt) / 1000), mem: mem || undefined, safe, reason: 'ctxlost' });
+      store.set(snapshot('ctxlost'));
       showCard(safe >= 2);
       setTimeout(() => { try { location.reload(); } catch (err) { /* ignore */ } }, 2600);
     }, false);
@@ -167,8 +196,14 @@ function toast() {
 // Rough texture + canvas memory: every texture reachable from the scene (and the phone's 3D stack), sized from its
 // image (× 4/3 with mips). For the perf sample; walks the scene graph, so call it rarely (once per sample).
 export function memEstimate(ctx) {
-  const seen = new Set(), cvs = new Set();
-  let tex = 0, cv = 0;
+  const seen = new Set(), cvs = new Set(), geos = new Set();
+  let tex = 0, cv = 0, geo = 0;
+  const addGeo = (g) => {
+    if (!g || !g.isBufferGeometry || geos.has(g)) return; geos.add(g);
+    const add = (a) => { const arr = a && (a.array || (a.data && a.data.array)); if (arr && arr.byteLength) geo += arr.byteLength; };
+    if (g.index) add(g.index);
+    for (const k in g.attributes) add(g.attributes[k]);
+  };
   const addTex = (t) => {
     if (!t || !t.isTexture || seen.has(t)) return; seen.add(t);
     const im = t.image; if (!im) return;
@@ -178,6 +213,7 @@ export function memEstimate(ctx) {
     if (typeof HTMLCanvasElement !== 'undefined' && im instanceof HTMLCanvasElement && !cvs.has(im)) { cvs.add(im); cv += w * h * 4; }
   };
   const visit = (o) => {
+    addGeo(o.geometry);
     const m = o.material; if (!m) return;
     for (const mm of Array.isArray(m) ? m : [m]) for (const k in mm) { const v = mm[k]; if (v && v.isTexture) addTex(v); }
     if (m.uniforms) for (const k in m.uniforms) addTex(m.uniforms[k] && m.uniforms[k].value);
@@ -185,5 +221,5 @@ export function memEstimate(ctx) {
   try { ctx.scene.traverse(visit); } catch (e) { /* ignore */ }
   try { const st = ctx.phone && ctx.phone.lodestone && ctx.phone.lodestone.stack; if (st && st.scene) st.scene.traverse(visit); } catch (e) { /* ignore */ }
   const MB = (b) => Math.round(b / 1048576);
-  return { texMB: MB(tex), canvasMB: MB(cv), tex: seen.size };
+  return { texMB: MB(tex), canvasMB: MB(cv), geoMB: MB(geo), tex: seen.size };
 }

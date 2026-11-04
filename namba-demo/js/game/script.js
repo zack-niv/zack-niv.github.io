@@ -19,9 +19,13 @@ export const DEMO = {
   offerAt: 240,                     // real seconds of play: the hard cap — nobody stays stuck forever (was 195 / 210)
   offerMin: 100,                    // ...and never before this (asking for help / answering her check-in while lost)
   whereMin: 95,                     // check-ins never before this (the player is still taking in the station)...
-  checkinsPerLeg: 2, checkinGap: 40,// ...at most 2 per leg, 40 s apart, and only when behind expectation or really lost
-  engageQuiet: 38, engageGap: 40, engageGapAfter: 45,   // after Lodestone: a little sparser (the app talks too)
-    // v11: a light text after 38 s of no contact while you walk; never more often than 40 s
+  checkinsPerLeg: 2, checkinGap: 60,// ...at most 2 per leg, 60 s apart (v14: was 40), and only when behind expectation or really lost
+  engageQuiet: 70, engageGap: 75, engageGapAfter: 80,   // after Lodestone: a little sparser (the app talks too)
+    // v11: a light text after N s of no contact while you walk. v14 (playtest: "Aya's communication is too intensive,
+    // widen it"): 38/40/45 → 70/75/80 s, so a quiet walk stays quiet for over a minute
+  openingBreath: 2.4,               // v14: seconds between her ack and the next opening question (was 0.9)
+  coffeeBreath: 10,                 // v14: the latte ask waits for this long a pause after Meet (was: the moment she was free)
+  photoQuiet: 20,                   // v14: the 📸 ask inside Namba CITY waits for this much quiet (was 8 s)
   floorsM: 150,
   cityDwell: 40,                    // v10 critic: ...or this long in CITY since her tip (slower walkers meet Lodestone before the cap)
   parksNearM: 300,                  // v10: Daikichi leg — in CITY with Daikichi this close by foot = the Parks bridge is ahead                     // v10: latte leg — in Namba CITY, a floor away from the café and within this many metres
@@ -29,7 +33,7 @@ export const DEMO = {
   introHold: 4.6,                   // seconds the player is held for the opening look
   arriveRadius: 7.5,                // metres from the door point: the arrival moment begins
   // v9 (notes/v9-progression.md): patience — Aya waits for answers, nudges, then follows up naturally
-  helloNudge: 20, helloNudgeM: 30,  // "hello?? 👀" after 20 s or 30 m walked without an answer...
+  helloNudge: 30, helloNudgeM: 45,  // "hello?? 👀" after 30 s or 45 m walked without an answer (v14: was 20 s / 30 m)...
   helloGiveUp: 12, helloGiveUpM: 25, // ...then she sends the plan anyway 12 s (or 25 m) after the nudge
   meetGiveUp: 18, meetGiveUpM: 25,  // Meet's chips: silence for 18 s or 25 m walked → the latte ask
   latteGiveUp: 25,                  // the latte question: silence = yes (chips withdrawn)

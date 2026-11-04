@@ -25,15 +25,15 @@
 //      ctx.signage.facilities (toilets/lockers built here, for the phone).
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../render/geobatch.js?v=ca6849e';
-import { CELL } from './world.js?v=ca6849e';
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from './layout.js?v=ca6849e';
-import { rng, hash } from '../core/rng.js?v=ca6849e';
-import { businessBySlot } from './directory.js?v=ca6849e';
-import { LINES, DESTINATIONS, EXIT_INFO, FACILITIES, FACILITY_INFO, PLATFORM_BOARDS, NANKAI_TRACKS, ZONE_OPERATOR, walkStreet } from '../ui/phone/places.js?v=ca6849e';
-import { computeDirections, STRIDE } from '../ui/phone/routes.js?v=ca6849e';
-import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=ca6849e';
-import { lcanvas } from '../render/canvasres.js?v=ca6849e';
+import { GeoBatch } from '../render/geobatch.js?v=edfeada';
+import { CELL } from './world.js?v=edfeada';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from './layout.js?v=edfeada';
+import { rng, hash } from '../core/rng.js?v=edfeada';
+import { businessBySlot } from './directory.js?v=edfeada';
+import { LINES, DESTINATIONS, EXIT_INFO, FACILITIES, FACILITY_INFO, PLATFORM_BOARDS, NANKAI_TRACKS, ZONE_OPERATOR, walkStreet } from '../ui/phone/places.js?v=edfeada';
+import { computeDirections, STRIDE } from '../ui/phone/routes.js?v=edfeada';
+import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=edfeada';
+import { lcanvas } from '../render/canvasres.js?v=edfeada';
 
 const CHUNK = 48;
 // font sizes are quantised (2 px steps above 14 px) so the glyph cache is reused

@@ -48,14 +48,14 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=ca6849e';
-import { MapApp } from './phone/mapapp.js?v=ca6849e';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=ca6849e';
-import { LodestoneApp } from './phone/lodestone.js?v=ca6849e';
-import { PhoneStats } from './phone/stats.js?v=ca6849e';
-import { Glance } from './phone/glance.js?v=ca6849e';
-import { buzzSound } from './phone/track.js?v=ca6849e';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=ca6849e';
+import { Positioning } from './phone/positioning.js?v=edfeada';
+import { MapApp } from './phone/mapapp.js?v=edfeada';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=edfeada';
+import { LodestoneApp } from './phone/lodestone.js?v=edfeada';
+import { PhoneStats } from './phone/stats.js?v=edfeada';
+import { Glance } from './phone/glance.js?v=edfeada';
+import { buzzSound } from './phone/track.js?v=edfeada';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=edfeada';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -83,7 +83,7 @@ const GLANCE_S_COMPACT = 0.9;  // v12: the same on a phone-sized (compact) touch
 const ALERT_S = 4.2;           // seconds the lowered phone stays popped up
 const ALERT_H = 176;           // device px of the phone's top that show while it is popped up (vs GLANCE_H)
 const ALERT_GROW = 1.12;       // its scale vs the raised phone's
-const ALERT_AGAIN = [13, 32];  // seconds after an unanswered text: nudge again (then it stays quiet)
+const ALERT_AGAIN = [20, 45];  // seconds after an unanswered text: nudge again (then it stays quiet). v14: was 13 / 32 s
 const CUE_MAX = 4;             // touch: the "tap your phone" cue shows on the first few alerts
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
@@ -207,7 +207,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=ca6849e'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=edfeada'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
@@ -579,6 +579,9 @@ export class Phone {
     }
     if (!waiting && !this._alertQ && A.n > 0 && this._alertT <= 0) this._alertMsg = null;   // (v13 critic: not in the frame it pops)
   }
+  // v14 (touch): the phone is popped up for a text, or its "Aya texted you · tap your phone" cue is on screen. The
+  // tutorial's own line says the same thing and sat on top of both (playtest screenshot), so it steps aside meanwhile.
+  get cueing() { return !this.isOpen && (this.root.classList.contains('ph-alert') || !!(this.el && this.el.cue && !this.el.cue.hidden)); }
   _endAlert(opened) {
     this._alertT = 0; this._poseDirty = true;
     this.root.classList.remove('ph-alert');

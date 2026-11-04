@@ -54,7 +54,7 @@ export class Aya {
     if (!msg.id) msg.id = `aya_${++this._seq}`;
     msg.from = msg.from || 'Aya';
     const typing = opts.typing != null ? opts.typing : Math.min(TYPE_MAX, TYPE_MIN + (msg.text || '').length * TYPE_PER_CHAR);
-    this.q.push({ msg, wait: opts.wait != null ? opts.wait : (this.q.length || this.cur ? 0.9 : 0.25), typing, run: opts.run || null, onReply: opts.onReply || null, onExpire: opts.onExpire || null,
+    this.q.push({ msg, wait: opts.wait != null ? opts.wait : (this.q.length || this.cur ? 1.4 : 0.25), typing,     // v14: 0.9 → 1.4 s between back-to-back texts run: opts.run || null, onReply: opts.onReply || null, onExpire: opts.onExpire || null,
       onTimeout: opts.onTimeout || null, patience: opts.patience || null, nudge: opts.nudge || null, valid: opts.valid || null, keepOpen: !!opts.keepOpen, defer: opts.defer != null ? opts.defer : null, stale: opts.stale || null, qt: this.t, state: 'wait', t: 0 });
     return msg.id;
   }

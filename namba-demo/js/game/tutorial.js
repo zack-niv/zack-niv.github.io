@@ -18,8 +18,8 @@
 //   ?notutorial   no hints at all (the conversation still plays)
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
-import { params } from '../core/params.js?v=ca6849e';
-import { TUTORIAL } from './script.js?v=ca6849e';
+import { params } from '../core/params.js?v=edfeada';
+import { TUTORIAL } from './script.js?v=edfeada';
 
 const KEY = 'namba.tutorial.v3';
 const NUDGE_S = [12, 26, 42];          // seconds a step may sit idle before each nudge
@@ -127,6 +127,10 @@ export class Tutorial {
     }
     const T = this.ctx.touch;
     if (T && T.active && T.coach) h = this._touchCoach(T, h);
+    // v14 (touch): one voice at a time. While the lowered phone pops up with its own cue, the hint waits (the ghost
+    // thumb on the phone button stays); it comes back when the pop ends, if the step is still undone.
+    const ph = this.ctx.phone;
+    if (h && T && T.active && h.at !== 'phoneup' && ph && ph.cueing) h = null;
     this._render(h);
   }
   // v13 (touch): the opening look + walk steps become the two-thumb coach (the zones carry the words, so the one-line
