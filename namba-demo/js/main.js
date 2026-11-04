@@ -12,41 +12,41 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=ca6849e';
-import { Events } from './core/events.js?v=ca6849e';
-import { Clock } from './core/clock.js?v=ca6849e';
-import { Input } from './core/input.js?v=ca6849e';
-import { params } from './core/params.js?v=ca6849e';
-import { World } from './world/world.js?v=ca6849e';
-import { Nav } from './world/nav.js?v=ca6849e';
-import { LAYOUT } from './world/layout.js?v=ca6849e';
-import { Loader } from './core/loader.js?v=ca6849e';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=ca6849e';
-import { bootTouch, TouchUI } from './ui/touch.js?v=ca6849e';
-import { setCanvasRes } from './render/canvasres.js?v=ca6849e';
-import { readRecovery, armRecovery } from './core/resilience.js?v=ca6849e';
+import { Engine } from './core/engine.js?v=edfeada';
+import { Events } from './core/events.js?v=edfeada';
+import { Clock } from './core/clock.js?v=edfeada';
+import { Input } from './core/input.js?v=edfeada';
+import { params } from './core/params.js?v=edfeada';
+import { World } from './world/world.js?v=edfeada';
+import { Nav } from './world/nav.js?v=edfeada';
+import { LAYOUT } from './world/layout.js?v=edfeada';
+import { Loader } from './core/loader.js?v=edfeada';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=edfeada';
+import { bootTouch, TouchUI } from './ui/touch.js?v=edfeada';
+import { setCanvasRes } from './render/canvasres.js?v=edfeada';
+import { readRecovery, armRecovery } from './core/resilience.js?v=edfeada';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=ca6849e',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=ca6849e',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=ca6849e', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=ca6849e',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=ca6849e',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=ca6849e',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=ca6849e',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=ca6849e',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=ca6849e',      'Signage',      'build'],
-  ['player',       './player/player.js?v=ca6849e',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=ca6849e',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=ca6849e',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=ca6849e',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=ca6849e',             'Hud',          'live'],
-  ['game',         './game/game.js?v=ca6849e',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=ca6849e',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=ca6849e',        'Post',         'live'],
+  ['materials',    './render/materials.js?v=edfeada',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=edfeada',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=edfeada', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=edfeada',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=edfeada',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=edfeada',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=edfeada',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=edfeada',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=edfeada',      'Signage',      'build'],
+  ['player',       './player/player.js?v=edfeada',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=edfeada',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=edfeada',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=edfeada',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=edfeada',             'Hud',          'live'],
+  ['game',         './game/game.js?v=edfeada',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=edfeada',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=edfeada',        'Post',         'live'],
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -71,6 +71,17 @@ bootTouch();
 const touchAck = Promise.resolve();
 // v11.1 (iOS crash): did the last run die on screen (jetsam / lost GPU)? Then this boot starts a safe tier.
 const recovery = readRecovery();
+// v14 (the crash loop, PostHog 31 Oct): the pause menu let an iPhone reload into ?quality=ultra (662 MB of textures,
+// killed while loading), and the recovery boot kept that forced tier, so every "safe" reload died the same way.
+//   * after a crash, a forced tier is dropped (auto-detect: low on a phone) and ?quality leaves the URL, so the next
+//     reload (or the home-screen app's relaunch) can't walk back into it;
+//   * on a phone, high/ultra are never booted at all (medium is the ceiling); ?quality=…&force skips this for tests.
+{
+  const QO = ['low', 'medium', 'high', 'ultra'], qi = QO.indexOf(params.quality);
+  const dropQ = () => { try { const u = new URL(location.href); u.searchParams.delete('quality'); history.replaceState(history.state, '', u.toString()); } catch (e) { /* ignore */ } };
+  if (recovery && recovery.reason !== 'param' && qi > 0) { console.warn(`[resilience] dropping forced quality ${params.quality} after a crash`); params.quality = null; dropQ(); }
+  else if (touchOnly && qi > 1 && !params.has('force')) { console.warn(`[quality] ${params.quality} is too heavy for a phone: medium`); params.quality = 'medium'; }
+}
 
 async function boot() {
   const canvas = document.getElementById('view');
@@ -156,8 +167,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=ca6849e').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=ca6849e').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=edfeada').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=edfeada').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

@@ -1,5 +1,5 @@
 // Player settings: persisted in localStorage (guarded), applied to systems.
-import { params } from '../core/params.js?v=ca6849e';
+import { params } from '../core/params.js?v=edfeada';
 
 const KEY = 'namba.settings';
 const DEFAULTS = { quality: 'high', sensitivity: 1, headBob: 1, volume: 0.8, subtitles: true };
@@ -56,14 +56,17 @@ export function buildSettingsPanel(ctx, onChange) {
     r.innerHTML = `<div class="g-set-label"><span>${label}</span><small>${ja}</small></div>`;
     r.appendChild(control); return r;
   };
-  // quality: segmented
+  // quality: segmented. v14: the lit button is the tier actually running (it used to be the saved default, "High",
+  // on a phone running Low), and a phone is offered Low / Medium only: High and Ultra crashed iPhones (main.js)
+  const eng = ctx.engine || {}, running = eng.qualityName || s.quality;
+  const offer = eng.mobile ? QUALITIES.slice(0, 2) : QUALITIES;
   const seg = document.createElement('div'); seg.className = 'g-seg';
-  for (const q of QUALITIES) {
+  for (const q of offer) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = q[0].toUpperCase() + q.slice(1);
-    if (q === s.quality) b.classList.add('on');
+    if (q === running) b.classList.add('on');
     b.addEventListener('click', (e) => {
       e.stopPropagation();
-      if (q === s.quality) return;
+      if (q === running) return;
       s.quality = q; saveSettings(s); reloadWithQuality(q);
     });
     seg.appendChild(b);

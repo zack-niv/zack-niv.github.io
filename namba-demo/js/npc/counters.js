@@ -12,8 +12,8 @@
 // of the player (despawned beyond ~95 m) and don't count against the crowd
 // population. Emits nothing.
 // =============================================================================
-import { POSE } from './sim.js?v=ca6849e';
-import { BIT } from './looks.js?v=ca6849e';
+import { POSE } from './sim.js?v=edfeada';
+import { BIT } from './looks.js?v=edfeada';
 
 const NEAR = 70, FAR = 95;
 const APRON = { barista: [0x3a2a1e, 0x1d1d1f, 0x2f4a36, 0x5a3b26, 0x22283a], chef: [0xf1efe9], clerk: [0x1e3f7a, 0x2a6a46, 0xb03030, 0x22283a, 0x1d1d1f] };

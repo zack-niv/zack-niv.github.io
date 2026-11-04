@@ -25,14 +25,14 @@
 //         gate:pass, gate:tap, gate:blocked
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, spaceById } from './layout.js?v=ca6849e';
-import { Timetable, LINES, FORMATIONS, serviceTime, hhmm } from './transit/timetable.js?v=ca6849e';
-import { loadFonts, DestSlots, buildDecalAtlas } from './transit/textures.js?v=ca6849e';
-import { SPECS, doorXs } from './transit/cars.js?v=ca6849e';
-import { TrainRenderer } from './transit/trains.js?v=ca6849e';
-import { defineEnvMaterials, buildTrackEnv, buildPSD, ChunkBatches, TS } from './transit/env.js?v=ca6849e';
-import { Gates } from './transit/gates.js?v=ca6849e';
-import { Boards } from './transit/boards.js?v=ca6849e';
+import { LEVELS, spaceById } from './layout.js?v=edfeada';
+import { Timetable, LINES, FORMATIONS, serviceTime, hhmm } from './transit/timetable.js?v=edfeada';
+import { loadFonts, DestSlots, buildDecalAtlas } from './transit/textures.js?v=edfeada';
+import { SPECS, doorXs } from './transit/cars.js?v=edfeada';
+import { TrainRenderer } from './transit/trains.js?v=edfeada';
+import { defineEnvMaterials, buildTrackEnv, buildPSD, ChunkBatches, TS } from './transit/env.js?v=edfeada';
+import { Gates } from './transit/gates.js?v=edfeada';
+import { Boards } from './transit/boards.js?v=edfeada';
 export const NK_VIADUCT_END = 168;
 
 const GAP = 0.5;

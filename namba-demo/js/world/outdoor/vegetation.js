@@ -11,9 +11,9 @@
 //   veg.build();  veg.update(dt, cameraPosition)
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=ca6849e';
-import { foliage, bark, FOLIAGE_TILES, tileUV } from './textures.js?v=ca6849e';
-import { MeshAcc } from './meshacc.js?v=ca6849e';
+import { rng } from '../../core/rng.js?v=edfeada';
+import { foliage, bark, FOLIAGE_TILES, tileUV } from './textures.js?v=edfeada';
+import { MeshAcc } from './meshacc.js?v=edfeada';
 
 export const WIND = { uTime: { value: 0 }, uWind: { value: 1 } };
 

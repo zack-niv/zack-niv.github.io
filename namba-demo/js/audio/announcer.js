@@ -23,8 +23,8 @@
 // '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
 // `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
-import { spokenText } from './phrases.js?v=ca6849e';
-import { platformGain, pointGain } from './zones.js?v=ca6849e';
+import { spokenText } from './phrases.js?v=edfeada';
+import { platformGain, pointGain } from './zones.js?v=edfeada';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };

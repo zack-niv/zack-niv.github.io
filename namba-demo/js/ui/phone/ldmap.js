@@ -12,10 +12,10 @@
 // Also draws the calibration visual (the floor plan appearing, guesses
 // converging onto you). Pure canvas; the app (lodestone.js) owns the DOM.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=ca6849e';
-import { CELL } from '../../world/world.js?v=ca6849e';
-import { BUSINESSES } from '../../world/directory.js?v=ca6849e';
-import { drawFloor, THEMES } from './maprender.js?v=ca6849e';
+import { LEVELS, LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=edfeada';
+import { CELL } from '../../world/world.js?v=edfeada';
+import { BUSINESSES } from '../../world/directory.js?v=edfeada';
+import { drawFloor, THEMES } from './maprender.js?v=edfeada';
 
 const TH = THEMES.lodestone;
 const TAU = Math.PI * 2;

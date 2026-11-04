@@ -31,11 +31,11 @@
 //   the 240 s cap is only a never-stall guard and logs 'story:timer'. Every beat logs 'story:beat' {id, why}.)
 //   question or the café counter); its words fit the why. The offer closes any open question (no stale chips).
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=ca6849e';
-import { businessBySlot } from '../world/directory.js?v=ca6849e';
-import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=ca6849e';
-import { Aya } from './aya.js?v=ca6849e';
-import { Tutorial } from './tutorial.js?v=ca6849e';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=edfeada';
+import { businessBySlot } from '../world/directory.js?v=edfeada';
+import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=edfeada';
+import { Aya } from './aya.js?v=edfeada';
+import { Tutorial } from './tutorial.js?v=edfeada';
 
 export class Story {
   constructor(ctx, game, demo) {
@@ -168,6 +168,7 @@ export class Story {
   _coffeeGate() {
     const E = this.errand;
     if (!E.slot || E.state !== 'none' || this._coffeeQueued || !this._meetDone || this.aya.busy() || this.aya.fresh()) return;
+    if (this.aya.t - Math.max(this.aya.lastSentT, this.aya.lastReplyT) < DEMO.coffeeBreath) return;     // v14: a breath after Meet (her text or your answer) before the next question
     if (this._pastCafe(10)) { E.state = 'dropped'; this.ctx.events.emit('story:errand', { state: 'dropped', t: +this.t.toFixed(1) }); return; }
     this._sendCoffee();
   }
@@ -202,7 +203,7 @@ export class Story {
     // v9: she waits for the answer; "hello?? 👀" after 20 s (or 30 m walked), then the plan anyway
     this.aya.say(AYA.hello, { typing: 1.3, wait: 0,
       patience: [DEMO.helloNudge, DEMO.helloNudge + DEMO.helloGiveUp], nudge: AYA.helloNudge,
-      onReply: (r) => { const ack = AYA.helloAck[r]; if (ack) this.aya.say(ack, { wait: 0.5 }); this._sendMeet(0.9, false); },
+      onReply: (r) => { const ack = AYA.helloAck[r]; if (ack) this.aya.say(ack, { wait: 0.5 }); this._sendMeet(DEMO.openingBreath, false); },
       onTimeout: () => this._sendMeet(0.4, true),
       onExpire: () => this._sendMeet(0.4, true) });
   }
@@ -442,7 +443,7 @@ export class Story {
     const quiet = aya.t - Math.max(aya.lastSentT, aya.lastReplyT);
     // the photo ask, timed by where you are (internal): just inside Namba CITY, the first mall floor puzzle (not held by
     // the engagement gap: it is the beat that matters here; it still never stacks — 8 s of quiet, no open question)
-    if (!this._photoAsked && !d.offered && this._cityT != null && quiet >= 8) { this._lastEngageT = t; this._askPhoto('city'); return; }
+    if (!this._photoAsked && !d.offered && this._cityT != null && quiet >= DEMO.photoQuiet) { this._lastEngageT = t; this._askPhoto('city'); return; }
     if (this._lastEngageT != null && t - this._lastEngageT < (d.offered ? DEMO.engageGapAfter : DEMO.engageGap)) return;
     if (quiet < DEMO.engageQuiet || !moving) return;
     this._lastEngageT = t;
