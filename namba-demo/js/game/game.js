@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=edfeada';
-import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=edfeada';
-import { BUSINESSES } from '../world/directory.js?v=edfeada';
-import { Interactions } from './interact.js?v=edfeada';
-import { Panels, yen, esc } from './panel.js?v=edfeada';
-import { Journal } from './journal.js?v=edfeada';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=edfeada';
-import { Title } from '../ui/title.js?v=edfeada';
-import { Demo } from './demo.js?v=edfeada';
-import * as V from './vignettes.js?v=edfeada';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=edfeada';
-import { orderItem, hasCounter } from './order.js?v=edfeada';
-import { contactLinks } from './endcard.js?v=edfeada';
+import { params } from '../core/params.js?v=a3a83f8';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=a3a83f8';
+import { BUSINESSES } from '../world/directory.js?v=a3a83f8';
+import { Interactions } from './interact.js?v=a3a83f8';
+import { Panels, yen, esc } from './panel.js?v=a3a83f8';
+import { Journal } from './journal.js?v=a3a83f8';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=a3a83f8';
+import { Title } from '../ui/title.js?v=a3a83f8';
+import { Demo } from './demo.js?v=a3a83f8';
+import * as V from './vignettes.js?v=a3a83f8';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=a3a83f8';
+import { orderItem, hasCounter } from './order.js?v=a3a83f8';
+import { contactLinks } from './endcard.js?v=a3a83f8';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

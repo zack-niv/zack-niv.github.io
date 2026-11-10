@@ -12,42 +12,42 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=edfeada';
-import { Events } from './core/events.js?v=edfeada';
-import { Clock } from './core/clock.js?v=edfeada';
-import { Input } from './core/input.js?v=edfeada';
-import { params } from './core/params.js?v=edfeada';
-import { World } from './world/world.js?v=edfeada';
-import { Nav } from './world/nav.js?v=edfeada';
-import { LAYOUT } from './world/layout.js?v=edfeada';
-import { Loader } from './core/loader.js?v=edfeada';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=edfeada';
-import { bootTouch, TouchUI } from './ui/touch.js?v=edfeada';
-import { setCanvasRes } from './render/canvasres.js?v=edfeada';
-import { readRecovery, armRecovery } from './core/resilience.js?v=edfeada';
+import { Engine } from './core/engine.js?v=a3a83f8';
+import { Events } from './core/events.js?v=a3a83f8';
+import { Clock } from './core/clock.js?v=a3a83f8';
+import { Input } from './core/input.js?v=a3a83f8';
+import { params } from './core/params.js?v=a3a83f8';
+import { World } from './world/world.js?v=a3a83f8';
+import { Nav } from './world/nav.js?v=a3a83f8';
+import { LAYOUT } from './world/layout.js?v=a3a83f8';
+import { Loader } from './core/loader.js?v=a3a83f8';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=a3a83f8';
+import { bootTouch, TouchUI } from './ui/touch.js?v=a3a83f8';
+import { setCanvasRes } from './render/canvasres.js?v=a3a83f8';
+import { readRecovery, armRecovery } from './core/resilience.js?v=a3a83f8';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=edfeada',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=edfeada',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=edfeada', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=edfeada',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=edfeada',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=edfeada',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=edfeada',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=edfeada',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=edfeada',      'Signage',      'build'],
-  ['player',       './player/player.js?v=edfeada',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=edfeada',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=edfeada',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=edfeada',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=edfeada',             'Hud',          'live'],
-  ['game',         './game/game.js?v=edfeada',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=edfeada',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=edfeada',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=edfeada',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=a3a83f8',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=a3a83f8',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=a3a83f8', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=a3a83f8',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=a3a83f8',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=a3a83f8',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=a3a83f8',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=a3a83f8',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=a3a83f8',      'Signage',      'build'],
+  ['player',       './player/player.js?v=a3a83f8',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=a3a83f8',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=a3a83f8',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=a3a83f8',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=a3a83f8',             'Hud',          'live'],
+  ['game',         './game/game.js?v=a3a83f8',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=a3a83f8',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=a3a83f8',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=a3a83f8',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -168,8 +168,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=edfeada').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=edfeada').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=a3a83f8').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=a3a83f8').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

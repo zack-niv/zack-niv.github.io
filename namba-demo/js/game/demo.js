@@ -17,12 +17,12 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=edfeada';
-import { params } from '../core/params.js?v=edfeada';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=edfeada';
-import { Story } from './story.js?v=edfeada';
-import { makeLook, BIT } from '../npc/looks.js?v=edfeada';
-import { showEndCard } from './endcard.js?v=edfeada';
+import { businessBySlot } from '../world/directory.js?v=a3a83f8';
+import { params } from '../core/params.js?v=a3a83f8';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=a3a83f8';
+import { Story } from './story.js?v=a3a83f8';
+import { makeLook, BIT } from '../npc/looks.js?v=a3a83f8';
+import { showEndCard } from './endcard.js?v=a3a83f8';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -104,7 +104,7 @@ export class Demo {
     let heard = false;
     const hear = (a) => { if (a && (a.start || a.kind === 'arrive' || a.kind === 'platform' || a.speaker === 'PA' || a.distant)) heard = true; };
     ev.on('announce', hear); ev.on('caption', hear);
-    game.after(1.8, () => { if (!heard && !game.paused) hud?.caption({ ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', en: 'Namba, Namba. This is the last stop. Please take all your belongings with you.', kind: 'announce', duration: 6 }); });
+    game.after(1.8, () => { if (!heard && !game.paused && !resume) hud?.caption({ ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', en: 'Namba, Namba. This is the last stop. Please take all your belongings with you.', kind: 'announce', duration: 6 }); });
     // v3: Aya's conversation + the tutorial woven into it (story.js): the phone buzzes as the opening look ends
     this.story.begin(tt);
     // v15: picking up after a crash (story.js resume): the beats reached, the errand, the destination, Lodestone

@@ -31,11 +31,11 @@
 //   the 240 s cap is only a never-stall guard and logs 'story:timer'. Every beat logs 'story:beat' {id, why}.)
 //   question or the café counter); its words fit the why. The offer closes any open question (no stale chips).
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=edfeada';
-import { businessBySlot } from '../world/directory.js?v=edfeada';
-import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=edfeada';
-import { Aya } from './aya.js?v=edfeada';
-import { Tutorial } from './tutorial.js?v=edfeada';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, UPGRADE, LATTE_REFUSABLE } from './script.js?v=a3a83f8';
+import { businessBySlot } from '../world/directory.js?v=a3a83f8';
+import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=a3a83f8';
+import { Aya } from './aya.js?v=a3a83f8';
+import { Tutorial } from './tutorial.js?v=a3a83f8';
 
 export class Story {
   constructor(ctx, game, demo) {
