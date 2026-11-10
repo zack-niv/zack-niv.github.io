@@ -20,12 +20,12 @@
 // player:zone (see js/core/events.js).
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS } from '../world/layout.js?v=edfeada';
-import { params } from '../core/params.js?v=edfeada';
-import { HeadCam } from './headcam.js?v=edfeada';
-import { Look, InteractableSet } from './look.js?v=edfeada';
-import { surfaceOf } from './surface.js?v=edfeada';
-import { rampAlong, stairSurfaceY, stairTread, rampSlope } from './stairs.js?v=edfeada';
+import { LAYOUT, LEVELS } from '../world/layout.js?v=a3a83f8';
+import { params } from '../core/params.js?v=a3a83f8';
+import { HeadCam } from './headcam.js?v=a3a83f8';
+import { Look, InteractableSet } from './look.js?v=a3a83f8';
+import { surfaceOf } from './surface.js?v=a3a83f8';
+import { rampAlong, stairSurfaceY, stairTread, rampSlope } from './stairs.js?v=a3a83f8';
 
 // ---- tuning -------------------------------------------------------------------
 export const MOVE = {

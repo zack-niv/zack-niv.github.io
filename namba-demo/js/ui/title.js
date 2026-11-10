@@ -3,8 +3,8 @@
 // Nankai platform while the type sits quietly in the corner.
 //   new Title(ctx, { onBegin }) · show() · hide() · update(dt)
 // =============================================================================
-import { buildSettingsPanel, buildControlsCard } from '../game/settings.js?v=edfeada';
-import { LAYOUT } from '../world/layout.js?v=edfeada';
+import { buildSettingsPanel, buildControlsCard } from '../game/settings.js?v=a3a83f8';
+import { LAYOUT } from '../world/layout.js?v=a3a83f8';
 
 export class Title {
   constructor(ctx, { onBegin } = {}) {
@@ -19,6 +19,7 @@ export class Title {
     el.className = 'g-title-screen';
     const k = (x, w) => `<kbd class="g-key${w ? ' wide' : ''}">${x}</kbd>`;
     const touch = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+    const ctx = this.ctx;                // v15: ctx.resumeFrom → "continue"
     el.innerHTML = `
       <div class="t-shade"></div>
       <div class="t-top">
@@ -33,7 +34,7 @@ export class Title {
         <div class="t-rule"></div>
         <div class="t-tag">Somewhere in this labyrinth, a tempura lunch is waiting.</div>
         <div class="t-tag-ja">この迷宮のどこかで、天ぷらが待っている。</div>
-        <button type="button" class="t-begin"><span class="t-begin-line"></span><span>${touch ? 'Tap to begin' : 'Click to begin'}</span><small>${touch ? 'タップしてはじめる' : 'クリックしてはじめる'}</small></button>
+        <button type="button" class="t-begin"><span class="t-begin-line"></span><span>${ctx.resumeFrom ? (touch ? 'Tap to continue' : 'Click to continue') : touch ? 'Tap to begin' : 'Click to begin'}</span><small>${ctx.resumeFrom ? 'つづきから' : touch ? 'タップしてはじめる' : 'クリックしてはじめる'}</small></button>
       </div>
       <div class="t-drawer" hidden>
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>

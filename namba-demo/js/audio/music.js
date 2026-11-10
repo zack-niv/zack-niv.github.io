@@ -4,8 +4,8 @@
 // *style* of Japanese retail BGM and station melodies (no real tunes copied).
 // Worker-safe: returns { channels:[L,R], sampleRate, loop }.
 // =============================================================================
-import { rng, Biquad, softclip, peak, scale } from './dsp.js?v=edfeada';
-import { Track, epiano, mallet, pluck, bass, pad, lead, flute, kick, snare, hat, shaker, rim, clap, nm, chord, voice } from './synth.js?v=edfeada';
+import { rng, Biquad, softclip, peak, scale } from './dsp.js?v=a3a83f8';
+import { Track, epiano, mallet, pluck, bass, pad, lead, flute, kick, snare, hat, shaker, rim, clap, nm, chord, voice } from './synth.js?v=a3a83f8';
 
 // TP: transposition (semitones) applied to every pitched note while a section renders, so one
 // composition yields several keys/tempi and a longer A / A' (key-change) form instead of a 15 s loop

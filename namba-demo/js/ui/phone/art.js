@@ -2,8 +2,8 @@
 // Place-card "photos": small generated canvas illustrations per category, and
 // deterministic review snippets. No external images.
 // =============================================================================
-import { rng, hash } from '../../core/rng.js?v=edfeada';
-import { catGroup } from './maprender.js?v=edfeada';
+import { rng, hash } from '../../core/rng.js?v=a3a83f8';
+import { catGroup } from './maprender.js?v=a3a83f8';
 
 const cache = new Map();
 
