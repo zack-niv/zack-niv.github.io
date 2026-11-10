@@ -127,6 +127,8 @@ export const AYA = {
   gotCoffee: 'omg you\'re an angel 😭☕ ok NOW come: Daikichi, Parks 6F',   // v11: answers YOUR text (AYA.mineCoffee)
   gotOtherCoffee: 'that\'s not {cafe}… but I\'ll allow it 😌 now come: Parks 6F',
   noCoffee: 'no latte? 🥲 fine. FINE. the tempura is worth it',
+  // v15: the first text after a crash resume (the phone "restarted": its message history is gone, so she re-sends the place)
+  resume: { dk: 'ugh my messages glitched 😅 anyway, still here: Daikichi, Parks 6F 🍤', cafe: 'ugh my messages glitched 😅 still want that latte from {cafe} pls 🥺' },
 };
 // v4: what the player asks for at the errand café (overrides the café's own drink)
 export const ERRAND_DRINK = { say: 'iced latte', label: 'iced latte', ja: 'アイスラテ', price: 520, icon: '🥤', who: 'Barista', line: 'One iced latte, please. To go!' };
@@ -144,6 +146,7 @@ export const UPGRADE = {
   offerPhoto: 'and honestly? get this, it actually works indoors 😌 →',   // v11: after she read your photo in a check-in
   offerBehindReply: 'lol ok but it\'s been a while 😂 get this, it actually works indoors',   // v11: no location knowledge
   offerAhead: 'Parks is a maze 😅 get Lodestone, it actually works indoors',   // v11: no location knowledge
+  offerResume: 'your phone restarted? 😅 here\'s Lodestone again →',   // v15: crash resume, Lodestone had been offered or installed
   ready: 'did it install? 😌 I\'m on 6F, 3rd in line',   // v11: no location knowledge
   ready2: 'did it install? 😌 still 2nd in line, hurry 🍤',   // v11: no location knowledge
   readyCoffee: 'did it install? 😌 it even knows which floor my latte is on',   // v11: no location knowledge

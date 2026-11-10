@@ -47,6 +47,7 @@ const SYSTEMS = [
   ['game',         './game/game.js?v=edfeada',          'Game',         'live'],
   ['visibility',   './render/visibility.js?v=edfeada',  'Visibility',   'live'],
   ['post',         './render/post.js?v=edfeada',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=edfeada',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential

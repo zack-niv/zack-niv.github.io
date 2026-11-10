@@ -400,3 +400,12 @@ html:has(#touch-controls.stick-on) .tcz-ring, html.tu-coaching .tu-ghost { opaci
   .tcz-thumb, .tcz-ripple, .tu-point::before { animation: none !important; }
   .tcz-ring .tcz-thumb { transform: translate(0,-30px); }
 }
+
+/* ==== v15 memory diet: no backdrop blur on touch ==================================================================
+   Each backdrop-filter over the live WebGL canvas makes iOS keep an extra off-screen buffer at device resolution (3×
+   on an iPhone), re-blurred every frame. 3 of 4 Low-tier iPhone crashes happened with the phone up on Messages, where
+   ~10 blurred layers stack over the world. Firmer backgrounds instead, so text over the 3D view stays legible. */
+html.is-touch *, html.is-touch *::before, html.is-touch *::after { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.is-touch { --g-glass: rgba(14, 15, 18, .78); --g-glass-strong: rgba(12, 13, 16, .9); }
+html.is-touch .g-pause { background: rgba(6, 6, 8, .82); }
+html.is-touch .ph-dock { background: rgba(22, 24, 30, .94); }

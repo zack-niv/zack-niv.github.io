@@ -557,6 +557,54 @@ export class Story {
     return fill(S.other);
   }
   _beat(id, why) { this.ctx.events.emit('story:beat', { id, why, t: +this.t.toFixed(1) }); }
+
+  // ---- v15: checkpoint / resume (a crash on a phone costs a few seconds, not the run) ------------------------------
+  // core/resilience.js stores checkpoint() in its crash marker (every stage and every 10 s); a boot that finds one calls
+  // resume(cp) right after begin(). Only what the story needs to carry on: where you stood (last spot off any stairs or
+  // escalator), the beats reached, the errand, your destination and how far Lodestone got. Message history is not
+  // restored: Aya re-sends the place you are heading for, and Lodestone is offered again (one tap, the real install).
+  checkpoint() {
+    const d = this.demo, P = this.ctx.player, b = P && P.body, ph = this.ctx.phone || {};
+    if (!d.began || d.arrived || this.game.ended || this.helloT == null || !b) return null;
+    if (b.ramp == null || b.ramp < 0) this._cpPos = { lv: b.level, x: +b.x.toFixed(2), z: +b.z.toFixed(2), yaw: +P.yaw.toFixed(3) };
+    const pos = this._cpPos; if (!pos) return null;
+    return Object.assign({}, pos, { t: Math.round(d.t), st: Math.round(this.t), meet: !!this._meetQueued, err: this.errand.state,
+      got: this.errand.got ? this.errand.got.name || null : null, dest: this._destSlot(), lode: ph.upgradeStage || 'none',
+      tut: !!this.tut.finished, gate: !!this.f.gateTapped, leg2: !!this._leg2 });
+  }
+  resume(cp) {
+    const { aya, game, demo } = this, E = this.errand, ph = this.ctx.phone;
+    this.resumed = cp;
+    // the clocks: the beats' timers (offer cap, check-in floors) carry on from where they were; Aya starts quiet now
+    this.t = cp.st || 0; demo.t = cp.t || 0; aya.t = this.t; aya.lastSentT = aya.t;
+    // the opening is behind you: no "Landed??", no hello/meet chain, no look/walk/phone lessons
+    this.helloT = this.t; this.f.raised = true; this.f.look = 2; this.f.gateTapped = !!cp.gate; this.f.picked = !!cp.dest;
+    const done = (id) => { const st = this.tut.state[id]; if (st) st.done = true; };
+    ['look', 'move', 'raise', 'reply'].forEach(done);
+    if (cp.dest || cp.tut) done('pick');
+    if (cp.gate || cp.tut) done('gate');
+    aya.sent.push('hello');
+    if (cp.meet) { this._meetQueued = true; this._meetDone = true; this._meetHow = 'resume'; aya.sent.push('meet'); game.setQuest('tempura', 'active', null, true); }
+    // the latte errand, as it stood
+    const st = cp.err || 'none';
+    if (st === 'asked' && E.slot) {
+      E.state = 'asked'; this._coffeeQueued = true; aya.sent.push('coffee');
+      this._suggest(E.slot); game.setQuest('coffee', 'active', null, true); demo.setTarget && demo.setTarget('cafe'); this._orderStep();
+    } else if (st !== 'none') {
+      E.state = st; this._coffeeQueued = true; demo.setTarget && demo.setTarget('dk');
+      if (st === 'done') { E.got = { name: cp.got || E.name }; E.at = this.t; game.setQuest('coffee', 'done', `iced latte from ${cp.got || E.name}, to go`, true); }
+    }
+    if (cp.leg2 || st === 'done' || st === 'declined' || st === 'skipped') this._leg2Start();
+    // her first text: the place you are heading for, as a link card (the old thread is gone with the crash)
+    if (cp.meet) {
+      const cafe = st === 'asked' && E.slot;
+      aya.say({ id: 'resume', text: cafe ? AYA.resume.cafe.replace('{cafe}', E.name) : AYA.resume.dk, place: cafe ? E.slot : DEMO.slot }, { wait: 2.5 });
+    }
+    // your destination comes back in Maps; Lodestone is offered again if it had been (installing it is one tap)
+    if (cp.dest && ph && typeof ph.setDestination === 'function') game.after(0.6, () => { try { if (!this._destSlot()) ph.setDestination(cp.dest, { app: 'maps', via: 'resume' }); } catch (e) { console.warn('[story] resume dest', e); } });
+    if (cp.lode && cp.lode !== 'none') game.after(7, () => { if (!demo.offered && !demo.arrived) this._offer('resume'); });
+    this.ctx.events.emit('story:resume', { t: this.t, lv: cp.lv, err: st, lode: cp.lode || 'none', dest: cp.dest || null });
+  }
   _timer(beat, extra) { this.ctx.events.emit('story:timer', Object.assign({ beat, t: +this.t.toFixed(1) }, extra || {})); }
   _offer(why) {
     const { demo, aya } = this;
@@ -573,6 +621,7 @@ export class Story {
       if (why === 'parks') return this._parksFar ? UPGRADE.offerFine : UPGRADE.offerParks;   // far side of CITY: "before you hit Parks"
       if (why === 'behind') return this._behindReplied && UPGRADE.offerBehindReply ? UPGRADE.offerBehindReply : UPGRADE.offerBehind;
       if (why === 'ahead') return UPGRADE.offerAhead;
+      if (why === 'resume') return UPGRADE.offerResume;
       // v9 critic: she answers what you just told her ("I'm lost 😭" → "lol I knew it"), never asks it back
       if (why === 'lost' && UPGRADE.offerLost) return UPGRADE.offerLost;
       if (why === 'early' && UPGRADE.offerEarly) return UPGRADE.offerEarly;

@@ -7,7 +7,7 @@
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
 import { params } from '../core/params.js?v=edfeada';
-import { LAYOUT, spaceById } from '../world/layout.js?v=edfeada';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=edfeada';
 import { BUSINESSES } from '../world/directory.js?v=edfeada';
 import { Interactions } from './interact.js?v=edfeada';
 import { Panels, yen, esc } from './panel.js?v=edfeada';
@@ -131,7 +131,13 @@ export class Game {
     const { ctx } = this;
     this.started = true;
     this.titleUp = false;
-    if (this._fromTitle) {
+    // v15: a crash (or a background kill) left a checkpoint: stand where you were, skip the platform intro
+    const cp = !this.quiet && ctx.resumeFrom;
+    let resumed = false;
+    if (cp && ctx.teleport && LEVEL_ORDER.includes(cp.lv) && isFinite(cp.x) && isFinite(cp.z)) {
+      try { resumed = ctx.teleport({ level: cp.lv, x: cp.x, z: cp.z, yaw: cp.yaw, pitch: 0 }); } catch (e) { console.warn('[game] resume teleport', e); }
+    }
+    if (!resumed && this._fromTitle) {
       ctx.teleport && ctx.teleport('start');
       if (ctx.player) ctx.player.pitch = 0;
     }
@@ -145,7 +151,7 @@ export class Game {
       for (const id in this.quests) this.quests[id].state = 'active';
       return;
     }
-    this.demo.begin({ cinematic: true });
+    this.demo.begin({ cinematic: !resumed, resume: resumed ? cp : null });
   }
   // glide the view toward a direction (vignettes: the counter, the fryer) — the world stays live
   lookDir(dx, dz, pitch = -0.2, rate = 2.2) { this._look = { yaw: Math.atan2(-dx, -dz), pitch, rate }; }

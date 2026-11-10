@@ -64,7 +64,7 @@ export class Demo {
 
   // ---------------------------------------------------------------------------
   // Act 1: arrival
-  begin({ cinematic = true } = {}) {
+  begin({ cinematic = true, resume = null } = {}) {
     if (this.began) return;
     this.began = true;
     const { ctx, game } = this;
@@ -107,6 +107,8 @@ export class Demo {
     game.after(1.8, () => { if (!heard && !game.paused) hud?.caption({ ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', en: 'Namba, Namba. This is the last stop. Please take all your belongings with you.', kind: 'announce', duration: 6 }); });
     // v3: Aya's conversation + the tutorial woven into it (story.js): the phone buzzes as the opening look ends
     this.story.begin(tt);
+    // v15: picking up after a crash (story.js resume): the beats reached, the errand, the destination, Lodestone
+    if (resume) { try { this.story.resume(resume); } catch (e) { console.error('[demo] resume', e); ctx.errors.push(`resume: ${e.message}`); } }
   }
 
   // ---------------------------------------------------------------------------

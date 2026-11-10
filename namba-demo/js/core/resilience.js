@@ -30,6 +30,10 @@
 //   q    the quality tier the dead run used (the recovered event's own super properties describe the NEW run)
 //   err  the last JS errors (window error / unhandled rejection), which also go out live as namba_error
 //   geo  geometry MB (vertex + index buffers in the scene) next to tex / canvas: the estimate missed all of it
+//
+// v15 (resume): the marker also carries `cp`, the story's checkpoint (game/story.js checkpoint(): where you stand, the
+// beats reached, your destination, Lodestone). A boot that finds one (a crash, or a tab killed in the background, within
+// FRESH_MS) sets ctx.resumeFrom and the game picks up there instead of the platform. ?fresh ignores it.
 // =============================================================================
 const KEY = 'namba_run';
 const FRESH_MS = 20 * 60 * 1000;      // a localStorage marker older than this is stale (not "the last run")
@@ -60,7 +64,7 @@ export function readRecovery() {
   store.clear();
   // a run whose tab was hidden and never came back is not (provably) a crash: no safe tier, but report it
   if (m && m.hidden && !m.reason) {
-    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null, crumbs: m.cr || null, quality: m.q || null, errs: m.err || null };
+    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null, crumbs: m.cr || null, quality: m.q || null, errs: m.err || null, cp: m.cp || null };
     if (!forced) return null;
   }
   if (!m && !forced) return null;
@@ -70,7 +74,7 @@ export function readRecovery() {
     ago: m ? Math.round((Date.now() - (m.at || Date.now())) / 1000) : 0,
     safe: forced || Math.min(2, prevSafe + 1),     // a second crash in safe mode steps down once more
     sinceStage: m ? m.ss : null, mem: m ? m.mem || null : null,
-    crumbs: m ? m.cr || null : null, quality: m ? m.q || null : null, errs: m ? m.err || null : null,
+    crumbs: m ? m.cr || null : null, quality: m ? m.q || null : null, errs: m ? m.err || null : null, cp: m ? m.cp || null : null,
   };
 }
 let hiddenRun = null;
@@ -90,6 +94,11 @@ try {
 export function armRecovery(ctx, rec) {
   ctx.recovered = rec || null;
   ctx.lastRunHidden = hiddenRun;
+  // v15: resume the last run (crashed, or killed in the background) unless ?fresh, a forced ?safe, or it is stale
+  {
+    const src = (rec && rec.reason !== 'param' && rec) || hiddenRun, cp = src && src.cp;
+    ctx.resumeFrom = cp && !new URLSearchParams(location.search).has('fresh') && (src.ago == null || src.ago < FRESH_MS / 1000) ? cp : null;
+  }
   ctx.memEstimate = () => memEstimate(ctx);
   const safe = rec ? rec.safe : 0;
   // armed from boot: a tab that dies while loading (or on the title) counts too; hiding the tab flags it (v12.1)
@@ -99,7 +108,10 @@ export function armRecovery(ctx, rec) {
   const crumbs = [], errs = [];         // v14: the flight recorder (see the header)
   const q = () => { const e = ctx.engine; return e ? e.qualityName + (e.qualityForced ? '!' : '') : undefined; };
   const snapshot = (reason, hidden) => ({ stage, t: playT(), at: Date.now(), ss: Math.round((performance.now() - stageAt) / 1000), mem: mem || undefined, safe, reason: reason || undefined, hidden: hidden || undefined,
-    q: q(), cr: crumbs.length ? crumbs.join(' ') : undefined, err: errs.length ? errs.slice() : undefined });
+    q: q(), cr: crumbs.length ? crumbs.join(' ') : undefined, err: errs.length ? errs.slice() : undefined, cp: checkpoint() });
+  // v15: the story's checkpoint (null before the first text / after arrival); the last good one survives a bad read
+  let lastCp;
+  const checkpoint = () => { try { const S = ctx.game && ctx.game.story; const c = S && S.checkpoint ? S.checkpoint() : null; if (c) lastCp = c; else if (ctx.game && ctx.game.demo && ctx.game.demo.arrived) lastCp = undefined; } catch (e) { /* keep the last */ } return lastCp; };
   const write = (reason, hidden) => {
     if ((document.hidden || reloading) && !reason && !hidden) return;
     if (running || reason) store.set(snapshot(reason, hidden));
@@ -168,7 +180,7 @@ export function armRecovery(ctx, rec) {
       setTimeout(() => { try { location.reload(); } catch (err) { /* ignore */ } }, 2600);
     }, false);
   }
-  if (rec && rec.reason !== 'param') E.on('game:ready', () => toast());
+  if (rec && rec.reason !== 'param') E.on('game:ready', () => toast(!!ctx.resumeFrom));
 }
 
 function showCard(already) {
@@ -183,11 +195,11 @@ function showCard(already) {
   document.body.appendChild(d);
 }
 
-function toast() {
+function toast(resume) {
   const d = document.createElement('div');
   d.className = 'recover-toast';
   d.style.cssText = 'position:fixed;left:50%;top:max(12px,env(safe-area-inset-top));transform:translateX(-50%);z-index:9000;max-width:min(92vw,520px);padding:9px 14px;border-radius:12px;background:rgba(10,12,16,.82);color:#eef1f5;font:500 13px/1.35 Inter,system-ui,sans-serif;text-align:center;pointer-events:none;transition:opacity .8s';
-  d.textContent = 'Restarted in a lighter mode, so Namba fits your phone’s memory.';
+  d.textContent = resume ? 'Restarted in a lighter mode. You’ll pick up where you left off.' : 'Restarted in a lighter mode, so Namba fits your phone’s memory.';
   document.body.appendChild(d);
   setTimeout(() => { d.style.opacity = '0'; }, 7000);
   setTimeout(() => d.remove(), 8200);
