@@ -46,6 +46,12 @@ const HALL_R = 110;       // halls (depachika, Takashimaya 1F)
 const FORCE_FRONT_R = 120;   // synchronous radii on teleport
 const FORCE_INT_R = 46;
 const BUDGET_MS = 12;
+// v16 (phones: memory grew 142 → 214 MB of geometry over a 9-minute iPhone run, PostHog 13 Nov): fronts were prefetched
+// out to FRONT_R but a phone draws ~70 m, so most were never drawn — never uploaded, so render/memdiet.js could not free
+// them either — and neither fronts nor halls were ever released. On a phone: a shorter prefetch, and release beyond a
+// wider radius (the gap is hysteresis: nothing pops in and out at one distance). Desktop keeps the old radii (ultra
+// draws to 260 m). ?release forces it on, ?norelease off.
+const MOBILE_R = { front: 110, frontFree: 150, hall: 90, hallFree: 140 };
 
 // one shared environment context (atlases, chunk batches) for shops + props
 export function envFor(ctx) {
@@ -97,6 +103,15 @@ export class Shops {
     this.units = [];
     this._t = 0; this._q = 0;
     this._shutterReady = false;
+    this.released = { fronts: 0, halls: 0 };      // v16: counts (debug / tests)
+  }
+  // v16: build / release radii for this device (see MOBILE_R)
+  get radii() {
+    if (this._radii) return this._radii;
+    const p = this.ctx.params, mobile = !!(this.ctx.engine && this.ctx.engine.mobile);
+    const on = !p.has('norelease') && (mobile || p.has('release'));
+    this._radii = on ? MOBILE_R : { front: FRONT_R, frontFree: Infinity, hall: HALL_R, hallFree: Infinity };
+    return this._radii;
   }
 
   async init() {
@@ -248,6 +263,19 @@ export class Shops {
     g.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
     rec.group = null;
   }
+  // v16: fronts and halls are replay-safe like interiors (collision, spots and lights come from the logic pass, a
+  // replay only draws), so a released one is rebuilt identically when you come back
+  _releaseFront(u) {
+    const g = u.group; if (!g) return;
+    g.parent && g.parent.remove(g);
+    g.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+    u.group = null; u.frontBuilt = false; this.released.fronts++;
+  }
+  _releaseHall(u) {
+    if (!u.built || !u.groups) return;
+    for (const g of u.groups) { g.parent && g.parent.remove(g); g.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); }
+    u.groups = null; u.built = false; this.released.halls++;
+  }
   _buildHall(u) {
     if (u.built) return;
     u.built = true;
@@ -275,7 +303,7 @@ export class Shops {
     const yy = y != null ? y : (level ? LEVELS[level].y + 1.6 : this.ctx.engine.camera.position.y);
     const p = { x, y: yy, z };
     for (const u of this.units) {
-      if (u.kind === 'hall') { if (!u.built && this._dist2(u, p) < HALL_R * HALL_R) this._buildHall(u); continue; }
+      if (u.kind === 'hall') { if (!u.built && this._dist2(u, p) < this.radii.hall * this.radii.hall) this._buildHall(u); continue; }
       if (!u.frontBuilt && this._dist2(u, p) < r * r) this._buildFront(u);
     }
     for (const rec of this.recs.values()) if (!rec.group && this._recDist2(rec, p) < ri * ri) this._buildInterior(rec);
@@ -391,10 +419,11 @@ export class Shops {
       if (this.env.fontsReady) {
         const t0 = performance.now();
         const cand = [];
+        const R = this.radii;
         for (const u of this.units) {
           const d = this._dist2(u, cam);
-          if (u.kind === 'hall') { if (!u.built && d < HALL_R * HALL_R) cand.push([d, u, 0]); }
-          else if (!u.frontBuilt && d < FRONT_R * FRONT_R) cand.push([d * 0.6, u, 0]);   // fronts first
+          if (u.kind === 'hall') { if (!u.built && d < R.hall * R.hall) cand.push([d, u, 0]); }
+          else if (!u.frontBuilt && d < R.front * R.front) cand.push([d * 0.6, u, 0]);   // fronts first
         }
         const fw = this._fw || (this._fw = new THREE.Vector3());
         this.ctx.engine.camera.getWorldDirection(fw);
@@ -422,6 +451,15 @@ export class Shops {
       if (d2 > INT_FREE_R * INT_FREE_R) { this._releaseInterior(rec); continue; }
       const v = d2 < f2;
       if (rec.group.visible !== v) rec.group.visible = v;
+    }
+    // v16: release fronts and halls far behind you (phones; Infinity elsewhere)
+    const R = this.radii;
+    if (R.frontFree !== Infinity) {
+      const ff = R.frontFree * R.frontFree, hf = R.hallFree * R.hallFree;
+      for (const u of this.units) {
+        if (u.kind === 'hall') { if (u.built && u.groups && this._dist2(u, cam) > hf) this._releaseHall(u); }
+        else if (u.group && this._dist2(u, cam) > ff) this._releaseFront(u);
+      }
     }
   }
 
