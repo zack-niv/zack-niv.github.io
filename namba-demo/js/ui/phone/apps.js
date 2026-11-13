@@ -2,10 +2,10 @@
 // Phone apps other than Maps: home screen, Notes (quest checklist), Messages
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
-import { LINES } from './places.js?v=a3a83f8';
-import { businessBySlot } from '../../world/directory.js?v=a3a83f8';
-import { placeArt } from './art.js?v=a3a83f8';
-import { bizSub, levelLabel, zoneShort } from './destinations.js?v=a3a83f8';
+import { LINES } from './places.js?v=edffaff';
+import { businessBySlot } from '../../world/directory.js?v=edffaff';
+import { placeArt } from './art.js?v=edffaff';
+import { bizSub, levelLabel, zoneShort } from './destinations.js?v=edffaff';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

@@ -1,6 +1,6 @@
 // 2D visibility fan over a level's walk grid (pure JS, no THREE; node-testable).
 // A ray is stopped by SOLID cells and by wall (and optionally partition) edges.
-import { CELL } from '../world/world.js?v=a3a83f8';
+import { CELL } from '../world/world.js?v=edffaff';
 
 export const FAN = 720;
 const COS = new Float32Array(FAN), SIN = new Float32Array(FAN);

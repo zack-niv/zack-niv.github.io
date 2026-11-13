@@ -13,10 +13,10 @@
 //     with light lines (sign mounting), glazed side walls, trussed concourse
 //     roof with a clerestory monitor
 // =============================================================================
-import { CELL, EDGE } from '../world.js?v=a3a83f8';
-import { styleOf, LINE_BAND } from './styles.js?v=a3a83f8';
-import { face, strip } from './surfaces.js?v=a3a83f8';
-import { KELVIN } from './kit.js?v=a3a83f8';
+import { CELL, EDGE } from '../world.js?v=edffaff';
+import { styleOf, LINE_BAND } from './styles.js?v=edffaff';
+import { face, strip } from './surfaces.js?v=edffaff';
+import { KELVIN } from './kit.js?v=edffaff';
 
 const UP = [0, 1, 0], DOWN = [0, -1, 0];
 function Q(b, mat, a, bb, c, d, n, uv) {

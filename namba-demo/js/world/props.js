@@ -22,16 +22,20 @@
 // Solid furniture is registered with ctx.world.addBox; wall art is flush (no box).
 // =============================================================================
 import * as THREE from 'three';
-import { envFor } from './shops.js?v=a3a83f8';
-import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=a3a83f8';
-import * as D from './env/draw.js?v=a3a83f8';
-import { CELL } from './world.js?v=a3a83f8';
-import { LAYOUT, LEVELS } from './layout.js?v=a3a83f8';
-import { GeoBatch } from '../render/geobatch.js?v=a3a83f8';
-import { rng, hash } from '../core/rng.js?v=a3a83f8';
+import { envFor } from './shops.js?v=edffaff';
+import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=edffaff';
+import * as D from './env/draw.js?v=edffaff';
+import { CELL } from './world.js?v=edffaff';
+import { LAYOUT, LEVELS } from './layout.js?v=edffaff';
+import { GeoBatch } from '../render/geobatch.js?v=edffaff';
+import { rng, hash } from '../core/rng.js?v=edffaff';
 
 const CHUNK = 32;
 const BUILD_R = 90;
+// v16 (phones): build closer and release far chunks (bounded memory, same reasoning as world/shops.js MOBILE_R). BUILD
+// functions are release-safe: their only side effects are the shared screen textures (_ensureScreens, made once) and the
+// unit's hasScreens flag; the fountain's jets / crystal / rings are made once at init. ?release / ?norelease as in shops.
+const MOBILE_BUILD_R = 80, MOBILE_FREE_R = 130;
 const FORCE_R = 70;
 const K = (hex, k = 1) => rgb(hex, k);
 const G = 1.5;   // lit atlas multiplier (matches shops)
@@ -618,7 +622,8 @@ export class Props {
       if (this.env.fontsReady) {
         const t0 = performance.now();
         const cand = [];
-        for (const u of this.units.values()) if (!u.built) { const d = this._dist2(u, cam); if (d < BUILD_R * BUILD_R) cand.push([d, u]); }
+        const br = this._mobileRelease() ? MOBILE_BUILD_R : BUILD_R;
+        for (const u of this.units.values()) if (!u.built) { const d = this._dist2(u, cam); if (d < br * br) cand.push([d, u]); }
         cand.sort((a, b) => a[0] - b[0]);
         for (const [, u] of cand) { this._buildUnit(u); if (performance.now() - t0 > 6) break; }
       }
@@ -634,7 +639,22 @@ export class Props {
         if (near) this._drawScreens(time, false);
       }
       if (this.jets) this._animateJets(time, cam);
+      // v16: release chunks far behind you (phones)
+      if (this._mobileRelease()) {
+        const ff = MOBILE_FREE_R * MOBILE_FREE_R;
+        for (const u of this.units.values()) if (u.built && u.group && this._dist2(u, cam) > ff) this._releaseUnit(u);
+      }
     }
+  }
+  _mobileRelease() {
+    if (this._rel == null) { const p = this.ctx.params; this._rel = !p.has('norelease') && (!!(this.ctx.engine && this.ctx.engine.mobile) || p.has('release')); }
+    return this._rel;
+  }
+  _releaseUnit(u) {
+    const g = u.group; if (!g) return;
+    g.parent && g.parent.remove(g);
+    g.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
+    u.group = null; u.built = false; this.released = (this.released || 0) + 1;
   }
   // faceted glass sculpture, lit from inside, slowly cycling hue (one shared material)
   _makeCrystal(lv, cx, cz, grp) {
