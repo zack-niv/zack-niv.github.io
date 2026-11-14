@@ -34,8 +34,19 @@
 // v15 (resume): the marker also carries `cp`, the story's checkpoint (game/story.js checkpoint(): where you stand, the
 // beats reached, your destination, Lodestone). A boot that finds one (a crash, or a tab killed in the background, within
 // FRESH_MS) sets ctx.resumeFrom and the game picks up there instead of the platform. ?fresh ignores it.
+//
+// v18 (the iPhone 16 dies a few minutes in, no report, memory cuts did not help): the recorder is denser. The marker is written every
+// 3 s (was 10), the crumbs hold 30 entries and include the small things (phone down, app switches, photo, order, vignettes, PA speech,
+// pause, hidden/visible, quality, memdiet, long frames), and it carries what the last seconds looked like:
+//   fr   { g, k, s, n }: worst frame gap (ms) and worst tick (ms) in the last 5 s, the slowest system of that tick, frames so far
+//   lg   the worst gaps over 400 ms since page start, "<ms>ms@<t>:<system>" (main.js ctx.frameLog)
+//   ri   { g, t, p, c, tr }: renderer geometries, textures, programs, and the last frame's draw calls and triangles
+//   dom  DOM node count (sampled every 15 s) · ph phone state ("up:messages", "glance", "down") · sa 1 when a home-screen app
+//   up   seconds since page load · dd effective draw distance · ds the call governor's distance scale
+// liveStats(ctx) returns the same readings for analytics (namba_beat).
 // =============================================================================
 const KEY = 'namba_run';
+const MAX_CRUMBS = 30;
 const FRESH_MS = 20 * 60 * 1000;      // a localStorage marker older than this is stale (not "the last run")
 
 const store = {
@@ -64,7 +75,7 @@ export function readRecovery() {
   store.clear();
   // a run whose tab was hidden and never came back is not (provably) a crash: no safe tier, but report it
   if (m && m.hidden && !m.reason) {
-    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null, crumbs: m.cr || null, quality: m.q || null, errs: m.err || null, cp: m.cp || null };
+    hiddenRun = { lastStage: m.stage || 'play', t: m.t || 0, ago: Math.round((Date.now() - (m.at || Date.now())) / 1000), sinceStage: m.ss, mem: m.mem || null, crumbs: m.cr || null, quality: m.q || null, errs: m.err || null, cp: m.cp || null, ...flight(m) };
     if (!forced) return null;
   }
   if (!m && !forced) return null;
@@ -75,9 +86,30 @@ export function readRecovery() {
     safe: forced || Math.min(2, prevSafe + 1),     // a second crash in safe mode steps down once more
     sinceStage: m ? m.ss : null, mem: m ? m.mem || null : null,
     crumbs: m ? m.cr || null : null, quality: m ? m.q || null : null, errs: m ? m.err || null : null, cp: m ? m.cp || null : null,
+    ...(m ? flight(m) : {}),
   };
 }
 let hiddenRun = null;
+// v18: the flight-recorder fields of a marker, as readRecovery() returns them
+const flight = (m) => ({ fr: m.fr || null, lg: m.lg || null, ri: m.ri || null, dom: m.dom != null ? m.dom : null, ph: m.ph || null, sa: m.sa || null, up: m.up != null ? m.up : null, dd: m.dd != null ? m.dd : null, ds: m.ds != null ? m.ds : null });
+
+const standalone = () => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } };
+
+// v18: live readings for the marker and for analytics (namba_beat); every field is optional, nothing here throws
+let domAt = -1e9, domN;
+export function liveStats(ctx) {
+  const o = {};
+  try { const F = ctx.frameLog; if (F) o.fr = { g: Math.round(F.gapMax5), k: Math.round(F.tickMax5), s: F.tickSys5 || undefined, n: F.n }; } catch (e) { /* optional */ }
+  try {
+    const e = ctx.engine, i = e && e.renderer && e.renderer.info;
+    if (i) o.ri = { g: i.memory.geometries, t: i.memory.textures, p: i.programs ? i.programs.length : undefined, c: e.stats.calls, tr: e.stats.tris };
+  } catch (e) { /* optional */ }
+  try { const n = performance.now(); if (n - domAt > 15000) { domAt = n; domN = document.getElementsByTagName('*').length; } o.dom = domN; } catch (e) { /* optional */ }
+  try { const P = ctx.phone; if (P) o.ph = P.isOpen ? 'up:' + P.app : (P.pose || 'down'); } catch (e) { /* optional */ }
+  try { o.up = Math.round(performance.now() / 1000); } catch (e) { /* optional */ }
+  try { const V = ctx.visibility; if (V) { if (typeof V.dd === 'number') o.dd = Math.round(V.dd); if (typeof V.distScale === 'number') o.ds = Math.round(V.distScale * 100) / 100; } } catch (e) { /* optional */ }
+  return o;
+}
 
 // WebGL contexts made on this page (Stack3D used to add a second one): counted by wrapping getContext once
 let glContexts = 0;
@@ -105,10 +137,25 @@ export function armRecovery(ctx, rec) {
   let stage = 'loading', running = true, stageAt = performance.now(), mem = null;
   let reloading = false;      // our own reload after a lost context must keep its marker
   const playT = () => Math.round((ctx.game && ctx.game.demo && ctx.game.demo.t) || 0);
-  const crumbs = [], errs = [];         // v14: the flight recorder (see the header)
+  const crumbs = [], errs = [];         // v14: the flight recorder (see the header); v18: crumbs are { n: name, c: repeats, t: play time }
+  const crumb = (n) => {
+    const t = playT(), l = crumbs[crumbs.length - 1];
+    if (l && l.n === n) { l.c++; l.t = t; return; }
+    crumbs.push({ n, c: 1, t }); if (crumbs.length > MAX_CRUMBS) crumbs.shift();
+  };
+  const crumbStr = () => crumbs.map(c => (c.c > 1 ? `${c.n}×${c.c}` : c.n) + '@' + c.t).join(' ');
+  const sa = standalone() ? 1 : undefined;
+  if (ctx.frameLog) ctx.frameLog.stage = () => stage;
   const q = () => { const e = ctx.engine; return e ? e.qualityName + (e.qualityForced ? '!' : '') : undefined; };
   const snapshot = (reason, hidden) => ({ stage, t: playT(), at: Date.now(), ss: Math.round((performance.now() - stageAt) / 1000), mem: mem || undefined, safe, reason: reason || undefined, hidden: hidden || undefined,
-    q: q(), cr: crumbs.length ? crumbs.join(' ') : undefined, err: errs.length ? errs.slice() : undefined, cp: checkpoint() });
+    q: q(), cr: crumbs.length ? crumbStr() : undefined, err: errs.length ? errs.slice() : undefined, cp: checkpoint(),
+    ...live(), sa });
+  // v18: the readings that go into every write (liveStats); `lg` = the worst frame gaps, compacted
+  const live = () => {
+    const o = liveStats(ctx);
+    try { const L = ctx.frameLog && ctx.frameLog.long; if (L && L.length) o.lg = L.map(x => `${x.ms}ms@${x.t}:${x.sys || '?'}`); } catch (e) { /* optional */ }
+    return o;
+  };
   // v15: the story's checkpoint (null before the first text / after arrival); the last good one survives a bad read
   let lastCp;
   const checkpoint = () => { try { const S = ctx.game && ctx.game.story; const c = S && S.checkpoint ? S.checkpoint() : null; if (c) lastCp = c; else if (ctx.game && ctx.game.demo && ctx.game.demo.arrived) lastCp = undefined; } catch (e) { /* keep the last */ } return lastCp; };
@@ -144,7 +191,7 @@ export function armRecovery(ctx, rec) {
     } catch (e) { /* ignore */ }
   };
   const mark = (s) => {
-    if (s !== stage) { crumbs.push(`${s}@${playT()}`); if (crumbs.length > 12) crumbs.shift(); }
+    if (s !== stage) crumb(s);
     stage = s; stageAt = performance.now(); if (running) { sampleMem(/^lodestone_(installing|calibrating|ready)$/.test(s)); write(); }
   };
   const E = ctx.events;
@@ -158,13 +205,29 @@ export function armRecovery(ctx, rec) {
   E.on('phone:stack', (e) => { if (ctx.phone && ctx.phone.upgradeStage === 'ready') mark(e && e.open ? 'lodestone_3d' : 'lodestone_map'); });
   E.on('demo:arrive', () => mark('arrived'));
   E.on('demo:end', () => mark('endcard'));
+  // v18: the small things between stages
+  E.on('phone:close', () => crumb('phone_down'));
+  E.on('phone:app', (e) => { if (e && e.app) crumb('app_' + e.app); });
+  E.on('phone:reply', (e) => { if (e && e.photo) crumb('photo'); });
+  E.on('demo:order', () => crumb('order'));
+  E.on('vignette:open', (e) => crumb('vig_' + ((e && e.kind) || '')));
+  E.on('vignette:close', () => crumb('vig_end'));
+  E.on('pa:speech', (e) => { if (e) crumb(e.s === 'end' ? 'pa_end' : e.s === 'error' ? 'pa_err' : 'pa'); });
+  E.on('game:pause', () => crumb('pause'));
+  E.on('game:resume', () => crumb('unpause'));
+  E.on('render:quality', (e) => crumb('q_' + ((e && e.name) || '')));
+  E.on('app:longtask', (e) => { if (e) crumb('long' + e.ms); });
   // a clean exit or the tab going to the background is not a crash
   addEventListener('pagehide', () => { if (!reloading) store.clear(); });
   // v12.1: hidden is flagged, not cleared (a tab iOS kills may well be "hidden" first); visible again un-flags it
-  document.addEventListener('visibilitychange', () => { if (reloading) return; if (document.hidden) write(null, true); else if (running) write(); });
+  document.addEventListener('visibilitychange', () => { if (reloading) return; crumb(document.hidden ? 'hidden' : 'visible'); if (document.hidden) write(null, true); else if (running) write(); });
   write();
-  // keep `t` fresh (cheap; only while playing and visible)
-  setInterval(() => { if (running && !document.hidden) write(); }, 10000);
+  // keep `t` and the live readings fresh (v18: every 3 s, was 10; only while playing and visible). memdiet has no event: its pass count is read here.
+  let dietN = 0;
+  setInterval(() => {
+    try { const n = ctx.memdiet && ctx.memdiet.stats && ctx.memdiet.stats.passes; if (n > dietN) { dietN = n; crumb('diet'); } } catch (e) { /* optional */ }
+    if (running && !document.hidden) write();
+  }, 3000);
 
   // WebGL context loss (iOS: the GPU process ran out of memory): calm card → reload into the safe tier
   const canvas = ctx.engine && ctx.engine.renderer && ctx.engine.renderer.domElement;

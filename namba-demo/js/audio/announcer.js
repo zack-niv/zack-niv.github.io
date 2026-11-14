@@ -302,12 +302,12 @@ export class Announcer {
     // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
     const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
-    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } };
-    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); };
+    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } try { this.sys.ctx.events.emit('pa:speech', { s: 'start' }); } catch (e) { /* flight recorder only */ } };
+    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); try { this.sys.ctx.events.emit('pa:speech', { s: 'end' }); } catch (e) { /* flight recorder only */ } };
     u.onerror = (e) => {
       this._hallStop(c);
       const code = (e && e.error) || 'error';
-      if (code !== 'interrupted' && code !== 'canceled') this._err(code);    // our own cancels are not failures
+      if (code !== 'interrupted' && code !== 'canceled') { this._err(code); try { this.sys.ctx.events.emit('pa:speech', { s: 'error', code }); } catch (e2) { /* flight recorder only */ } }    // our own cancels are not failures
       if (c.utter === u) { c.uErr = code; c.uDone = true; this._note('error ' + code); }
     };
     this.st.tried++;

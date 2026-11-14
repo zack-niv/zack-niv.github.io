@@ -95,7 +95,9 @@ export function precompileRest(ctx) {
   const step = () => {
     if (stop || i >= todo.length) { if (!stop) console.log(`[render] background precompile finished (${r.info.programs.length} programs)`); return; }
     // wait until the game is actually running and the frame is healthy
-    const slow = ctx.engine.stats.ms > 24;
+    // v18: with a frame cap (phones: 30 fps) the interval is 33 ms on a healthy device, so the limit scales with it
+    const cap = ctx.engine.fpsCap > 0 ? ctx.engine.fpsCap : 60;
+    const slow = ctx.engine.stats.ms > 24 * (60 / cap);
     if (!ctx.started || slow) { setTimeout(step, 400); return; }
     const batch = todo.slice(i, i += 3);
     withTarget(ctx, () => { try { r.compileAsync(proxy(batch), cam, scene).catch(() => {}); } catch (e) { /* skip */ } });

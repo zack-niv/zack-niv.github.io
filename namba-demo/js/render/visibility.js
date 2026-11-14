@@ -16,6 +16,10 @@
 //     engine.setDRS().
 //  4. Auto quality: GPU/device heuristics at boot (engine.js) + a short
 //     benchmark after start steps the tier down if even min DRS can't hold ~50 fps.
+//  4b. SHELL (phones, ?shell / ?noshell): beyond the detail draw distance an arch chunk is not hidden
+//     but drawn as a shell, only its structural meshes (floors, walls, ceilings, columns, light panels; see
+//     SHELL_RE) up to shellDist. Every other culling reason (level, frustum, occlusion) still hides it.
+//     The frame-rate governors scale with engine.fpsCap (target frame time 1000 / cap).
 //  5. ?debug overlay: calls, tris, programs, textures, DRS, GPU ms, EV, culling.
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
@@ -30,6 +34,14 @@ import { clipIntrusions } from './intrusions.js?v=0a7351a';
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
 const OPEN_CELL = 4;     // opening clustering (m)
+const SHELL_DIST = 110;  // metres the shell (structure only) is drawn to
+// chunk visibility states; rec.shown stays true only for FULL
+const HIDDEN = 0, SHELL = 1, FULL = 2;
+// structural arch materials: big opaque floor / wall / ceiling / column / light-panel surfaces. Matches floor_*,
+// wall_*, ceiling_*, concrete_*, light_* plus arch_slab, arch_vault, arch_daylight, roof_deck. Left out on purpose:
+// transparent or decal materials (ao_strip, arch_wear, glass_*), tactile_*, inlay_*, band_*, steel / stainless /
+// aluminium trim, rubber, esc_* (escalator parts), arch_kit / arch_exit / arch_adbox (signs, small kit).
+const SHELL_RE = /^(?:floor_|wall_|ceiling_|concrete_|light_|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;
 
 export class Visibility {
   constructor(ctx) {
@@ -40,7 +52,10 @@ export class Visibility {
     this._slow = 0; this._fast = 0; this._drsCool = 0;
     this._bench = null;
     this.visibleLevels = new Set();
-    this.stats = { total: 0, shown: 0, level: 0, dist: 0, frustum: 0, occluded: 0, opening: 0 };
+    this.stats = { total: 0, shown: 0, shell: 0, level: 0, dist: 0, frustum: 0, occluded: 0, opening: 0 };
+    const P = ctx.params || params;
+    this.shell = !!(P.has('noshell') ? false : (ctx.engine.mobile || P.has('shell')));
+    this.shellDist = this.shell ? SHELL_DIST : 0;
     this.shownChunks = 0; this._nChunks = 0;
     this.fan = new Float32Array(FAN);
     this._fanKey = { x: 1e9, z: 1e9, level: '' };
@@ -105,9 +120,18 @@ export class Visibility {
         if (!rec) {
           const c = o.userData.chunk;
           const r = c.r || 40;
-          rec = { g: o, level: lv, x: c.x, z: c.z, r, re: Math.min(r, r * 0.8 + 2), seen: -1e9, los: true, open: true, shown: true };
+          rec = { g: o, level: lv, x: c.x, z: c.z, r, re: Math.min(r, r * 0.8 + 2), seen: -1e9, los: true, open: true, shown: true, state: FULL, hasShell: false, nk: -1 };
         }
-        if (!rec.shown) this._setChunk(rec, false, true); // pick up late children
+        if (this.shell && rec.nk !== o.children.length && typeof o.name === 'string' && o.name.startsWith('arch')) {
+          rec.nk = o.children.length;
+          for (const m of o.children) {
+            if (!m.isMesh || m.userData.nbShell !== undefined) continue;
+            const mat = m.material;
+            m.userData.nbShell = !!(mat && !Array.isArray(mat) && !mat.transparent && SHELL_RE.test(mat.name || ''));
+            if (m.userData.nbShell) rec.hasShell = true;
+          }
+        }
+        if (rec.state !== FULL) this._setChunk(rec, rec.state, true); // pick up late children
         this._recs.set(o, rec); list.push(rec);
       });
       this.chunks[lv] = list; n += list.length;
@@ -120,9 +144,11 @@ export class Visibility {
   // Culling is done with the layer mask of every object in the chunk (not
   // .visible): shops.js / props.js own the .visible flag of their groups for
   // their own distance logic, and we must not fight over it.
-  _setChunk(rec, show, force) {
-    rec.shown = show;
-    rec.g.traverse(o => { if (show) o.layers.enable(0); else o.layers.disable(0); });
+  // state: HIDDEN, SHELL (only nbShell meshes) or FULL; true / false mean FULL / HIDDEN
+  _setChunk(rec, state, force) {
+    const sv = state === true ? FULL : state === false ? HIDDEN : state;
+    rec.state = sv; rec.shown = sv === FULL;
+    rec.g.traverse(o => { if (sv === FULL || (sv === SHELL && o.userData && o.userData.nbShell)) o.layers.enable(0); else o.layers.disable(0); });
   }
 
   // ---- 2D visibility fan (js/render/visfan.js) -------------------------------
@@ -180,7 +206,7 @@ export class Visibility {
     }
     const dd = engine.quality.drawDist * (outdoor || parks ? 1 : 0.8) * (this.distScale || 1);
     this.dd = dd; // v17: effective draw distance this frame (read by lighting haze mode)
-    const st = this.stats; st.total = 0; st.shown = 0; st.level = 0; st.dist = 0; st.frustum = 0; st.occluded = 0; st.opening = 0;
+    const st = this.stats; st.total = 0; st.shown = 0; st.shell = 0; st.level = 0; st.dist = 0; st.frustum = 0; st.occluded = 0; st.opening = 0;
     const cull = this.enabled;
     // camera frustum
     this._pv.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
@@ -190,7 +216,7 @@ export class Visibility {
     const moved = Math.hypot(cp.x - fk.x, cp.z - fk.z) > 0.45 || fk.level !== own || fk.parks !== parks;
     if (cull && moved) {
       fk.x = cp.x; fk.z = cp.z; fk.level = own; fk.parks = parks;
-      const useLOS = !outdoor && !parks && this._castFan(own, cp.x, cp.z, dd + 20);
+      const useLOS = !outdoor && !parks && this._castFan(own, cp.x, cp.z, Math.max(dd, this.shellDist) + 20);
       this._los = useLOS;
       // nearby openings (own + neighbouring levels)
       const O = this._near || (this._near = []);
@@ -236,22 +262,29 @@ export class Visibility {
       const lim = isOwn || lv === dest ? dd : dd * 0.6;
       for (const rec of list) {
         const g = rec.g;
-        let show = true;
+        let state = FULL;
         if (cull) {
           const outdoorChunk = g.userData.nbOutdoor;
           const dx = rec.x - cp.x, dz = rec.z - cp.z, dy = (ly + 3) - cp.y;
           const d = Math.sqrt(dx * dx + dz * dz + dy * dy) - rec.r;
           // small chunks (shops, props, signs) stop reading earlier
           const l2 = rec.r < 14 ? lim * 0.6 : lim;
-          if (d > l2) { show = false; st.dist++; }
-          else if (!outdoorChunk) {
-            sph.center.set(rec.x, ly + 3, rec.z); sph.radius = rec.r + 4;
-            if (!frustum.intersectsSphere(sph)) { show = false; st.frustum++; }
-            else if (!(rec.los && rec.open) && this._now - rec.seen > HOLD) { show = false; if (isOwn) st.occluded++; else st.opening++; }
+          // beyond the detail distance a chunk with structural meshes drops to the shell state while inside shellDist
+          const far = d > l2;
+          const sl = isOwn || lv === dest ? this.shellDist : this.shellDist * 0.6;
+          if (far && !(this.shell && rec.hasShell && d <= sl)) { state = HIDDEN; st.dist++; }
+          else {
+            if (far) state = SHELL;
+            if (!outdoorChunk) {
+              sph.center.set(rec.x, ly + 3, rec.z); sph.radius = rec.r + 4;
+              if (!frustum.intersectsSphere(sph)) { state = HIDDEN; st.frustum++; }
+              else if (!(rec.los && rec.open) && this._now - rec.seen > HOLD) { state = HIDDEN; if (isOwn) st.occluded++; else st.opening++; }
+            }
           }
         }
-        if (rec.shown !== show) this._setChunk(rec, show);
-        if (show) st.shown++;
+        if (rec.state !== state) this._setChunk(rec, state);
+        if (state === FULL) st.shown++;
+        else if (state === SHELL) st.shell++;
       }
     }
     this.shownChunks = st.shown;
@@ -265,11 +298,14 @@ export class Visibility {
     this.frameMs += (ms - this.frameMs) * 0.05;
     const { engine } = this.ctx;
     this.gpuMs = engine.stats.gpuMs || 0;
+    // thresholds below were tuned for 60 fps (16.7 ms); with engine.fpsCap the frame INTERVAL is the cap's
+    // (frameMs and the benchmark are interval averages), so everything scales by T / 16.7
+    const T = engine.fpsCap > 0 ? 1000 / engine.fpsCap : 1000 / 60, tk = T / (1000 / 60);
     if (this.drsEnabled && this.ctx.started) {
       this._drsCool -= ms / 1000;
       const gpu = engine.gpuTimerOK && this.gpuMs > 0 ? this.gpuMs : null;
-      const over = gpu != null ? gpu > 13.5 : this.frameMs > 18.2;
-      const under = gpu != null ? gpu < 9.5 : this.frameMs < 16.9;
+      const over = gpu != null ? gpu > 13.5 * tk : this.frameMs > 18.2 * tk;
+      const under = gpu != null ? gpu < 9.5 * tk : this.frameMs < 16.9 * tk;
       if (over) { this._slow += ms; this._fast = 0; } else if (under) { this._fast += ms; this._slow = 0; } else { this._slow = 0; this._fast = 0; }
       if (this._drsCool <= 0) {
         if (this._slow > 700) { engine.setDRS(engine.drs - 0.06); this._drsCool = 1.0; this._slow = 0; }
@@ -286,7 +322,7 @@ export class Visibility {
         const avg = B.sum / B.n;
         const atMin = engine.drs <= (engine.quality.drsMin || 0.6) + 0.01;
         const i = QUALITY_ORDER.indexOf(engine.qualityName);
-        if (avg > 24 && i > 0 && (atMin || avg > 34)) {
+        if (avg > 24 * tk && i > 0 && (atMin || avg > 34 * tk)) {
           console.log(`[render] auto quality: ${avg.toFixed(1)} ms/frame → ${QUALITY_ORDER[i - 1]}`);
           engine.setQuality(QUALITY_ORDER[i - 1]);
         }
@@ -306,7 +342,7 @@ export class Visibility {
       el.textContent =
         `RENDER ${engine.qualityName}  drs ${engine.drs.toFixed(2)}  frame ${this.frameMs.toFixed(1)}ms  gpu ${engine.gpuTimerOK ? this.gpuMs.toFixed(1) + 'ms' : 'n/a'}\n` +
         `scene calls ${engine.stats.calls}  tris ${(engine.stats.tris / 1000).toFixed(0)}k  progs ${i.programs ? i.programs.length : '?'}  tex ${i.memory.textures}  geo ${i.memory.geometries}\n` +
-        `levels ${[...this.visibleLevels].join(',')}  chunks ${st.shown}/${st.total}  cull: lvl ${st.level} dist ${st.dist} frustum ${st.frustum} occl ${st.occluded} open ${st.opening}\n` +
+        `levels ${[...this.visibleLevels].join(',')}  chunks ${st.shown}+${st.shell}shell/${st.total}  cull: lvl ${st.level} dist ${st.dist} frustum ${st.frustum} occl ${st.occluded} open ${st.opening}\n` +
         (lighting ? `mood ${lighting.mood}  fixtures ${lighting.stats.lights} (${lighting.stats.fallback} fallback)  atlas ${lighting.stats.atlas}  bake ${lighting.stats.bakeMs}ms\n` : '') +
         (post ? `EV ${post.ev.toFixed(2)} → ${post.evTarget.toFixed(2)}  post ${post.enabled ? post.costModel() : 'off'}` : '');
     }, 300);
