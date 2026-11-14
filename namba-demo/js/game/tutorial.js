@@ -18,8 +18,8 @@
 //   ?notutorial   no hints at all (the conversation still plays)
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
-import { params } from '../core/params.js?v=a30ee4b';
-import { TUTORIAL } from './script.js?v=a30ee4b';
+import { params } from '../core/params.js?v=5e3e8a5';
+import { TUTORIAL } from './script.js?v=5e3e8a5';
 
 const KEY = 'namba.tutorial.v3';
 const NUDGE_S = [12, 26, 42];          // seconds a step may sit idle before each nudge

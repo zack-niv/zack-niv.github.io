@@ -22,13 +22,13 @@
 // Solid furniture is registered with ctx.world.addBox; wall art is flush (no box).
 // =============================================================================
 import * as THREE from 'three';
-import { envFor } from './shops.js?v=a30ee4b';
-import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=a30ee4b';
-import * as D from './env/draw.js?v=a30ee4b';
-import { CELL } from './world.js?v=a30ee4b';
-import { LAYOUT, LEVELS } from './layout.js?v=a30ee4b';
-import { GeoBatch } from '../render/geobatch.js?v=a30ee4b';
-import { rng, hash } from '../core/rng.js?v=a30ee4b';
+import { envFor } from './shops.js?v=5e3e8a5';
+import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=5e3e8a5';
+import * as D from './env/draw.js?v=5e3e8a5';
+import { CELL } from './world.js?v=5e3e8a5';
+import { LAYOUT, LEVELS } from './layout.js?v=5e3e8a5';
+import { GeoBatch } from '../render/geobatch.js?v=5e3e8a5';
+import { rng, hash } from '../core/rng.js?v=5e3e8a5';
 
 const CHUNK = 32;
 const BUILD_R = 90;

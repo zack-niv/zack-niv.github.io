@@ -1,7 +1,7 @@
 // Game clock: time of day drives crowd density, light, shop hours, trains.
 // One real second = `scale` game seconds (demo: 1.2, close to real time so
 // walking never feels punished by the clock).
-import { params } from './params.js?v=a30ee4b';
+import { params } from './params.js?v=5e3e8a5';
 export class Clock {
   constructor(events) {
     this.events = events;

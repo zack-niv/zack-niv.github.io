@@ -8,8 +8,9 @@
 // robin: other level → heavy low-pass; same level but no line of sight to
 // the doorway → muffled.
 // =============================================================================
-import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js?v=a30ee4b';
-import { ESCALATOR_LINES, IRASSHAI } from './phrases.js?v=a30ee4b';
+import { LAYOUT, LEVELS, rampEnds } from '../world/layout.js?v=5e3e8a5';
+import { ESCALATOR_LINES, IRASSHAI } from './phrases.js?v=5e3e8a5';
+import { params } from '../core/params.js?v=5e3e8a5';
 
 // shop music level by the soundscape you are in: NAMBAWALK is a wall of BGM, the malls are softer, outdoors it leaks faintly
 const MUSIC_K = { arcade: 1.0, passage: 0.9, metro: 0.5, department: 0.55, mall: 0.6, parks: 0.5, canyon: 0.5, garden: 0.35, street: 0.5, terminal: 0.4, platform: 0, nkplatform: 0, dining: 0.5, shop: 1 };
@@ -58,7 +59,7 @@ export class Sources {
       const y0 = LEVELS[b.level] ? LEVELS[b.level].y : 0;
       const d = b.door, nx = d.nx || 0, nz = d.nz || 0;
       // speaker ~1.2 m inside the doorway, near the ceiling; kitchens deeper
-      if (mus) this.shops.push({ key: 'm:' + b.slot, cls: 'music', b, recipe: mus + ':' + (hashStr(String(b.slot)) % 3), gain: mg, level: b.level, x: d.x - nx * 1.2, y: y0 + 2.6, z: d.z - nz * 1.2, ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
+      if (mus && !params.has('nomusic')) this.shops.push({ key: 'm:' + b.slot, cls: 'music', b, recipe: mus + ':' + (hashStr(String(b.slot)) % 3), gain: mg, level: b.level, x: d.x - nx * 1.2, y: y0 + 2.6, z: d.z - nz * 1.2, ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
       if (act) this.shops.push({ key: 'a:' + b.slot, cls: 'act', act, b, level: b.level, x: d.x - nx * (act === 'conbini' ? 2 : 3), y: y0 + 1.0, z: d.z - nz * (act === 'conbini' ? 2 : 3), ox: d.ox ?? d.x + nx, oz: d.oz ?? d.z + nz });
     }
     // escalator banks: machinery at both landings

@@ -6,8 +6,8 @@
 // Draw calls are independent of the number of trains: ≤ 4 per model in view.
 // =============================================================================
 import * as THREE from 'three';
-import { buildCar, SPECS, lampPoints } from './cars.js?v=a30ee4b';
-import { buildCarAtlas, buildInteriorAtlas, buildEmissiveAtlas, ROW_H } from './textures.js?v=a30ee4b';
+import { buildCar, SPECS, lampPoints } from './cars.js?v=5e3e8a5';
+import { buildCarAtlas, buildInteriorAtlas, buildEmissiveAtlas, ROW_H } from './textures.js?v=5e3e8a5';
 
 export function patchTrainMaterial(mat, uniforms) {
   const prev = mat.onBeforeCompile;

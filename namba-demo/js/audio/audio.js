@@ -19,17 +19,17 @@
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
-import { params } from '../core/params.js?v=a30ee4b';
-import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=a30ee4b';
-import { Bank } from './bank.js?v=a30ee4b';
-import { Mixer } from './mixer.js?v=a30ee4b';
-import { acousticFor } from './ir.js?v=a30ee4b';
-import { Announcer } from './announcer.js?v=a30ee4b';
-import { Ambience, moodOf } from './ambience.js?v=a30ee4b';
-import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=a30ee4b';
-import { EXCUSE } from './phrases.js?v=a30ee4b';
-import { Sources } from './sources.js?v=a30ee4b';
-import { Trains, pumpAudioTimers } from './trains.js?v=a30ee4b';
+import { params } from '../core/params.js?v=5e3e8a5';
+import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=5e3e8a5';
+import { Bank } from './bank.js?v=5e3e8a5';
+import { Mixer } from './mixer.js?v=5e3e8a5';
+import { acousticFor } from './ir.js?v=5e3e8a5';
+import { Announcer } from './announcer.js?v=5e3e8a5';
+import { Ambience, moodOf } from './ambience.js?v=5e3e8a5';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=5e3e8a5';
+import { EXCUSE } from './phrases.js?v=5e3e8a5';
+import { Sources } from './sources.js?v=5e3e8a5';
+import { Trains, pumpAudioTimers } from './trains.js?v=5e3e8a5';
 
 // name → [recipe, default gain, bus, extra]
 export const SOUNDS = {
@@ -142,7 +142,7 @@ export class Audio {
   // build the graph on an (Offline)AudioContext — also used by tests
   _build(ac, { worker = true } = {}) {
     this.ac = ac;
-    this.bank = new Bank(ac, { useWorker: worker });
+    this.bank = new Bank(ac, { useWorker: worker, events: this.ctx.events });
     this.mixer = new Mixer(ac, this.bank);
     // v13: phones & tablets get the small-speaker profile (mixer.js setProfile); ?audioprofile=desktop|phone forces one
     const ap = params.get('audioprofile');
@@ -157,7 +157,7 @@ export class Audio {
     this.trains = new Trains(this);
     let biz = (this.ctx.shops && (this.ctx.shops.businesses || this.ctx.shops.BUSINESSES)) || null;
     if (biz) this.sources.build(biz);
-    else import('../world/directory.js?v=a30ee4b').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
+    else import('../world/directory.js?v=5e3e8a5').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
     this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');

@@ -10,9 +10,10 @@
 //  * Nature/street events: birds, crows, crossing signals, horns, buses,
 //    distant trains under the floor, distant PA.
 // =============================================================================
-import { ZONES } from '../world/layout.js?v=a30ee4b';
-import { AREA_PA, DINING_CALLS } from './phrases.js?v=a30ee4b';
-import { platformLeak } from './zones.js?v=a30ee4b';
+import { ZONES } from '../world/layout.js?v=5e3e8a5';
+import { AREA_PA, DINING_CALLS } from './phrases.js?v=5e3e8a5';
+import { platformLeak } from './zones.js?v=5e3e8a5';
+import { params } from '../core/params.js?v=5e3e8a5';
 
 // layer name → recipe, bus, base gain
 const LAYERS = {
@@ -75,7 +76,7 @@ export class Ambience {
   constructor(sys) {
     this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac; this.ctx = sys.ctx;
     this.layers = {};
-    for (const [name, L] of Object.entries(LAYERS)) this.layers[name] = { ...L, name, em: null, target: 0, cur: 0, idle: 0 };
+    for (const [name, L] of Object.entries(LAYERS)) { if (params.has('nomusic') && L.recipe.startsWith('mus:')) continue; this.layers[name] = { ...L, name, em: null, target: 0, cur: 0, idle: 0 }; }
     // walla: two decorrelated instances of the same loop, spread L/R
     this.walla = [-0.6, 0.6].map((pan) => ({ em: null, pan }));
     this.stepsTex = { em: null, surface: null };
@@ -179,7 +180,7 @@ export class Ambience {
     if (soft) { if (this._pf && this._pf[m]) return; (this._pf = this._pf || {})[m] = 1; }
     const M = MOODS[m] || {};
     const want = [];
-    for (const ln in LAYERS) if (M[ln]) want.push(LAYERS[ln].recipe);
+    for (const ln in LAYERS) if (M[ln] && !(params.has('nomusic') && LAYERS[ln].recipe.startsWith('mus:'))) want.push(LAYERS[ln].recipe);
     if (M.walla) want.push('bed:walla');
     if (M.steps) for (let i = 0; i < 6; i++) want.push(`fs:${M.steps}:${i < 3 ? 'sneaker' : i < 5 ? 'leather' : 'heel'}:${i}`);
     if (M.birds) want.push('bird:bulbul:0', 'bird:sparrow:0', 'bird:whiteeye:0', 'bird:tit:0', 'bird:crow:0', 'bird:sparrow:1', 'bird:bulbul:1');

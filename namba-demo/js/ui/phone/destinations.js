@@ -15,8 +15,8 @@
 // the Maps place id ('t:midosuji', 'x:18', 'f:…', 'a_parks').
 // Contract: notes/v4-phone.md.
 // =============================================================================
-import { businessBySlot, FEATURED, CATEGORIES, isOpen } from '../../world/directory.js?v=a30ee4b';
-import { LEVELS, ZONES } from '../../world/layout.js?v=a30ee4b';
+import { businessBySlot, FEATURED, CATEGORIES, isOpen } from '../../world/directory.js?v=5e3e8a5';
+import { LEVELS, ZONES } from '../../world/layout.js?v=5e3e8a5';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => (LEVELS[l] ? LEVELS[l].label : String(l || '')).replace('B1F', 'B1').replace('B2F', 'B2');

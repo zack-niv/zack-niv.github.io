@@ -5,6 +5,8 @@
 //   ?time=HH:MM     game clock start
 //   ?quality=low|medium|high|ultra
 //   ?nocrowd ?noaudio ?nopost   disable systems (debug)
+//   ?nomusic        audio on, but no mus:* recipe (shop / mall music) is ever requested, synthesized or played (crash bisect)
+//   ?nopa           audio on, but the announcer never calls speechSynthesis.speak (chimes and captions stay)
 //   ?debug          show debug overlay (fps, position, level, zone)
 //   ?freeze         don't advance simulation (for stable screenshots)
 //   ?seed=n         random seed
