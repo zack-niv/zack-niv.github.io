@@ -2,9 +2,9 @@
 // Canvas painters for the environment atlases. Pure 2D drawing: every
 // function takes (g, w, h, ...) and paints into the region.
 // =============================================================================
-import { FONT_JA, FONT_EN, FONT_SERIF } from './kit.js?v=a30ee4b';
-import { rng, hash } from '../../core/rng.js?v=a30ee4b';
-import { drawPoster, POSTER_KINDS } from './posters.js?v=a30ee4b';
+import { FONT_JA, FONT_EN, FONT_SERIF } from './kit.js?v=5e3e8a5';
+import { rng, hash } from '../../core/rng.js?v=5e3e8a5';
+import { drawPoster, POSTER_KINDS } from './posters.js?v=5e3e8a5';
 
 // ---- text helpers -------------------------------------------------------------
 export function font(size, weight = 700, fam = FONT_JA) { return `${weight} ${Math.round(size)}px ${fam}`; }

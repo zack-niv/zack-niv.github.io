@@ -19,10 +19,10 @@
 //   window  {B, dur}               stand at a shop window, looking in (v2)
 //   order   {B}                    café: line up at the counter (beside the player's order spot), order, then dine (v2)
 // =============================================================================
-import { MODE, POSE } from './sim.js?v=a30ee4b';
-import { BIT } from './looks.js?v=a30ee4b';
-import { Director } from './trips.js?v=a30ee4b';
-import { rng } from '../core/rng.js?v=a30ee4b';
+import { MODE, POSE } from './sim.js?v=5e3e8a5';
+import { BIT } from './looks.js?v=5e3e8a5';
+import { Director } from './trips.js?v=5e3e8a5';
+import { rng } from '../core/rng.js?v=5e3e8a5';
 
 export class Behave {
   constructor(sim, ctx) {

@@ -44,6 +44,10 @@
 //   dom  DOM node count (sampled every 15 s) · ph phone state ("up:messages", "glance", "down") · sa 1 when a home-screen app
 //   up   seconds since page load · dd effective draw distance · ds the call governor's distance scale
 // liveStats(ctx) returns the same readings for analytics (namba_beat).
+//
+// v19 (is it the audio?): `au` = the audio bank's figures { b: buffers cached, mb: their size, p: jobs pending, j: jobs done, last: last finished
+// job, lms: its ms, cur: the job rendering now, st: AudioContext state }; present only while audio is on. Crumbs `mus+<name>` / `mus-<name>`
+// when a mus:* recipe is posted to / returns from the synthesis worker (ctx.events 'audio:job' from audio/bank.js).
 // =============================================================================
 const KEY = 'namba_run';
 const MAX_CRUMBS = 30;
@@ -91,7 +95,7 @@ export function readRecovery() {
 }
 let hiddenRun = null;
 // v18: the flight-recorder fields of a marker, as readRecovery() returns them
-const flight = (m) => ({ fr: m.fr || null, lg: m.lg || null, ri: m.ri || null, dom: m.dom != null ? m.dom : null, ph: m.ph || null, sa: m.sa || null, up: m.up != null ? m.up : null, dd: m.dd != null ? m.dd : null, ds: m.ds != null ? m.ds : null });
+const flight = (m) => ({ fr: m.fr || null, lg: m.lg || null, ri: m.ri || null, dom: m.dom != null ? m.dom : null, ph: m.ph || null, sa: m.sa || null, up: m.up != null ? m.up : null, dd: m.dd != null ? m.dd : null, ds: m.ds != null ? m.ds : null, au: m.au || null });
 
 const standalone = () => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } };
 
@@ -108,6 +112,14 @@ export function liveStats(ctx) {
   try { const P = ctx.phone; if (P) o.ph = P.isOpen ? 'up:' + P.app : (P.pose || 'down'); } catch (e) { /* optional */ }
   try { o.up = Math.round(performance.now() / 1000); } catch (e) { /* optional */ }
   try { const V = ctx.visibility; if (V) { if (typeof V.dd === 'number') o.dd = Math.round(V.dd); if (typeof V.distScale === 'number') o.ds = Math.round(V.distScale * 100) / 100; } } catch (e) { /* optional */ }
+  try {
+    const A = ctx.audio, B = A && A.enabled && A.bank;
+    if (B) {
+      let bytes = 0;
+      for (const buf of B.cache.values()) bytes += buf.length * buf.numberOfChannels * 4;
+      o.au = { b: B.cache.size, mb: Math.round(bytes / 1048576), p: B.pending.size, j: B.stats.jobs, last: B.last || undefined, lms: B.last ? B.lastMs : undefined, cur: B.cur, st: A.ac ? A.ac.state : undefined };
+    }
+  } catch (e) { /* optional */ }
   return o;
 }
 
@@ -213,6 +225,7 @@ export function armRecovery(ctx, rec) {
   E.on('vignette:open', (e) => crumb('vig_' + ((e && e.kind) || '')));
   E.on('vignette:close', () => crumb('vig_end'));
   E.on('pa:speech', (e) => { if (e) crumb(e.s === 'end' ? 'pa_end' : e.s === 'error' ? 'pa_err' : 'pa'); });
+  E.on('audio:job', (e) => { try { if (e && typeof e.name === 'string' && e.name.startsWith('mus:')) crumb((e.s === 'end' ? 'mus-' : 'mus+') + e.name.slice(4)); } catch (err) { /* optional */ } });
   E.on('game:pause', () => crumb('pause'));
   E.on('game:resume', () => crumb('unpause'));
   E.on('render:quality', (e) => crumb('q_' + ((e && e.name) || '')));

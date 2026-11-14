@@ -17,12 +17,12 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=a30ee4b';
-import { params } from '../core/params.js?v=a30ee4b';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=a30ee4b';
-import { Story } from './story.js?v=a30ee4b';
-import { makeLook, BIT } from '../npc/looks.js?v=a30ee4b';
-import { showEndCard } from './endcard.js?v=a30ee4b';
+import { businessBySlot } from '../world/directory.js?v=5e3e8a5';
+import { params } from '../core/params.js?v=5e3e8a5';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=5e3e8a5';
+import { Story } from './story.js?v=5e3e8a5';
+import { makeLook, BIT } from '../npc/looks.js?v=5e3e8a5';
+import { showEndCard } from './endcard.js?v=5e3e8a5';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };

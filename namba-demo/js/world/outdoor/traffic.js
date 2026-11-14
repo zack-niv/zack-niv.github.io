@@ -8,8 +8,8 @@
 // Lane: { x0,z0,x1,z1 (centre line start→end), speed, stop: { s (metres along lane), group } | null, n (cars) }
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=a30ee4b';
-import { MeshAcc, lin } from './meshacc.js?v=a30ee4b';
+import { rng } from '../../core/rng.js?v=5e3e8a5';
+import { MeshAcc, lin } from './meshacc.js?v=5e3e8a5';
 
 const M4 = () => new THREE.Matrix4();
 function box(acc, cx, cy, cz, sx, sy, sz, col) {

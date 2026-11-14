@@ -18,8 +18,8 @@
 // them in place this pass finds nothing to do.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=a30ee4b';
-import { CELL } from '../world/world.js?v=a30ee4b';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=5e3e8a5';
+import { CELL } from '../world/world.js?v=5e3e8a5';
 
 const TRANSIT_ZONES = new Set(['nankai', 'midosuji', 'sennichimae']);
 const RULES = [

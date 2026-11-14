@@ -31,13 +31,18 @@
 //   namba_beat {t, stage, fps, gap_max_ms, tick_max_ms, tick_sys, calls, tris, geometries, textures, programs, crowd, phone, draw_dist,
 //   dist_scale, drs, diet_mb, diet_canvases, dom_nodes, page_up_s, n} every 30 s while playing and visible (send_instantly, at most 60 per page)
 //   namba_longtask {ms, sys, t, at_stage} when one frame gap lasted 1 s or more while visible (at most 10 per page)
+//   v19 (is it the audio? ?nomusic / ?nopa / ?noaudio bisect): super property `flags` = the debug switches active on this page, comma-joined
+//   (noaudio, nomusic, nopa, nocrowd, nohaze, noshell, fps=<n>), null when none. namba_beat / namba_recovered / namba_run_hidden also carry the
+//   audio bank's figures (core/resilience.js `au`, null when audio is off): audio_buffers (cached), audio_mb (their size), audio_pending (jobs
+//   waiting), audio_jobs (jobs done), audio_last / audio_cur (last finished / currently rendering recipe), audio_state (AudioContext state).
+//   The crumbs of a dead run also hold mus+<name> / mus-<name> when a shop-music recipe starts / ends rendering.
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
 
-import { liveStats } from './core/resilience.js?v=a30ee4b';
+import { liveStats } from './core/resilience.js?v=5e3e8a5';
 
 // v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
 const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, geo_mb: m.geo != null ? m.geo : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null,
@@ -46,7 +51,12 @@ const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: 
 // v18: the flight recorder's fields (core/resilience.js), flattened
 const flightProps = (r) => { const f = (r && r.fr) || {}, i = (r && r.ri) || {}, n = (x) => (x != null ? x : null); return { gap_max_ms: n(f.g), tick_max_ms: n(f.k), tick_sys: f.s || null, frames: n(f.n),
   long_tasks: r && r.lg && r.lg.length ? r.lg.join(' | ').slice(0, 400) : null, geometries: n(i.g), textures: n(i.t), programs: n(i.p), calls: n(i.c), tris: n(i.tr),
-  dom_nodes: n(r && r.dom), phone: (r && r.ph) || null, was_standalone: !!(r && r.sa), page_up_s: n(r && r.up), draw_dist: n(r && r.dd), dist_scale: n(r && r.ds) }; };
+  dom_nodes: n(r && r.dom), phone: (r && r.ph) || null, was_standalone: !!(r && r.sa), page_up_s: n(r && r.up), draw_dist: n(r && r.dd), dist_scale: n(r && r.ds), ...auProps(r && r.au) }; };
+// v19: the audio bank's figures (core/resilience.js `au`), flattened
+const auProps = (a) => { const n = (x) => (x != null ? x : null); a = a || {}; return { audio_buffers: n(a.b), audio_mb: n(a.mb), audio_pending: n(a.p), audio_jobs: n(a.j), audio_last: a.last || null, audio_cur: a.cur || null, audio_state: a.st || null }; };
+
+// v19: the debug switches in the URL, for comparing runs in PostHog
+const flagList = (q) => { try { const f = ['noaudio', 'nomusic', 'nopa', 'nocrowd', 'nohaze', 'noshell'].filter(k => q.has(k)); if (q.has('fps')) f.push('fps=' + (Math.max(0, +q.get('fps') || 0))); return f.length ? f.join(',') : null; } catch (e) { return null; } };
 
 export function setupAnalytics(ctx) {
   const q = new URLSearchParams(location.search);
@@ -90,7 +100,7 @@ export function setupAnalytics(ctx) {
     });
     window.posthog.register({ app: 'lost-in-namba', test: q.has('track'), v, ref, gpu, quality: quality(), screen: `${screen.width}x${screen.height}`, input: (ctx.input && ctx.input.touch) ? 'touch' : 'kbm', orient: innerWidth > innerHeight ? 'land' : 'port',   // v11: mobile/tablet
       standalone: (() => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } })(), fps_cap: ctx.fpsCap != null ? ctx.fpsCap : null, dpr: devicePixelRatio || null, cores: navigator.hardwareConcurrency || null,   // v18
-      stage: 'loaded' });
+      flags: flagList(q), stage: 'loaded' });
     ph = window.posthog;               // the stub until array.js arrives (it queues), then the real client
     for (const [ev, p, now] of queue.splice(0)) ph.capture(ev, p, now ? { send_instantly: true } : undefined);
   } catch (e) { console.warn('[analytics]', e.message); }
@@ -158,7 +168,7 @@ export function setupAnalytics(ctx) {
       const L = liveStats(ctx) || {}, f = L.fr || {}, i = L.ri || {}, md = ctx.memdiet && ctx.memdiet.stats, n = (x) => (x != null ? x : null);
       send('namba_beat', { t: t(), stage: STAGES[stage] || null, fps: ctx.engine.stats.fps != null ? Math.round(ctx.engine.stats.fps) : null, gap_max_ms: n(f.g), tick_max_ms: n(f.k), tick_sys: f.s || null,
         calls: n(i.c), tris: n(i.tr), geometries: n(i.g), textures: n(i.t), programs: n(i.p), crowd: ctx.crowd ? ctx.crowd.count : null, phone: L.ph || null, draw_dist: n(L.dd), dist_scale: n(L.ds),
-        drs: ctx.engine.drs != null ? +ctx.engine.drs.toFixed(2) : null, diet_mb: md ? md.mb : null, diet_canvases: md ? md.canvases : null, dom_nodes: n(L.dom), page_up_s: n(L.up), n: ++beats }, true);
+        drs: ctx.engine.drs != null ? +ctx.engine.drs.toFixed(2) : null, diet_mb: md ? md.mb : null, diet_canvases: md ? md.canvases : null, dom_nodes: n(L.dom), page_up_s: n(L.up), ...auProps(L.au), n: ++beats }, true);
     } catch (e) { /* analytics never breaks the game */ }
   };
   setInterval(beat, 30000);

@@ -23,8 +23,8 @@
 // '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
 // `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
-import { spokenText } from './phrases.js?v=a30ee4b';
-import { platformGain, pointGain } from './zones.js?v=a30ee4b';
+import { spokenText } from './phrases.js?v=5e3e8a5';
+import { platformGain, pointGain } from './zones.js?v=5e3e8a5';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -71,7 +71,9 @@ export class Announcer {
   constructor(sys) {
     this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac;
     this.queue = []; this.cur = null; this.seq = 0; this.t = 0;
-    this.speech = (sys.allowSpeech && typeof speechSynthesis !== 'undefined') ? speechSynthesis : null;
+    // ?nopa: no speechSynthesis at all, so every line takes the existing no-voice path (chime + caption)
+    const noPa = !!(sys.ctx && sys.ctx.params && sys.ctx.params.has && sys.ctx.params.has('nopa'));
+    this.speech = (sys.allowSpeech && typeof speechSynthesis !== 'undefined' && !noPa) ? speechSynthesis : null;
     this.voices = { ja: null, en: null };   // en stays null on purpose: no English speechSynthesis, ever
     this.voiceCount = 0;
     this.useSpeech = true;

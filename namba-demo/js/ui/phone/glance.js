@@ -14,7 +14,7 @@
 // Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
-import { icon, logo } from './lodestone.js?v=a30ee4b';
+import { icon, logo } from './lodestone.js?v=5e3e8a5';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const NOTE_S = 7.5;
