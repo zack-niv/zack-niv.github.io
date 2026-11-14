@@ -4,9 +4,9 @@
 // platforms with door markings, gates, ramps (escalator lanes + admission),
 // businesses (door points, queue slots, seats), gardens, landmarks, staff posts.
 // =============================================================================
-import { LEVELS, rampEnds, rampLength } from '../world/layout.js?v=edffaff';
-import { BUSINESSES, isOpen } from '../world/directory.js?v=edffaff';
-import { rng, hash } from '../core/rng.js?v=edffaff';
+import { LEVELS, rampEnds, rampLength } from '../world/layout.js?v=0a7351a';
+import { BUSINESSES, isOpen } from '../world/directory.js?v=0a7351a';
+import { rng, hash } from '../core/rng.js?v=0a7351a';
 
 // Extra portals at the edges of the modelled world ("the city continues").
 // Validated at runtime; missing ones are skipped.
@@ -238,10 +238,12 @@ export class Places {
     const grp = rec && rec.group; if (!grp) return null;
     const y0 = LEVELS[B.level] ? LEVELS[B.level].y : 0, R = 0.55;
     const pts = [];
+    let freed = false;                              // v17: memdiet dropped a position array (empty + __freed): nothing to read
     grp.updateWorldMatrix(true, true);
     grp.traverse((o) => {
-      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      if (freed || !o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
       const pos = o.geometry.attributes.position, m = o.matrixWorld.elements, n = pos.count;
+      { const arr = pos.array || (pos.data && pos.data.array); if (pos.__freed || (arr && arr.length === 0)) { freed = true; return; } }
       for (let i = 0; i < n; i++) {
         const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
         const wx = m[0] * x + m[4] * y + m[8] * z + m[12];
@@ -252,6 +254,7 @@ export class Places {
         if (wy >= 0.43 && wy <= 0.95) pts.push(wx, wy, wz);
       }
     });
+    if (freed) return null;
     const np = pts.length / 3;
     if (np < 3) return false;
     const cnt = new Map();
@@ -283,13 +286,33 @@ export class Places {
     for (const s of S) {
       if (s.used || s.bad) continue;
       if (s.real && !s.hKnown && s.scan !== 2 && (s.scan | 0) < 2) {
-        const r = this._scanSeat(B, s);
-        if (r === false) { s.bad = true; s.scan = 2; continue; }       // no furniture to sit on: nobody sits here
-        if (r === true) s.scan = 2;
+        const r = this._scanSpot(B, s);
+        if (r === false) continue;                                     // no furniture to sit on: nobody sits here
       }
       s.used = 1; return s;
     }
     return null;
+  }
+  // _scanSeat + its bookkeeping on the spot: false → bad (nobody sits), true → measured, null → shop geometry not there (yet)
+  _scanSpot(B, s) {
+    const r = this._scanSeat(B, s);
+    if (r === false) { s.bad = true; s.scan = 2; }
+    else if (r === true) s.scan = 2;
+    return r;
+  }
+  // v17 (memdiet): scan every not-yet-measured seat of one shop right after its interior was built, so the geometry diet
+  // may drop the interior's vertex arrays. True when every seat of the shop has a final state (measured or bad), or the
+  // shop has no real seats; false when something is not ready (the lazy paths in takeSpot / render keep working then).
+  scanShop(id) {
+    const B = this.bizBySlot[id]; if (!B) return true;
+    if (!(B.restaurant || B.cafe)) return true;                        // only these get real seats (see spots)
+    let S; try { S = this.spots(B); } catch (e) { return false; }
+    let done = true;
+    for (const s of S) {
+      if (!s.real || s.hKnown || s.bad || s.scan === 2) continue;
+      if (this._scanSpot(B, s) === null) done = false;
+    }
+    return done;
   }
   // queue slots along the frontage, starting beside the door
   qSlot(B, k) {

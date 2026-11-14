@@ -12,42 +12,43 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=edffaff';
-import { Events } from './core/events.js?v=edffaff';
-import { Clock } from './core/clock.js?v=edffaff';
-import { Input } from './core/input.js?v=edffaff';
-import { params } from './core/params.js?v=edffaff';
-import { World } from './world/world.js?v=edffaff';
-import { Nav } from './world/nav.js?v=edffaff';
-import { LAYOUT } from './world/layout.js?v=edffaff';
-import { Loader } from './core/loader.js?v=edffaff';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=edffaff';
-import { bootTouch, TouchUI } from './ui/touch.js?v=edffaff';
-import { setCanvasRes } from './render/canvasres.js?v=edffaff';
-import { readRecovery, armRecovery } from './core/resilience.js?v=edffaff';
+import { Engine } from './core/engine.js?v=0a7351a';
+import { Events } from './core/events.js?v=0a7351a';
+import { Clock } from './core/clock.js?v=0a7351a';
+import { Input } from './core/input.js?v=0a7351a';
+import { params } from './core/params.js?v=0a7351a';
+import { World } from './world/world.js?v=0a7351a';
+import { Nav } from './world/nav.js?v=0a7351a';
+import { LAYOUT } from './world/layout.js?v=0a7351a';
+import { Loader } from './core/loader.js?v=0a7351a';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=0a7351a';
+import { bootTouch, TouchUI } from './ui/touch.js?v=0a7351a';
+import { setCanvasRes } from './render/canvasres.js?v=0a7351a';
+import { readRecovery, armRecovery } from './core/resilience.js?v=0a7351a';
+import { setGeoCompact } from './render/geobatch.js?v=0a7351a';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=edffaff',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=edffaff',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=edffaff', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=edffaff',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=edffaff',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=edffaff',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=edffaff',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=edffaff',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=edffaff',      'Signage',      'build'],
-  ['player',       './player/player.js?v=edffaff',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=edffaff',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=edffaff',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=edffaff',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=edffaff',             'Hud',          'live'],
-  ['game',         './game/game.js?v=edffaff',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=edffaff',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=edffaff',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=edffaff',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=0a7351a',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=0a7351a',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=0a7351a', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=0a7351a',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=0a7351a',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=0a7351a',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=0a7351a',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=0a7351a',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=0a7351a',      'Signage',      'build'],
+  ['player',       './player/player.js?v=0a7351a',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=0a7351a',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=0a7351a',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=0a7351a',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=0a7351a',             'Hud',          'live'],
+  ['game',         './game/game.js?v=0a7351a',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=0a7351a',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=0a7351a',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=0a7351a',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -93,13 +94,15 @@ async function boot() {
   engine.mobile = touchOnly;   // v13 critic: also with ?quality forced (the Lodestone shared renderer, the phone audio profile)
   if (touchOnly && !engine.qualityForced) {
     const phone = Math.min(innerWidth, innerHeight) < 600;
-    Object.assign(engine.quality, { crowdMax: phone ? 320 : 420, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further
+    Object.assign(engine.quality, { crowdMax: phone ? 480 : 600, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further; v17: crowd 320/420 → 480/600 (people are instances: no extra memory or draw calls), with a larger share kept near the player (npc/trips.js nearShare)
     engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
     engine.renderer.setPixelRatio(engine.basePR);
   }
   // v11.1 (iOS crash): world sign/menu/board canvases at fewer real pixels on touch devices. At 2048² they were 272 MB
   // of 2D canvas + ~250 MB of GPU copies at load (notes/v11.1-ioscrash.md); iOS Safari kills a tab around there.
   if (touchOnly && !params.has('fullres')) setCanvasRes({ atlas: 0.5, sign: 0.6, board: 0.5 });   // ?fullres: A/B check
+  // v17: compact world geometry (Int8 normals, Uint8 colours) on phones; ?compact forces it on desktop, ?nocompact turns it off.
+  setGeoCompact(!params.has('nocompact') && (touchOnly || params.has('compact')));
   // after a crash (or ?safe): fewer people, fewer pixels, smaller textures. Applies on any device, quality forced or not.
   if (recovery) {
     const S = recovery.safe >= 2;
@@ -168,8 +171,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=edffaff').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=edffaff').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=0a7351a').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=0a7351a').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;

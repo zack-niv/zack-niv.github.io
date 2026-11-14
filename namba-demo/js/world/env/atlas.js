@@ -14,7 +14,7 @@
 // self-illumination so printed matter stays readable in dim corners).
 // =============================================================================
 import * as THREE from 'three';
-import { lcanvas } from '../../render/canvasres.js?v=edffaff';
+import { lcanvas } from '../../render/canvasres.js?v=0a7351a';
 
 const PAD = 4;      // default gutter between regions (px); posters use 8
 
@@ -31,6 +31,7 @@ export class Atlas {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = this.aniso;
+    tex.userData.dynamicCanvas = true;     // v17 memdiet: packed lazily + read back by _pack, never release the canvas
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     let mat;

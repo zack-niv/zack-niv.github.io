@@ -25,11 +25,11 @@
 //      map only updated near outdoors; sky irradiance follows ctx.exterior.sun.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=edffaff';
-import { CELL } from '../world/world.js?v=edffaff';
-import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=edffaff';
-import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=edffaff';
-import { EnvMaps } from './lighting/envmaps.js?v=edffaff';
+import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=0a7351a';
+import { CELL } from '../world/world.js?v=0a7351a';
+import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=0a7351a';
+import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=0a7351a';
+import { EnvMaps } from './lighting/envmaps.js?v=0a7351a';
 
 // install as early as possible: before any lit material compiles
 installMaterialHook();
@@ -81,7 +81,10 @@ export class Lighting {
     }
     engine.scene.add(sun); engine.scene.add(sun.target);
     // fog (haze hides the draw distance; tinted per mood)
-    engine.scene.fog = new THREE.FogExp2(0x8a9090, 0.008);
+    const pr = this.ctx.params;
+    this.haze = !!(pr && pr.has && pr.has('nohaze') ? false : (engine.mobile || (pr && pr.has && pr.has('haze')))); // v17
+    engine.haze = this.haze;
+    engine.scene.fog = this.haze ? new THREE.Fog(0x8a9090, 20, 50) : new THREE.FogExp2(0x8a9090, 0.008);
     this.fogColor = new THREE.Color(0.55, 0.6, 0.6); this.fogDensity = 0.008;
   }
 
@@ -154,7 +157,7 @@ export class Lighting {
     }
     const out = [];
     return Promise.all(buckets.filter(b => b.jobs.length).map(b => new Promise((resolve, reject) => {
-      const w = new Worker(new URL('./lighting/bakeworker.js?v=edffaff', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./lighting/bakeworker.js?v=0a7351a', import.meta.url), { type: 'module' });
       const timer = setTimeout(() => { w.terminate(); reject(new Error('bake worker timeout')); }, 60000);
       w.onmessage = (ev) => {
         const d = ev.data;
@@ -407,7 +410,24 @@ export class Lighting {
     const fc = this._fc || (this._fc = new THREE.Color());
     fc.setRGB(F.c[0], F.c[1], F.c[2]).multiplyScalar(Math.min(L, 12) * 0.16);
     this.fogColor.lerp(fc, k);
-    if (engine.scene.fog) { engine.scene.fog.color.copy(this.fogColor); engine.scene.fog.density = this.fogDensity; }
+    if (this.haze && engine.scene.fog) {
+      // v17 haze mode: linear fog tied to the real draw distance, colour clamped for display, background = fog
+      const fog = engine.scene.fog, dd = (this.ctx.visibility && this.ctx.visibility.dd) || engine.quality.drawDist * 0.8;
+      // outdoors nothing is cut to black (the skyline and the city blocks are drawn from everywhere), so the haze
+      // opens up to roughly the old thin fog; the tight range is for interiors only (blended by exterior.outdoorFactor)
+      const od = Math.max(0, Math.min(1, (this.ctx.exterior && this.ctx.exterior.outdoorFactor) || 0));
+      const tn = 0.42 * dd + (90 - 0.42 * dd) * od, tf = 0.88 * dd + (700 - 0.88 * dd) * od;
+      if (this.fogNear === undefined) { this.fogNear = tn; this.fogFar = tf; }
+      else { this.fogNear += (tn - this.fogNear) * k; this.fogFar += (tf - this.fogFar) * k; }
+      const hc = this._hc || (this._hc = new THREE.Color());
+      hc.copy(this.fogColor);
+      const mx = Math.max(hc.r, hc.g, hc.b);
+      if (mx > 0.75) hc.multiplyScalar(0.75 / mx);
+      else if (mx < 0.10) { if (mx > 1e-6) hc.multiplyScalar(0.10 / mx); else hc.setRGB(0.10, 0.10, 0.10); }
+      if (fog.isFog) { fog.color.copy(hc); fog.near = this.fogNear; fog.far = this.fogFar; }
+      const bg = engine.scene.background;
+      if (bg && bg.isColor) bg.copy(hc);
+    } else if (engine.scene.fog) { engine.scene.fog.color.copy(this.fogColor); engine.scene.fog.density = this.fogDensity; }
     // ---- specular pool ----
     this._poolT -= dt;
     if (this._poolT <= 0 && this.baked) { this._poolT = 0.12; this._selectPool(); }

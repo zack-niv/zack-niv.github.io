@@ -6,10 +6,10 @@
 // Pose parameters are smoothed here (only for visible agents).
 // =============================================================================
 import * as THREE from 'three';
-import { buildHuman, buildBlob } from './humanGeo.js?v=edffaff';
-import { makeHumanMaterial, makeBlobMaterial, INSTANCE_ATTRS } from './humanMat.js?v=edffaff';
-import { POSE, MODE } from './sim.js?v=edffaff';
-import { BIT } from './looks.js?v=edffaff';
+import { buildHuman, buildBlob } from './humanGeo.js?v=0a7351a';
+import { makeHumanMaterial, makeBlobMaterial, INSTANCE_ATTRS } from './humanMat.js?v=0a7351a';
+import { POSE, MODE } from './sim.js?v=0a7351a';
+import { BIT } from './looks.js?v=0a7351a';
 
 const LOD_CAP = [180, 500, 1200];
 const FADE_CAP = [48, 96, 192]; // alpha-blended set for agents that are fading in / out

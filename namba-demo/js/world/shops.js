@@ -21,15 +21,15 @@
 // Events: emits 'shop:shutter' { slot, closed } when a shutter opens/closes.
 // =============================================================================
 import * as THREE from 'three';
-import { BUSINESSES, isOpen } from './directory.js?v=edffaff';
-import { LAYOUT, LEVELS } from './layout.js?v=edffaff';
-import { GeoBatch } from '../render/geobatch.js?v=edffaff';
-import { Atlas } from './env/atlas.js?v=edffaff';
-import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=edffaff';
-import { ShopCtx } from './env/shopctx.js?v=edffaff';
-import { POSTER_TEXT } from './env/posters.js?v=edffaff';
-import { buildShop, regions } from './env/shopbuild.js?v=edffaff';
-import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=edffaff';
+import { BUSINESSES, isOpen } from './directory.js?v=0a7351a';
+import { LAYOUT, LEVELS } from './layout.js?v=0a7351a';
+import { GeoBatch } from '../render/geobatch.js?v=0a7351a';
+import { Atlas } from './env/atlas.js?v=0a7351a';
+import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=0a7351a';
+import { ShopCtx } from './env/shopctx.js?v=0a7351a';
+import { POSTER_TEXT } from './env/posters.js?v=0a7351a';
+import { buildShop, regions } from './env/shopbuild.js?v=0a7351a';
+import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=0a7351a';
 
 // v2 counters contract: business category -> counter kind / staff role
 const COUNTER_KIND = {
@@ -262,6 +262,12 @@ export class Shops {
         const dx = rec.cx - cam.x, dy = (rec.y - cam.y) * 3, dz = rec.cz - cam.z; group.visible = dx * dx + dy * dy + dz * dz < far * far; }
       ctx.engine.levelRoot(rec.level).add(group);
       rec.group = group;
+      // v17 memdiet: measure the seats now (npc/places.js _scanSeat reads this interior's vertices), then the geometry diet may drop them
+      try {
+        const cr = ctx.crowd, pl = cr && cr.sim && cr.sim.places;
+        if (pl && pl.scanShop) { if (pl.scanShop(S.slot.id) === true) group.userData.seatsScanned = true; }
+        else if (ctx.params && ctx.params.nocrowd || (cr && cr.disabled)) group.userData.seatsScanned = true;   // nobody will ever sit
+      } catch (e) { /* leave it unset: the diet skips this interior */ }
     } catch (e) { S.replay = false; console.error('[shops] interior', S.slot.id, e); ctx.errors.push(`shops: interior ${S.slot.id}: ${e.message}`); rec.intBusy = true; }
   }
   _releaseInterior(rec) {

@@ -20,11 +20,11 @@
 // back or tap. NPCs auto-tap (gatePass) and are never stopped.
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../../render/geobatch.js?v=edffaff';
-import { CELL, EDGE } from '../world.js?v=edffaff';
-import { LEVELS } from '../layout.js?v=edffaff';
-import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=edffaff';
-import { roundRectPath } from './mesh.js?v=edffaff';
+import { GeoBatch } from '../../render/geobatch.js?v=0a7351a';
+import { CELL, EDGE } from '../world.js?v=0a7351a';
+import { LEVELS } from '../layout.js?v=0a7351a';
+import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=0a7351a';
+import { roundRectPath } from './mesh.js?v=0a7351a';
 
 const MACH_LEN = 1.45, MACH_W = 0.26;
 const CAB_W = 0.24;              // drawn cabinet width
@@ -609,6 +609,7 @@ export class Gates {
   _buildLcd() {
     const c = canvas(256, 128);
     this._lcdCanvas = c; this._lcdTex = canvasTex(c, { mips: false });
+    this._lcdTex.userData.dynamicCanvas = true;     // v17 memdiet: redrawn on every tap
     const mat = new THREE.MeshBasicMaterial({ map: this._lcdTex, color: new THREE.Color(1.3, 1.3, 1.3) });
     mat.name = 'transit_gate_lcd_live';
     this.lcdMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.075), mat);

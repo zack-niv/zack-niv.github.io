@@ -5,7 +5,7 @@
 // voices summed and low-passed into the unintelligible murmur of a crowd, which
 // is a texture, not speech.
 // =============================================================================
-import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js?v=edffaff';
+import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js?v=0a7351a';
 
 // ---- kana → mora ----------------------------------------------------------------
 const HIRA = 'あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわを';
