@@ -23,6 +23,7 @@
 //   (its tier, "!" = forced by ?quality), last_errors and geo_mb (core/resilience.js flight recorder)
 //   namba_resume {t, level, errand, lodestone, dest} (v15: a run picked up from its crash checkpoint; super prop resumed)
 //   namba_memdiet {passes, mb} (v15: static geometry released on phones, sent with the first namba_perf)
+//   v17: namba_recovered / namba_run_hidden / namba_resume are sent with send_instantly (a recovery report was lost when the page died again before the batch flushed)
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
@@ -39,9 +40,9 @@ export function setupAnalytics(ctx) {
   const on = !q.has('notrack') && (q.has('track') || (!local && !q.has('test')));
   const queue = [];
   let ph = null, stage = -1, gateSent = false;
-  const send = (ev, props) => {
+  const send = (ev, props, now) => {
     const p = Object.assign({ app: 'lost-in-namba' }, props || {});
-    if (ph) { try { (window.posthog || ph).capture(ev, p); } catch (e) { /* analytics never breaks the game */ } } else if (queue.length < 200) queue.push([ev, p]);
+    if (ph) { try { (window.posthog || ph).capture(ev, p, now ? { send_instantly: true } : undefined); } catch (e) { /* analytics never breaks the game */ } } else if (queue.length < 200) queue.push([ev, p, now]);
   };
   const reach = (name) => {
     const i = STAGES.indexOf(name);
@@ -76,7 +77,7 @@ export function setupAnalytics(ctx) {
     window.posthog.register({ app: 'lost-in-namba', test: q.has('track'), v, ref, gpu, quality: quality(), screen: `${screen.width}x${screen.height}`, input: (ctx.input && ctx.input.touch) ? 'touch' : 'kbm', orient: innerWidth > innerHeight ? 'land' : 'port',   // v11: mobile/tablet
       stage: 'loaded' });
     ph = window.posthog;               // the stub until array.js arrives (it queues), then the real client
-    for (const [ev, p] of queue.splice(0)) ph.capture(ev, p);
+    for (const [ev, p, now] of queue.splice(0)) ph.capture(ev, p, now ? { send_instantly: true } : undefined);
   } catch (e) { console.warn('[analytics]', e.message); }
   // (blocked by an ad blocker or offline: the stub just keeps queueing; the game does not care)
 
@@ -85,16 +86,16 @@ export function setupAnalytics(ctx) {
   const started = () => { reach('start'); send('namba_start', { quality: quality() }); perfAt(45, 'play'); paWatch(); };
   if (ctx.started) started(); else E.on('game:start', started);
   // v11.1: the previous run died on screen (iOS memory kill / context loss) and this boot is the recovery
-  try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1, ...memProps(r) }); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
+  try { const r = ctx.recovered; if (r && r.reason !== 'param') { (window.posthog || {}).register && window.posthog.register({ safe: r.safe || 1 }); send('namba_recovered', { last_stage: r.lastStage || null, reason: r.reason || null, ago_s: r.ago != null ? r.ago : null, safe: r.safe || 1, ...memProps(r) }, true); } } catch (e) { /* optional */ }     // (a test run can start before this module loads)
   // v12.1: the last run's tab went hidden and never came back (a background discard, or a kill announced as hidden)
-  try { const h = ctx.lastRunHidden; if (h) send('namba_run_hidden', { last_stage: h.lastStage || null, ago_s: h.ago != null ? h.ago : null, ...memProps(h) }); } catch (e) { /* optional */ }
+  try { const h = ctx.lastRunHidden; if (h) send('namba_run_hidden', { last_stage: h.lastStage || null, ago_s: h.ago != null ? h.ago : null, ...memProps(h) }, true); } catch (e) { /* optional */ }
   // v14: JS errors (core/resilience.js), the ones before this module loaded first; at most 15 per page
   let errSent = 0;
   const sendErr = (e) => { if (e && errSent++ < 15) send('namba_error', { kind: e.kind, msg: e.msg, where: e.where, at_stage: e.stage, t: e.t }); };
   try { for (const e of ctx.errorLog || []) sendErr(e); } catch (e) { /* optional */ }
   E.on('app:error', sendErr);
   // v15: resumed runs (story.js resume) — and a super property, so the rest of a resumed run can be told apart
-  E.on('story:resume', (e) => { try { window.posthog && window.posthog.register && window.posthog.register({ resumed: true }); } catch (err) { /* optional */ } reach('start'); send('namba_resume', { t: e && Math.round(e.t), level: e && e.lv, errand: e && e.err, lodestone: e && e.lode, dest: e && e.dest }); });
+  E.on('story:resume', (e) => { try { window.posthog && window.posthog.register && window.posthog.register({ resumed: true }); } catch (err) { /* optional */ } reach('start'); send('namba_resume', { t: e && Math.round(e.t), level: e && e.lv, errand: e && e.err, lodestone: e && e.lode, dest: e && e.dest }, true); });
   E.on('tutorial:step', (e) => { if (e && e.done) { reach('tutorial'); send('namba_tutorial_step', { step: e.id, t: e.t, nudges: e.nudges }); } });
   E.on('tutorial:done', (e) => send('namba_tutorial_done', { t: e && e.t }));
   E.on('lodestone:stack3d', (e) => send('namba_stack3d', { ok: !!(e && e.ok), mode: e && e.mode, w: e && e.w, h: e && e.h }));   // v13: does the shared-renderer copy work on this device?
