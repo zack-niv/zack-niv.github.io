@@ -4,7 +4,7 @@
 // keeps its desktop line). Glyphs: <i class="tc-g use"></i> = the Use button, <i class="tc-g phone"></i> = the phone
 // button (drawn by css/touch.css to match the real buttons).
 // =============================================================================
-import { TUTORIAL } from '../game/script.js?v=0a7351a';
+import { TUTORIAL } from '../game/script.js?v=a30ee4b';
 
 const USE = '<i class="tc-g use"></i>';
 const PH = '<i class="tc-g phone"></i>';

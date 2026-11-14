@@ -12,43 +12,43 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=0a7351a';
-import { Events } from './core/events.js?v=0a7351a';
-import { Clock } from './core/clock.js?v=0a7351a';
-import { Input } from './core/input.js?v=0a7351a';
-import { params } from './core/params.js?v=0a7351a';
-import { World } from './world/world.js?v=0a7351a';
-import { Nav } from './world/nav.js?v=0a7351a';
-import { LAYOUT } from './world/layout.js?v=0a7351a';
-import { Loader } from './core/loader.js?v=0a7351a';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=0a7351a';
-import { bootTouch, TouchUI } from './ui/touch.js?v=0a7351a';
-import { setCanvasRes } from './render/canvasres.js?v=0a7351a';
-import { readRecovery, armRecovery } from './core/resilience.js?v=0a7351a';
-import { setGeoCompact } from './render/geobatch.js?v=0a7351a';
+import { Engine } from './core/engine.js?v=a30ee4b';
+import { Events } from './core/events.js?v=a30ee4b';
+import { Clock } from './core/clock.js?v=a30ee4b';
+import { Input } from './core/input.js?v=a30ee4b';
+import { params } from './core/params.js?v=a30ee4b';
+import { World } from './world/world.js?v=a30ee4b';
+import { Nav } from './world/nav.js?v=a30ee4b';
+import { LAYOUT } from './world/layout.js?v=a30ee4b';
+import { Loader } from './core/loader.js?v=a30ee4b';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=a30ee4b';
+import { bootTouch, TouchUI } from './ui/touch.js?v=a30ee4b';
+import { setCanvasRes } from './render/canvasres.js?v=a30ee4b';
+import { readRecovery, armRecovery } from './core/resilience.js?v=a30ee4b';
+import { setGeoCompact } from './render/geobatch.js?v=a30ee4b';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=0a7351a',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=0a7351a',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=0a7351a', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=0a7351a',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=0a7351a',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=0a7351a',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=0a7351a',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=0a7351a',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=0a7351a',      'Signage',      'build'],
-  ['player',       './player/player.js?v=0a7351a',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=0a7351a',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=0a7351a',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=0a7351a',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=0a7351a',             'Hud',          'live'],
-  ['game',         './game/game.js?v=0a7351a',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=0a7351a',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=0a7351a',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=0a7351a',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=a30ee4b',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=a30ee4b',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=a30ee4b', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=a30ee4b',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=a30ee4b',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=a30ee4b',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=a30ee4b',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=a30ee4b',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=a30ee4b',      'Signage',      'build'],
+  ['player',       './player/player.js?v=a30ee4b',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=a30ee4b',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=a30ee4b',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=a30ee4b',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=a30ee4b',             'Hud',          'live'],
+  ['game',         './game/game.js?v=a30ee4b',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=a30ee4b',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=a30ee4b',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=a30ee4b',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -177,8 +177,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=0a7351a').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=0a7351a').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=a30ee4b').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=a30ee4b').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;
@@ -214,7 +214,7 @@ async function boot() {
     if (lastTickMs > kA) { kA = lastTickMs; sA = lastTickSys; }
     frameLog.gapMax5 = gA > gB ? gA : gB;
     if (kA >= kB) { frameLog.tickMax5 = kA; frameLog.tickSys5 = sA; } else { frameLog.tickMax5 = kB; frameLog.tickSys5 = sB; }
-    if (gap < 400) return;
+    if (gap < 400 || !ctx.started) return;        // (loading and the title screen stall by design: only play counts)
     const L = frameLog.long;
     if (L.length >= 5 && gap <= L[L.length - 1].ms) return;
     let st = null;
