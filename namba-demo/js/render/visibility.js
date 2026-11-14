@@ -20,12 +20,12 @@
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=edffaff';
-import { CELL } from '../world/world.js?v=edffaff';
-import { params } from '../core/params.js?v=edffaff';
-import { QUALITY_ORDER } from '../core/engine.js?v=edffaff';
-import * as visFan from './visfan.js?v=edffaff';
-import { clipIntrusions } from './intrusions.js?v=edffaff';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=0a7351a';
+import { CELL } from '../world/world.js?v=0a7351a';
+import { params } from '../core/params.js?v=0a7351a';
+import { QUALITY_ORDER } from '../core/engine.js?v=0a7351a';
+import * as visFan from './visfan.js?v=0a7351a';
+import { clipIntrusions } from './intrusions.js?v=0a7351a';
 
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
@@ -179,6 +179,7 @@ export class Visibility {
       this.distScale = calls > budget ? Math.max(engine.quality.distFloor || 0.55, k * (calls > budget * 1.3 ? 0.9 : 0.96)) : calls < budget * 0.75 ? Math.min(1, k + 0.02) : k;
     }
     const dd = engine.quality.drawDist * (outdoor || parks ? 1 : 0.8) * (this.distScale || 1);
+    this.dd = dd; // v17: effective draw distance this frame (read by lighting haze mode)
     const st = this.stats; st.total = 0; st.shown = 0; st.level = 0; st.dist = 0; st.frustum = 0; st.occluded = 0; st.opening = 0;
     const cull = this.enabled;
     // camera frustum

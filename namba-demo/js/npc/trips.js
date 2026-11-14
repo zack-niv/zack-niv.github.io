@@ -9,9 +9,9 @@
 // The initial population is placed mid-trip (and seated / queueing / waiting
 // on platforms) so the place is alive from the first frame.
 // =============================================================================
-import { MODE, POSE } from './sim.js?v=edffaff';
-import { makeLook, BIT } from './looks.js?v=edffaff';
-import { rng } from '../core/rng.js?v=edffaff';
+import { MODE, POSE } from './sim.js?v=0a7351a';
+import { makeLook, BIT } from './looks.js?v=0a7351a';
+import { rng } from '../core/rng.js?v=0a7351a';
 
 const gauss = (x, c, w) => Math.exp(-((x - c) * (x - c)) / (2 * w * w));
 const PERSON = {
@@ -49,7 +49,9 @@ export class Director {
     // shop subsets so fields stay few: busy shops per zone + every restaurant/café
     this._shopPools();
     this._coreFields();
-    this._dkT = 0; this._dkIdx = 0; this.burst = 0; this.nearShare = 0.45;
+    this._dkT = 0; this._dkIdx = 0; this.burst = 0;
+    // v17: phones simulate fewer people in total, so more of them are kept around the player (up to ~125 within 70 m at rush instead of ~60)
+    this.nearShare = ctx && ctx.engine && ctx.engine.mobile ? 0.6 : 0.45;
     this._publicNodes();
   }
   get minutes() { return this.sim.clock ? this.sim.clock.minutes : 12 * 60; }

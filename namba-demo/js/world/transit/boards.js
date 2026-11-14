@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=edffaff';
-import { LINES, TYPES, DESTS, hhmm } from './timetable.js?v=edffaff';
-import { LEVELS } from '../layout.js?v=edffaff';
+import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=0a7351a';
+import { LINES, TYPES, DESTS, hhmm } from './timetable.js?v=0a7351a';
+import { LEVELS } from '../layout.js?v=0a7351a';
 
 const LCD_NAVY = '#0b1830';
 
@@ -26,6 +26,7 @@ export class Boards {
     // o: { id, kind, level, x, y, z, facing, w, h, cw, ch, tracks, doubleSided, hang, ceilY }
     const c = canvas(o.cw, o.ch);
     const tex = canvasTex(c, { aniso: 8 });
+    tex.userData.dynamicCanvas = true;     // v17 memdiet: redrawn on a timer
     const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.5, 1.5, 1.5) });
     mat.name = 'transit_board:' + o.id;
     const grp = new THREE.Group(); grp.name = 'transit_board:' + o.id;

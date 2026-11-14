@@ -18,11 +18,11 @@
 // (measured from the planted foot), so feet do not slide.
 // =============================================================================
 import * as THREE from 'three';
-import { buildBlob } from './humanGeo.js?v=edffaff';
-import { makeBlobMaterial } from './humanMat.js?v=edffaff';
-import { POSE } from './sim.js?v=edffaff';
-import { BIT } from './looks.js?v=edffaff';
-import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO, SEAT_BODY, SEAT_CLIPS } from './humans.js?v=edffaff';
+import { buildBlob } from './humanGeo.js?v=0a7351a';
+import { makeBlobMaterial } from './humanMat.js?v=0a7351a';
+import { POSE } from './sim.js?v=0a7351a';
+import { BIT } from './looks.js?v=0a7351a';
+import { variantFor, makeNearMaterial, twinNearMaterial, makeFarMaterial, CLIP_IDS, LOCO, SEAT_BODY, SEAT_CLIPS } from './humans.js?v=0a7351a';
 
 const FAR_CAP = 320, FADE_CAP = 64;
 const TIERS = {
@@ -194,6 +194,13 @@ export class CrowdRenderer {
       const d = sunO.direction; sunI = Math.min(1, sunO.intensity || 0);
       const hl = Math.hypot(d.x, d.z) || 1; shX = -d.x / hl; shZ = -d.z / hl; shL = hl / d.y;
     }
+    // v17 haze mode: blobs must not show beyond the haze (cap at 0.8 * fogFar, fade strength from fogNear)
+    let bCut = 60 * 60, sCut = 45 * 45, hzN = 0, hzS = 0;
+    if (lighting && lighting.haze && lighting.fogFar > 0) {
+      const cap = 0.8 * lighting.fogFar;
+      bCut = Math.min(bCut, cap * cap); sCut = Math.min(sCut, cap * cap);
+      hzN = Math.min(lighting.fogNear || 0, cap * 0.95); hzS = Math.max(0.001, cap - hzN);
+    }
     let nearN = 0, l1n = 0, l2n = 0, tris = 0;
     for (let k = 0; k < list.length; k++) {
       const a = list[k], s = a._slot;
@@ -211,18 +218,19 @@ export class CrowdRenderer {
         if (set.n < set.cap) { this._write(set, set.n++, a); if (lod === 1) l1n++; else l2n++; tris += v.tris[lod]; }
       }
       // blobs
-      if (nb < this.blobCap && a._d2 < 60 * 60) {
+      if (nb < this.blobCap && a._d2 < bCut) {
         const o = nb * 4, h = a.look ? a.look.h : 1;
         const sitting = !!SEAT_CLIPS[a._ac];
         BA[o] = a._rx; BA[o + 1] = a.y; BA[o + 2] = a._rz; BA[o + 3] = (sitting ? 0.7 : 0.56) * h;
-        BB[o] = a.fade * (a.ramp >= 0 ? 0.6 : 0.9); BB[o + 1] = 1.25; BB[o + 2] = a.yaw; BB[o + 3] = 0;
+        const hz = hzS ? Math.max(0, Math.min(1, 1 - (Math.sqrt(a._d2) - hzN) / hzS)) : 1;
+        BB[o] = a.fade * hz * (a.ramp >= 0 ? 0.6 : 0.9); BB[o + 1] = 1.25; BB[o + 2] = a.yaw; BB[o + 3] = 0;
         nb++;
-        if (sunI > 0.12 && a._d2 < 45 * 45 && nb < this.blobCap) {
+        if (sunI > 0.12 && a._d2 < sCut && nb < this.blobCap) {
           if (((this._frame + a.serial) & 7) === 0 || a._sunV === undefined) a._sunV = lighting && lighting.sample ? lighting.sample(a.level, a._rx, a._rz).sun : 0;
           if (a._sunV > 0.2) {
             const o3 = nb * 4, len = Math.min(3.8 * h, 1.5 * h * shL), wid = 0.5 * h;
             BA[o3] = a._rx + shX * (len * 0.5 - 0.1); BA[o3 + 1] = a.y; BA[o3 + 2] = a._rz + shZ * (len * 0.5 - 0.1); BA[o3 + 3] = wid;
-            BB[o3] = a.fade * Math.min(0.7, 0.8 * a._sunV * sunI); BB[o3 + 1] = len / wid; BB[o3 + 2] = Math.atan2(shX, shZ); BB[o3 + 3] = 0;
+            BB[o3] = a.fade * hz * Math.min(0.7, 0.8 * a._sunV * sunI); BB[o3 + 1] = len / wid; BB[o3 + 2] = Math.atan2(shX, shZ); BB[o3 + 3] = 0;
             nb++;
           }
         }

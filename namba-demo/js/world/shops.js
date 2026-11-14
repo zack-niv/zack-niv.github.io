@@ -21,15 +21,15 @@
 // Events: emits 'shop:shutter' { slot, closed } when a shutter opens/closes.
 // =============================================================================
 import * as THREE from 'three';
-import { BUSINESSES, isOpen } from './directory.js?v=edffaff';
-import { LAYOUT, LEVELS } from './layout.js?v=edffaff';
-import { GeoBatch } from '../render/geobatch.js?v=edffaff';
-import { Atlas } from './env/atlas.js?v=edffaff';
-import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=edffaff';
-import { ShopCtx } from './env/shopctx.js?v=edffaff';
-import { POSTER_TEXT } from './env/posters.js?v=edffaff';
-import { buildShop, regions } from './env/shopbuild.js?v=edffaff';
-import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=edffaff';
+import { BUSINESSES, isOpen } from './directory.js?v=0a7351a';
+import { LAYOUT, LEVELS } from './layout.js?v=0a7351a';
+import { GeoBatch } from '../render/geobatch.js?v=0a7351a';
+import { Atlas } from './env/atlas.js?v=0a7351a';
+import { defineMaterials, ChunkBatches, loadFonts, STUB_REGION } from './env/kit.js?v=0a7351a';
+import { ShopCtx } from './env/shopctx.js?v=0a7351a';
+import { POSTER_TEXT } from './env/posters.js?v=0a7351a';
+import { buildShop, regions } from './env/shopbuild.js?v=0a7351a';
+import { FEATURED_BUILD, FEATURED_STYLE, buildDepachika, buildTaka1F, Hall } from './env/featured.js?v=0a7351a';
 
 // v2 counters contract: business category -> counter kind / staff role
 const COUNTER_KIND = {
@@ -52,6 +52,10 @@ const BUDGET_MS = 12;
 // wider radius (the gap is hysteresis: nothing pops in and out at one distance). Desktop keeps the old radii (ultra
 // draws to 260 m). ?release forces it on, ?norelease off.
 const MOBILE_R = { front: 110, frontFree: 150, hall: 90, hallFree: 140 };
+// v17: interiors were still built out to INT_R (62 m) and kept to INT_FREE_R (125 m) on phones, which only show them within
+// 30 m (low tier; 46 m otherwise): ~85 interiors / ~92 MB existed at once in Namba CITY, where the iPhone crashes cluster, and
+// most were never visible. On a phone the interior radii now follow the visible distance (see `radii`): build 6 m beyond it,
+// release 22 m beyond it, force-build 4 m beyond it on teleport.
 
 // one shared environment context (atlases, chunk batches) for shops + props
 export function envFor(ctx) {
@@ -110,7 +114,10 @@ export class Shops {
     if (this._radii) return this._radii;
     const p = this.ctx.params, mobile = !!(this.ctx.engine && this.ctx.engine.mobile);
     const on = !p.has('norelease') && (mobile || p.has('release'));
-    this._radii = on ? MOBILE_R : { front: FRONT_R, frontFree: Infinity, hall: HALL_R, hallFree: Infinity };
+    // v17: interior radii follow the visible distance on phones (see MOBILE_R)
+    const far = (this.ctx.engine && this.ctx.engine.qualityName === 'low') ? 30 : 46;
+    this._radii = on ? Object.assign({}, MOBILE_R, { int: far + 6, intFree: far + 22, intForce: far + 4 })
+      : { front: FRONT_R, frontFree: Infinity, hall: HALL_R, hallFree: Infinity, int: INT_R, intFree: INT_FREE_R, intForce: FORCE_INT_R };
     return this._radii;
   }
 
@@ -255,6 +262,12 @@ export class Shops {
         const dx = rec.cx - cam.x, dy = (rec.y - cam.y) * 3, dz = rec.cz - cam.z; group.visible = dx * dx + dy * dy + dz * dz < far * far; }
       ctx.engine.levelRoot(rec.level).add(group);
       rec.group = group;
+      // v17 memdiet: measure the seats now (npc/places.js _scanSeat reads this interior's vertices), then the geometry diet may drop them
+      try {
+        const cr = ctx.crowd, pl = cr && cr.sim && cr.sim.places;
+        if (pl && pl.scanShop) { if (pl.scanShop(S.slot.id) === true) group.userData.seatsScanned = true; }
+        else if (ctx.params && ctx.params.nocrowd || (cr && cr.disabled)) group.userData.seatsScanned = true;   // nobody will ever sit
+      } catch (e) { /* leave it unset: the diet skips this interior */ }
     } catch (e) { S.replay = false; console.error('[shops] interior', S.slot.id, e); ctx.errors.push(`shops: interior ${S.slot.id}: ${e.message}`); rec.intBusy = true; }
   }
   _releaseInterior(rec) {
@@ -297,7 +310,7 @@ export class Shops {
     const p = this.ctx.engine.camera.position;
     const b = this.ctx.player && this.ctx.player.body;
     const pos = b ? { x: b.x, y: (b.y || 0) + 1.6, z: b.z } : p;
-    this.buildNear(null, pos.x, pos.z, FORCE_FRONT_R, pos.y, FORCE_INT_R);
+    this.buildNear(null, pos.x, pos.z, FORCE_FRONT_R, pos.y, this.radii.intForce);
   }
   buildNear(level, x, z, r = FORCE_FRONT_R, y, ri = FORCE_INT_R) {
     const yy = y != null ? y : (level ? LEVELS[level].y + 1.6 : this.ctx.engine.camera.position.y);
@@ -429,7 +442,7 @@ export class Shops {
         this.ctx.engine.camera.getWorldDirection(fw);
         for (const rec of this.recs.values()) if (!rec.group && !rec.intBusy) {
           const d = this._recDist2(rec, cam);
-          if (d >= INT_R * INT_R) continue;
+          if (d >= this.radii.int * this.radii.int) continue;
           // build what the player is walking towards first; things behind wait
           const ahead = (rec.cx - cam.x) * fw.x + (rec.cz - cam.z) * fw.z;
           cand.push([ahead < 0 && d > 144 ? d * 2.5 : d, rec, 1]);
@@ -448,7 +461,7 @@ export class Shops {
       if (!rec.group) continue;
       const dx = rec.cx - cam.x, dy = (rec.y - cam.y) * 3, dz = rec.cz - cam.z;
       const d2 = dx * dx + dy * dy + dz * dz;
-      if (d2 > INT_FREE_R * INT_FREE_R) { this._releaseInterior(rec); continue; }
+      if (d2 > this.radii.intFree * this.radii.intFree) { this._releaseInterior(rec); continue; }
       const v = d2 < f2;
       if (rec.group.visible !== v) rec.group.visible = v;
     }

@@ -9,8 +9,8 @@
 // row per instance. Head/tail lamps switch per instance.
 // =============================================================================
 import * as THREE from 'three';
-import { MB, roundRectPath, ellipsePath } from './mesh.js?v=edffaff';
-import { LIV, liv, swUV, iswUV, adRect, stripRect, eswUV, LED_BASE, ICON } from './textures.js?v=edffaff';
+import { MB, roundRectPath, ellipsePath } from './mesh.js?v=0a7351a';
+import { LIV, liv, swUV, iswUV, adRect, stripRect, eswUV, LED_BASE, ICON } from './textures.js?v=0a7351a';
 
 export const M = { BODY: 0, GLASS: 1, INT: 2, EMIT: 3 };
 const RAIL_TOP = -0.925;

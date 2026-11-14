@@ -22,13 +22,13 @@
 // Solid furniture is registered with ctx.world.addBox; wall art is flush (no box).
 // =============================================================================
 import * as THREE from 'three';
-import { envFor } from './shops.js?v=edffaff';
-import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=edffaff';
-import * as D from './env/draw.js?v=edffaff';
-import { CELL } from './world.js?v=edffaff';
-import { LAYOUT, LEVELS } from './layout.js?v=edffaff';
-import { GeoBatch } from '../render/geobatch.js?v=edffaff';
-import { rng, hash } from '../core/rng.js?v=edffaff';
+import { envFor } from './shops.js?v=0a7351a';
+import { Frame, Painter, ChunkBatches, rgb, mix, WHITE } from './env/kit.js?v=0a7351a';
+import * as D from './env/draw.js?v=0a7351a';
+import { CELL } from './world.js?v=0a7351a';
+import { LAYOUT, LEVELS } from './layout.js?v=0a7351a';
+import { GeoBatch } from '../render/geobatch.js?v=0a7351a';
+import { rng, hash } from '../core/rng.js?v=0a7351a';
 
 const CHUNK = 32;
 const BUILD_R = 90;
@@ -528,6 +528,7 @@ export class Props {
     for (let i = 0; i < 4; i++) {
       const c = document.createElement('canvas'); c.width = 768; c.height = 432;
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+      tex.userData.dynamicCanvas = true;     // v17 memdiet: redrawn every few seconds
       const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1, 1, 1).multiplyScalar(1.8) });
       mat.name = 'props_screen' + i;
       S.push({ c, g: c.getContext('2d'), tex, mat, slide: -1, t: 0 });

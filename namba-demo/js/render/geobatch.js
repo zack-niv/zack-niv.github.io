@@ -16,6 +16,14 @@ import * as THREE from 'three';
 
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _m3 = new THREE.Matrix3();
 
+// v17 (iOS memory): compact vertex format, phone-only. When on, build() stores normals as normalized Int8
+// (v * 127) and, where every value of a material list lies in [0, 1], vertex colours as normalized Uint8
+// (v * 255). HDR colour lists (any value outside [0, 1], e.g. env_glow) stay Float32. Position and uv stay
+// Float32. Bytes per vertex: 32 -> 23 (no colour), 44 -> 26 (LDR colour), 35 (HDR colour: only the normal shrinks).
+// Desktop keeps Float32 everywhere; with COMPACT false build() is unchanged.
+let COMPACT = false;
+export function setGeoCompact(on) { COMPACT = !!on; }
+
 export class GeoBatch {
   constructor() { this.lists = new Map(); }
   _list(mat) {
@@ -168,9 +176,21 @@ export class GeoBatch {
       if (!l.p.length) continue;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(l.p, 3));
-      g.setAttribute('normal', new THREE.Float32BufferAttribute(l.n, 3));
+      if (COMPACT) {
+        const nn = l.n, i8 = new Int8Array(nn.length);
+        for (let i = 0; i < nn.length; i++) i8[i] = Math.round(Math.max(-1, Math.min(1, nn[i])) * 127);
+        g.setAttribute('normal', new THREE.BufferAttribute(i8, 3, true));
+      } else g.setAttribute('normal', new THREE.Float32BufferAttribute(l.n, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(l.uv, 2));
-      if (l.hasC) g.setAttribute('color', new THREE.Float32BufferAttribute(l.c, 3));
+      if (l.hasC) {
+        let ldr = COMPACT;
+        if (ldr) { const cc = l.c; for (let i = 0; i < cc.length; i++) { const v = cc[i]; if (!(v >= 0 && v <= 1)) { ldr = false; break; } } }
+        if (ldr) {
+          const cc = l.c, u8 = new Uint8Array(cc.length);
+          for (let i = 0; i < cc.length; i++) u8[i] = Math.round(cc[i] * 255);
+          g.setAttribute('color', new THREE.BufferAttribute(u8, 3, true));
+        } else g.setAttribute('color', new THREE.Float32BufferAttribute(l.c, 3));
+      }
       g.computeBoundingSphere(); g.computeBoundingBox();
       const material = typeof mat === 'string' ? materials.get(mat) : mat;
       const mesh = new THREE.Mesh(g, material);

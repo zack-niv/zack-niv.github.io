@@ -219,10 +219,10 @@ export function memEstimate(ctx) {
   const addTex = (t) => {
     if (!t || !t.isTexture || seen.has(t)) return; seen.add(t);
     const im = t.image; if (!im) return;
-    const w = im.width || 0, h = im.height || 0, d = im.depth || 1;
+    const w = im.width || im.__w || 0, h = im.height || im.__h || 0, d = im.depth || 1;     // v17: a released canvas (width 0) still sits on the GPU
     const bpp = t.type === 1015 ? 16 : t.type === 1016 ? 8 : 4;          // Float / HalfFloat / bytes
     tex += w * h * d * bpp * (t.generateMipmaps && t.minFilter !== 1006 && t.minFilter !== 1003 ? 4 / 3 : 1);
-    if (typeof HTMLCanvasElement !== 'undefined' && im instanceof HTMLCanvasElement && !cvs.has(im)) { cvs.add(im); cv += w * h * 4; }
+    if (typeof HTMLCanvasElement !== 'undefined' && im instanceof HTMLCanvasElement && !cvs.has(im)) { cvs.add(im); if (im.width > 0) cv += w * h * 4; }
   };
   const visit = (o) => {
     addGeo(o.geometry);

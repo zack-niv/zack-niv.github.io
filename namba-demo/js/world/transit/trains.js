@@ -6,8 +6,8 @@
 // Draw calls are independent of the number of trains: ≤ 4 per model in view.
 // =============================================================================
 import * as THREE from 'three';
-import { buildCar, SPECS, lampPoints } from './cars.js?v=edffaff';
-import { buildCarAtlas, buildInteriorAtlas, buildEmissiveAtlas, ROW_H } from './textures.js?v=edffaff';
+import { buildCar, SPECS, lampPoints } from './cars.js?v=0a7351a';
+import { buildCarAtlas, buildInteriorAtlas, buildEmissiveAtlas, ROW_H } from './textures.js?v=0a7351a';
 
 export function patchTrainMaterial(mat, uniforms) {
   const prev = mat.onBeforeCompile;
@@ -88,6 +88,7 @@ export class TrainRenderer {
     const tex = new THREE.CanvasTexture(c);
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
     mat.name = 'transit_glow'; mat.userData.nbUnlit = true;
+    if (this.ctx.engine.haze) mat.fog = false; // v17 haze mode: additive + fog would add the fog colour
     this.glow = {};
     for (const lv of levels) {
       const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), mat, 64);
