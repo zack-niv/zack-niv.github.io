@@ -8,10 +8,10 @@
 //   F.emit(parent)  -> adds 5 meshes (facades, roofs, shopfronts, signs, solids)
 // =============================================================================
 import * as THREE from 'three';
-import { rng } from '../../core/rng.js?v=0a7351a';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=0a7351a';
-import { FKIND, facadeMat } from './facade.js?v=0a7351a';
-import { lcanvas } from '../../render/canvasres.js?v=0a7351a';
+import { rng } from '../../core/rng.js?v=a30ee4b';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=a30ee4b';
+import { FKIND, facadeMat } from './facade.js?v=a30ee4b';
+import { lcanvas } from '../../render/canvasres.js?v=a30ee4b';
 
 const FONT = '"Noto Sans JP","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif';
 

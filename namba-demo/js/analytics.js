@@ -24,15 +24,29 @@
 //   namba_resume {t, level, errand, lodestone, dest} (v15: a run picked up from its crash checkpoint; super prop resumed)
 //   namba_memdiet {passes, mb} (v15: static geometry released on phones, sent with the first namba_perf)
 //   v17: namba_recovered / namba_run_hidden / namba_resume are sent with send_instantly (a recovery report was lost when the page died again before the batch flushed)
+//   v18 (the iPhone dies a few minutes in, with no report): namba_recovered / namba_run_hidden also carry the flight recorder's last readings:
+//   gap_max_ms, tick_max_ms, tick_sys, frames (worst frame gap / tick in the last 5 s, slowest system, frames run), long_tasks (the worst
+//   gaps over 400 ms, "<ms>ms@<t>:<system> | …"), geometries, textures, programs, calls, tris (renderer), dom_nodes, phone, was_standalone,
+//   page_up_s, draw_dist, dist_scale. Super properties standalone (home-screen app), fps_cap (0 = uncapped), dpr, cores.
+//   namba_beat {t, stage, fps, gap_max_ms, tick_max_ms, tick_sys, calls, tris, geometries, textures, programs, crowd, phone, draw_dist,
+//   dist_scale, drs, diet_mb, diet_canvases, dom_nodes, page_up_s, n} every 30 s while playing and visible (send_instantly, at most 60 per page)
+//   namba_longtask {ms, sys, t, at_stage} when one frame gap lasted 1 s or more while visible (at most 10 per page)
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
 const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
 
+import { liveStats } from './core/resilience.js?v=a30ee4b';
+
 // v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
 const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, geo_mb: m.geo != null ? m.geo : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null,
-  crumbs: (r && r.crumbs) || null, last_quality: (r && r.quality) || null, last_errors: r && r.errs && r.errs.length ? r.errs.join(' | ').slice(0, 600) : null }; };
+  crumbs: (r && r.crumbs) || null, last_quality: (r && r.quality) || null, last_errors: r && r.errs && r.errs.length ? r.errs.join(' | ').slice(0, 600) : null,
+  ...flightProps(r) }; };
+// v18: the flight recorder's fields (core/resilience.js), flattened
+const flightProps = (r) => { const f = (r && r.fr) || {}, i = (r && r.ri) || {}, n = (x) => (x != null ? x : null); return { gap_max_ms: n(f.g), tick_max_ms: n(f.k), tick_sys: f.s || null, frames: n(f.n),
+  long_tasks: r && r.lg && r.lg.length ? r.lg.join(' | ').slice(0, 400) : null, geometries: n(i.g), textures: n(i.t), programs: n(i.p), calls: n(i.c), tris: n(i.tr),
+  dom_nodes: n(r && r.dom), phone: (r && r.ph) || null, was_standalone: !!(r && r.sa), page_up_s: n(r && r.up), draw_dist: n(r && r.dd), dist_scale: n(r && r.ds) }; };
 
 export function setupAnalytics(ctx) {
   const q = new URLSearchParams(location.search);
@@ -75,6 +89,7 @@ export function setupAnalytics(ctx) {
       opt_out_useragent_filter: q.has('track'),     // test runs only: headless Chrome counts as a bot and would be dropped
     });
     window.posthog.register({ app: 'lost-in-namba', test: q.has('track'), v, ref, gpu, quality: quality(), screen: `${screen.width}x${screen.height}`, input: (ctx.input && ctx.input.touch) ? 'touch' : 'kbm', orient: innerWidth > innerHeight ? 'land' : 'port',   // v11: mobile/tablet
+      standalone: (() => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } })(), fps_cap: ctx.fpsCap != null ? ctx.fpsCap : null, dpr: devicePixelRatio || null, cores: navigator.hardwareConcurrency || null,   // v18
       stage: 'loaded' });
     ph = window.posthog;               // the stub until array.js arrives (it queues), then the real client
     for (const [ev, p, now] of queue.splice(0)) ph.capture(ev, p, now ? { send_instantly: true } : undefined);
@@ -133,6 +148,22 @@ export function setupAnalytics(ctx) {
     reach('contact');
     send('namba_contact', { kind: a.classList.contains('call') ? 'call' : 'agent', where: a.closest('.g-pause') ? 'pause' : 'endcard', t: t() });
   }, true);
+
+  // ---- v18: the heartbeat and the long frames ----------------------------------------------------------------------
+  // namba_beat every 30 s while playing (not on a hidden tab, not after the end card), at most 60 per page
+  let beats = 0;
+  const beat = () => {
+    try {
+      if (!ctx.started || document.hidden || stage >= STAGES.indexOf('endcard') || beats >= 60) return;
+      const L = liveStats(ctx) || {}, f = L.fr || {}, i = L.ri || {}, md = ctx.memdiet && ctx.memdiet.stats, n = (x) => (x != null ? x : null);
+      send('namba_beat', { t: t(), stage: STAGES[stage] || null, fps: ctx.engine.stats.fps != null ? Math.round(ctx.engine.stats.fps) : null, gap_max_ms: n(f.g), tick_max_ms: n(f.k), tick_sys: f.s || null,
+        calls: n(i.c), tris: n(i.tr), geometries: n(i.g), textures: n(i.t), programs: n(i.p), crowd: ctx.crowd ? ctx.crowd.count : null, phone: L.ph || null, draw_dist: n(L.dd), dist_scale: n(L.ds),
+        drs: ctx.engine.drs != null ? +ctx.engine.drs.toFixed(2) : null, diet_mb: md ? md.mb : null, diet_canvases: md ? md.canvases : null, dom_nodes: n(L.dom), page_up_s: n(L.up), n: ++beats }, true);
+    } catch (e) { /* analytics never breaks the game */ }
+  };
+  setInterval(beat, 30000);
+  let longSent = 0;
+  E.on('app:longtask', (e) => { try { if (e && longSent++ < 10) send('namba_longtask', { ms: e.ms, sys: e.sys || null, t: e.t, at_stage: STAGES[stage] || null }); } catch (err) { /* optional */ } });
 
   // ---- v12: did the station PA actually speak on this device? (iOS dropped every line silently until v12) ----------
   // 'first': once the first PA line has an outcome (spoken / never started / error); 'summary': 90 s into play

@@ -12,8 +12,8 @@
 // The heading arrow itself is the Tracker's (track.js); this only says WHAT comes.
 // Pure logic, no DOM. Contract: notes/v5-nav.md.
 // =============================================================================
-import { LEVELS } from '../../world/layout.js?v=0a7351a';
-import { businessBySlot } from '../../world/directory.js?v=0a7351a';
+import { LEVELS } from '../../world/layout.js?v=a30ee4b';
+import { businessBySlot } from '../../world/directory.js?v=a30ee4b';
 
 const lvl = (l) => (LEVELS[l] ? LEVELS[l].label : String(l || '')).replace('B1F', 'B1').replace('B2F', 'B2');
 export const NEAR_M = 30;            // under this the milestone takes over (with the side it is on)

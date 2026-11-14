@@ -14,7 +14,7 @@
 // self-illumination so printed matter stays readable in dim corners).
 // =============================================================================
 import * as THREE from 'three';
-import { lcanvas } from '../../render/canvasres.js?v=0a7351a';
+import { lcanvas } from '../../render/canvasres.js?v=a30ee4b';
 
 const PAD = 4;      // default gutter between regions (px); posters use 8
 

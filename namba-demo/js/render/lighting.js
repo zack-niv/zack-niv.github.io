@@ -25,11 +25,11 @@
 //      map only updated near outdoors; sky irradiance follows ctx.exterior.sun.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=0a7351a';
-import { CELL } from '../world/world.js?v=0a7351a';
-import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=0a7351a';
-import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=0a7351a';
-import { EnvMaps } from './lighting/envmaps.js?v=0a7351a';
+import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=a30ee4b';
+import { CELL } from '../world/world.js?v=a30ee4b';
+import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=a30ee4b';
+import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=a30ee4b';
+import { EnvMaps } from './lighting/envmaps.js?v=a30ee4b';
 
 // install as early as possible: before any lit material compiles
 installMaterialHook();
@@ -157,7 +157,7 @@ export class Lighting {
     }
     const out = [];
     return Promise.all(buckets.filter(b => b.jobs.length).map(b => new Promise((resolve, reject) => {
-      const w = new Worker(new URL('./lighting/bakeworker.js?v=0a7351a', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./lighting/bakeworker.js?v=a30ee4b', import.meta.url), { type: 'module' });
       const timer = setTimeout(() => { w.terminate(); reject(new Error('bake worker timeout')); }, 60000);
       w.onmessage = (ev) => {
         const d = ev.data;
@@ -414,9 +414,13 @@ export class Lighting {
       // v17 haze mode: linear fog tied to the real draw distance, colour clamped for display, background = fog
       const fog = engine.scene.fog, dd = (this.ctx.visibility && this.ctx.visibility.dd) || engine.quality.drawDist * 0.8;
       // outdoors nothing is cut to black (the skyline and the city blocks are drawn from everywhere), so the haze
-      // opens up to roughly the old thin fog; the tight range is for interiors only (blended by exterior.outdoorFactor)
+      // opens up to roughly the old thin fog; the tight range is for interiors only (blended by exterior.outdoorFactor).
+      // Indoors with the shell on, floors / walls / ceilings are drawn out to S (visibility.shellDist), so the haze only
+      // softens that last stretch (0.55 S .. 1.05 S); without the shell it follows the detail distance as before.
       const od = Math.max(0, Math.min(1, (this.ctx.exterior && this.ctx.exterior.outdoorFactor) || 0));
-      const tn = 0.42 * dd + (90 - 0.42 * dd) * od, tf = 0.88 * dd + (700 - 0.88 * dd) * od;
+      const V = this.ctx.visibility, S = (V && V.shellDist) || 0;
+      const inN = S > 0 ? 0.55 * S : 0.42 * dd, inF = S > 0 ? 1.05 * S : 0.88 * dd;
+      const tn = inN + (90 - inN) * od, tf = inF + (700 - inF) * od;
       if (this.fogNear === undefined) { this.fogNear = tn; this.fogFar = tf; }
       else { this.fogNear += (tn - this.fogNear) * k; this.fogFar += (tf - this.fogFar) * k; }
       const hc = this._hc || (this._hc = new THREE.Color());

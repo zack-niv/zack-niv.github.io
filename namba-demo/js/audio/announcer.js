@@ -23,8 +23,8 @@
 // '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
 // `stats()` reports what the device actually did (analytics: namba_pa).
 // =============================================================================
-import { spokenText } from './phrases.js?v=0a7351a';
-import { platformGain, pointGain } from './zones.js?v=0a7351a';
+import { spokenText } from './phrases.js?v=a30ee4b';
+import { platformGain, pointGain } from './zones.js?v=a30ee4b';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -302,12 +302,12 @@ export class Announcer {
     // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
     const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
     u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
-    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } };
-    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); };
+    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } try { this.sys.ctx.events.emit('pa:speech', { s: 'start' }); } catch (e) { /* flight recorder only */ } };
+    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); try { this.sys.ctx.events.emit('pa:speech', { s: 'end' }); } catch (e) { /* flight recorder only */ } };
     u.onerror = (e) => {
       this._hallStop(c);
       const code = (e && e.error) || 'error';
-      if (code !== 'interrupted' && code !== 'canceled') this._err(code);    // our own cancels are not failures
+      if (code !== 'interrupted' && code !== 'canceled') { this._err(code); try { this.sys.ctx.events.emit('pa:speech', { s: 'error', code }); } catch (e2) { /* flight recorder only */ } }    // our own cancels are not failures
       if (c.utter === u) { c.uErr = code; c.uDone = true; this._note('error ' + code); }
     };
     this.st.tried++;

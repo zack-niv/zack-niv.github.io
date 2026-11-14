@@ -1,7 +1,7 @@
 // Outdoor mask + "distance to daylight" field per level, from the walk grid.
 //   isOutdoor(level, x, z)      -> true on outdoor walk cells / garden stairs
 //   distance(level, x, z)       -> metres (walking) to the nearest outdoor cell, capped at 255
-import { CELL } from '../world.js?v=0a7351a';
+import { CELL } from '../world.js?v=a30ee4b';
 
 export class OutdoorMask {
   constructor(world) {

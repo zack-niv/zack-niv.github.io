@@ -12,43 +12,43 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=0a7351a';
-import { Events } from './core/events.js?v=0a7351a';
-import { Clock } from './core/clock.js?v=0a7351a';
-import { Input } from './core/input.js?v=0a7351a';
-import { params } from './core/params.js?v=0a7351a';
-import { World } from './world/world.js?v=0a7351a';
-import { Nav } from './world/nav.js?v=0a7351a';
-import { LAYOUT } from './world/layout.js?v=0a7351a';
-import { Loader } from './core/loader.js?v=0a7351a';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=0a7351a';
-import { bootTouch, TouchUI } from './ui/touch.js?v=0a7351a';
-import { setCanvasRes } from './render/canvasres.js?v=0a7351a';
-import { readRecovery, armRecovery } from './core/resilience.js?v=0a7351a';
-import { setGeoCompact } from './render/geobatch.js?v=0a7351a';
+import { Engine } from './core/engine.js?v=a30ee4b';
+import { Events } from './core/events.js?v=a30ee4b';
+import { Clock } from './core/clock.js?v=a30ee4b';
+import { Input } from './core/input.js?v=a30ee4b';
+import { params } from './core/params.js?v=a30ee4b';
+import { World } from './world/world.js?v=a30ee4b';
+import { Nav } from './world/nav.js?v=a30ee4b';
+import { LAYOUT } from './world/layout.js?v=a30ee4b';
+import { Loader } from './core/loader.js?v=a30ee4b';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=a30ee4b';
+import { bootTouch, TouchUI } from './ui/touch.js?v=a30ee4b';
+import { setCanvasRes } from './render/canvasres.js?v=a30ee4b';
+import { readRecovery, armRecovery } from './core/resilience.js?v=a30ee4b';
+import { setGeoCompact } from './render/geobatch.js?v=a30ee4b';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=0a7351a',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=0a7351a',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=0a7351a', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=0a7351a',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=0a7351a',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=0a7351a',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=0a7351a',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=0a7351a',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=0a7351a',      'Signage',      'build'],
-  ['player',       './player/player.js?v=0a7351a',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=0a7351a',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=0a7351a',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=0a7351a',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=0a7351a',             'Hud',          'live'],
-  ['game',         './game/game.js?v=0a7351a',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=0a7351a',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=0a7351a',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=0a7351a',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=a30ee4b',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=a30ee4b',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=a30ee4b', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=a30ee4b',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=a30ee4b',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=a30ee4b',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=a30ee4b',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=a30ee4b',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=a30ee4b',      'Signage',      'build'],
+  ['player',       './player/player.js?v=a30ee4b',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=a30ee4b',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=a30ee4b',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=a30ee4b',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=a30ee4b',             'Hud',          'live'],
+  ['game',         './game/game.js?v=a30ee4b',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=a30ee4b',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=a30ee4b',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=a30ee4b',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -69,6 +69,8 @@ const frame = () => new Promise(r => { let d = false; const f = () => { if (!d) 
 // v11: phones and tablets are first-class (landscape, on-screen controls: js/ui/touch.js). The old "best on a
 // computer" gate is gone; a rotate-to-landscape card (index.html #rotate) shows in portrait instead.
 const touchOnly = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
+// v18: frame cap. Phones run at 30 fps (every second frame of a 60 Hz display is skipped: half the work and heat). 0 = uncapped; ?fps=60 or ?fps=0 lifts it.
+const fpsCap = params.has('fps') ? Math.max(0, +params.get('fps') || 0) : (touchOnly ? 30 : 0);
 bootTouch();
 const touchAck = Promise.resolve();
 // v11.1 (iOS crash): did the last run die on screen (jetsam / lost GPU)? Then this boot starts a safe tier.
@@ -88,13 +90,14 @@ const recovery = readRecovery();
 async function boot() {
   const canvas = document.getElementById('view');
   const engine = new Engine(canvas);
+  engine.fpsCap = fpsCap;
   // v11 mobile default: phones and tablets start on `low` (engine.detectTier: coarse pointer), trimmed further for a
   // mid-range phone GPU/CPU to hold ~30 fps: a smaller pixel-ratio cap on phone-sized screens, fewer simulated people,
   // a shorter draw distance and draw-call budget. ?quality=… still forces a tier untouched.
   engine.mobile = touchOnly;   // v13 critic: also with ?quality forced (the Lodestone shared renderer, the phone audio profile)
   if (touchOnly && !engine.qualityForced) {
     const phone = Math.min(innerWidth, innerHeight) < 600;
-    Object.assign(engine.quality, { crowdMax: phone ? 480 : 600, drawDist: phone ? 70 : 80, callBudget: phone ? 320 : 380, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further; v17: crowd 320/420 → 480/600 (people are instances: no extra memory or draw calls), with a larger share kept near the player (npc/trips.js nearShare)
+    Object.assign(engine.quality, { crowdMax: phone ? 480 : 600, drawDist: phone ? 70 : 80, callBudget: phone ? 460 : 520, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further; v17: crowd 320/420 → 480/600 (people are instances: no extra memory or draw calls), with a larger share kept near the player (npc/trips.js nearShare); v18: call budget 320/380 → 460/520 with the 30 fps cap (half the frames, so more calls per frame still means less work and heat)
     engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
     engine.renderer.setPixelRatio(engine.basePR);
   }
@@ -115,7 +118,10 @@ async function boot() {
     console.warn(`[resilience] recovered from ${recovery.reason} at ${recovery.lastStage} (t ${recovery.t}s): safe tier ${recovery.safe}`);
   }
   const events = new Events();
+  // v18: flight-recorder timings (read by core/resilience.js and analytics.js); one object, reused every frame
+  const frameLog = { gapMax5: 0, tickMax5: 0, tickSys5: '', long: [], n: 0, stage: null };
   const ctx = {
+    frameLog, fpsCap,
     THREE, engine, scene: engine.scene, camera: engine.camera, events, params, layout: LAYOUT,
     clock: new Clock(events), input: new Input(canvas),
     errors: [], systems: [], started: false, ready: false,
@@ -171,8 +177,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=0a7351a').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=0a7351a').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=a30ee4b').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=a30ee4b').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;
@@ -196,24 +202,60 @@ async function boot() {
   // ---- main loop -------------------------------------------------------------
   let last = performance.now();
   let acc = 0, frames = 0;
+  // v18: tick timing. Two 2.5 s buckets (current and previous) give a rolling 5 s maximum without per-frame allocation.
+  let lastTickMs = 0, lastTickSys = '';
+  let bAt = performance.now(), gA = 0, gB = 0, kA = 0, kB = 0, sA = '', sB = '';
+  const playSec = () => Math.round((ctx.game && ctx.game.demo && ctx.game.demo.t) || 0);
+  const recordFrame = (now, gap) => {
+    frameLog.n++;
+    if (now - bAt > 5000) { gA = gB = kA = kB = 0; sA = sB = ''; bAt = now; }
+    else if (now - bAt > 2500) { gB = gA; kB = kA; sB = sA; gA = 0; kA = 0; sA = ''; bAt = now; }
+    if (gap > gA) gA = gap;
+    if (lastTickMs > kA) { kA = lastTickMs; sA = lastTickSys; }
+    frameLog.gapMax5 = gA > gB ? gA : gB;
+    if (kA >= kB) { frameLog.tickMax5 = kA; frameLog.tickSys5 = sA; } else { frameLog.tickMax5 = kB; frameLog.tickSys5 = sB; }
+    if (gap < 400 || !ctx.started) return;        // (loading and the title screen stall by design: only play counts)
+    const L = frameLog.long;
+    if (L.length >= 5 && gap <= L[L.length - 1].ms) return;
+    let st = null;
+    try { st = typeof frameLog.stage === 'function' ? frameLog.stage() : null; } catch (e) { /* hook only */ }
+    L.push({ ms: Math.round(gap), t: playSec(), sys: lastTickSys, stage: st });
+    L.sort((a, b) => b.ms - a.ms);
+    if (L.length > 5) L.length = 5;
+    if (gap >= 1000) { try { events.emit('app:longtask', { ms: Math.round(gap), sys: lastTickSys, t: playSec() }); } catch (e) { /* recorder only */ } }
+  };
+  // a backgrounded tab is not a stall: restart the gap clock whenever visibility changes
+  document.addEventListener('visibilitychange', () => { last = performance.now(); });
   ctx.tick = (dt) => {
+    const T0 = performance.now();
     ctx.input.update();
     if (!params.freeze) ctx.clock.update(dt);
+    let tp = performance.now(), slow = 0, slowName = '';
     for (const { name, sys } of ctx.systems) {
       if (!sys.update) continue;
       try { sys.update(dt); } catch (e) { if (!sys.__err) { console.error(`[${name}.update]`, e); ctx.errors.push(`${name}.update: ${e.message}`); } sys.__err = true; }
+      const t1 = performance.now();
+      if (t1 - tp > slow) { slow = t1 - tp; slowName = name; }
+      tp = t1;
     }
     for (const { sys } of ctx.systems) if (sys.lateUpdate) try { sys.lateUpdate(dt); } catch (e) { /* logged once above */ }
+    { const t1 = performance.now(); if (t1 - tp > slow) { slow = t1 - tp; slowName = 'late'; } tp = t1; }
     engine.render(dt);
+    { const t1 = performance.now(); if (t1 - tp > slow) { slow = t1 - tp; slowName = 'render'; } lastTickMs = t1 - T0; }
+    lastTickSys = slowName;
     engine.stats.frame++;
     ctx.input.endFrame();
   };
   const loop = (now) => {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    // v18: phone frame cap; a skipped frame does not touch `last` or tick
+    if (fpsCap > 0 && now - last < 1000 / fpsCap - 3) { requestAnimationFrame(loop); return; }
+    const gapMs = now - last;
+    const dt = Math.min(0.05, gapMs / 1000);
     last = now;
     acc += dt; frames++;
     if (acc >= 0.5) { engine.stats.fps = frames / acc; engine.stats.ms = (acc / frames) * 1000; acc = 0; frames = 0; }
     ctx.tick(dt);
+    if (!document.hidden) { try { recordFrame(now, gapMs); } catch (e) { /* recorder only */ } }
     requestAnimationFrame(loop);
   };
 

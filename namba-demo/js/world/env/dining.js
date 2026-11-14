@@ -6,12 +6,12 @@
 // sake shelf; the unused depth of long slots becomes the kitchen / back wall instead of a cavern.
 // Contract: S.service('chef', order, staff) -> ctx.counters.
 // =============================================================================
-import { mix, WHITE, protoUV } from './kit.js?v=0a7351a';
-import { MENU, SAMPLES } from './catalog.js?v=0a7351a';
-import { foodItem } from './shopbuild.js?v=0a7351a';
-import { backWall } from './cafe.js?v=0a7351a';
-import { Cells, tableSet, scatter } from './seating.js?v=0a7351a';
-import { WOOD, FABRIC, GREENS, POTS, chair, barStool, plantPot, cup, glass, globeLamp, obox, frameOf } from './furnish.js?v=0a7351a';
+import { mix, WHITE, protoUV } from './kit.js?v=a30ee4b';
+import { MENU, SAMPLES } from './catalog.js?v=a30ee4b';
+import { foodItem } from './shopbuild.js?v=a30ee4b';
+import { backWall } from './cafe.js?v=a30ee4b';
+import { Cells, tableSet, scatter } from './seating.js?v=a30ee4b';
+import { WOOD, FABRIC, GREENS, POTS, chair, barStool, plantPot, cup, glass, globeLamp, obox, frameOf } from './furnish.js?v=a30ee4b';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 

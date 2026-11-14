@@ -19,8 +19,8 @@
 // ?nopost or quality.post=false → renderer tone mapping only (exposure still adapts).
 // =============================================================================
 import * as THREE from 'three';
-import { params } from '../core/params.js?v=0a7351a';
-import { VERT, DOWN, UP, SSAO, AOBLUR, SSR, SSRBLUR, TEMPORAL, TAA, SHARPEN, COMPOSITE, FXAA } from './shaders/post.glsl.js?v=0a7351a';
+import { params } from '../core/params.js?v=a30ee4b';
+import { VERT, DOWN, UP, SSAO, AOBLUR, SSR, SSRBLUR, TEMPORAL, TAA, SHARPEN, COMPOSITE, FXAA } from './shaders/post.glsl.js?v=a30ee4b';
 
 // subtle per-district looks: gain = white balance, lift = shadow tint
 const GRADES = {
