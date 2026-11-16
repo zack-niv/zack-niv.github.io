@@ -1,0 +1,11 @@
+{
+  "v": 1,
+  "voice": {
+    "90f936c1": {"f":["voice/90f936c1.mp3"],"d":11.59}
+  },
+  "loops": {
+    "crowd_food": {"st":"crowd/food_st.mp3","mono":"crowd/food_mono.mp3","d":20,"pad":0.25},
+    "crowd_arcade": {"st":"crowd/arcade_st.mp3","mono":"crowd/arcade_mono.mp3","d":20,"pad":0.25},
+    "crowd_station": {"st":"crowd/station_st.mp3","mono":"crowd/station_mono.mp3","d":20,"pad":0.25}
+  }
+}

@@ -9,12 +9,12 @@
 // =============================================================================
 export const BUSES = ['music', 'sfx', 'voice', 'ambience', 'ui'];
 // v11 (feedback 5, "ambience is still too high to hear the platform / area announcements"): a fixed trim under the user's
-// sliders. The beds and the mall music sit further back so that the PA (chime + the browser's speech, which cannot be made
-// louder) is the clearest thing in the soundscape. The slider still goes from silence to its old maximum minus this trim.
+// sliders. The beds and the mall music sit further back so that the PA (chime + the recorded voice lines) is the clearest thing
+// in the soundscape. The slider still goes from silence to its old maximum minus this trim.
 export const BUS_TRIM = { ambience: 0.5, music: 0.56 };   // -6 dB, -5 dB
 // v13 (Zack on a phone: "it lacks the ambience ... footsteps are not heard"): the phone profile (setProfile) lifts the mix
 // +7 dB ahead of the glue compressor / limiter, and the beds and your steps further on their buses (the beds are what a
-// phone loses most; the PA chime is already loud and iOS reads the voice at full volume anyway). Desktop is untouched.
+// phone loses most; the PA chime is already loud). Desktop is untouched.
 export const PHONE_MAKEUP = 2.24;                                                       // +7 dB
 export const PHONE_TRIM = { ambience: 1.5, music: 1.26, sfx: 1.5, ui: 1, voice: 0.89 };   // +3.5, +2, +3.5, 0, -1 dB (v13 critic: steps keep their desktop balance over the beds)
 
@@ -177,7 +177,8 @@ export class Mixer {
     const g = ac.createGain(); g.gain.value = opts.gain ?? 1;
     src.connect(g);
     let tail = g;
-    if (opts.lp) { const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = opts.lp; f.Q.value = 0.6; tail.connect(f); tail = f; }
+    let lpf = null, sendG = null;
+    if (opts.lp) { const f = lpf = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = opts.lp; f.Q.value = 0.6; tail.connect(f); tail = f; }
     if (opts.hp) { const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = opts.hp; f.Q.value = 0.6; tail.connect(f); tail = f; }
     const bus = this.bus[opts.bus || 'sfx'];
     let out = tail;
@@ -191,13 +192,14 @@ export class Mixer {
       const sp = ac.createStereoPanner(); sp.pan.value = opts.pan; tail.connect(sp); out = sp;
     }
     if (!opts.wetOnly) out.connect(bus.dry);
-    if (opts.send) { const s = ac.createGain(); s.gain.value = opts.send * (opts.pos ? this.wetFalloff(opts.pos.x, opts.pos.y, opts.pos.z, opts.ref ?? 2) : 1); tail.connect(s); s.connect(bus.wet); }
+    if (opts.send) { const s = sendG = ac.createGain(); s.gain.value = opts.send * (opts.pos ? this.wetFalloff(opts.pos.x, opts.pos.y, opts.pos.z, opts.ref ?? 2) : 1); tail.connect(s); s.connect(bus.wet); }
     const when = opts.when ?? ac.currentTime;
     src.start(when, opts.offset || 0);
     if (opts.duration) src.stop(when + opts.duration);
     this.liveOneShots++;
     src.onended = () => { this.liveOneShots--; try { src.disconnect(); g.disconnect(); out.disconnect(); tail.disconnect(); } catch (e) { /* already */ } };
-    return { src, gain: g, panner: opts.pos ? out : null, stop: (t = 0.05) => { try { g.gain.setTargetAtTime(0, ac.currentTime, t); src.stop(ac.currentTime + t * 6); } catch (e) { /* stopped */ } } };
+    // v20: lpf / send are the low-pass and the reverb-send gain (null when not asked for), so a caller can follow the listener while a long clip plays
+    return { src, gain: g, lpf, send: sendG, panner: opts.pos ? out : null, stop: (t = 0.05) => { try { g.gain.setTargetAtTime(0, ac.currentTime, t); src.stop(ac.currentTime + t * 6); } catch (e) { /* stopped */ } } };
   }
 }
 
@@ -262,11 +264,13 @@ export class Emitter {
   setSend(v, tc = 0.3) { this.sendBase = v; this.send.gain.setTargetAtTime(v * this._wf, this.ac.currentTime, tc); }
   setRate(r, tc = 0.2) { if (this.src) this.src.playbackRate.setTargetAtTime(r, this.ac.currentTime, tc); }
   // start a looping buffer (crossfades from the previous one)
-  setLoop(buf, { offset = null, rate = 1 } = {}) {
+  // v20: loopStart / loopEnd (seconds) bound the repeat for the recorded crowd loops (clips.js: pad .. pad + d); offset is then absolute
+  setLoop(buf, { offset = null, rate = 1, loopStart = null, loopEnd = null } = {}) {
     if (!buf || buf === this.buffer) return;
     const ac = this.ac;
     const old = this.src, oldG = this._srcG;
     const src = ac.createBufferSource(); src.buffer = buf; src.loop = true; src.playbackRate.value = rate;
+    if (loopEnd != null && loopEnd > (loopStart || 0)) { src.loopStart = loopStart || 0; src.loopEnd = loopEnd; }
     const g = ac.createGain(); g.gain.value = 0; src.connect(g); g.connect(this.input);
     const off = offset == null ? Math.random() * buf.duration : offset;
     src.start(ac.currentTime, off % buf.duration);

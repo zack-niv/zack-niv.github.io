@@ -102,7 +102,7 @@ export const FORMATIONS = {
 
 // Nankai service patterns per track (weights). Tracks 1-2 Koya line, 3-4 airport,
 // 5-6 main line, 7-8 locals / Semboku.
-const NK_PATTERNS = {
+export const NK_PATTERNS = {
   1: [[3, 'exp', 'gokurakubashi', 'comm4'], [4, 'sect', 'kawachinagano', 'comm8'], [3, 'semi', 'izumichuo', 'comm8'], [2, 'exp', 'hashimoto', 'comm8']],
   2: [[3, 'koya', 'gokurakubashi', 'south4'], [3, 'exp', 'hashimoto', 'comm8'], [2, 'semboku', 'izumichuo', 'south4'], [2, 'kakutei', 'kongo', 'comm6']],
   3: [[5, 'airexp', 'kix', 'comm8'], [2, 'rapitb', 'kix', 'rapit6'], [1, 'local', 'hagurazaki', 'comm6']],
@@ -111,6 +111,13 @@ const NK_PATTERNS = {
   6: [[4, 'exp', 'wakayamashi', 'comm8'], [2, 'sect', 'misaki', 'comm8'], [1, 'southern', 'wakayamashi', 'southern8']],
   7: [[4, 'sect', 'izumichuo', 'comm8'], [3, 'semi', 'kawachinagano', 'comm8'], [2, 'kakutei', 'sakaihigashi', 'comm6']],
   8: [[5, 'local', 'hagurazaki', 'comm6'], [3, 'local', 'misaki', 'comm6'], [1, 'kakutei', 'sakaihigashi', 'comm4']],
+};
+
+// v20: Midosuji / Sennichimae destinations per track number (weights for pickW; a plain string = the one destination).
+// Exported so that tools/audio/lines.mjs lists exactly the lines the generator can produce.
+export const METRO_DESTS = {
+  midosuji: { 1: [[16, 'nakamozu'], [3, 'tennoji'], [3, 'abiko']], 2: [[9, 'senri'], [4, 'minoh'], [6, 'shinosaka'], [1, 'nakatsu']] },
+  sennichimae: { 1: 'minamitatsumi', 2: 'nodahanshin' },
 };
 
 // ---- kinematics ------------------------------------------------------------------------
@@ -189,9 +196,8 @@ export class Timetable {
         const h = time / 60;
         const rush = Math.min(1, Math.max(0, (rushAt(h) - 0.25) / 0.75));
         const dwell = (m ? 24 : 20) + rush * 10 + r.range(-2, 3);
-        let dest;
-        if (m) dest = t.no === 1 ? pickW(r, [[16, 'nakamozu'], [3, 'tennoji'], [3, 'abiko']])[1] : pickW(r, [[9, 'senri'], [4, 'minoh'], [6, 'shinosaka'], [1, 'nakatsu']])[1];
-        else dest = t.no === 1 ? 'minamitatsumi' : 'nodahanshin';
+        const dl = METRO_DESTS[t.line][t.no === 1 ? 1 : 2];
+        const dest = typeof dl === 'string' ? dl : pickW(r, dl)[1];
         out.push(this._svc(t, { type: m ? 'm_local' : 's_local', dest, formation: m ? 'm10' : 's4', arr: time, dep: time + this.g(dwell) }));
         let hw = (hMid + (hRush - hMid) * rush + r.range(-7, 7));
         if (h < 6.2 || h > 23) hw *= 1.5;

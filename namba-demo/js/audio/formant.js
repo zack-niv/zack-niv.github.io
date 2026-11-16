@@ -1,9 +1,8 @@
 // =============================================================================
 // Formant voice synthesizer (worker-safe) — NOT used for any spoken line any
-// more (the PA, shop calls and "sumimasen" use real speechSynthesis voices; see
-// announcer.js). Its only remaining job is `walla` at the bottom: many quiet
-// voices summed and low-passed into the unintelligible murmur of a crowd, which
-// is a texture, not speech.
+// more (the PA, shop calls and "sumimasen" are recorded files; see announcer.js
+// and clips.js). v20: the `walla` crowd texture at the bottom is not played either
+// (ambience.js uses recorded crowd loops); the recipe code stays.
 // =============================================================================
 import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js?v=5e3e8a5';
 

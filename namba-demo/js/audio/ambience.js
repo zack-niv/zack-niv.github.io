@@ -4,8 +4,8 @@
 //  * Bed layers (seamless loops) mixed per acoustic "mood" and crossfaded as
 //    the player moves; on stairs/escalators the two ends' moods are blended by
 //    progress along the ramp (you hear the street swell as you climb out).
-//  * Crowd: walla (two decorrelated loop instances) scaled by local density,
-//    a granular footstep cloud whose rate follows density (no per-NPC nodes),
+//  * Crowd: three field-recorded loops (v20: assets/audio via clips.js, chosen by area) scaled by local density, cross-fading as
+//    you walk between areas (it was the synthesized `bed:walla`), a granular footstep cloud whose rate follows density (no per-NPC nodes),
 //    a dense step texture above the granular limit, passing suitcases.
 //  * Nature/street events: birds, crows, crossing signals, horns, buses,
 //    distant trains under the floor, distant PA.
@@ -56,6 +56,17 @@ const MOODS = {
   // restaurant floors (Parks 6F-8F, restaurant rooms): sizzle, clatter, "irasshaimase"
   dining:    { hvac_mall: 0.08, kitchen: 0.2, sizzle: 0.15, fry: 0.1, walla: 0.34, cloud: 0.55, steps: 'wood', dine: true },
 };
+// v20: which recorded crowd loop each mood plays (clips.js; the file names are in assets/audio/manifest.json)
+const CROWD_LOOP = {
+  department: 'crowd_food', mall: 'crowd_food', parks: 'crowd_food', shop: 'crowd_food', dining: 'crowd_food',
+  arcade: 'crowd_arcade', street: 'crowd_arcade', canyon: 'crowd_arcade', garden: 'crowd_arcade',
+  metro: 'crowd_station', passage: 'crowd_station', terminal: 'crowd_station', platform: 'crowd_station', nkplatform: 'crowd_station',
+};
+const CROWD_NAMES = ['crowd_food', 'crowd_arcade', 'crowd_station'];
+// one trim for the whole crowd: the recordings are loudness-matched to the old synthesized walla, so the gain structure is the old one
+const CROWD_TRIM = 1;
+const CROWD_INST = 0.5;        // gain of one instance at target 1 (the old walla ran two instances at 0.5 each)
+const CROWD_DROP_S = 20;       // a loop silent this long is stopped and its decoded audio dropped
 // baseline people within ~12 m when the crowd system can't tell us
 const BASE_PEOPLE = { dining: 16, metro: 26, platform: 18, arcade: 30, department: 14, street: 16, terminal: 36, nkplatform: 16, passage: 22, mall: 22, parks: 12, canyon: 14, garden: 5, shop: 4 };
 
@@ -77,8 +88,9 @@ export class Ambience {
     this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac; this.ctx = sys.ctx;
     this.layers = {};
     for (const [name, L] of Object.entries(LAYERS)) { if (params.has('nomusic') && L.recipe.startsWith('mus:')) continue; this.layers[name] = { ...L, name, em: null, target: 0, cur: 0, idle: 0 }; }
-    // walla: two decorrelated instances of the same loop, spread L/R
-    this.walla = [-0.6, 0.6].map((pan) => ({ em: null, pan }));
+    // v20 crowd loops: name -> { em: [{ em, pan }], cur, silent }; at most the ones you are in or near stay decoded
+    this.crowd = {};
+    for (const n of CROWD_NAMES) this.crowd[n] = { name: n, inst: [], target: 0, silent: 0 };
     this.stepsTex = { em: null, surface: null };
     // footstep cloud lanes (StereoPanner + LP) — grains are routed into these
     this.lanes = [];
@@ -136,11 +148,12 @@ export class Ambience {
     this.target = tgt;
     for (const ln in this.layers) this._layer(this.layers[ln], (tgt[ln] || 0), dt);
     // crowd layers
-    let wallaG = 0, cloudG = 0, outdoor = 0, birds = 0;
-    for (const [m, kk] of Object.entries(w)) { const M = MOODS[m] || MOODS.passage; wallaG += (M.walla || 0) * kk; cloudG += (M.cloud || 0) * kk; outdoor += (M.outdoor ? 1 : 0) * kk; birds += (M.birds || 0) * kk; }
+    let cloudG = 0, outdoor = 0, birds = 0;
+    const loopG = {};   // per recorded loop: the sum of the mood walla levels mapped to it
+    for (const [m, kk] of Object.entries(w)) { const M = MOODS[m] || MOODS.passage; if (M.walla) { const ln = CROWD_LOOP[m] || 'crowd_station'; loopG[ln] = (loopG[ln] || 0) + M.walla * kk; } cloudG += (M.cloud || 0) * kk; outdoor += (M.outdoor ? 1 : 0) * kk; birds += (M.birds || 0) * kk; }
     // Japanese crowds are quiet: murmur grows sub-linearly with density
-    const wl = wallaG * Math.min(1.15, 0.12 + 0.75 * Math.sqrt(dens));
-    this._walla(wl, outdoor);
+    const dk = Math.min(1.15, 0.12 + 0.75 * Math.sqrt(dens));
+    this._crowd(dt, loopG, dk, outdoor);
     const surface = (MOODS[main] && MOODS[main].steps) || 'tile';
     this._cloud(dt, cloudG, dens, L.stepSurface || surface);
     this._suitcases(dt, L, dens);
@@ -154,7 +167,7 @@ export class Ambience {
     const layers = {}, loading = [];
     for (const ln in this.layers) { const Ly = this.layers[ln], t = (this.target && this.target[ln]) || 0; if (t > 0.001) { layers[ln] = r(t * Ly.g); if (!Ly.em) loading.push(ln); } }
     const weights = {}; for (const m in this.weights) if (this.weights[m] > 0.005) weights[m] = r(this.weights[m]);
-    return { mood: this.mood, weights, layers, loading, platformLeak: r(this.leak ? this.leak.gain : 0), people: Math.round(this.people), walla: r(this._wallaG || 0) };
+    return { mood: this.mood, weights, layers, loading, platformLeak: r(this.leak ? this.leak.gain : 0), people: Math.round(this.people), walla: r(this._wallaG || 0), crowd: this.crowdPlaying() };
   }
 
   _density(L, w) {
@@ -181,11 +194,11 @@ export class Ambience {
     const M = MOODS[m] || {};
     const want = [];
     for (const ln in LAYERS) if (M[ln] && !(params.has('nomusic') && LAYERS[ln].recipe.startsWith('mus:'))) want.push(LAYERS[ln].recipe);
-    if (M.walla) want.push('bed:walla');
     if (M.steps) for (let i = 0; i < 6; i++) want.push(`fs:${M.steps}:${i < 3 ? 'sneaker' : i < 5 ? 'leather' : 'heel'}:${i}`);
     if (M.birds) want.push('bird:bulbul:0', 'bird:sparrow:0', 'bird:whiteeye:0', 'bird:tit:0', 'bird:crow:0', 'bird:sparrow:1', 'bird:bulbul:1');
     if (M.outdoor) want.push('bird:crow:1', 'fx:horn');
     this.bank.want(want, 3);
+    if (M.walla && this.sys.clips && CROWD_LOOP[m]) this.sys.clips.wantLoop(CROWD_LOOP[m]);
   }
 
   _layer(Ly, target, dt) {
@@ -205,19 +218,66 @@ export class Ambience {
     if (Ly.em && Math.abs(target - Ly.cur) > 0.002) { Ly.cur = target; Ly.em.fade(target * Ly.g, 0.3); }
   }
 
-  _walla(g, outdoor) {
-    const buf = this.bank.peek('bed:walla');
-    if (!buf) { if (g > 0) this.bank.get('bed:walla', 2); return; }
-    this._wallaG = g;
-    this.walla.forEach((wv, i) => {
-      if (!wv.em) {
-        wv.em = this.mixer.emitter({ bus: 'ambience', pan: wv.pan, send: 0.5, lp: 5600 });
-        wv.em.setLoop(buf, { offset: i * buf.duration * 0.47, rate: i ? 1.035 : 0.975 });
+  // v20: the recorded crowd. g[name] = the target level of that recording (mood walla levels x weights, as before), dk = the
+  // density factor. A recording is asked for when its target rises above 0.02 (or its mood was prefetched), started when decoded
+  // and faded with the old ~1.5 s constant, so walking between areas cross-fades between recordings. One that stayed silent for
+  // CROWD_DROP_S is stopped and its decoded audio dropped (at most about two stay decoded while you walk around). A recording that
+  // is not there (loading, failed, ?noclips) is simply silent.
+  _crowd(dt, g, dk, outdoor) {
+    const cl = this.sys.clips; this._wallaG = 0;
+    for (const name of CROWD_NAMES) {
+      const C = this.crowd[name], tg = (g[name] || 0) * dk * CROWD_TRIM;
+      C.target = tg; this._wallaG += tg;
+      if (!cl) continue;
+      if (tg > 0.02) { C.silent = 0; if (!C.inst.length) cl.wantLoop(name); }
+      else if (tg < 0.005) C.silent += dt;
+      if (tg > 0.001 && !C.inst.length) {
+        const lp = cl.peekLoop(name);
+        if (lp) this._crowdStart(C, lp);
       }
-      wv.em.fade(g * 0.5, 1.5);
-      // outdoors the murmur is drier & brighter, indoors wetter
-      wv.em.setSend(outdoor > 0.5 ? 0.15 : 0.55, 1);
+      for (const I of C.inst) {
+        I.em.fade(tg * CROWD_INST, 1.5);
+        // outdoors the murmur is drier & brighter, indoors wetter
+        I.em.setSend(outdoor > 0.5 ? 0.15 : 0.55, 1);
+      }
+      if (C.silent > CROWD_DROP_S) { const ls = cl.loopState(name); if (C.inst.length || ls === 'ready' || ls === 'loading' || ls === 'error') this._crowdStop(C); else C.silent = 0; }
+    }
+  }
+  // the loop file is pad + d + pad long and periodic with period d: loopStart = pad, loopEnd = pad + d, start at pad + x
+  _crowdStart(C, lp) {
+    const { buf, pad, d, mono } = lp, x = this.rand() * d;
+    const pans = mono ? [-0.6, 0.6] : [0];   // mono recordings (phone): two instances spread left / right, the second half a loop later; stereo: one
+    pans.forEach((pan, i) => {
+      const em = this.mixer.emitter({ bus: 'ambience', pan, send: 0.5, lp: 5600 });
+      em.setLoop(buf, { offset: pad + ((x + i * d * 0.5) % d), loopStart: pad, loopEnd: pad + d });
+      em.fade(0, 0.01);
+      C.inst.push({ em, pan });
     });
+  }
+  _crowdStop(C) {
+    for (const I of C.inst) I.em.dispose(0.4);
+    C.inst.length = 0; C.silent = 0;
+    if (this.sys.clips) this.sys.clips.dropLoop(C.name);
+  }
+  // which recordings play now: [{ name, gain (target), cur (the faded-to level), n (instances) }]
+  crowdPlaying() {
+    const out = [];
+    for (const name of CROWD_NAMES) {
+      const C = this.crowd[name], cl = this.sys.clips;
+      const st = cl ? cl.loopState(name) : 'missing';
+      if (C.inst.length || C.target > 0.001 || st === 'loading' || st === 'ready') out.push({ name, target: +C.target.toFixed(3), playing: C.inst.length, state: st, silent: +C.silent.toFixed(1) });
+    }
+    return out;
+  }
+  // the page is being left: stop every emitter
+  dispose() {
+    for (const n of CROWD_NAMES) { const C = this.crowd[n]; for (const I of C.inst) I.em.dispose(0.05); C.inst.length = 0; }
+    for (const ln in this.layers) { const Ly = this.layers[ln]; if (Ly.em) { Ly.em.dispose(0.05); Ly.em = null; } }
+    for (const em of this.lanes) em.dispose(0.05);
+    if (this.stepsTex.em) { this.stepsTex.em.dispose(0.05); this.stepsTex.em = null; }
+    for (const s of this.suitcases) s.em.dispose(0.05);
+    this.suitcases.length = 0;
+    for (const s of this.sys.crossings || []) if (s.em) { s.em.dispose(0.05); s.em = null; }
   }
 
   // granular footstep cloud: Poisson grains at a rate following density

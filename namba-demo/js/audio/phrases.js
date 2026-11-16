@@ -1,9 +1,8 @@
 // =============================================================================
 // Announcement texts (JA / EN) in the register of Osaka Metro & Nankai PA.
-// Spoken by the browser's real voices (speechSynthesis ja-JP then en-*), so
-// every line here has to be correct, natural Japanese / English and short.
-// `say` is an optional pronunciation override for the TTS engine (the caption
-// shows `text`).
+// The Japanese is recorded (v20: assets/audio/voice, one file per line, found by voiceKey below; English is caption
+// text only), so every line here has to be correct, natural Japanese / English and short. `say` overrides the text the
+// recording is keyed on (the caption shows `text`).
 // =============================================================================
 
 // text for the TTS engine: spell out things the engine would mangle
@@ -18,6 +17,22 @@ export function firstSentences(text, lang, n = 2) {
   const parts = lang === 'ja' ? String(text).match(/[^。]+。?/g) : String(text).match(/[^.!?]+[.!?]?/g);
   if (!parts || parts.length <= n) return String(text);
   return parts.slice(0, n).join('').trim();
+}
+
+// ---- recorded voice (v20) ------------------------------------------------------------------------------------
+// Every spoken line is a recorded file (assets/audio/voice), looked up by a key made from its Japanese text.
+// voiceText: what the recording says for a caption text. Clock times are left out of the recording (the caption keeps
+// them), so one file serves a train line at any time of day.
+export function voiceText(text) {
+  return String(text || '').normalize('NFC').replace(/\d{1,2}時\d{1,2}分発、?/g, '').replace(/\s+/g, '');
+}
+// voiceKey: 8 hex digits (FNV-1a, 32 bit, over UTF-16 code units) of voiceText(text). The build tool
+// (tools/audio) names the files with the same function, so the two can never disagree.
+export function voiceKey(text) {
+  const t = voiceText(text);
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
 const LINE_JA = { midosuji: '御堂筋線', sennichimae: '千日前線', nankai: '南海線' };
@@ -139,4 +154,6 @@ AREA_PA.passage = AREA_PA.metro;
 export const IRASSHAI = [{ ja: 'いらっしゃいませ', en: 'Welcome' }, { ja: 'いらっしゃいませ、こんにちは', en: 'Welcome, hello' }, { ja: 'ありがとうございました', en: 'Thank you very much' }];
 export const DINING_CALLS = ['いらっしゃいませ', 'いらっしゃいませ', 'いらっしゃいませ、こんにちは', 'ありがとうございました', 'お待たせいたしました'];
 export const EXCUSE = ['すみません', 'すみません', '失礼します'];
+// shop staff calling to a passer-by (audio.js _bark: crowd:callout events)
+export const CALLOUT = ['いらっしゃいませ', 'いらっしゃいませ、どうぞ', 'いらっしゃいませ、こんにちは'];
 export { LINE_JA };

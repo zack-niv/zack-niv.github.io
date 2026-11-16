@@ -33,6 +33,7 @@ import { TrainRenderer } from './transit/trains.js?v=5e3e8a5';
 import { defineEnvMaterials, buildTrackEnv, buildPSD, ChunkBatches, TS } from './transit/env.js?v=5e3e8a5';
 import { Gates } from './transit/gates.js?v=5e3e8a5';
 import { Boards } from './transit/boards.js?v=5e3e8a5';
+import { trainLine, ARRIVE_NK } from './transit/lines.js?v=5e3e8a5';
 export const NK_VIADUCT_END = 168;
 
 const GAP = 0.5;
@@ -438,29 +439,16 @@ export class Transit {
     const tm = hhmm(s.dep);
     const [hh, mm] = tm.split(':');
     const tyJa = s.typeInfo.short ? `${s.typeInfo.short} ${s.typeInfo.name}` : s.typeJa;
+    // v20: the announcement wording lives in transit/lines.js (shared with tools/audio/lines.mjs, which lists every line to record)
+    const tl = () => { const l = trainLine(kind, { operator: line.operator, line: line.id, no, dirJa: cfg.t.dirJa, destJa: s.destJa, destEn: s.destEn, tyJa, typeEn: s.typeEn, ltd: !!s.typeInfo.short, hh, mm, tm }); ann(l.kind, l.ja, l.en, l.sound); };
     if (kind === 'approach') {
       ev.emit('train:approach', Object.assign({ eta: (s.arr - this.now()), etaSec: (s.arr - this.now()) * this.RS }, base));
-      if (line.operator === 'metro') {
-        const dirJa = cfg.t.dirJa ? cfg.t.dirJa.replace(/方面$/, '') : '';
-        ann('approach',
-          `まもなく、${no}番線に、${dirJa}方面、${s.destJa}行きが到着します。危ないですから、ホームドアから離れてお待ちください。`,
-          `The train for ${s.destEn} will arrive at track ${no} shortly. Please stand back from the platform doors.`, 'metro_approach');
-      } else {
-        ann('approach',
-          `まもなく、${no}番線に、${s.destJa}行き、${tyJa}が、まいります。危ないですから、黄色い線の内側までお下がりください。この電車は、折り返し、${hh}時${mm}分発となります。`,
-          `The ${s.typeEn} bound for ${s.destEn} is arriving at track ${no}. Please stand behind the yellow line. This train will depart at ${tm}.`, 'nankai_approach');
-      }
+      tl();
     } else if (kind === 'arrive') {
       ev.emit('train:arrive', Object.assign({ doors: this._doorList(cfg, s), terminal: line.id === 'nankai' }, base));
-      if (line.id === 'midosuji') ann('arrive', 'なんば、なんばです。四つ橋線、千日前線、南海線、近鉄線、阪神線は、お乗り換えです。', 'Namba, Namba. Please change here for the Yotsubashi Line, the Sennichimae Line, the Nankai Line, the Kintetsu Line and the Hanshin Line.', 'metro_arrive');
-      else if (line.id === 'sennichimae') ann('arrive', 'なんば、なんばです。御堂筋線、四つ橋線、南海線、近鉄線、阪神線は、お乗り換えです。', 'Namba, Namba. Please change here for the Midosuji Line, the Yotsubashi Line, the Nankai Line, the Kintetsu Line and the Hanshin Line.', 'metro_arrive');
-      else ann('arrive', 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', 'Namba, Namba. This is the last stop. Please make sure you have all your belongings with you.', 'nankai_arrive');
-    } else if (kind === 'info') {
-      const extra = s.typeInfo.short ? '特急券をお持ちでないお客様は、ご乗車いただけません。' : '';
-      ann('info', `${no}番線の電車は、${hh}時${mm}分発、${tyJa}、${s.destJa}行きです。${extra}`, `The train at track ${no} is the ${s.typeEn} for ${s.destEn}, departing at ${tm}.${s.typeInfo.short ? ' A limited express ticket is required.' : ''}`, 'nankai_info');
-    } else if (kind === 'closewarn') {
-      if (line.operator === 'metro') ann('depart', `${no}番線、ドアが閉まります。ご注意ください。`, `The doors on track ${no} are closing. Please stand clear.`, 'metro_door_chime');
-      else ann('depart', `${no}番線から、${tyJa}、${s.destJa}行きが発車します。ドアが閉まります、ご注意ください。`, `The ${s.typeEn} for ${s.destEn} is departing from track ${no}. The doors are closing.`, 'nankai_melody');
+      tl();
+    } else if (kind === 'info' || kind === 'closewarn') {
+      tl();
     } else if (kind === 'closing') {
       ev.emit('train:closing', base);
     } else if (kind === 'depart') {
@@ -485,7 +473,7 @@ export class Transit {
       const cfg = this.cfg[tr.track], s = tr.svc;
       this.ctx.events.emit('train:arrive', { line: cfg.line.id, track: cfg.t.id, trackNo: cfg.t.no, platform: cfg.t.platform, level: cfg.level, trainId: s.id, type: s.type, typeJa: s.typeJa, typeEn: s.typeEn, destinationJa: s.destJa, destinationEn: s.destEn, carCount: s.cars, doors: this._doorList(cfg, s), terminal: true, initial: true, start: true });
       const ap = cfg.announcePos;
-      this.ctx.events.emit('announce', { kind: 'arrive', line: cfg.line.id, track: cfg.t.id, trackNo: cfg.t.no, textJa: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', textEn: 'Namba, Namba. This is the last stop. Please make sure you have all your belongings with you.', ja: 'なんば、なんば、終点です。どなた様もお忘れ物のないよう、ご注意ください。', text: 'Namba, Namba. This is the last stop. Please make sure you have all your belongings with you.', level: cfg.level, x: ap.x, y: ap.y, z: ap.z, position: { x: ap.x, y: ap.y, z: ap.z }, sound: 'nankai_arrive', operator: cfg.line.operator, trainId: s.id, start: true });
+      this.ctx.events.emit('announce', { kind: 'arrive', line: cfg.line.id, track: cfg.t.id, trackNo: cfg.t.no, textJa: ARRIVE_NK.ja, textEn: ARRIVE_NK.en, ja: ARRIVE_NK.ja, text: ARRIVE_NK.en, level: cfg.level, x: ap.x, y: ap.y, z: ap.z, position: { x: ap.x, y: ap.y, z: ap.z }, sound: 'nankai_arrive', operator: cfg.line.operator, trainId: s.id, start: true });
     }
   }
 

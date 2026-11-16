@@ -129,6 +129,26 @@ async function boot() {
   };
   window.__namba = ctx;
   armRecovery(ctx, recovery);
+  // v20 (iPhone dies as the fifth game page in one tab): when the page is left (reload, same tab opened on another URL, tab closed)
+  // the old page's WebGL context, audio buffers and workers can stay alive for a while and compete with the new page. Hand
+  // everything back at once on `pagehide` (persisted or not). `ctx.dead` is set FIRST: the tick / loop / marker writer / timers stop,
+  // and core/resilience.js ignores the context loss that forceContextLoss() causes (no crash card, no reload, no marker). Each step has its own try/catch.
+  // A hidden tab is NOT left (visibilitychange tears nothing down). A bfcache restore of a dead page reloads it (nothing to resume; the marker was already cleared).
+  ctx.dead = false;
+  let rafId = 0;
+  ctx.teardown = () => {
+    if (ctx.dead) return;
+    ctx.dead = true;
+    try { if (rafId) cancelAnimationFrame(rafId); } catch (e) { /* ignore */ }
+    try { ctx.audio && ctx.audio.dispose && ctx.audio.dispose(); } catch (e) { /* ignore */ }
+    try { const p = ctx.materials && ctx.materials._workers; if (p) for (const x of p) try { x.w.terminate(); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
+    try { const f = ctx.crowd && ctx.crowd.sim && ctx.crowd.sim.fields; if (f && f.worker) { f.worker.terminate(); f.worker = null; } } catch (e) { /* ignore */ }
+    try { ctx.post && ctx.post.dispose && ctx.post.dispose(); } catch (e) { /* ignore */ }
+    try { engine.renderer.dispose(); } catch (e) { /* ignore */ }
+    try { engine.renderer.forceContextLoss(); } catch (e) { /* ignore */ }
+  };
+  addEventListener('pagehide', () => ctx.teardown());
+  addEventListener('pageshow', (e) => { if (e.persisted && ctx.dead) { try { location.reload(); } catch (err) { /* ignore */ } } });
   progress('survey', 0.1);
   await frame();
   ctx.world = new World();
@@ -227,6 +247,7 @@ async function boot() {
   // a backgrounded tab is not a stall: restart the gap clock whenever visibility changes
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   ctx.tick = (dt) => {
+    if (ctx.dead) return;
     const T0 = performance.now();
     ctx.input.update();
     if (!params.freeze) ctx.clock.update(dt);
@@ -247,8 +268,9 @@ async function boot() {
     ctx.input.endFrame();
   };
   const loop = (now) => {
+    if (ctx.dead) return;
     // v18: phone frame cap; a skipped frame does not touch `last` or tick
-    if (fpsCap > 0 && now - last < 1000 / fpsCap - 3) { requestAnimationFrame(loop); return; }
+    if (fpsCap > 0 && now - last < 1000 / fpsCap - 3) { rafId = requestAnimationFrame(loop); return; }
     const gapMs = now - last;
     const dt = Math.min(0.05, gapMs / 1000);
     last = now;
@@ -256,7 +278,7 @@ async function boot() {
     if (acc >= 0.5) { engine.stats.fps = frames / acc; engine.stats.ms = (acc / frames) * 1000; acc = 0; frames = 0; }
     ctx.tick(dt);
     if (!document.hidden) { try { recordFrame(now, gapMs); } catch (e) { /* recorder only */ } }
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   };
 
   // ---- go ---------------------------------------------------------------------
@@ -269,7 +291,7 @@ async function boot() {
   if (params.test) events.emit('game:ready', {});
   if (params.test && (params.skip || !ctx.game)) ctx.start();
   if (!ctx.game) canvas.addEventListener('click', () => ctx.input.requestLock());
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 
   progress('compile', 0);
   try {
@@ -292,7 +314,8 @@ function setupDebug(ctx) {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;left:8px;top:8px;font:11px/1.35 ui-monospace,monospace;color:#9f9;background:rgba(0,0,0,.6);padding:6px 8px;z-index:99;white-space:pre;pointer-events:none';
   document.body.appendChild(el);
-  setInterval(() => {
+  const iv = setInterval(() => {
+    if (ctx.dead) { clearInterval(iv); return; }
     const p = ctx.player && ctx.player.body;
     const s = ctx.engine.stats;
     el.textContent = `${s.fps.toFixed(0)} fps  ${s.ms.toFixed(1)} ms  calls ${s.calls}  tris ${(s.tris / 1000).toFixed(0)}k\n` +

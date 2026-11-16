@@ -17,7 +17,8 @@
 //   namba_run_hidden {last_stage, ago_s, …same memory props} (v12.1: last tab hidden and never back)
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
-//   namba_pa {at: first|summary, ja, unlocked, unlock_via, tried, started, no_start, errors} (v12: did the PA voice speak?)
+//   namba_pa {at: first|summary, mode, speech, tried, started, ended, missing, late, errors, last_err, clips, clip_mb, state, t} (v20: did a recorded PA line play?
+//   v12-v19 reported the browser voice: ja, unlocked, unlock_via, no_start; speechSynthesis is gone)
 //   namba_error {kind, msg, where, at_stage, t} (v14: JS errors and unhandled rejections, at most 15 per page)
 //   v14: namba_recovered / namba_run_hidden also carry crumbs (the dead run's last stages "stage@t …"), last_quality
 //   (its tier, "!" = forced by ?quality), last_errors and geo_mb (core/resilience.js flight recorder)
@@ -35,6 +36,8 @@
 //   (noaudio, nomusic, nopa, nocrowd, nohaze, noshell, fps=<n>), null when none. namba_beat / namba_recovered / namba_run_hidden also carry the
 //   audio bank's figures (core/resilience.js `au`, null when audio is off): audio_buffers (cached), audio_mb (their size), audio_pending (jobs
 //   waiting), audio_jobs (jobs done), audio_last / audio_cur (last finished / currently rendering recipe), audio_state (AudioContext state).
+//   v20: the same panels also carry audio_clips / audio_clip_mb (decoded recorded clips held now and their size, js/audio/clips.js) and the flags list
+//   knows noclips.
 //   The crumbs of a dead run also hold mus+<name> / mus-<name> when a shop-music recipe starts / ends rendering.
 // =============================================================================
 const KEY = 'phc_yJA7mFjotHz8F3fe8xfArsxYokMgEkQxqc373mRE9ZoQ';    // project API key (Zack's experiments org, EU): public by design (client-side)
@@ -53,10 +56,10 @@ const flightProps = (r) => { const f = (r && r.fr) || {}, i = (r && r.ri) || {},
   long_tasks: r && r.lg && r.lg.length ? r.lg.join(' | ').slice(0, 400) : null, geometries: n(i.g), textures: n(i.t), programs: n(i.p), calls: n(i.c), tris: n(i.tr),
   dom_nodes: n(r && r.dom), phone: (r && r.ph) || null, was_standalone: !!(r && r.sa), page_up_s: n(r && r.up), draw_dist: n(r && r.dd), dist_scale: n(r && r.ds), ...auProps(r && r.au) }; };
 // v19: the audio bank's figures (core/resilience.js `au`), flattened
-const auProps = (a) => { const n = (x) => (x != null ? x : null); a = a || {}; return { audio_buffers: n(a.b), audio_mb: n(a.mb), audio_pending: n(a.p), audio_jobs: n(a.j), audio_last: a.last || null, audio_cur: a.cur || null, audio_state: a.st || null }; };
+const auProps = (a) => { const n = (x) => (x != null ? x : null); a = a || {}; return { audio_buffers: n(a.b), audio_mb: n(a.mb), audio_pending: n(a.p), audio_jobs: n(a.j), audio_last: a.last || null, audio_cur: a.cur || null, audio_state: a.st || null, audio_clips: n(a.c), audio_clip_mb: n(a.cmb) }; };
 
 // v19: the debug switches in the URL, for comparing runs in PostHog
-const flagList = (q) => { try { const f = ['noaudio', 'nomusic', 'nopa', 'nocrowd', 'nohaze', 'noshell'].filter(k => q.has(k)); if (q.has('fps')) f.push('fps=' + (Math.max(0, +q.get('fps') || 0))); return f.length ? f.join(',') : null; } catch (e) { return null; } };
+const flagList = (q) => { try { const f = ['noaudio', 'nomusic', 'nopa', 'noclips', 'nocrowd', 'nohaze', 'noshell'].filter(k => q.has(k)); if (q.has('fps')) f.push('fps=' + (Math.max(0, +q.get('fps') || 0))); return f.length ? f.join(',') : null; } catch (e) { return null; } };
 
 export function setupAnalytics(ctx) {
   const q = new URLSearchParams(location.search);
@@ -175,16 +178,16 @@ export function setupAnalytics(ctx) {
   let longSent = 0;
   E.on('app:longtask', (e) => { try { if (e && longSent++ < 10) send('namba_longtask', { ms: e.ms, sys: e.sys || null, t: e.t, at_stage: STAGES[stage] || null }); } catch (err) { /* optional */ } });
 
-  // ---- v12: did the station PA actually speak on this device? (iOS dropped every line silently until v12) ----------
-  // 'first': once the first PA line has an outcome (spoken / never started / error); 'summary': 90 s into play
+  // ---- v12 / v20: did the station PA actually play on this device? (v20: recorded clips; 'first' once a line started / was missing / was late / failed) ----
+  // 'first': once the first PA line has an outcome (played / not in the manifest / late / error); 'summary': 90 s into play
   function paWatch() {
     const read = () => { try { const a = ctx.audio; return a && (a.paStats ? a.paStats() : a.announcer && a.announcer.stats && a.announcer.stats()); } catch (e) { return null; } };
-    const props = (s, at) => ({ at, voices: s.voices, ja: s.ja || null, unlocked: !!s.unlocked, unlock_via: s.unlockVia || null, attempts: s.attempts, tried: s.tried,
-      started: s.started, ended: s.ended, no_start: s.noStart, errors: (s.errors || []).slice(0, 6).join(',') || null, last_err: s.lastErr || null, state: s.state || null, t: t() });
+    const props = (s, at) => ({ at, mode: s.mode || null, speech: !!s.speech, tried: s.tried, started: s.started, ended: s.ended, missing: s.missing, late: s.late,
+      errors: (s.errors || []).slice(0, 6).join(',') || null, last_err: s.lastErr || null, clips: s.clips != null ? s.clips : null, clip_mb: s.clipMb != null ? s.clipMb : null, state: s.state || null, t: t() });
     let firstSent = false;
     const iv = setInterval(() => {
       const s = read();
-      if (s && !firstSent && (s.started > 0 || s.noStart > 0 || (s.errors && s.errors.length))) { firstSent = true; send('namba_pa', props(s, 'first')); clearInterval(iv); }
+      if (s && !firstSent && (s.started > 0 || s.missing > 0 || s.late > 0 || (s.errors && s.errors.length))) { firstSent = true; send('namba_pa', props(s, 'first')); clearInterval(iv); }
     }, 2000);
     setTimeout(() => { clearInterval(iv); const s = read(); if (s) send('namba_pa', props(s, 'summary')); }, 90000);
   }

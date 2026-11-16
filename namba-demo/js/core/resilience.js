@@ -46,7 +46,7 @@
 // liveStats(ctx) returns the same readings for analytics (namba_beat).
 //
 // v19 (is it the audio?): `au` = the audio bank's figures { b: buffers cached, mb: their size, p: jobs pending, j: jobs done, last: last finished
-// job, lms: its ms, cur: the job rendering now, st: AudioContext state }; present only while audio is on. Crumbs `mus+<name>` / `mus-<name>`
+// job, lms: its ms, cur: the job rendering now, st: AudioContext state, v20: c / cmb: decoded recorded clips and their megabytes }; present only while audio is on. Crumbs `mus+<name>` / `mus-<name>`
 // when a mus:* recipe is posted to / returns from the synthesis worker (ctx.events 'audio:job' from audio/bank.js).
 // =============================================================================
 const KEY = 'namba_run';
@@ -118,6 +118,8 @@ export function liveStats(ctx) {
       let bytes = 0;
       for (const buf of B.cache.values()) bytes += buf.length * buf.numberOfChannels * 4;
       o.au = { b: B.cache.size, mb: Math.round(bytes / 1048576), p: B.pending.size, j: B.stats.jobs, last: B.last || undefined, lms: B.last ? B.lastMs : undefined, cur: B.cur, st: A.ac ? A.ac.state : undefined };
+      // v20: decoded recorded clips (voice + crowd loops): count and megabytes (js/audio/clips.js)
+      const C = A.clips; if (C) { const cs = C.stats(); o.au.c = cs.n; o.au.cmb = cs.mb; }
     }
   } catch (e) { /* optional */ }
   return o;
@@ -172,6 +174,7 @@ export function armRecovery(ctx, rec) {
   let lastCp;
   const checkpoint = () => { try { const S = ctx.game && ctx.game.story; const c = S && S.checkpoint ? S.checkpoint() : null; if (c) lastCp = c; else if (ctx.game && ctx.game.demo && ctx.game.demo.arrived) lastCp = undefined; } catch (e) { /* keep the last */ } return lastCp; };
   const write = (reason, hidden) => {
+    if (ctx.dead) return;      // v20: a page that has been torn down (main.js teardown on pagehide) never writes a marker again
     if ((document.hidden || reloading) && !reason && !hidden) return;
     if (running || reason) store.set(snapshot(reason, hidden));
   };
@@ -231,13 +234,15 @@ export function armRecovery(ctx, rec) {
   E.on('render:quality', (e) => crumb('q_' + ((e && e.name) || '')));
   E.on('app:longtask', (e) => { if (e) crumb('long' + e.ms); });
   // a clean exit or the tab going to the background is not a crash
-  addEventListener('pagehide', () => { if (!reloading) store.clear(); });
+  // v20: the breadcrumb 'leave' goes in first (it only lives in memory now: the marker is gone right after), then the clear as before
+  addEventListener('pagehide', () => { if (!reloading) { crumb('leave'); store.clear(); } });
   // v12.1: hidden is flagged, not cleared (a tab iOS kills may well be "hidden" first); visible again un-flags it
-  document.addEventListener('visibilitychange', () => { if (reloading) return; crumb(document.hidden ? 'hidden' : 'visible'); if (document.hidden) write(null, true); else if (running) write(); });
+  document.addEventListener('visibilitychange', () => { if (reloading || ctx.dead) return; crumb(document.hidden ? 'hidden' : 'visible'); if (document.hidden) write(null, true); else if (running) write(); });
   write();
   // keep `t` and the live readings fresh (v18: every 3 s, was 10; only while playing and visible). memdiet has no event: its pass count is read here.
   let dietN = 0;
-  setInterval(() => {
+  const beatIv = setInterval(() => {
+    if (ctx.dead) { clearInterval(beatIv); return; }      // v20: nothing keeps working on a dead page
     try { const n = ctx.memdiet && ctx.memdiet.stats && ctx.memdiet.stats.passes; if (n > dietN) { dietN = n; crumb('diet'); } } catch (e) { /* optional */ }
     if (running && !document.hidden) write();
   }, 3000);
@@ -246,6 +251,8 @@ export function armRecovery(ctx, rec) {
   const canvas = ctx.engine && ctx.engine.renderer && ctx.engine.renderer.domElement;
   if (canvas) {
     canvas.addEventListener('webglcontextlost', (e) => {
+      // v20: main.js teardown (pagehide) sets ctx.dead before forceContextLoss(): a deliberate loss is no crash, no card, no reload
+      if (ctx.dead) return;
       e.preventDefault();
       console.warn('[resilience] WebGL context lost');
       ctx.contextLost = true;
