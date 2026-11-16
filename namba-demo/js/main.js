@@ -12,43 +12,43 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=5e3e8a5';
-import { Events } from './core/events.js?v=5e3e8a5';
-import { Clock } from './core/clock.js?v=5e3e8a5';
-import { Input } from './core/input.js?v=5e3e8a5';
-import { params } from './core/params.js?v=5e3e8a5';
-import { World } from './world/world.js?v=5e3e8a5';
-import { Nav } from './world/nav.js?v=5e3e8a5';
-import { LAYOUT } from './world/layout.js?v=5e3e8a5';
-import { Loader } from './core/loader.js?v=5e3e8a5';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=5e3e8a5';
-import { bootTouch, TouchUI } from './ui/touch.js?v=5e3e8a5';
-import { setCanvasRes } from './render/canvasres.js?v=5e3e8a5';
-import { readRecovery, armRecovery } from './core/resilience.js?v=5e3e8a5';
-import { setGeoCompact } from './render/geobatch.js?v=5e3e8a5';
+import { Engine } from './core/engine.js?v=0d08d5d';
+import { Events } from './core/events.js?v=0d08d5d';
+import { Clock } from './core/clock.js?v=0d08d5d';
+import { Input } from './core/input.js?v=0d08d5d';
+import { params } from './core/params.js?v=0d08d5d';
+import { World } from './world/world.js?v=0d08d5d';
+import { Nav } from './world/nav.js?v=0d08d5d';
+import { LAYOUT } from './world/layout.js?v=0d08d5d';
+import { Loader } from './core/loader.js?v=0d08d5d';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=0d08d5d';
+import { bootTouch, TouchUI } from './ui/touch.js?v=0d08d5d';
+import { setCanvasRes } from './render/canvasres.js?v=0d08d5d';
+import { readRecovery, armRecovery } from './core/resilience.js?v=0d08d5d';
+import { setGeoCompact } from './render/geobatch.js?v=0d08d5d';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=5e3e8a5',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=5e3e8a5',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=5e3e8a5', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=5e3e8a5',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=5e3e8a5',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=5e3e8a5',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=5e3e8a5',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=5e3e8a5',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=5e3e8a5',      'Signage',      'build'],
-  ['player',       './player/player.js?v=5e3e8a5',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=5e3e8a5',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=5e3e8a5',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=5e3e8a5',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=5e3e8a5',             'Hud',          'live'],
-  ['game',         './game/game.js?v=5e3e8a5',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=5e3e8a5',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=5e3e8a5',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=5e3e8a5',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=0d08d5d',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=0d08d5d',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=0d08d5d', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=0d08d5d',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=0d08d5d',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=0d08d5d',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=0d08d5d',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=0d08d5d',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=0d08d5d',      'Signage',      'build'],
+  ['player',       './player/player.js?v=0d08d5d',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=0d08d5d',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=0d08d5d',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=0d08d5d',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=0d08d5d',             'Hud',          'live'],
+  ['game',         './game/game.js?v=0d08d5d',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=0d08d5d',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=0d08d5d',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=0d08d5d',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -129,6 +129,26 @@ async function boot() {
   };
   window.__namba = ctx;
   armRecovery(ctx, recovery);
+  // v20 (iPhone dies as the fifth game page in one tab): when the page is left (reload, same tab opened on another URL, tab closed)
+  // the old page's WebGL context, audio buffers and workers can stay alive for a while and compete with the new page. Hand
+  // everything back at once on `pagehide` (persisted or not). `ctx.dead` is set FIRST: the tick / loop / marker writer / timers stop,
+  // and core/resilience.js ignores the context loss that forceContextLoss() causes (no crash card, no reload, no marker). Each step has its own try/catch.
+  // A hidden tab is NOT left (visibilitychange tears nothing down). A bfcache restore of a dead page reloads it (nothing to resume; the marker was already cleared).
+  ctx.dead = false;
+  let rafId = 0;
+  ctx.teardown = () => {
+    if (ctx.dead) return;
+    ctx.dead = true;
+    try { if (rafId) cancelAnimationFrame(rafId); } catch (e) { /* ignore */ }
+    try { ctx.audio && ctx.audio.dispose && ctx.audio.dispose(); } catch (e) { /* ignore */ }
+    try { const p = ctx.materials && ctx.materials._workers; if (p) for (const x of p) try { x.w.terminate(); } catch (e) { /* ignore */ } } catch (e) { /* ignore */ }
+    try { const f = ctx.crowd && ctx.crowd.sim && ctx.crowd.sim.fields; if (f && f.worker) { f.worker.terminate(); f.worker = null; } } catch (e) { /* ignore */ }
+    try { ctx.post && ctx.post.dispose && ctx.post.dispose(); } catch (e) { /* ignore */ }
+    try { engine.renderer.dispose(); } catch (e) { /* ignore */ }
+    try { engine.renderer.forceContextLoss(); } catch (e) { /* ignore */ }
+  };
+  addEventListener('pagehide', () => ctx.teardown());
+  addEventListener('pageshow', (e) => { if (e.persisted && ctx.dead) { try { location.reload(); } catch (err) { /* ignore */ } } });
   progress('survey', 0.1);
   await frame();
   ctx.world = new World();
@@ -177,8 +197,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
-  import('./ui/perf.js?v=5e3e8a5').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=5e3e8a5').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=0d08d5d').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=0d08d5d').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;
@@ -227,6 +247,7 @@ async function boot() {
   // a backgrounded tab is not a stall: restart the gap clock whenever visibility changes
   document.addEventListener('visibilitychange', () => { last = performance.now(); });
   ctx.tick = (dt) => {
+    if (ctx.dead) return;
     const T0 = performance.now();
     ctx.input.update();
     if (!params.freeze) ctx.clock.update(dt);
@@ -247,8 +268,9 @@ async function boot() {
     ctx.input.endFrame();
   };
   const loop = (now) => {
+    if (ctx.dead) return;
     // v18: phone frame cap; a skipped frame does not touch `last` or tick
-    if (fpsCap > 0 && now - last < 1000 / fpsCap - 3) { requestAnimationFrame(loop); return; }
+    if (fpsCap > 0 && now - last < 1000 / fpsCap - 3) { rafId = requestAnimationFrame(loop); return; }
     const gapMs = now - last;
     const dt = Math.min(0.05, gapMs / 1000);
     last = now;
@@ -256,7 +278,7 @@ async function boot() {
     if (acc >= 0.5) { engine.stats.fps = frames / acc; engine.stats.ms = (acc / frames) * 1000; acc = 0; frames = 0; }
     ctx.tick(dt);
     if (!document.hidden) { try { recordFrame(now, gapMs); } catch (e) { /* recorder only */ } }
-    requestAnimationFrame(loop);
+    rafId = requestAnimationFrame(loop);
   };
 
   // ---- go ---------------------------------------------------------------------
@@ -269,7 +291,7 @@ async function boot() {
   if (params.test) events.emit('game:ready', {});
   if (params.test && (params.skip || !ctx.game)) ctx.start();
   if (!ctx.game) canvas.addEventListener('click', () => ctx.input.requestLock());
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 
   progress('compile', 0);
   try {
@@ -292,7 +314,8 @@ function setupDebug(ctx) {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;left:8px;top:8px;font:11px/1.35 ui-monospace,monospace;color:#9f9;background:rgba(0,0,0,.6);padding:6px 8px;z-index:99;white-space:pre;pointer-events:none';
   document.body.appendChild(el);
-  setInterval(() => {
+  const iv = setInterval(() => {
+    if (ctx.dead) { clearInterval(iv); return; }
     const p = ctx.player && ctx.player.body;
     const s = ctx.engine.stats;
     el.textContent = `${s.fps.toFixed(0)} fps  ${s.ms.toFixed(1)} ms  calls ${s.calls}  tris ${(s.tris / 1000).toFixed(0)}k\n` +

@@ -3,7 +3,7 @@
 // back to main-thread synthesis, yielding between jobs). Cached by recipe name.
 // Priority queue so what the player hears first is rendered first.
 // =============================================================================
-import { params } from '../core/params.js?v=5e3e8a5';
+import { params } from '../core/params.js?v=0d08d5d';
 
 export class Bank {
   constructor(ac, { useWorker = true, events = null } = {}) {
@@ -21,7 +21,7 @@ export class Bank {
     this.worker = null;
     if (useWorker && typeof Worker !== 'undefined') {
       try {
-        this.worker = new Worker(new URL('./worker.js?v=5e3e8a5', import.meta.url), { type: 'module' });
+        this.worker = new Worker(new URL('./worker.js?v=0d08d5d', import.meta.url), { type: 'module' });
         this.worker.onmessage = (e) => this._onResult(e.data);
         this.worker.onerror = (e) => { console.warn('[audio] synthesis worker failed, using main thread', e.message || e); this.worker = null; this.inflight = 0; this._pump(); };
       } catch (e) { this.worker = null; }
@@ -33,6 +33,7 @@ export class Bank {
   peek(name) { return this.cache.get(name) || null; }
   // request (if needed) and return a promise of the AudioBuffer
   get(name, prio = 5) {
+    if (this.disposed) { if (!this._gone) { this._gone = Promise.reject(new Error('disposed')); this._gone.catch(() => {}); } return this._gone; }
     if (this.noMusic && name.startsWith('mus:')) {
       // ?nomusic: never queued, never synthesized; callers see a promise that rejects (they all ignore or .catch it)
       if (!this._refused) { this._refused = Promise.reject(new Error('nomusic')); this._refused.catch(() => {}); }
@@ -55,6 +56,7 @@ export class Bank {
   want(names, prio = 8) { for (const n of names) this.get(n, prio); }
   _sortQueue() { this.queue.sort((a, b) => (this.pending.get(a)?.prio ?? 9) - (this.pending.get(b)?.prio ?? 9)); }
   _pump() {
+    if (this.disposed) return;
     while (this.inflight < (this.worker ? this.maxInflight : 1) && this.queue.length) {
       const name = this.queue.shift();
       if (!this.pending.has(name)) continue;
@@ -72,7 +74,7 @@ export class Bank {
   async _runLocal(name) {
     let ms = 0;
     try {
-      if (!this._recipes) this._recipes = await import('./recipes.js?v=5e3e8a5');
+      if (!this._recipes) this._recipes = await import('./recipes.js?v=0d08d5d');
       const t0 = performance.now();
       const res = this._recipes.synthesize(name, this.ac.sampleRate);
       ms = performance.now() - t0;
@@ -114,5 +116,13 @@ export class Bank {
     if (p) p.reject(e);
   }
   drop(name) { this.cache.delete(name); }
-  dispose() { if (this.worker) this.worker.terminate(); }
+  // v20: the page is being left: stop the synthesis worker, drop every buffer and every waiting job (idempotent, never throws)
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
+    try { if (this.worker) this.worker.terminate(); } catch (e) { /* gone */ }
+    this.worker = null;
+    for (const p of this.pending.values()) { try { p.reject(new Error('disposed')); } catch (e) { /* settled */ } }
+    this.pending.clear(); this.queue.length = 0; this.running.clear(); this._names.clear(); this.cache.clear(); this.inflight = 0;
+  }
 }

@@ -1,81 +1,52 @@
 // =============================================================================
 // Announcer: station PA, escalator / shop / restaurant voice lines.
 //
-// Voices are the browser's real voices (window.speechSynthesis), JAPANESE ONLY: the
-// browser never narrates in English (v3 feedback: hearing the announcements in
-// Japanese is enough). A ja-JP voice speaks the Japanese line after the synthesized
-// station chime; the English translation lives in the caption text only.
-//   * no ja-JP voice  -> chime + caption only (nothing is ever spoken in English)
-// speechSynthesis cannot be routed into Web Audio or spatialised, so every
-// item carries *where it is audible* and we set utterance.volume from that at
-// the moment we speak (platform zone / point speaker distance / plain gain —
-// see zones.js). An item that is inaudible when its turn comes is dropped;
-// queued items go stale (maxAge) rather than being spoken late.
+// v20: every spoken line is a pre-recorded audio FILE played through Web Audio (clips.js ClipBank, assets/audio/voice, looked up
+// by phrases.js voiceKey of the Japanese text). speechSynthesis is gone from the game on every device: on iPhone it silenced
+// Web Audio and the page died a few minutes later. Lines are JAPANESE ONLY (v3 feedback: hearing the announcements in
+// Japanese is enough); the English translation lives in the caption text only. A line whose recording is not in the manifest
+// (or not loaded in time) is the chime + caption, as it always was without a voice.
 //
-// One utterance at a time, ever: a single `cur` item walks chime -> ja -> en.
-// Voices load asynchronously (voiceschanged, plus polling).
-//
-// v12 (iPhone: "can't hear the station Japanese announcements"): iOS WebKit silently DROPS every speak() (no start, no
-// error, nothing) until one speak() runs inside a user-gesture handler; pointerdown from a finger is not one (touchend
-// and click are). v8-v11 spent the only unlock on the first pointerdown and then removed the gesture listeners, so on an
-// iPhone no line was ever spoken while the captions still showed. Now (audio.js `_gesture` + `unlock` below): every
-// touchend / click / key / mouse-down until speech is PROVEN (an onstart/onend of our own utterance) speaks a silent
-// '。' inside that gesture; after a cancel or a line that never started, the next gesture primes it again.
-// `stats()` reports what the device actually did (analytics: namba_pa).
+// Every item carries *where it is audible* (platform zone / point speaker distance / plain gain, see zones.js) and the clip
+// is played at that level, and keeps following it while it plays (walk away from a platform and its announcement fades). An
+// item that is inaudible when its turn comes is dropped; queued items go stale (maxAge) rather than being spoken late.
+//   * station speakers (item.platform / item.pa, kinds train / station / platform / escalator): band-limited like a PA horn
+//     (280 Hz - 3.8 kHz) with a reverb send, so the line gets the tail of the space you stand in; only overheard (audible level
+//     under PA_NEAR): muffled (1.5 kHz) and all reverb, like the speakers down the hall
+//   * everything else (shop staff, a passer-by's "sumimasen"): the plain recording, placed left / right from item.pos
+// One line at a time, ever: a single `cur` item walks chime -> ja -> en (en is caption only).
 // =============================================================================
-import { spokenText } from './phrases.js?v=5e3e8a5';
-import { platformGain, pointGain } from './zones.js?v=5e3e8a5';
+import { voiceKey } from './phrases.js?v=0d08d5d';
+import { platformGain, pointGain } from './zones.js?v=0d08d5d';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
 const MIN_VOL = 0.06;
 // v7 (platform PA must be clearly heard): while a platform line plays, the beds sit this far down (scaled by how audible
 // the platform is from where you stand, so the concourse above only dips a little). Attack ~0.3 s, release ~1 s.
-// v8 (feedback 2, "could barely hear the Japanese"): speech goes out through speechSynthesis, which tops out at volume 1.0 and
-// cannot be boosted, so the only lever is what sits under it. v7's -3 dB on sfx left the train (rumble, brakes, doors, rolling
-// stock: all sfx emitters) nearly untouched exactly when a platform line is read, and the PA is about that train. Now the beds
-// go to -12 dB and sfx to -9 dB (measured: notes/v8-fixes.md).
 // v11 (feedback 5): deeper (on top of the fixed -5/-6 dB bed trim in mixer.js), earlier (the duck starts DUCK_PRE s before the
 // chime, and for delayed platform lines at the melody) and it lets go later (DUCK_HOLD after the speech ends, slow swell back).
-const PA_DUCK = { ambience: 0.18, music: 0.18, sfx: 0.3 };   // -15 dB, -15 dB, -10.5 dB at full volume
+// v20: the voice is a recording whose level is ours to set (it was speechSynthesis, capped at full volume, and iOS had its own
+// gentler table), so one table serves every device and the beds can sit less deep under it: -9 dB, -9 dB, -5 dB.
+const PA_DUCK = { ambience: 0.35, music: 0.35, sfx: 0.55 };
 const PRE_DUCK_AMB = 0.35;                                    // ambience/music factor during a delayed line's melody / lead-in (sfx waits for the speech)
 const DUCK_ATTACK = 0.09, DUCK_RELEASE = 0.45, DUCK_HOLD = 1.0;  // setTargetAtTime constants (s): ~0.3 s attack / ~1.4 s release; hold between lines
 const DUCK_PRE = 0.45;                                        // s the duck leads the chime
 const PLAT_CHIME = 0.85, CHIME = 0.55;                          // chime gain at full volume
-const norm = (l) => String(l || '').replace('_', '-').toLowerCase();
-const UNLOCK_TEXT = '。';          // Japanese full stop: a real utterance (not blank) that makes no sound; never English
-const UNLOCK_WAIT_MS = 1500;       // an unlock utterance that neither starts nor ends in this long has failed: retry on the next gesture
-const CANCEL_GAP = 0.3;            // s of quiet after speechSynthesis.cancel() before the next speak() (iOS drops a speak() right after a cancel)
-// iOS WebKit ignores utterance.volume: every line plays at full device volume. So far-off (quiet) shop calls, barks and
-// background voices would blare once speech works there; on iOS those are only voiced when they are loud anyway (the PA,
-// station and train lines always are, as before).
-const IOS = typeof navigator !== 'undefined' && (/iPhone|iPad|iPod/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1));
-const IOS_MIN_VOL = 0.45;
-// v13 (Zack on an iPhone: "announcements don't sound like a natural part of the surroundings"). The speech voice is dry,
-// centred and, on iOS, always at full device volume; under it the beds dropped a further 15 dB, so every line landed in a
-// silent, roomless station. Now:
-//   * iOS ducks the beds gently (its voice is loud whatever we do; the station keeps living under it);
-//   * the hall answers the PA: a PA-horn formant voice with the line's own mora timing ('vx:' recipe) plays ONLY into the
-//     station reverb while the real voice reads the line (start on the utterance's onstart, fade on its onend), so the
-//     line gets the space's tail and the platform's speaker-to-speaker echoes (ir.js slaps) that speech cannot be routed to;
-//   * on iOS a PA line you only overhear (a platform below / far along the shed: volume under IOS_PA_NEAR) is not read at
-//     full volume in your ear: you hear it as it really sounds from there, the muffled speakers in the hall (+ caption).
-const PA_DUCK_IOS = { ambience: 0.5, sfx: 0.68 };             // -6 dB, -3.4 dB
-const IOS_PA_NEAR = 0.35;
-const HALL_GAIN = 0.45, HALL_GAIN_PHONE = 0.32;               // proxy level into the reverb (phone: its mix sits +10 dB hotter)
-const HALL_KEEP = 6;                                          // proxies kept synthesized (≈ 0.4 MB each); older ones are dropped
-const hashText = (t) => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0) % 97 + 1; };
-const wall = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+// v20: voice level at audible level 1 (times min(1.2, vol)); the recordings are loudness-normalised, so these two numbers are the whole balance
+const PA_VOICE = 1.0;          // station speakers. Measured through the same chain: active-speech RMS about 2 dB above the PA chime, peaks just under full scale (1.1 pushed peaks over it and into the master limiter)
+const VOICE = 0.8;             // shop staff, a passer-by
+const PA_NEAR = 0.35;          // audible level under which a station line is only overheard
+const PA_HP = 280, PA_LP = 3800, FAR_LP = 1500;   // the PA horn band, and the muffled version for a line heard from afar
+const LOAD_WAIT = 3.5;         // s a line waits for its recording to arrive (counted from the moment its step is reached) before it is skipped
+const PA_KINDS = new Set(['train', 'station', 'platform', 'escalator']);
 
 export class Announcer {
   constructor(sys) {
-    this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac;
+    this.sys = sys; this.mixer = sys.mixer; this.bank = sys.bank; this.ac = sys.mixer.ac; this.clips = sys.clips || null;
     this.queue = []; this.cur = null; this.seq = 0; this.t = 0;
-    // ?nopa: no speechSynthesis at all, so every line takes the existing no-voice path (chime + caption)
-    const noPa = !!(sys.ctx && sys.ctx.params && sys.ctx.params.has && sys.ctx.params.has('nopa'));
-    this.speech = (sys.allowSpeech && typeof speechSynthesis !== 'undefined' && !noPa) ? speechSynthesis : null;
-    this.voices = { ja: null, en: null };   // en stays null on purpose: no English speechSynthesis, ever
-    this.voiceCount = 0;
+    // ?nopa: no voice clips are requested or played at all, so every line takes the existing no-voice path (chime + caption)
+    this.noPa = !!(sys.ctx && sys.ctx.params && sys.ctx.params.has && sys.ctx.params.has('nopa'));
     this.useSpeech = true;
     this.duck = 1;               // ambience/music duck factor now (1 = none)
     this.duckSfx = 1;
@@ -83,94 +54,31 @@ export class Announcer {
     this.last = null;            // debug: the last item that actually started
     this.log = [];               // debug: recent events
     this._repeat = new Map();    // text key -> time last spoken
-    this._pollT = 0;
-    // v12: speech unlock + what the device actually did (stats() -> analytics namba_pa)
-    this._unlocked = false; this.unlockVia = null; this._unlocking = null; this._needsPrime = false;
-    this._cancelAt = -9; this._paused = false; this._noStartRun = 0;
-    this.st = { attempts: 0, tried: 0, started: 0, ended: 0, noStart: 0, errors: [], lastErr: null, hall: 0, murmur: 0 };
-    const q = sys.ctx && sys.ctx.params && sys.ctx.params.has ? (k) => sys.ctx.params.has(k) : () => false;
-    this.ios = IOS && !q('noiospa');      // ?noiospa: the v12 iOS PA (deep duck, every line read aloud) for A/B
-    this.noHall = q('nohall');            // ?nohall: no hall proxy under the PA (A/B)
-    this.hallDesk = q('hall');            // v13 critic: the proxy is a phone-speaker fix; desktop keeps its v12 PA unless ?hall
-    this._vxKeep = [];
-    if (this.speech) {
-      this.refreshVoices();
-      try { this.speech.addEventListener('voiceschanged', () => this.refreshVoices()); } catch (e) { this.speech.onvoiceschanged = () => this.refreshVoices(); }
-    }
+    this._paused = false;
+    this.st = { tried: 0, started: 0, ended: 0, missing: 0, late: 0, errors: [], lastErr: null };
   }
   _note(s) { this.log.push(`${this.t.toFixed(1)} ${s}`); if (this.log.length > 14) this.log.shift(); }
   _err(code) { code = String(code || 'unknown'); this.st.lastErr = code; if (!this.st.errors.includes(code) && this.st.errors.length < 8) this.st.errors.push(code); }
+  _emit(s, code) { try { this.sys.ctx.events.emit('pa:speech', code ? { s, code } : { s }); } catch (e) { /* flight recorder only */ } }
 
-  refreshVoices() {
-    if (!this.speech) return;
-    let vs = [];
-    try { vs = this.speech.getVoices() || []; } catch (e) { vs = []; }
-    this.voiceCount = vs.length;
-    const by = (lang, prefs, bad) => {
-      let c = vs.filter(v => norm(v.lang).startsWith(lang) && !(bad && bad.test(v.name)));
-      if (!c.length) return null;
-      for (const p of prefs) { const v = c.find(v => p.test(v.name)); if (v) return v; }
-      return c.find(v => v.localService) || c[0];
-    };
-    this.voices.ja = by('ja', [/Nanami|Kyoko|O-ren|Haruka|Ayumi|Google 日本語|Mizuki|Sayaka|Otoya|Hattori|Ichiro/i]);
-  }
-  get hasJaVoice() { return !!(this.speech && this.voices.ja); }
+  // recorded lines are on when speech is on, ?nopa is not set and the manifest lists voice (or is still on its way)
+  _voiceOn() { return !!(this.useSpeech && !this.noPa && this.clips && this.clips.available); }
+  get canSpeak() { return this._voiceOn(); }
+  get hasJaVoice() { return this._voiceOn(); }
   get hasEnVoice() { return false; }
-  get canSpeak() { return !!(this.useSpeech && this.speech && this.voices.ja); }
-  _cancel() {
-    if (!this.speech) return;
-    try { this.speech.cancel(); } catch (e) { /* */ }
-    this._cancelAt = this.t;
-    this._needsPrime = true;     // iOS can come out of a cancel unable to start the next utterance: prime it again on the next gesture
-  }
   // tab hidden / speech switched off: drop the line in flight (PA lines are of the moment, never resumed late)
-  cancelSpeech() { if (this.cur && this.cur.utter) this._interrupt(); else if (this.speech && this.speech.speaking) this._cancel(); }
-  // v12: the pause menu used to speechSynthesis.pause()/resume(); iOS can wedge in the paused state and Chrome holds every later
-  // utterance while paused. Now a pause drops the line in flight and holds the queue (it goes stale on its own).
-  pauseSpeech(on) {
-    this._paused = !!on;
-    if (on) { if (this.cur && this.cur.utter) this._interrupt(); }
-    else if (this.speech) try { if (this.speech.paused) this.speech.resume(); } catch (e) { /* */ }
-  }
-  // speech is proven to work and needs nothing from the next gesture
-  get speechReady() { return !this.speech || (this._unlocked && !this._needsPrime); }
-  // Call from INSIDE a user-gesture handler (touchend / click / keydown / mouse pointerdown): iOS WebKit lifts its speech
-  // restriction only for a speak() made while it is processing a gesture, and drops (silently) every speak() before that.
-  // A silent '。' is spoken; only its onstart/onend marks speech unlocked, so a gesture iOS did not honour is retried on the
-  // next one. Returns true when an attempt was made.
-  unlock(via = 'gesture') {
-    if (!this.speech || this.speechReady) return false;
-    if (this.voiceCount > 0 && !this.voices.ja) return false;   // voices are in and none is Japanese: nothing will ever be spoken
-    if (this.st.attempts >= 24) return false;                  // a device that never confirms: stop spending gestures (stats say so)
-    const now = wall();
-    // one attempt in flight per gesture kind: a tap's click still gets its own try if the touchend's is unconfirmed
-    if (this._unlocking && now - this._unlocking.at < UNLOCK_WAIT_MS && this._unlocking.via === via) return false;
-    // the previous try was accepted (queued / speaking) and simply has not started yet: let it confirm
-    if (this._unlocking && now - this._unlocking.at < UNLOCK_WAIT_MS) { try { if (this.speech.speaking || this.speech.pending) return false; } catch (e) { /* */ } }
-    if (this._unlocking) {   // the previous try never confirmed (timed out), or this gesture's other event tries too (superseded)
-      if (now - this._unlocking.at >= UNLOCK_WAIT_MS) { this._err('unlock-timeout'); this._note('unlock timeout'); }
-      this._unlocking = null;
-    }
-    // a line that is audibly playing already proves speech works
-    if (this.cur && this.cur.utter && this.cur.uStarted) { this._proven('speaking'); return false; }
-    this.refreshVoices();
-    let u;
-    try { u = new SpeechSynthesisUtterance(UNLOCK_TEXT); } catch (e) { this._err('unlock-throw'); return false; }
-    try { if (this.voices.ja) u.voice = this.voices.ja; } catch (e) { /* the lang below is enough */ }
-    u.lang = 'ja-JP'; u.volume = 0.01; u.rate = 1.5;   // iOS ignores volume; '。' is silent anyway
-    const att = { u, at: now, via };
-    const ok = () => { if (this._unlocking === att) this._unlocking = null; this._proven(via); };
-    u.onstart = ok; u.onend = ok;
-    u.onerror = (e) => { if (this._unlocking === att) this._unlocking = null; const c = (e && e.error) || 'error'; this._err('unlock:' + c); this._note('unlock error ' + c); };
-    this._unlocking = att; this.st.attempts++;
-    try { if (this.speech.paused) this.speech.resume(); } catch (e) { /* */ }
-    try { this.speech.speak(u); } catch (e) { this._unlocking = null; this._err('unlock-throw'); return false; }
-    this._note(`unlock try #${this.st.attempts} via ${via}`);
-    return true;
-  }
-  _proven(via) {
-    if (!this._unlocked) { this.unlockVia = via; this._note('speech unlocked via ' + via); }
-    this._unlocked = true; this._needsPrime = false; this._noStartRun = 0;
+  cancelSpeech() { if (this.cur && this.cur.clip) this._interrupt(); }
+  // the pause menu drops the line in flight and holds the queue (it goes stale on its own)
+  pauseSpeech(on) { this._paused = !!on; if (on && this.cur && this.cur.clip) this._interrupt(); }
+  // v20: nothing to unlock any more (the recordings are plain Web Audio, resumed by audio.js on a gesture); kept for old callers
+  get speechReady() { return true; }
+  unlock() { return false; }
+
+  // the recording key of a Japanese part, and which variant (voice) of it this utterance uses (picked once the manifest is in)
+  _kOf(p) { if (p._k === undefined) p._k = voiceKey(p.say || p.text); return p._k; }
+  _vari(p) {
+    if (p._v === undefined) { const n = this.clips ? this.clips.variants(this._kOf(p)) : 0; if (n > 0) p._v = n > 1 ? Math.floor(Math.random() * n) : 0; }
+    return p._v || 0;
   }
 
   // item: { kind, prio?, parts:[{lang:'ja'|'en', text, say?}], chime?: 'pa'|'esc'|null, gain?, caption?,
@@ -190,7 +98,8 @@ export class Announcer {
     if (item.cooldown && this.t - (this._repeat.get(key) ?? -999) < item.cooldown) return null;
     if (this._vol(item) < MIN_VOL) { this._note(`drop(inaudible) ${item.kind} "${key.slice(0, 30)}"`); return null; }
     if (item.chime) this.bank.get('chime:' + item.chime, 2);
-    const hn = this._hallOn() && this._hallName(item); if (hn) { this.bank.get(hn, 4); this._vxTouch(hn); }
+    // start fetching the recordings now: the chime, a `delay` and the queue give them time to arrive
+    if (this._voiceOn()) for (const p of item.parts) if (p.lang === 'ja') this.clips.want(this._kOf(p), this._vari(p));
     if (item.delay > 0.5 && (item.platform || item.pa)) this._preDuck(item);   // the melody / lead-in already plays: get the beds out of its way
     if (this.cur && item.prio < this.cur.prio && item.prio <= 1) this._interrupt();
     this.queue.push(item);
@@ -209,12 +118,13 @@ export class Announcer {
     else if (item.pos) g *= pointGain(item.pos, L, item.ref ?? 2.5, item.sameLevel);
     return Number.isFinite(g) ? g : 0;
   }
+  // a station speaker (band-limited horn, reverb) rather than a person in the room
+  _isPA(item) { return !!(item.platform || item.pa || PA_KINDS.has(item.kind)); }
 
   _interrupt() {
     const c = this.cur; if (!c) return;
-    if (c.utter && this.speech) this._cancel();
+    if (c.clip) this._endClip(c, true);
     if (c.node) try { c.node.stop(0.08); } catch (e) { /* */ }
-    this._hallStop(c, 0.15);
     this._note(`interrupt ${c.kind}`);
     this.cur = null;
     this._relAt = this.t + DUCK_HOLD;
@@ -233,21 +143,14 @@ export class Announcer {
   // beds down while a delayed PA line's lead-in (melody) plays; the speech's own start deepens it (and extends sfx)
   _preDuck(item) {
     const av = Math.min(1, this._vol(item));
-    const v = 1 - (1 - (this.ios ? 0.62 : PRE_DUCK_AMB)) * av;
+    const v = 1 - (1 - PRE_DUCK_AMB) * av;
     if (v < this.duck) this._setDuck(v, this.duckSfx);
     this._relAt = Math.max(this._relAt ?? 0, item.born + 6);   // safety: let go if the line never starts
-  }
-  _speakable(p) {
-    if (!this.useSpeech || !this.speech) return null;
-    if (p.lang !== 'ja') return null;   // English parts are caption text only
-    return this.voices.ja || null;
   }
 
   update(dt) {
     this.t += Math.min(dt || 0, 0.25);
     if (this._relAt != null && !(this.cur && this.cur._ducks) && this.t >= this._relAt) { this._relAt = null; this._setDuck(1, 1); }
-    // iOS: getVoices() can be empty for a while and voiceschanged is unreliable, so keep polling (2 s, then every 6 s)
-    if (this.speech && !this.voices.ja && this.t - this._pollT > (this.t < 60 ? 2 : 6)) { this._pollT = this.t; this.refreshVoices(); }
     if (this._paused) return;   // pause menu: the queue waits (and goes stale), nothing new starts
     // stale lines are not spoken late
     if (this.queue.length) this.queue = this.queue.filter(q => this.t - q.born <= q.maxAge);
@@ -262,28 +165,20 @@ export class Announcer {
     }
     const c = this.cur; if (!c) return;
     if (c.wait > this.t) return;
-    if (c.utter) { // utterance in flight
-      if (c.uDone) { c.utter = null; c.step++; c.wait = this.t + 0.4; }
-      else if (!c.uStarted && this.t > c.uDeadline) {
-        // never started: on iOS this is a speak() dropped before speech was unlocked (or after a cancel wedged it). The next
-        // gesture primes speech again (audio.js keeps listening for gestures until speechReady).
-        this._note('no-start: ' + (c.uErr || 'timeout')); this.st.noStart++; this._noStartRun++; if (!c.uErr) this._err('no-start');
-        this._cancel(); c.utter = null; c.step++;
-      }
-      else if (this.t > c.uHard) { this._note('hard-timeout'); this._err('hard-timeout'); this._cancel(); c.utter = null; c.step++; }
-      else return;
+    if (c.clip) { // a recording is playing: end it by the audio clock (not onended alone), meanwhile follow the listener
+      if (this._clipDone(c)) { this._endClip(c); c.step++; c.wait = this.t + 0.4; }
+      else { this._follow(c); return; }
     }
     while (c.step < c.parts.length) {
       const p = c.parts[c.step];
-      const voice = this._speakable(p);
-      const vol = this._vol(c);
-      const minVol = IOS && !(c.platform || c.pa) && c.prio >= 2 ? IOS_MIN_VOL : MIN_VOL;
-      if (voice && this.ios && (c.platform || c.pa) && vol < IOS_PA_NEAR && p.lang === 'ja' && this._murmur(c, vol)) return;
-      if (voice && vol >= minVol) {
-        if (this.t - this._cancelAt < CANCEL_GAP) { c.wait = this._cancelAt + CANCEL_GAP; return; }   // a breath after a cancel
-        this._speak(c, p, voice, vol); return;
+      if (p.lang === 'ja' && this._voiceOn()) {
+        const vol = this._vol(c);
+        if (vol >= MIN_VOL) {
+          const r = this._tryPlay(c, p, vol);
+          if (r !== 'skip') return;   // 'played' or 'wait' (the recording is still on its way)
+        }
       }
-      c.step++; // no voice for this language (or you walked away): skip it
+      c.step++; // English is caption text only; or no recording / you walked away: skip it
     }
     if (!c.ending) { // chime + caption only: hold the slot for roughly as long as the line would take
       c.ending = true; c.wait = this.t + (c.spoke ? 0.6 : Math.min(4, 1 + c.parts.reduce((a, p) => a + p.text.length * (p.lang === 'ja' ? 0.1 : 0.05), 0))); return;
@@ -291,47 +186,99 @@ export class Announcer {
     this.cur = null; this.lastEnd = this.t; this._relAt = this.t + DUCK_HOLD;   // beds come back after a beat (the next line may follow at once)
   }
 
-  _speak(c, p, voice, vol) {
-    const text = spokenText(p.say || p.text, p.lang);
-    let u;
+  // the recording of this part: play it when ready, wait for it up to LOAD_WAIT s from the moment its step is reached,
+  // skip it when it is not in the manifest or failed. returns 'played' | 'wait' | 'skip'
+  _tryPlay(c, p, vol) {
+    const k = this._kOf(p), v = this._vari(p), cl = this.clips;
+    let st = cl.state(k, v);
+    if (st === 'idle') st = cl.want(k, v);
+    if (st === 'ready') {
+      const buf = cl.peek(k, v);
+      if (buf && this._playClip(c, p, buf, vol, v)) return 'played';
+      return 'skip';
+    }
+    if (st === 'loading') {
+      if (c.waitStep !== c.step) { c.waitStep = c.step; c.waitSince = this.t; }
+      if (this.t - c.waitSince < LOAD_WAIT) return 'wait';
+      this.st.late++; this._err('late'); this._emit('error', 'late'); this._note(`late ${k}`);
+      return 'skip';
+    }
+    if (st === 'missing') { this.st.missing++; this._note(`missing ${k}`); return 'skip'; }
+    const code = 'clip-' + (cl.errorOf(k, v) || 'error');
+    this._err(code); this._emit('error', code); this._note(`${code} ${k}`);
+    return 'skip';
+  }
+
+  // station speakers: horn band + reverb tail of the space; heard from afar: muffled, all reverb. A person: the plain recording
+  _gainFor(c, vol, pa) {
+    const lv = Math.min(1.2, vol);
+    if (!pa) return VOICE * lv;
+    return PA_VOICE * lv * (vol < PA_NEAR ? 0.6 + 0.4 * (vol / PA_NEAR) : 1);   // overheard: scaled down with how far you are
+  }
+  _playClip(c, p, buf, vol, variant) {
+    if (!this.ac || this.ac.state === 'closed') return false;
+    const pa = this._isPA(c);
+    const gain = this._gainFor(c, vol, pa);
+    const o = { bus: 'voice', gain, force: true };
+    if (pa) {
+      const near = vol >= PA_NEAR;
+      o.hp = PA_HP; o.lp = near ? PA_LP : FAR_LP; o.send = near ? (c.send ?? 0.6) : 1;
+      o.pan = (c.id % 3 - 1) * 0.12;   // diffuse: the same slight spread as the chime
+    } else {
+      o.send = c.send ?? 0.2;
+      // a person in the room: left / right from where they stand, the way audio.js places a one-shot with `pos` (HRTF panner).
+      // rolloff 0: the panner only gives the direction, the distance law is _vol() (pointGain) and follows the listener below
+      if (c.pos) { const L = this.sys.L || {}; o.pos = { x: c.pos.x, y: c.pos.y != null ? c.pos.y : (L.y || 0) + 1.5, z: c.pos.z }; o.ref = c.ref ?? 2.5; o.rolloff = 0; o.hrtf = true; }
+    }
+    let h = null;
+    try { h = this.mixer.play(buf, o); } catch (e) { this._err('play-throw'); this._note('play threw: ' + e.message); }
+    if (!h) { this._err('play-null'); return false; }
+    const now = this.ac.currentTime;
+    c.clip = { h, pa, dur: buf.duration, end: now + buf.duration, hard: this.t + buf.duration + 3, vol, near: vol >= PA_NEAR };
+    c.spoke = true;
+    this.st.tried++; this.st.started++;
+    if (this.last) this.last.spoken.push({ lang: p.lang, key: p._k, variant, vol: +vol.toFixed(2), gain: +gain.toFixed(2), pa, text: p.say || p.text });
+    this._emit('start');
+    return true;
+  }
+  _clipDone(c) {
+    const k = c.clip;
+    return this.ac.currentTime >= k.end + 0.04 || this.t > k.hard || this.ac.state === 'closed';
+  }
+  // while it plays: follow the listener (smoothly), so walking away from a platform fades its announcement
+  _follow(c) {
+    const k = c.clip, vol = this._vol(c);
+    if (Math.abs(vol - k.vol) < 0.01) return;
+    k.vol = vol;
+    const t = this.ac.currentTime, h = k.h;
     try {
-      u = new SpeechSynthesisUtterance(text);
-      u.voice = voice;
-    } catch (e) { c.step++; this._note('utterance threw: ' + e.message); return; }   // a bad voice object must not wedge the PA slot (and its duck)
-    u.lang = 'ja-JP'; u.rate = 0.95; u.pitch = 1.05;
-    const mv = this.mixer.volumes;
-    // station PA is part of the soundscape: on the platform it goes out at (nearly) the browser's maximum. The master slider
-    // still scales it, but on a square-root curve, so the default 0.8-0.85 no longer costs a fifth of the level
-    const k = (c.platform || c.pa) ? Math.min(1, Math.sqrt(mv.master) * 1.1) : mv.master;
-    u.volume = Math.max(0.02, Math.min(1, vol * mv.voice * k));
-    u.onstart = () => { this.st.started++; this._proven('line'); if (c.utter === u) { c.uStarted = true; this._hall(c, p, vol); } try { this.sys.ctx.events.emit('pa:speech', { s: 'start' }); } catch (e) { /* flight recorder only */ } };
-    u.onend = () => { this.st.ended++; if (c.utter === u) c.uDone = true; this._hallStop(c); try { this.sys.ctx.events.emit('pa:speech', { s: 'end' }); } catch (e) { /* flight recorder only */ } };
-    u.onerror = (e) => {
-      this._hallStop(c);
-      const code = (e && e.error) || 'error';
-      if (code !== 'interrupted' && code !== 'canceled') { this._err(code); try { this.sys.ctx.events.emit('pa:speech', { s: 'error', code }); } catch (e2) { /* flight recorder only */ } }    // our own cancels are not failures
-      if (c.utter === u) { c.uErr = code; c.uDone = true; this._note('error ' + code); }
-    };
-    this.st.tried++;
-    c.utter = u; c.uStarted = false; c.uDone = false; c.uErr = null; c.spoke = true;
-    c.uDeadline = this.t + 6;   // v8: online / natural ja voices can take >3 s to start (the old 3 s dropped the line)
-    c.uHard = this.t + 4 + text.length * (p.lang === 'ja' ? 0.35 : 0.2);
-    this.last.spoken.push({ lang: p.lang, voice: voice.name, vol: +u.volume.toFixed(2), text });
-    try { this.speech.speak(u); } catch (e) { c.utter = null; c.step++; this._note('speak threw'); }
+      h.gain.gain.setTargetAtTime(this._gainFor(c, vol, k.pa), t, 0.15);
+      if (k.pa) {
+        const near = vol >= PA_NEAR;
+        if (h.lpf) h.lpf.frequency.setTargetAtTime(near ? PA_LP : FAR_LP, t, 0.3);
+        if (h.send) h.send.gain.setTargetAtTime(near ? (c.send ?? 0.6) : 1, t, 0.3);
+      }
+    } catch (e) { /* node already gone */ }
+  }
+  _endClip(c, interrupted = false) {
+    const k = c.clip; if (!k) return;
+    c.clip = null;
+    if (interrupted || this.t > k.hard) { try { k.h.stop(0.03); } catch (e) { /* ended */ } }
+    this.st.ended++; this._emit('end');
   }
 
   _start(item) {
     this.cur = item;
-    item.step = 0; item.wait = this.t; item.spoke = false;
+    item.step = 0; item.wait = this.t; item.spoke = false; item.clip = null;
     const vol = this._vol(item);
-    this.last = { kind: item.kind, ja: (item.parts.find(p => p.lang === 'ja') || {}).text || '', en: (item.parts.find(p => p.lang === 'en') || {}).text || '', vol: +vol.toFixed(2), t: +this.t.toFixed(1), voiceJa: this.voices.ja ? this.voices.ja.name : null, voiceEn: null, spoken: [] };
+    this.last = { kind: item.kind, ja: (item.parts.find(p => p.lang === 'ja') || {}).text || '', en: (item.parts.find(p => p.lang === 'en') || {}).text || '', vol: +vol.toFixed(2), t: +this.t.toFixed(1), spoken: [] };
     this._note(`start ${item.kind} vol=${vol.toFixed(2)} "${(this.last.ja || this.last.en).slice(0, 24)}"`);
     if (item.cooldown) this._repeat.set(item._key, this.t);
     const av = Math.min(1, vol);
     item._ducks = true;
-    const D = this.ios ? PA_DUCK_IOS : PA_DUCK;
+    const D = PA_DUCK;
     if (item.platform || item.pa) this._setDuck(1 - (1 - D.ambience) * av, 1 - (1 - D.sfx) * av);
-    else if (item.prio <= 1) this._setDuck(1 - (this.ios ? 0.25 : 0.45) * av); else if (item.prio <= 3) this._setDuck(1 - 0.2 * av);
+    else if (item.prio <= 1) this._setDuck(1 - 0.45 * av); else if (item.prio <= 3) this._setDuck(1 - 0.2 * av);
     else item._ducks = false;
     if (item._ducks) this._relAt = null;
     if (item.chime) {
@@ -356,63 +303,25 @@ export class Announcer {
     return this.mixer.play(buf, { bus: 'voice', gain: g, send: item.send ?? 0.6, lp: item.lp, pan: (item.id % 3 - 1) * 0.12, force: true, when: pre ? this.ac.currentTime + pre : undefined });
   }
 
-  // ---- v13: the hall's answer to the PA (see the note at the top) ------------------------------------------------------
-  // which lines get one: station-wide speakers (platform / area PA, train, station, escalator); not shop calls or barks
-  _hallOn() { return !this.noHall && (this.hallDesk || this.ios || this.sys.profile === 'phone'); }
-  _hallName(item) {
-    if (!(item.platform || item.pa || item.kind === 'train' || item.kind === 'station' || item.kind === 'platform' || item.kind === 'escalator')) return null;
-    const ja = item.parts.find(p => p.lang === 'ja'); if (!ja) return null;
-    const text = spokenText(ja.say || ja.text, 'ja');
-    return `vx:${hashText(text)}:${text}`;
-  }
-  _hallPlay(c, name, opts) {
-    const buf = this.bank.peek(name); if (!buf) return null;
-    this._vxTouch(name);
-    return this.mixer.play(buf, { bus: 'voice', force: true, ...opts });
-  }
-  // keep the proxies of the last HALL_KEEP lines (requested or played); drop the rest so memory stays flat
-  _vxTouch(name) {
-    const k = this._vxKeep, i = k.indexOf(name); if (i >= 0) k.splice(i, 1); k.push(name);
-    while (k.length > HALL_KEEP) this.bank.drop(k.shift());
-  }
-  // the real voice just started: the same line, into the reverb only
-  _hall(c, p, vol) {
-    if (c.hall || !this._hallOn()) return;
-    const name = this._hallName(c); if (!name) return;
-    const g = (this.sys.profile === 'phone' ? HALL_GAIN_PHONE : HALL_GAIN) * Math.min(1, vol);
-    c.hall = this._hallPlay(c, name, { gain: g, send: 1, wetOnly: true, lp: 3800 });
-    if (c.hall) this.st.hall++;
-  }
-  _hallStop(c, tc = 0.35) { if (c && c.hall) { try { c.hall.stop(tc); } catch (e) { /* ended */ } c.hall = null; } }
-  // iOS, a PA line you only overhear: the speakers in the hall, muffled by distance (no full-volume voice in your ear)
-  _murmur(c, vol) {
-    const name = this._hallName(c); if (!name) return false;
-    const node = this._hallPlay(c, name, { gain: 0.55 * Math.min(1, vol / IOS_PA_NEAR), send: 1, lp: 1500 });
-    if (!node) return false;
-    this.st.murmur++; this._note(`murmur ${c.kind} vol=${vol.toFixed(2)}`);
-    c.hall = node; c.step = c.parts.length; c.ending = true; c.wait = this.t + node.src.buffer.duration + 0.4;
-    return true;
-  }
-
-  // v12 contract (lead -> analytics namba_pa). See notes/v12-pa.md.
-  //   voices: getVoices().length · ja: the ja-JP voice picked (name) or null · unlocked: speech proven by an onstart/onend ·
-  //   unlockVia: the gesture (touchend|click|keydown|pointerdown) or 'line'/'speaking' that proved it · attempts: unlock
-  //   utterances spoken · tried / started / ended: PA utterances handed to speechSynthesis / that started / that ended ·
-  //   noStart: utterances that never started (iOS drops them silently) · errors: distinct codes (max 8) · lastErr
+  // lead -> analytics namba_pa (js/analytics.js) and the audio flight-recorder panel.
+  //   mode: 'clips' (recorded lines through Web Audio; there is no other engine any more) · speech: lines are on (speech setting
+  //   and no ?nopa) · tried / started / ended: recordings handed to playback / that started / that ended (an interrupted one
+  //   counts as ended) · missing: lines whose key is not in the manifest (chime + caption instead) · late: recordings that did not
+  //   arrive within 3.5 s · errors: distinct codes (max 8: late, clip-http-404, clip-decode, ...) · lastErr · clips / clipMb:
+  //   decoded clips held now (voice + crowd loops) and their size
   stats() {
-    const s = this.st;
-    return { voices: this.voiceCount, ja: this.voices.ja ? this.voices.ja.name : null, unlocked: !!this._unlocked, unlockVia: this.unlockVia,
-      attempts: s.attempts, started: s.started, ended: s.ended, errors: s.errors.slice(), lastErr: s.lastErr, hall: s.hall, murmur: s.murmur,
-      tried: s.tried, noStart: s.noStart, needsPrime: !!this._needsPrime, speech: !!this.speech };
+    const s = this.st, c = this.clips ? this.clips.stats() : { n: 0, mb: 0 };
+    return { mode: 'clips', speech: !!(this.useSpeech && !this.noPa), tried: s.tried, started: s.started, ended: s.ended, missing: s.missing, late: s.late,
+      errors: s.errors.slice(), lastErr: s.lastErr, clips: c.n, clipMb: c.mb };
   }
   debug() {
     return {
-      voiceCount: this.voiceCount, ja: this.voices.ja ? `${this.voices.ja.name} (${this.voices.ja.lang})` : null, en: this.voices.en ? `${this.voices.en.name} (${this.voices.en.lang})` : null,
-      useSpeech: this.useSpeech, stats: this.stats(), queue: this.queue.map(q => `${q.kind}:${q.parts[0].text.slice(0, 20)}`), cur: this.cur ? `${this.cur.kind}:${this.cur.parts[0].text.slice(0, 20)}` : null,
+      mode: 'clips', canSpeak: this.canSpeak, useSpeech: this.useSpeech, noPa: this.noPa, manifest: this.clips ? this.clips.manifestState : null,
+      stats: this.stats(), clips: this.clips ? this.clips.stats() : null, queue: this.queue.map(q => `${q.kind}:${q.parts[0].text.slice(0, 20)}`), cur: this.cur ? `${this.cur.kind}:${this.cur.parts[0].text.slice(0, 20)}` : null,
       last: this.last, log: this.log.slice(-8),
       duck: { amb: +this.duck.toFixed(3), sfx: +this.duckSfx.toFixed(3), ambDb: +(20 * Math.log10(this.duck)).toFixed(1),
         gains: this.mixer ? { ambience: +this.mixer.bus.ambience.dry.gain.value.toFixed(3), music: +this.mixer.bus.music.dry.gain.value.toFixed(3), sfx: +this.mixer.bus.sfx.dry.gain.value.toFixed(3) } : null },
     };
   }
 }
-export { PRIO, MIN_VOL, PA_DUCK };
+export { PRIO, MIN_VOL, PA_DUCK, PA_VOICE, VOICE };

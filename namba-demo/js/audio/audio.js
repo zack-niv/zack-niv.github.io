@@ -1,6 +1,6 @@
 // =============================================================================
-// NAMBA sound system. Everything is synthesized (no asset files): see
-// js/audio/*.js and notes/sound.md.
+// NAMBA sound system. Sound effects and beds are synthesized (js/audio/*.js, notes/sound.md); since v20 the spoken lines and the
+// crowd murmur are recorded files (assets/audio, clips.js). There is no speechSynthesis anywhere.
 //
 // Public API (ctx.audio) — all methods are safe no-ops with ?noaudio or before
 // the AudioContext exists:
@@ -9,27 +9,29 @@
 //   getVolume(bus)
 //   play(name, opts)              UI / foley one-shots, see SOUNDS below.
 //                                 opts: { gain, rate, pos:{x,y?,z,level?}, pan }
-//   say({ ja, en, kind, pos })    a PA-style line: chime, then the browser's ja-JP voice (Japanese ONLY, never English TTS;
-//                                 no ja-JP voice: chime + caption only). Volume follows where you stand (zones.js).
+//   say({ ja, en, kind, pos })    a PA-style line: chime, then the recorded Japanese line (Japanese ONLY; English is caption text;
+//                                 no recording for it: chime + caption only). Volume follows where you stand (zones.js).
 //   debug()                       zone / bed gains / last PA text+voice (for tests)
 //   paVolume(payload)             0..1: how audible an 'announce' payload is from here (HUD captions use it)
 //   setMuted(bool), stats(), debugText()
-//   useSpeech (bool)              allow SpeechSynthesis voices (default true; false = chime + caption only)
+//   useSpeech (bool)              play the recorded lines (default true; false = chime + caption only)
+//   dispose()                     page is being left: stop everything, close the AudioContext; every later call is a no-op
 // Events consumed: player:step/land/bump, phone:open/close, phone:message,
 //   ic:tap, discover, game:pause/resume, settings:change, train:*, announce.
 // Events emitted: 'caption' { text, en, ja, kind, speaker, duration, distant, channel: 'ambient'|'speech' }
 // =============================================================================
-import { params } from '../core/params.js?v=5e3e8a5';
-import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=5e3e8a5';
-import { Bank } from './bank.js?v=5e3e8a5';
-import { Mixer } from './mixer.js?v=5e3e8a5';
-import { acousticFor } from './ir.js?v=5e3e8a5';
-import { Announcer } from './announcer.js?v=5e3e8a5';
-import { Ambience, moodOf } from './ambience.js?v=5e3e8a5';
-import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=5e3e8a5';
-import { EXCUSE } from './phrases.js?v=5e3e8a5';
-import { Sources } from './sources.js?v=5e3e8a5';
-import { Trains, pumpAudioTimers } from './trains.js?v=5e3e8a5';
+import { params } from '../core/params.js?v=0d08d5d';
+import { LAYOUT, LEVELS, rampLocal, rampEnds } from '../world/layout.js?v=0d08d5d';
+import { Bank } from './bank.js?v=0d08d5d';
+import { Mixer } from './mixer.js?v=0d08d5d';
+import { acousticFor } from './ir.js?v=0d08d5d';
+import { Announcer } from './announcer.js?v=0d08d5d';
+import { ClipBank } from './clips.js?v=0d08d5d';
+import { Ambience, moodOf } from './ambience.js?v=0d08d5d';
+import { AREA, platformGain, platformOf, pointGain } from './zones.js?v=0d08d5d';
+import { EXCUSE, CALLOUT } from './phrases.js?v=0d08d5d';
+import { Sources } from './sources.js?v=0d08d5d';
+import { Trains, pumpAudioTimers } from './trains.js?v=0d08d5d';
 
 // name → [recipe, default gain, bus, extra]
 export const SOUNDS = {
@@ -42,7 +44,6 @@ export const SOUNDS = {
   gacha: ['fx:gacha', 0.6, 'sfx'], grinder: ['fx:grinder', 0.5, 'sfx'], steam: ['fx:steam', 0.5, 'sfx'], rustle: ['ui:rustle', 0.4, 'sfx'],
   pa_chime: ['chime:pa', 0.5, 'voice'],
 };
-const CALLOUT = ['いらっしゃいませ', 'いらっしゃいませ、どうぞ', 'いらっしゃいませ、こんにちは'];
 const STEP_N = 8; // footstep variants per surface
 const SURF = { tile: 'tile', stone: 'stone', wood: 'wood', metal: 'metal', paving: 'paving', grass: 'grass', carpet: 'soft', gravel: 'gravel', soft: 'soft' };
 
@@ -51,9 +52,8 @@ export class Audio {
     this.ctx = ctx;
     this.enabled = !params.noaudio && typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
     this.ac = null; this.mixer = null; this.bank = null;
-    // the PA and every spoken line use the browser's real voices (speechSynthesis, ja-JP then en-*); setting 'speech'
-    // = false leaves chime + caption only
-    this.useSpeech = true; this.allowSpeech = true;
+    // every spoken line is a recorded file (clips.js); setting 'speech' = false leaves chime + caption only
+    this.useSpeech = true;
     this._lastTap = { t: -9, x: 0, z: 0 }; this._gateRecent = []; this._barkT = {}; this._lastPlay = {};
     this.L = null;
     this.muted = false;
@@ -68,9 +68,8 @@ export class Audio {
 
   init() {
     if (!this.enabled) return;
-    // v12: these listeners stay for the whole session (cheap early-out once audio runs and speech is proven): iOS needs a
-    // speak() inside a touchend/click to unlock speech, a gesture it did not honour must be retried, and speech that wedged
-    // after a cancel is primed again by the next tap. (v8-v11 removed them after the first pointerdown: no PA voice on iPhone.)
+    // v20: these listeners stay for the whole session (cheap early-out once the context runs): a context the browser suspended
+    // or interrupted (a call, Siri, a tab switch) needs a gesture to come back. They no longer unlock speech: there is none.
     this._gestures = ['pointerdown', 'keydown', 'touchend', 'click'];
     this._kick = (e) => this._gesture(e);
     for (const g of this._gestures) addEventListener(g, this._kick, { capture: true, passive: true });
@@ -116,19 +115,12 @@ export class Audio {
   }
 
   // ---- lifecycle ------------------------------------------------------------------
-  // every user gesture: start / resume Web Audio, and unlock speech from inside the gesture until it is proven. A finger's
-  // pointerdown is not a user activation (HTML spec; WebKit drops speech from it), so only touchend / click / keys / a mouse
-  // button try the speech unlock.
+  // every user gesture: start / resume Web Audio (a finger's pointerdown is not a user activation for audio on iOS, but touchend /
+  // click / keys / a mouse button are, so those are what really starts it; resume() is cheap and idempotent)
   _gesture(e) {
     if (e && e.isTrusted === false) return;
-    const a = this.announcer;
-    if (this.ac && this.ac.state === 'running' && (!a || a.speechReady)) return;
+    if (this.ac && this.ac.state === 'running') return;
     this.resume();
-    if (!this.announcer || !this.useSpeech) return;
-    const type = e ? e.type : 'api';
-    if (type === 'pointerdown' && e.pointerType !== 'mouse') return;
-    if (type === 'keydown' && (e.key === 'Escape' || e.repeat)) return;   // Escape is not an activation
-    this.announcer.unlock(type);
   }
   resume() {
     if (!this.enabled) return Promise.resolve(false);
@@ -150,6 +142,9 @@ export class Audio {
     this.mixer.setProfile(this.profile);
     this.mixer.hrtf = !(this.ctx.engine && this.ctx.engine.qualityName === 'low');
     for (const [k, v] of Object.entries(this._vols)) this.mixer.setVolume(k, v);
+    // v20: recorded voice lines + the three crowd loops (assets/audio/manifest.json); ?noclips is the diagnostic switch (nothing fetched)
+    this.clips = new ClipBank(ac, { profile: this.profile, off: params.has('noclips') });
+    this.clips.loadManifest();
     this.announcer = new Announcer(this);
     this.announcer.useSpeech = this.useSpeech;
     this.ambience = new Ambience(this);
@@ -157,7 +152,7 @@ export class Audio {
     this.trains = new Trains(this);
     let biz = (this.ctx.shops && (this.ctx.shops.businesses || this.ctx.shops.BUSINESSES)) || null;
     if (biz) this.sources.build(biz);
-    else import('../world/directory.js?v=5e3e8a5').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
+    else import('../world/directory.js?v=0d08d5d').then((m) => this.sources.build(m.BUSINESSES)).catch((e) => { console.warn('[audio] no directory', e.message); this.sources.build([]); });
     // what you hear in the first seconds: render first
     this.bank.want(['ui:gate_ok', 'ui:phone_open', 'ui:phone_close', 'ui:notify', 'chime:pa'], 6);
     this._prefetchSteps('tile'); this._prefetchSteps('stone');
@@ -400,12 +395,10 @@ export class Audio {
     try { const s = JSON.parse(localStorage.getItem('namba.audio.v1') || 'null'); if (s) Object.assign(d, s); } catch (e) { /* */ }
     return d;
   }
-  // v12: the PA speech report (announcer.stats(), see notes/v12-pa.md); before the first gesture there is no announcer yet
+  // v20: the PA report (announcer.stats(), analytics namba_pa); before the first gesture there is no announcer yet
   paStats() {
-    if (this.announcer) return this.announcer.stats();
-    const sp = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
-    let voices = 0; try { voices = sp ? sp.getVoices().length : 0; } catch (e) { /* */ }
-    return { voices, ja: null, unlocked: false, unlockVia: null, attempts: 0, started: 0, ended: 0, errors: [], lastErr: null, tried: 0, noStart: 0, needsPrime: false, speech: !!sp, state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
+    if (this.announcer) return Object.assign(this.announcer.stats(), { state: this.ac ? this.ac.state : undefined });
+    return { mode: 'clips', speech: false, tried: 0, started: 0, ended: 0, missing: 0, late: 0, errors: [], lastErr: null, clips: 0, clipMb: 0, state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
   }
   stats() {
     if (!this.mixer) return { state: this.enabled ? 'waiting-for-gesture' : 'disabled' };
@@ -414,8 +407,26 @@ export class Audio {
       state: this.ac.state, profile: this.profile, resumes: this.resumes || 0, acoustic: this.mixer.acoustic, mood: a.mood, people: Math.round(a.people), cloudRate: +a.cloud.rate.toFixed(1),
       layers: Object.values(a.layers).filter(l => l.em).map(l => l.name), sources: [...this.sources.live.keys()], oneShots: this.mixer.liveOneShots,
       trains: [...this.trains.trains.values()].filter(t => t.ems).map(t => `${t.tr.id}:${t.phase}`),
-      speech: this.announcer.hasJaVoice ? 'ja-JP voice' : 'chime + caption (no ja-JP voice; English is never spoken)', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
+      speech: this.announcer.canSpeak ? 'recorded clips' : 'chime + caption (no recording available, or speech off)', bank: { buffers: this.bank.cache.size, pending: this.bank.pending.size, ms: Math.round(this.bank.stats.ms), mb: +(this.bank.stats.bytes / 1048576).toFixed(1), errors: this.bank.stats.errors.length },
+      clips: this.clips ? this.clips.stats() : null, crowd: a.crowdPlaying ? a.crowdPlaying() : [],
     };
+  }
+  // v20: the page is being left (pagehide): stop the voice, the loops and the synthesis worker, free every decoded buffer and
+  // close the AudioContext, so a page that goes into the back/forward cache or gets killed holds no audio memory. Idempotent,
+  // never throws; afterwards `enabled` is false and every API call is a no-op.
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
+    const t = (f) => { try { f(); } catch (e) { /* disposing must never throw */ } };
+    t(() => { for (const g of this._gestures || []) removeEventListener(g, this._kick, { capture: true }); });
+    t(() => this.announcer && this.announcer._interrupt());
+    t(() => this.ambience && this.ambience.dispose());
+    t(() => this.trains && this.trains.dispose());
+    t(() => this.bank && this.bank.dispose());
+    t(() => this.clips && this.clips.dispose());
+    t(() => { if (this.ac && this.ac.state !== 'closed') { const p = this.ac.close(); if (p && p.catch) p.catch(() => {}); } });
+    this.enabled = false; this._wantRunning = false;
+    this.mixer = null; this.announcer = null; this.ambience = null; this.sources = null; this.trains = null; this.bank = null; this.clips = null;
   }
   debugText() { const s = this.stats(); return s.mood ? `audio ${s.state} ${s.acoustic}/${s.mood} ppl ${s.people} steps/s ${s.cloudRate} src ${s.sources.length} 1shot ${s.oneShots}` : `audio ${s.state}`; }
 }

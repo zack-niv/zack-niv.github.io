@@ -1,14 +1,14 @@
 // =============================================================================
 // Recipe registry: name → synthesized sample data. Names are stable cache
 // keys, e.g. 'fs:tile:sneaker:3', 'mus:bossa', 'bed:hvac:tile', 'ir:platform',
-// 'ir:platform'. Worker-safe (imported by worker.js). (No synthesized speech: the PA uses real voices.)
+// 'ir:platform'. Worker-safe (imported by worker.js). (No synthesized speech: the PA is recorded, see clips.js.)
 // =============================================================================
-import * as F from './foley.js?v=5e3e8a5';
-import * as M from './music.js?v=5e3e8a5';
-import * as B from './beds.js?v=5e3e8a5';
-import * as T from './trainsfx.js?v=5e3e8a5';
-import { impulse } from './ir.js?v=5e3e8a5';
-import { walla, formantVoice } from './formant.js?v=5e3e8a5';
+import * as F from './foley.js?v=0d08d5d';
+import * as M from './music.js?v=0d08d5d';
+import * as B from './beds.js?v=0d08d5d';
+import * as T from './trainsfx.js?v=0d08d5d';
+import { impulse } from './ir.js?v=0d08d5d';
+import { walla, formantVoice } from './formant.js?v=0d08d5d';
 
 const mono = (a) => [a];
 
@@ -89,9 +89,8 @@ export function synthesize(name, base) {
       break;
     }
     case 'ir': ch = impulse(sr, p[1]); break;
-    // v13: 'vx:<seed>:<japanese text>' — a PA-horn formant voice with the line's own mora timing. Never heard as a voice: it
-    // feeds the station reverb while the browser's (dry, un-routable) speech voice reads the line, so the hall answers the
-    // PA (announcer.js _hall), or, muffled, is the PA you overhear from afar on iOS (_murmur). Text may contain ':'.
+    // v13: 'vx:<seed>:<japanese text>' — a PA-horn formant voice with the line's own mora timing. v20: no longer requested by
+    // anything (the announcer plays recorded lines, clips.js); the recipe stays. Text may contain ':'.
     case 'vx': { const text = name.slice(name.indexOf(':', 3) + 1); ch = mono(formantVoice(sr, text, { lang: 'ja', seed: +p[1] || 1, f0: 232, rate: 1.25, gender: 'f', pa: true, breath: 0.03 })); break; }
     default: throw new Error('unknown recipe ' + name);
   }

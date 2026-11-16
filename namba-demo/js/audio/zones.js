@@ -1,9 +1,9 @@
 // =============================================================================
 // Audio zones: where the player is, in terms of what they should hear.
 //
-// speechSynthesis cannot be spatialised, so everything spoken (and the train
-// sounds that belong to a platform) is gated by *area* instead: how audible a
-// platform is from where the listener stands.
+// The PA is gated by *area* (v20: the recorded line is played at that level and
+// follows the listener; before it was speechSynthesis, which cannot be spatialised):
+// how audible a platform is from where the listener stands.
 //
 //   platformGain(platformSpace, L)   1 on the platform, ~0.2 on the concourse
 //                                    directly above (inside its footprint),
@@ -14,7 +14,7 @@
 //                                    (drives the faint tunnel rumble upstairs)
 //   AREA[mood]                       soundscape label per ambience mood
 // =============================================================================
-import { LAYOUT, LEVELS } from '../world/layout.js?v=5e3e8a5';
+import { LAYOUT, LEVELS } from '../world/layout.js?v=0d08d5d';
 
 const PLATFORMS = LAYOUT.spaces.filter(s => s.kind === 'platform' && s.rect);
 const PLAT_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));
