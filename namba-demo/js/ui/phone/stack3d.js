@@ -25,8 +25,8 @@
 //   ?ldctx   force the old separate renderer on a touch device (A/B)   ?ldshared   force shared mode on desktop
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=5e3e8a5';
-import { CELL } from '../../world/world.js?v=5e3e8a5';
+import { LAYOUT, LEVELS, LEVEL_ORDER } from '../../world/layout.js?v=0d08d5d';
+import { CELL } from '../../world/world.js?v=0d08d5d';
 
 const K0 = 8;                      // default vertical explode factor (world y × K)
 const SLAB = 2.6;                  // slab thickness (scene metres)

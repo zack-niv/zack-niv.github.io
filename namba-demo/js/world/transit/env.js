@@ -5,8 +5,8 @@
 // Static geometry is batched per (level, 48 m chunk, material).
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../../render/geobatch.js?v=5e3e8a5';
-import { MB } from './mesh.js?v=5e3e8a5';
+import { GeoBatch } from '../../render/geobatch.js?v=0d08d5d';
+import { MB } from './mesh.js?v=0d08d5d';
 
 
 export class ChunkBatches {

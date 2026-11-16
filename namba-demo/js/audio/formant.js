@@ -4,7 +4,7 @@
 // and clips.js). v20: the `walla` crowd texture at the bottom is not played either
 // (ambience.js uses recorded crowd loops); the recipe code stays.
 // =============================================================================
-import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js?v=5e3e8a5';
+import { TAU, rng, Biquad, clamp, softclip, normalize, peak } from './dsp.js?v=0d08d5d';
 
 // ---- kana → mora ----------------------------------------------------------------
 const HIRA = 'あいうえおかきくけこがぎぐげごさしすせそざじずぜぞたちつてとだぢづでどなにぬねのはひふへほばびぶべぼぱぴぷぺぽまみむめもやゆよらりるれろわを';

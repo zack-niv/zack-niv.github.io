@@ -16,8 +16,8 @@
 //   * everything else (shop staff, a passer-by's "sumimasen"): the plain recording, placed left / right from item.pos
 // One line at a time, ever: a single `cur` item walks chime -> ja -> en (en is caption only).
 // =============================================================================
-import { voiceKey } from './phrases.js?v=5e3e8a5';
-import { platformGain, pointGain } from './zones.js?v=5e3e8a5';
+import { voiceKey } from './phrases.js?v=0d08d5d';
+import { platformGain, pointGain } from './zones.js?v=0d08d5d';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };
@@ -34,7 +34,7 @@ const DUCK_ATTACK = 0.09, DUCK_RELEASE = 0.45, DUCK_HOLD = 1.0;  // setTargetAtT
 const DUCK_PRE = 0.45;                                        // s the duck leads the chime
 const PLAT_CHIME = 0.85, CHIME = 0.55;                          // chime gain at full volume
 // v20: voice level at audible level 1 (times min(1.2, vol)); the recordings are loudness-normalised, so these two numbers are the whole balance
-const PA_VOICE = 1.1;          // station speakers. Measured offline through the same chain with the test recording: active-speech RMS -14.3 dBFS vs the PA chime -17.0 (+2.7 dB; at 1.0 it was +2.0), peak -0.3 -> +0.5 dBFS before the master limiter
+const PA_VOICE = 1.0;          // station speakers. Measured through the same chain: active-speech RMS about 2 dB above the PA chime, peaks just under full scale (1.1 pushed peaks over it and into the master limiter)
 const VOICE = 0.8;             // shop staff, a passer-by
 const PA_NEAR = 0.35;          // audible level under which a station line is only overheard
 const PA_HP = 280, PA_LP = 3800, FAR_LP = 1500;   // the PA horn band, and the muffled version for a line heard from afar
