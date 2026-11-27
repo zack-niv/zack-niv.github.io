@@ -79,12 +79,13 @@ const recovery = readRecovery();
 // killed while loading), and the recovery boot kept that forced tier, so every "safe" reload died the same way.
 //   * after a crash, a forced tier is dropped (auto-detect: low on a phone) and ?quality leaves the URL, so the next
 //     reload (or the home-screen app's relaunch) can't walk back into it;
-//   * on a phone, high/ultra are never booted at all (medium is the ceiling); ?quality=…&force skips this for tests.
+//   * v21: a touch device is only ever booted on low. Medium doubles texture memory on a phone (382 MB against ~190 MB) and iOS killed
+//     it 141 s into a cold start; it has never survived on an iPhone. ?quality=…&force skips this for tests.
 {
   const QO = ['low', 'medium', 'high', 'ultra'], qi = QO.indexOf(params.quality);
   const dropQ = () => { try { const u = new URL(location.href); u.searchParams.delete('quality'); history.replaceState(history.state, '', u.toString()); } catch (e) { /* ignore */ } };
   if (recovery && recovery.reason !== 'param' && qi > 0) { console.warn(`[resilience] dropping forced quality ${params.quality} after a crash`); params.quality = null; dropQ(); }
-  else if (touchOnly && qi > 1 && !params.has('force')) { console.warn(`[quality] ${params.quality} is too heavy for a phone: medium`); params.quality = 'medium'; }
+  else if (touchOnly && qi > 0 && !params.has('force')) { console.warn(`[quality] ${params.quality} is too heavy for a phone: low`); params.quality = 'low'; }
 }
 
 async function boot() {
@@ -95,9 +96,12 @@ async function boot() {
   // mid-range phone GPU/CPU to hold ~30 fps: a smaller pixel-ratio cap on phone-sized screens, fewer simulated people,
   // a shorter draw distance and draw-call budget. ?quality=… still forces a tier untouched.
   engine.mobile = touchOnly;   // v13 critic: also with ?quality forced (the Lodestone shared renderer, the phone audio profile)
+  const drsMin0 = engine.quality.drsMin;
   if (touchOnly && !engine.qualityForced) {
     const phone = Math.min(innerWidth, innerHeight) < 600;
-    Object.assign(engine.quality, { crowdMax: phone ? 480 : 600, drawDist: phone ? 70 : 80, callBudget: phone ? 460 : 520, maxPR: phone ? 1.25 : 1.35, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further; v17: crowd 320/420 → 480/600 (people are instances: no extra memory or draw calls), with a larger share kept near the player (npc/trips.js nearShare); v18: call budget 320/380 → 460/520 with the 30 fps cap (half the frames, so more calls per frame still means less work and heat)
+    // v21: ?pr=<0.5..3> overrides the touch pixel-ratio cap (A/B checks: ?pr=1.25 is the v20 cap)
+    const touchPR = params.has('pr') && +params.get('pr') >= 0.5 && +params.get('pr') <= 3 ? +params.get('pr') : null;
+    Object.assign(engine.quality, { crowdMax: phone ? 480 : 600, drawDist: phone ? 70 : 80, callBudget: phone ? 460 : 520, maxPR: touchPR != null ? touchPR : 1.75, drsMin: 0.5, distFloor: phone ? 0.45 : 0.5 });   // v11 critic: 1.25 = desktop-low pixels on a phone; the call governor may pull in further; v17: crowd 320/420 → 480/600 (people are instances: no extra memory or draw calls), with a larger share kept near the player (npc/trips.js nearShare); v21: maxPR 1.25/1.35 → 1.75 for both and drsMin 0.5, so the effective ratio moves between ~0.875 and 1.75 (v20 sat at its floor 0.75 after the first dip: the DRS only ever stepped down); v18: call budget 320/380 → 460/520 with the 30 fps cap (half the frames, so more calls per frame still means less work and heat)
     engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
     engine.renderer.setPixelRatio(engine.basePR);
   }
@@ -114,6 +118,7 @@ async function boot() {
     engine.basePR = Math.min(devicePixelRatio * engine.quality.pixelRatio, engine.quality.maxPR);
     engine.renderer.setPixelRatio(engine.basePR);
     setCanvasRes(S ? { atlas: 0.35, sign: 0.42, board: 0.35 } : { atlas: 0.42, sign: 0.5, board: 0.42 });
+    if (touchOnly && !engine.qualityForced) engine.quality.drsMin = drsMin0;   // v21: the safe tier keeps its old DRS floor (the new 0.5 floor is for the normal phone range)
     engine.safe = recovery.safe;
     console.warn(`[resilience] recovered from ${recovery.reason} at ${recovery.lastStage} (t ${recovery.t}s): safe tier ${recovery.safe}`);
   }
@@ -197,6 +202,8 @@ async function boot() {
   try { const t = new TouchUI(ctx); ctx.touch = t; t.init(); ctx.systems.push({ name: 'touch', sys: t }); }
   catch (e) { console.error('[system touch] failed', e); ctx.errors.push(`touch: ${e.message}`); }
   if (params.debug) setupDebug(ctx);
+  // v21: a phone starts at drs 0.8 (not 1) so the first seconds are gentle, and the late-fraction governor (render/visibility.js) climbs from there. Not after a crash (safe tier).
+  if (touchOnly && !engine.qualityForced && !recovery) engine.setDRS(0.8);
   import('./ui/perf.js?v=0d08d5d').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
   import('./analytics.js?v=0d08d5d').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 

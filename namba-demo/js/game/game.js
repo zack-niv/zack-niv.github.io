@@ -18,7 +18,7 @@ import { Demo } from './demo.js?v=0d08d5d';
 import * as V from './vignettes.js?v=0d08d5d';
 import { QUESTS, DEMO, ENDCARD } from './script.js?v=0d08d5d';
 import { orderItem, hasCounter } from './order.js?v=0d08d5d';
-import { contactLinks } from './endcard.js?v=0d08d5d';
+import { contactLinks, hasContact } from './endcard.js?v=0d08d5d';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -241,7 +241,7 @@ export class Game {
       <ul>${qs.map(q => `<li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li>`).join('')}</ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
       <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>
-      ${ENDCARD.agent || ENDCARD.call ? `<div class="p-talk"><h3 class="p-sub">Built by Zack Niv <small>${esc(ENDCARD.invite || '')}</small></h3><div class="e-links">${contactLinks()}</div></div>` : ''}`;
+      ${hasContact() ? `<div class="p-talk"><h3 class="p-sub">Built by Zack Niv <small>${esc(ENDCARD.invite || '')}</small></h3><div class="e-links">${contactLinks()}</div></div>` : ''}`;
     d.querySelectorAll('.e-link').forEach(x => x.addEventListener('click', (ev) => ev.stopPropagation()));
     return d;
   }

@@ -31,6 +31,7 @@
 //   page_up_s, draw_dist, dist_scale. Super properties standalone (home-screen app), fps_cap (0 = uncapped), dpr, cores.
 //   namba_beat {t, stage, fps, gap_max_ms, tick_max_ms, tick_sys, calls, tris, geometries, textures, programs, crowd, phone, draw_dist,
 //   dist_scale, drs, diet_mb, diet_canvases, dom_nodes, page_up_s, n} every 30 s while playing and visible (send_instantly, at most 60 per page)
+//   v21: namba_beat and namba_perf also carry pr (effective pixel ratio, basePR x drs) and late (late-frame fraction 0..1 of the capped DRS governor, null when it is not active).
 //   namba_longtask {ms, sys, t, at_stage} when one frame gap lasted 1 s or more while visible (at most 10 per page)
 //   v19 (is it the audio? ?nomusic / ?nopa / ?noaudio bisect): super property `flags` = the debug switches active on this page, comma-joined
 //   (noaudio, nomusic, nopa, nocrowd, nohaze, noshell, fps=<n>), null when none. namba_beat / namba_recovered / namba_run_hidden also carry the
@@ -165,13 +166,15 @@ export function setupAnalytics(ctx) {
   // ---- v18: the heartbeat and the long frames ----------------------------------------------------------------------
   // namba_beat every 30 s while playing (not on a hidden tab, not after the end card), at most 60 per page
   let beats = 0;
+  // v21: effective pixel ratio and the capped DRS governor's late fraction (null when that path is not active)
+  const prLate = () => { try { const e = ctx.engine, v = ctx.visibility; return { pr: e.basePR != null ? +(e.basePR * e.drs).toFixed(2) : null, late: v && v.govActive ? +v._gov.lateF.toFixed(2) : null }; } catch (e) { return { pr: null, late: null }; } };
   const beat = () => {
     try {
       if (!ctx.started || document.hidden || stage >= STAGES.indexOf('endcard') || beats >= 60) return;
       const L = liveStats(ctx) || {}, f = L.fr || {}, i = L.ri || {}, md = ctx.memdiet && ctx.memdiet.stats, n = (x) => (x != null ? x : null);
       send('namba_beat', { t: t(), stage: STAGES[stage] || null, fps: ctx.engine.stats.fps != null ? Math.round(ctx.engine.stats.fps) : null, gap_max_ms: n(f.g), tick_max_ms: n(f.k), tick_sys: f.s || null,
         calls: n(i.c), tris: n(i.tr), geometries: n(i.g), textures: n(i.t), programs: n(i.p), crowd: ctx.crowd ? ctx.crowd.count : null, phone: L.ph || null, draw_dist: n(L.dd), dist_scale: n(L.ds),
-        drs: ctx.engine.drs != null ? +ctx.engine.drs.toFixed(2) : null, diet_mb: md ? md.mb : null, diet_canvases: md ? md.canvases : null, dom_nodes: n(L.dom), page_up_s: n(L.up), ...auProps(L.au), n: ++beats }, true);
+        drs: ctx.engine.drs != null ? +ctx.engine.drs.toFixed(2) : null, ...prLate(), diet_mb: md ? md.mb : null, diet_canvases: md ? md.canvases : null, dom_nodes: n(L.dom), page_up_s: n(L.up), ...auProps(L.au), n: ++beats }, true);
     } catch (e) { /* analytics never breaks the game */ }
   };
   setInterval(beat, 30000);
@@ -199,7 +202,7 @@ export function setupAnalytics(ctx) {
       if (!P || !P.sample || document.hidden) return;
       P.sample(3).then((r) => r && send('namba_perf', {
         at, fps: r.fps != null ? Math.round(r.fps) : null, avg_ms: r.avgMs != null ? +r.avgMs.toFixed(1) : null,
-        p95_ms: r.p95Ms != null ? +r.p95Ms.toFixed(1) : null, calls: r.calls, memdiet_mb: ctx.memdiet && ctx.memdiet.on ? ctx.memdiet.stats.mb : null, quality: r.quality, drs: r.drs, crowd: ctx.crowd && ctx.crowd.count, ...(() => { try { const m = ctx.memEstimate && ctx.memEstimate(); return m ? { tex_mb: Math.round(m.texMB), canvas_mb: Math.round(m.canvasMB), geo_mb: m.geoMB } : {}; } catch (e) { return {}; } })(),
+        p95_ms: r.p95Ms != null ? +r.p95Ms.toFixed(1) : null, calls: r.calls, memdiet_mb: ctx.memdiet && ctx.memdiet.on ? ctx.memdiet.stats.mb : null, quality: r.quality, drs: r.drs, ...prLate(), crowd: ctx.crowd && ctx.crowd.count, ...(() => { try { const m = ctx.memEstimate && ctx.memEstimate(); return m ? { tex_mb: Math.round(m.texMB), canvas_mb: Math.round(m.canvasMB), geo_mb: m.geoMB } : {}; } catch (e) { return {}; } })(),
       })).catch(() => { /* optional */ });
     }, delay * 1000);
   }

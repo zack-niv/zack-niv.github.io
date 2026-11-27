@@ -205,12 +205,13 @@ export const ARRIVAL = {
 export const ENDCARD = {
   kicker: 'Tempura Daikichi · Namba Parks 6F · 天ぷら 大吉',
   line: 'Indoor spaces shouldn\'t run on guesswork.',
-  note: 'Built for the Oriient team by Zack Niv — a love letter to Namba and to indoor positioning.',
+  note: 'Built by Zack Niv — a love letter to Namba and to indoor positioning.',
   contact: '',                       // none yet: the end card hides the line when this is empty
   // v6 (item 8): ways to reach Zack — open in a new tab (rel=noopener noreferrer)
+  // v21 (public launch): the two cards are the agent and LinkedIn (it was the agent and a calendar). A card with no url is not shown.
   invite: 'I\'d love to hear what you think.',
-  agent: { label: 'Chat with my AI career agent', url: 'https://careermate-dusky.vercel.app/r/c-3VWYnNHXQ27jj-0Z61EqhOxM7QRDf9ennPGBVKcbk' },
-  call: { label: 'Book a call', url: 'https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ0OHvcPKOXnoNh3PO76_L9qeSE-EIXOOruEnD2lv_mdY6IUHan5zVE0-S-xWd4QvuzNs6Vy1Kv0' },
+  agent: { label: 'Chat with my agentic buddy', url: 'https://careermate-dusky.vercel.app/r/c-3VWYnNHXQ27jj-0Z61EqhOxM7QRDf9ennPGBVKcbk' },
+  linkedin: { label: 'Connect on LinkedIn', url: '' },
 };
 
 // Shop lines ---------------------------------------------------------------

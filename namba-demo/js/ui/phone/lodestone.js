@@ -7,8 +7,7 @@
 // route climbing through it, and turn-by-turn from the nav graph
 // (ui/phone/guidance.js).
 //
-// Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
-// name, logo or colours anywhere.
+// Brand: our own. Graphite + magnetite amber, electric-blue dot.
 // =============================================================================
 import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=0d08d5d';
 import { Stack3D } from './stack3d.js?v=0d08d5d';

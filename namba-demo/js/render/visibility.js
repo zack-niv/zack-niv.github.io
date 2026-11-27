@@ -20,6 +20,8 @@
 //     but drawn as a shell, only its structural meshes (floors, walls, ceilings, columns, light panels; see
 //     SHELL_RE) up to shellDist. Every other culling reason (level, frustum, occlusion) still hides it.
 //     The frame-rate governors scale with engine.fpsCap (target frame time 1000 / cap).
+//  3b. v21: under a frame cap with no GPU timer (iOS) the interval is quantised to display refreshes (33 ms healthy, 50 ms late),
+//     so the averaged-interval rule above only ever ratcheted down. drsGovern() (exported, pure) judges the LATE FRACTION instead.
 //  5. ?debug overlay: calls, tris, programs, textures, DRS, GPU ms, EV, culling.
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
@@ -30,6 +32,41 @@ import { params } from '../core/params.js?v=0d08d5d';
 import { QUALITY_ORDER } from '../core/engine.js?v=0d08d5d';
 import * as visFan from './visfan.js?v=0d08d5d';
 import { clipIntrusions } from './intrusions.js?v=0d08d5d';
+
+// v21: DRS governor under a frame cap (see drsGovern). Each number says why.
+const GOV_LATE = 1.2;        // a frame is late when its interval exceeds this x the cap's period (a healthy 30 fps frame is 1.0, a missed refresh 1.5)
+const GOV_TAU = 2000;        // ms, time constant of the late-fraction average (slow enough to ignore a hitch, fast enough to react in a couple of seconds)
+const GOV_WARM = 3000;       // ms after start ignored (shader compiles, texture uploads, first-use hitches are not the GPU's steady load)
+const GOV_GAP = 250;         // ms; a longer interval is a hidden tab / pause / load hitch, not rendering: neither late nor progress
+const GOV_DOWN_AT = 0.25;    // late fraction above which resolution drops (about 1 frame in 4 missed)
+const GOV_DOWN_STEP = 0.06;  // same step as the uncapped path
+const GOV_DOWN_COOL = 1.5;   // s between step downs (the average needs time to show the effect of the last one)
+const GOV_UP_BELOW = 0.10;   // late fraction that counts as calm
+const GOV_UP_HOLD = 3000;    // ms of calm needed before a step up
+const GOV_UP_STEP = 0.05;    // gentle climb
+const GOV_UP_COOL = 3.0;     // s between step ups
+const GOV_PROBE = 4.0;       // s after a step up during which a late fraction above GOV_DOWN_AT sends it straight back
+const GOV_LOCK = 20.0;       // s without a step up after a failed probe (stops oscillation at the edge of what the GPU can do)
+
+// v21: pure DRS decision for the capped path. `st` (from drsGovState) is updated in place; `in_` = { ms: raw frame interval, T: cap period in ms,
+// drs: current scale }. Returns 'down', 'up' or null; the caller applies engine.setDRS(drs - GOV_DOWN_STEP / drs + GOV_UP_STEP).
+export function drsGovState() { return { lateF: 0, warm: 0, calm: 0, cool: 0, probe: 0, lock: 0 }; }
+export function drsGovern(st, in_) {
+  const { ms, T, drs } = in_;
+  if (!(ms > 0) || ms > GOV_GAP) return null;
+  if (st.warm < GOV_WARM) { st.warm += ms; return null; }
+  const s = ms / 1000;
+  st.lateF += ((ms > T * GOV_LATE ? 1 : 0) - st.lateF) * (1 - Math.exp(-ms / GOV_TAU));
+  st.cool -= s; st.lock -= s; st.probe -= s;
+  st.calm = st.lateF < GOV_UP_BELOW ? st.calm + ms : 0;
+  if (st.lateF > GOV_DOWN_AT) {
+    if (st.probe > 0) { st.probe = 0; st.lock = GOV_LOCK; st.cool = GOV_DOWN_COOL; st.calm = 0; return 'down'; }
+    if (st.cool <= 0) { st.cool = GOV_DOWN_COOL; st.calm = 0; return 'down'; }
+  } else if (st.calm > GOV_UP_HOLD && st.cool <= 0 && st.lock <= 0 && drs < 1) {
+    st.cool = GOV_UP_COOL; st.probe = GOV_PROBE; st.calm = 0; return 'up';
+  }
+  return null;
+}
 
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
@@ -50,6 +87,7 @@ export class Visibility {
     this.frameMs = 16.7; this.gpuMs = 0;
     this._last = performance.now();
     this._slow = 0; this._fast = 0; this._drsCool = 0;
+    this._gov = drsGovState(); this.govActive = false;
     this._bench = null;
     this.visibleLevels = new Set();
     this.stats = { total: 0, shown: 0, shell: 0, level: 0, dist: 0, frustum: 0, occluded: 0, opening: 0 };
@@ -294,7 +332,7 @@ export class Visibility {
   // ---- performance governor ------------------------------------------------
   _perf() {
     const now = performance.now();
-    const ms = Math.min(100, now - this._last); this._last = now;
+    const rawMs = now - this._last, ms = Math.min(100, rawMs); this._last = now;
     this.frameMs += (ms - this.frameMs) * 0.05;
     const { engine } = this.ctx;
     this.gpuMs = engine.stats.gpuMs || 0;
@@ -304,12 +342,21 @@ export class Visibility {
     if (this.drsEnabled && this.ctx.started) {
       this._drsCool -= ms / 1000;
       const gpu = engine.gpuTimerOK && this.gpuMs > 0 ? this.gpuMs : null;
+      // v21: capped and no GPU time (iOS): the late-fraction governor decides. rawMs, not the 100 ms clamp: a hidden tab (this._last is stale
+      // on return) shows up as one huge interval and is ignored by drsGovern, instead of looking like a 100 ms late frame.
+      this.govActive = engine.fpsCap > 0 && gpu == null;
+      if (this.govActive) {
+        const act = drsGovern(this._gov, { ms: rawMs, T, drs: engine.drs });
+        if (act === 'down') engine.setDRS(engine.drs - GOV_DOWN_STEP);
+        else if (act === 'up') engine.setDRS(engine.drs + GOV_UP_STEP);
+      } else {
       const over = gpu != null ? gpu > 13.5 * tk : this.frameMs > 18.2 * tk;
       const under = gpu != null ? gpu < 9.5 * tk : this.frameMs < 16.9 * tk;
       if (over) { this._slow += ms; this._fast = 0; } else if (under) { this._fast += ms; this._slow = 0; } else { this._slow = 0; this._fast = 0; }
       if (this._drsCool <= 0) {
         if (this._slow > 700) { engine.setDRS(engine.drs - 0.06); this._drsCool = 1.0; this._slow = 0; }
         else if (this._fast > (gpu != null ? 1500 : 4000) && engine.drs < 1) { engine.setDRS(engine.drs + 0.05); this._drsCool = gpu != null ? 1.0 : 3.0; this._fast = 0; }
+      }
       }
     }
     // auto quality: benchmark seconds 1.5..5.5 after start, up to 3 rounds
@@ -340,7 +387,7 @@ export class Visibility {
       const { engine, lighting, post } = this.ctx;
       const i = engine.renderer.info, st = this.stats;
       el.textContent =
-        `RENDER ${engine.qualityName}  drs ${engine.drs.toFixed(2)}  frame ${this.frameMs.toFixed(1)}ms  gpu ${engine.gpuTimerOK ? this.gpuMs.toFixed(1) + 'ms' : 'n/a'}\n` +
+        `RENDER ${engine.qualityName}  drs ${engine.drs.toFixed(2)}${this.govActive ? `  pr ${(engine.basePR * engine.drs).toFixed(2)}  lateF ${this._gov.lateF.toFixed(2)}` : ''}  frame ${this.frameMs.toFixed(1)}ms  gpu ${engine.gpuTimerOK ? this.gpuMs.toFixed(1) + 'ms' : 'n/a'}\n` +
         `scene calls ${engine.stats.calls}  tris ${(engine.stats.tris / 1000).toFixed(0)}k  progs ${i.programs ? i.programs.length : '?'}  tex ${i.memory.textures}  geo ${i.memory.geometries}\n` +
         `levels ${[...this.visibleLevels].join(',')}  chunks ${st.shown}+${st.shell}shell/${st.total}  cull: lvl ${st.level} dist ${st.dist} frustum ${st.frustum} occl ${st.occluded} open ${st.opening}\n` +
         (lighting ? `mood ${lighting.mood}  fixtures ${lighting.stats.lights} (${lighting.stats.fallback} fallback)  atlas ${lighting.stats.atlas}  bake ${lighting.stats.bakeMs}ms\n` : '') +
