@@ -1289,15 +1289,15 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 /* in the touch phone's small box the input row steps aside while pills are showing (the camera is disabled then anyway), so the thread keeps room for Aya's last message and its card */
 #phone-root.ph-flat .ms-has-replies .ms-in { display: none; }
 #phone-root.ph-flat#phone-root .ms-has-replies .ms-replies { padding-bottom: 8px; }
-/* Aya's link card, docked above the pills / input row while it is out of sight in the thread (apps.js _syncPin) */
-.ms-pinrow { flex: 0 0 auto; padding: 5px 10px 5px; background: #fff; border-top: 1px solid #ececef; }
+/* Aya's link, docked above the pills / input row while the card is out of sight in the thread (apps.js _syncPin): a slim 34 px strip */
+.ms-pinrow { flex: 0 0 auto; height: 34px; padding: 2px 10px; background: #fff; border-top: 1px solid #ececef; box-sizing: border-box; }
 .ms-pinrow[hidden] { display: none; }
-.ms-pinrow .ms-place { margin: 0; border-radius: 14px; box-shadow: 0 0 0 1.5px #0a84ff, 0 2px 8px rgba(10,132,255,.22); }
-.ms-pinrow .ms-p-ph { flex-basis: 48px; width: 48px; min-height: 48px; }
-.ms-pinrow .ms-p-t { padding-top: 4px; padding-bottom: 4px; }
-.ms-pinrow .ms-p-t small { display: none; }
-.ms-pinrow .ms-p-t em { margin-top: 1px; font-size: 12px; }
-.ms-pinrow .ms-p-t em kbd { display: none; }
+.ms-pinrow .ms-place.ms-pin { position: relative; display: flex; align-items: center; gap: 7px; width: 100%; height: 30px; margin: 0; padding: 0 12px 0 9px; border-radius: 15px; background: #eaf3ff; box-shadow: inset 0 0 0 1.5px #0a84ff; overflow: visible; color: #0a68cf; }
+.ms-pin::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
+.ms-pin svg { flex: 0 0 16px; width: 16px; height: 16px; color: #d93025; }
+.ms-pin b { flex: 1 1 auto; min-width: 0; font: 600 13px/1.2 Inter, "Noto Sans JP", sans-serif; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.ms-pin em { flex: 0 0 auto; font: 700 12px/1 Inter, sans-serif; font-style: normal; color: #0a68cf; white-space: nowrap; }
+.ms-pin.ld em { color: #c76a00; }
 /* camera mode: the tutorial's ghost thumb (it points at the phone button) stays out of the viewfinder */
 html:has(#phone-root.ph-cam-on) .tu-point { opacity: 0 !important; }
 /* the pause button stays clear of the raised phone's frame whatever the touch column measured (it sits left of the phone, never over it) */

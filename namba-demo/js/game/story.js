@@ -783,7 +783,7 @@ export class Story {
     if (text) this.aya.say(text, { keepOpen: true, wait: 0.4, stale: () => this.demo.over });
     // v23: "they gave our seats away" is followed by how to get there; the 2-minute warnings add it when you are stuck right now
     if (text && (k === 'sl' || ((k === 'sw' || k === 'tw') && this._stuckNow()))) {
-      const key = this._target(), step = this._stepFor(key, this._zoneKey());
+      const key = this._ltarget(), step = this._stepFor(key, this._zoneKey());
       if (step && !this._nearTarget()) {
         this._stallT = this.t;
         this.ctx.events.emit('story:rescue', { t: +this.t.toFixed(1), n: this._stall.n, zone: this._zoneKey(), target: key, rem: this._remRound(), via: k === 'sl' ? 'seatsLost' : k === 'sw' ? 'seatsWarn' : 'trainWarn' });
@@ -829,7 +829,7 @@ export class Story {
         },
         onReply: (r) => {
           if (r === 'no') { E.state = 'declined'; this.game.setQuest('coffee', 'hidden', null, true); this._suggest(DEMO.gatesPlace); aya.say(M.coffeeNo, { wait: 0.6 }); }
-          else aya.say(M.coffeeYes, { wait: 0.6 });
+          else { this._coffeeYes = true; aya.say(M.coffeeYes, { wait: 0.6 }); }      // v23: only an explicit yes sends the ladder to the café
         } });
     } else this._suggest(DEMO.gatesPlace);
     aya.say(M.gates, { keepOpen: true, wait: 1.6 });
@@ -876,6 +876,12 @@ export class Story {
   // Sampled once a second. An improvement of DEMO.stallStepM restarts the window. DEMO.stallS s without one = a STALL:
   //   stall 1: the photo offer (_help('lost'));  stall 2 and on: she sends the next step outright (AYA.steps) and suggests the place again.
   // A new target (leg change, coffee answered / bought) starts a fresh window and a fresh count.
+  // the ladder's target: the train is the must, the coffee optional. Leg 2 points at the café ONLY after an explicit yes, before the order,
+  // with more than 150 s of train clock left; in every other case (unanswered, declined, bought, late) the gates. (Bonus rules are untouched.)
+  _ltarget() {
+    if (this.classic || this.mission.leg < 2) return 'dk';
+    return this.errand.state === 'asked' && this._coffeeYes && this.mission.train.left > 150 ? 'cafe' : 'gates';
+  }
   _zoneKey() {
     const P = this.ctx.player, sp = P && P.space, b = P && P.body;
     if (!sp || !sp.id || !b) return this._zoneLast;      // on a ramp or between spaces: the last place you were in
@@ -916,17 +922,17 @@ export class Story {
     const f = this._fieldFor(key), b = this.ctx.player && this.ctx.player.body; if (!f || !b || !this.ctx.nav) return null;
     const d = this.ctx.nav.distance(f, b); return typeof d === 'number' && isFinite(d) ? d : null;
   }
-  _remRound() { const r = this._remTo(this._target()); return r == null ? null : Math.round(r); }
-  _nearTarget() { const r = this._remTo(this._target()); return (r != null && r < DEMO.stallNearM) || this._atCafe(); }
+  _remRound() { const r = this._remTo(this._ltarget()); return r == null ? null : Math.round(r); }
+  _nearTarget() { const r = this._remTo(this._ltarget()); return (r != null && r < DEMO.stallNearM) || this._atCafe(); }
   // stuck right now (for the seats / train warnings): no progress for DEMO.stallNowS s on the current target, not by the door
-  _stuckNow() { const S = this._stall; return !this.classic && S.key === this._target() && this.t - S.tBest >= DEMO.stallNowS && !this._nearTarget(); }
+  _stuckNow() { const S = this._stall; return !this.classic && S.key === this._ltarget() && this.t - S.tBest >= DEMO.stallNowS && !this._nearTarget(); }
   // test helper: forget the ladder (a teleport is not walking; the next sample starts a clean window and count)
   ladderReset() { this._stall.key = null; this._stallT = -1e9; }
   _ladderTick(dt) {
     if (this.classic) return;
     this._lk += dt; if (this._lk < 1) return; this._lk = 0;
     const { aya, demo: d } = this, m = this.mission, S = this._stall, t = this.t;
-    const key = this._target();
+    const key = this._ltarget();
     if (key !== S.key) { S.key = key; S.best = Infinity; S.tBest = t; S.n = 0; }
     this._zoneKey();
     // nothing runs before "meet me" went out, in a cut-scene / pause / the lunch beat / after the run (the window is held, not spent)
@@ -953,7 +959,7 @@ export class Story {
   }
   // a shot with nothing readable in it: the zone-level step, "no sign in that one 😅 but ...", then what to aim at next time
   _coarsePhoto(sc, via) {
-    const aya = this.aya, C = AYA.photoCoarse, key = this._target(), zone = this._zoneKey(), step = this._stepFor(key, zone), p = this.ctx.player.body;
+    const aya = this.aya, C = AYA.photoCoarse, key = this._ltarget(), zone = this._zoneKey(), step = this._stepFor(key, zone), p = this.ctx.player.body;
     if (!step) return;
     const list = [C.head].concat(this._stepBubbles(step, AYA.rescueLead[0])), text = list.join(' ');
     if (this.mission.leg) this.mission.hints++;      // an answer she could give counts as a hint

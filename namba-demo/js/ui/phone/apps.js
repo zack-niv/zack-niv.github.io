@@ -314,9 +314,15 @@ export class MessagesApp {
       if (el) { const r = el.getBoundingClientRect(), vis = Math.min(r.bottom, lr.bottom) - Math.max(r.top, lr.top); show = !(vis >= r.height * 0.7); }
     }
     if (show) {
-      if (pin.dataset.id !== id || pin.hidden) { pin.innerHTML = this._placeCard(id, false); pin.dataset.id = id; }
+      if (pin.dataset.id !== id || pin.hidden) { pin.innerHTML = this._pinStrip(id); pin.dataset.id = id; }
       if (pin.hidden) { pin.hidden = false; list.scrollTop = list.scrollHeight; }
     } else if (!pin.hidden) { pin.hidden = true; pin.dataset.id = ''; }
+  }
+  // the docked link: ONE slim line (pin glyph, the place, "Open in Maps ›"), 34 px with its margins; the full card stays in the thread
+  _pinStrip(id) {
+    const ph = this.phone, d = ph.dest && ph.dest.resolve(id); if (!d) return '';
+    const ld = ph.upgradeStage === 'ready';
+    return `<button type="button" class="ms-place ms-pin ${ld ? 'ld' : 'mp'}" data-id="${esc(id)}" aria-label="${esc(d.name)}: open in ${ld ? 'Lodestone' : 'Maps'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="#fff"/></svg><b>${esc(d.name)}</b><em>${ld ? 'Open in Lodestone' : 'Open in Maps'} ›</em></button>`;
   }
   _typingHtml() { return this.typingFrom ? `<div class="ms-b ms-typing" aria-label="${esc(this.typingFrom)} is typing"><p><i></i><i></i><i></i></p></div>` : ''; }
   _renderTyping() {
