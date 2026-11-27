@@ -15,6 +15,7 @@
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
 import { icon, logo } from './lodestone.js?v=5442362';
+import { levelLabel, zoneShort } from './destinations.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // v23: a text shows as the big card for about 6 s, then shrinks to the small badge on the peeking phone (still tappable)
@@ -70,13 +71,27 @@ export class Glance {
   _info() {
     const ph = this.phone;
     if (this.note) return { kind: 'note', cls: 'gl-note', title: this.note.title, sub: this.note.text };
-    // v23: once the run is over (the train made or missed: the end card) the phone says nothing about the mission any more: the quiet
-    // pill (the clock and the unread dot are all that is left). The "You've arrived" card is for the lunch beat only: leg 2 (back to the
-    // gates) starts when the beat ends, and from then on the strip is the Maps hint again.
-    const G = this.ctx.game, dm = G && G.demo, st0 = G && G.story;
-    if (dm && !(st0 && st0.classic)) {
-      if (dm.finished) { this.finale = null; return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' }; }
+    // v23 integration: the strip always states the CURRENT GOAL, read from the mission (not from one-off flags that nothing clears):
+    //   before Aya's "meet me" text   the quiet pill (below)        lunch beat     "You've arrived"
+    //   leg 1, nothing picked         "Open Aya's link in Maps"      leg 1, picked  "Tempura Daikichi · Namba Parks 6F" + the last-known line
+    //   leg 2 (train)                 "Train · Nankai Central Gate, 3F" (+ the café line while the coffee is wanted and not ordered)
+    //   after the run / free roam     the quiet pill (the clock and the unread dot are all that is left)
+    const G = this.ctx.game, dm = G && G.demo, S0 = G && G.story;
+    if (dm && S0 && !S0.classic) {
+      const M = S0.mission, leg = M ? M.leg : 0, D = ph.dest;
+      if (dm.finished || G.ended || leg >= 3) { this.finale = null; return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' }; }
       if (this.finale && !dm.beat) this.finale = null;
+      if (!this.finale && !dm.beat && leg >= 1 && ph.upgradeStage !== 'ready') {
+        const place = (id) => { const d = D && D.resolve(id); return d ? `${zoneShort(d.zone) ? zoneShort(d.zone) + ' ' : ''}${levelLabel(d.level)}` : ''; };
+        const pin = ph.maps && ph.maps.known && ph.maps._clk - ph.maps.known.t0 < 90 ? ph.maps.known.glance : '';
+        if (leg === 1) {
+          const d = ph.destination;
+          if (!d || d.arrived) return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Open Aya’s link in Maps', sub: pin || 'Aya sent you a place', warn: '' };
+          return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: `${d.name} · ${place(d.slotId)}`, sub: pin, warn: '' };
+        }
+        const E = S0.errand, cafe = E && E.state === 'asked' && E.slot ? `☕ ${E.name}, ${place(E.slot)}` : '';
+        return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Train · Nankai Central Gate, 3F', sub: cafe || pin, warn: '' };
+      }
     }
     if (this.finale) return { kind: 'arr', cls: ph.upgradeStage === 'ready' ? 'gl-ld' : 'gl-mp', icon: 'check', title: 'You’ve arrived', sub: this.finale };
     const st = ph.upgradeStage;
