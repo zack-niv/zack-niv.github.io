@@ -9,9 +9,9 @@
 // =============================================================================
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=0d08d5d';
-import { LINES, TYPES, DESTS, hhmm } from './timetable.js?v=0d08d5d';
-import { LEVELS } from '../layout.js?v=0d08d5d';
+import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=1d470ff';
+import { LINES, TYPES, DESTS, hhmm } from './timetable.js?v=1d470ff';
+import { LEVELS } from '../layout.js?v=1d470ff';
 
 const LCD_NAVY = '#0b1830';
 

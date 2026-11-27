@@ -4,10 +4,10 @@
 // bridges and decks — plus the exterior faces of the stepped terrace building.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../layout.js?v=0d08d5d';
-import { rng } from '../../core/rng.js?v=0d08d5d';
-import { MeshAcc, lin, mulc } from './meshacc.js?v=0d08d5d';
-import { PALETTE, TERRACE_Z } from './canyon.js?v=0d08d5d';
+import { LEVELS, LEVEL_ORDER } from '../layout.js?v=1d470ff';
+import { rng } from '../../core/rng.js?v=1d470ff';
+import { MeshAcc, lin, mulc } from './meshacc.js?v=1d470ff';
+import { PALETTE, TERRACE_Z } from './canyon.js?v=1d470ff';
 
 const SEQ = ['sand', 'ochre', 'cream', 'terracotta', 'sand', 'blush', 'umber', 'cream', 'rust', 'ochre'];
 

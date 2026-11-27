@@ -5,7 +5,7 @@
 // hides it when the player is deep indoors.
 // =============================================================================
 import * as THREE from 'three';
-import { defineOutdoorMaterials } from './outdoor/mats.js?v=0d08d5d';
+import { defineOutdoorMaterials } from './outdoor/mats.js?v=1d470ff';
 
 export class Parks {
   constructor(ctx) {
@@ -20,10 +20,10 @@ export class Parks {
     this.root = new THREE.Group(); this.root.name = 'parks';
     (ctx.exterior && ctx.exterior.root ? ctx.exterior.root : ctx.engine.globalRoot).add(this.root);
     const steps = [
-      ['./outdoor/canyon.js?v=0d08d5d', 'buildCanyon'],
-      ['./outdoor/structures.js?v=0d08d5d', 'buildStructures'],
-      ['./outdoor/terraces.js?v=0d08d5d', 'buildTerraces'],
-      ['./outdoor/garden.js?v=0d08d5d', 'buildGardens'],
+      ['./outdoor/canyon.js?v=1d470ff', 'buildCanyon'],
+      ['./outdoor/structures.js?v=1d470ff', 'buildStructures'],
+      ['./outdoor/terraces.js?v=1d470ff', 'buildTerraces'],
+      ['./outdoor/garden.js?v=1d470ff', 'buildGardens'],
     ];
     this.timings = {};
     for (const [path, fn] of steps) {

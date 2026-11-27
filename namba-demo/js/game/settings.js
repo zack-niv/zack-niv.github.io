@@ -1,5 +1,5 @@
 // Player settings: persisted in localStorage (guarded), applied to systems.
-import { params } from '../core/params.js?v=0d08d5d';
+import { params } from '../core/params.js?v=1d470ff';
 
 const KEY = 'namba.settings';
 const DEFAULTS = { quality: 'high', sensitivity: 1, headBob: 1, volume: 0.8, subtitles: true };
@@ -57,11 +57,10 @@ export function buildSettingsPanel(ctx, onChange) {
     r.appendChild(control); return r;
   };
   // quality: segmented. v14: the lit button is the tier actually running (it used to be the saved default, "High",
-  // on a phone running Low), and a phone is offered Low / Medium only: High and Ultra crashed iPhones (main.js)
+  // on a phone running Low). v21: a phone only ever runs Low (Medium killed iOS, main.js), so there is nothing to choose and the row is not shown
   const eng = ctx.engine || {}, running = eng.qualityName || s.quality;
-  const offer = eng.mobile ? QUALITIES.slice(0, 2) : QUALITIES;
   const seg = document.createElement('div'); seg.className = 'g-seg';
-  for (const q of offer) {
+  for (const q of QUALITIES) {
     const b = document.createElement('button'); b.type = 'button'; b.textContent = q[0].toUpperCase() + q.slice(1);
     if (q === running) b.classList.add('on');
     b.addEventListener('click', (e) => {
@@ -71,7 +70,7 @@ export function buildSettingsPanel(ctx, onChange) {
     });
     seg.appendChild(b);
   }
-  el.appendChild(row('Graphics quality', '画質 · reloads', seg));
+  if (!eng.mobile) el.appendChild(row('Graphics quality', '画質 · reloads', seg));
   const slider = (key, min, max, step, fmt) => {
     const w = document.createElement('div'); w.className = 'g-slider';
     const i = document.createElement('input'); i.type = 'range'; i.min = min; i.max = max; i.step = step; i.value = s[key];

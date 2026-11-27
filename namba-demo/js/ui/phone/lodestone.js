@@ -7,20 +7,19 @@
 // route climbing through it, and turn-by-turn from the nav graph
 // (ui/phone/guidance.js).
 //
-// Brand: our own. Graphite + magnetite amber, electric-blue dot. No Oriient
-// name, logo or colours anywhere.
+// Brand: our own. Graphite + magnetite amber, electric-blue dot.
 // =============================================================================
-import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=0d08d5d';
-import { Stack3D } from './stack3d.js?v=0d08d5d';
+import { LEVELS, LEVEL_ORDER, ZONES } from '../../world/layout.js?v=1d470ff';
+import { Stack3D } from './stack3d.js?v=1d470ff';
 const HERO_S = 4.6;                   // v8 critic: the reveal's 3D fly-in (2.4 s) + a hold, then the map
-import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=0d08d5d';
-import { Tracker } from './track.js?v=0d08d5d';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=0d08d5d';
-import { businessBySlot } from '../../world/directory.js?v=0d08d5d';
-import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=0d08d5d';
-import { placeArt } from './art.js?v=0d08d5d';
-import { LdMap, CAL_DONE } from './ldmap.js?v=0d08d5d';
-import { NavHeader } from './glance.js?v=0d08d5d';
+import { Guidance, destinationFromSlot, ZONE_SHORT } from './guidance.js?v=1d470ff';
+import { Tracker } from './track.js?v=1d470ff';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=1d470ff';
+import { businessBySlot } from '../../world/directory.js?v=1d470ff';
+import { milestoneOf, milestoneText, PassCue, NEAR_M } from './milestone.js?v=1d470ff';
+import { placeArt } from './art.js?v=1d470ff';
+import { LdMap, CAL_DONE } from './ldmap.js?v=1d470ff';
+import { NavHeader } from './glance.js?v=1d470ff';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lvl = (l) => LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2');

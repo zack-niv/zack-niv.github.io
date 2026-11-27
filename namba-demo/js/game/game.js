@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=0d08d5d';
-import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=0d08d5d';
-import { BUSINESSES } from '../world/directory.js?v=0d08d5d';
-import { Interactions } from './interact.js?v=0d08d5d';
-import { Panels, yen, esc } from './panel.js?v=0d08d5d';
-import { Journal } from './journal.js?v=0d08d5d';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=0d08d5d';
-import { Title } from '../ui/title.js?v=0d08d5d';
-import { Demo } from './demo.js?v=0d08d5d';
-import * as V from './vignettes.js?v=0d08d5d';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=0d08d5d';
-import { orderItem, hasCounter } from './order.js?v=0d08d5d';
-import { contactLinks } from './endcard.js?v=0d08d5d';
+import { params } from '../core/params.js?v=1d470ff';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=1d470ff';
+import { BUSINESSES } from '../world/directory.js?v=1d470ff';
+import { Interactions } from './interact.js?v=1d470ff';
+import { Panels, yen, esc } from './panel.js?v=1d470ff';
+import { Journal } from './journal.js?v=1d470ff';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=1d470ff';
+import { Title } from '../ui/title.js?v=1d470ff';
+import { Demo } from './demo.js?v=1d470ff';
+import * as V from './vignettes.js?v=1d470ff';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=1d470ff';
+import { orderItem, hasCounter } from './order.js?v=1d470ff';
+import { contactLinks, hasContact } from './endcard.js?v=1d470ff';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -241,7 +241,7 @@ export class Game {
       <ul>${qs.map(q => `<li class="${q.state}"><span class="p-check"></span><div><b>${esc(q.text)}</b><small>${esc(q.textJa)}</small><p>${esc(q.detail || '')}</p></div></li>`).join('')}</ul>
       ${this.orders.length ? `<h3 class="p-sub">Ordered <small>注文</small></h3><div class="p-orders">${this.orders.map(o => `<div class="p-order"><span>${esc(o.icon || '☕')}</span><b>${esc(o.item)}</b><i>${esc(o.name)}</i><small>${esc(o.at)}</small></div>`).join('')}</div>` : ''}
       <p class="p-hint">Q lifts and lowers your phone (or hold right-click for a quick look); Tab switches apps, 1 2 3 reply. Mouse looks, WASD walks, E interacts. Esc brings this menu back.</p>
-      ${ENDCARD.agent || ENDCARD.call ? `<div class="p-talk"><h3 class="p-sub">Built by Zack Niv <small>${esc(ENDCARD.invite || '')}</small></h3><div class="e-links">${contactLinks()}</div></div>` : ''}`;
+      ${hasContact() ? `<div class="p-talk"><h3 class="p-sub">Built by Zack Niv <small>${esc(ENDCARD.invite || '')}</small></h3><div class="e-links">${contactLinks()}</div></div>` : ''}`;
     d.querySelectorAll('.e-link').forEach(x => x.addEventListener('click', (ev) => ev.stopPropagation()));
     return d;
   }

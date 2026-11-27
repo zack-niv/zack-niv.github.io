@@ -6,10 +6,9 @@
 // summary = { upgraded, before:{err,p90,wrongPct,dotWithin5,headingSettle,...}, after:{...}|null, ... }
 // v7.2: a fixed set of four rows, each defined identically in both phases; primary buttons above two contact cards.
 // v7.3: 'On track' (with time off route) replaces 'arrow catches up' as the headline row.
-// Brand rule: never Oriient's logo or colours. The only colours are ours
-// (warm amber = guesswork, cool blue = Lodestone's own).
+// The only colours are ours (warm amber = guesswork, cool blue = Lodestone's own).
 // =============================================================================
-import { ENDCARD } from './script.js?v=0d08d5d';
+import { ENDCARD } from './script.js?v=1d470ff';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -23,16 +22,20 @@ const mpm = (v) => { const r = Math.round(v); return `${r < 0 ? '\u2212' : ''}${
 const pct = (v) => `${v > 0 && v < 1 ? '<1' : Math.round(v)}<small>%</small>`;
 const ICON = {
   chat: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4.5h12a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H9l-3.6 2.6V14.5H4A1.5 1.5 0 0 1 2.5 13V6A1.5 1.5 0 0 1 4 4.5z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M6.5 8.5h7M6.5 11h4.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
+  people: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8" cy="7" r="3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2.8 16.5c.5-3 2.6-4.6 5.2-4.6s4.7 1.6 5.2 4.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M15.5 6v5M13 8.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>',
   cal: '<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M3 8.5h14M7 2.8v3.4M13 2.8v3.4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="10" cy="12.6" r="1.3" fill="currentColor"/></svg>',
 };
-// v7.2: two equal contact cards (icon in a tinted circle, title, one-line subtitle, ↗). Cool blue = the agent, warm amber = the call.
-const SUB = { chat: 'Ask anything about my experience', cal: 'Pick a time that works for you' };
+// v7.2: two equal contact cards (icon in a tinted circle, title, one-line subtitle, ↗). Cool blue = the agent, warm amber = the other card
+// (v21: LinkedIn; it was a calendar. The amber style keeps its old class name, `call`).
+const SUB = { chat: 'Ask it anything about me and my work', cal: 'Pick a time that works for you', people: 'Say hello, or follow what I build next' };
 const link = (L, icon, tone) => (L && L.url
   ? `<a class="e-link ${tone}" href="${esc(L.url)}" target="_blank" rel="noopener noreferrer"><span class="e-ic">${ICON[icon]}</span><span class="e-tx"><b>${esc(L.label)}</b><small>${esc(L.sub || SUB[icon])}</small></span><i aria-hidden="true">↗</i><em class="e-sr"> (opens in a new tab)</em></a>`
   : '');
 
 // v7.3: the same two contact cards in the pause menu (players who leave mid-way never see the end card)
-export const contactLinks = () => `${link(ENDCARD.agent, 'chat', 'agent')}${link(ENDCARD.call, 'cal', 'call')}`;
+export const contactLinks = () => `${link(ENDCARD.linkedin, 'people', 'call')}${link(ENDCARD.agent, 'chat', 'agent')}`;
+// true when at least one card has somewhere to go
+export const hasContact = () => !!((ENDCARD.linkedin && ENDCARD.linkedin.url) || (ENDCARD.agent && ENDCARD.agent.url));
 
 export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   const b = s.before, a = s.after;
@@ -75,7 +78,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
     const max = r.abs || Math.max(val(r, 'b') || 0, val(r, 'a') || 0, 1e-6);
     return `<div class="e-v ${side}${win === side ? ' win' : win ? ' lose' : ''}"><b>${r.fmt(v)}</b><i class="e-bar"><u style="--w:${bar(v, max)}"></u></i><span>${esc(r.cap(v, x))}</span></div>`;
   };
-  const talk = ENDCARD.agent || ENDCARD.call;
+  const talk = hasContact();
   const el = document.createElement('div');
   el.className = 'g-end';
   el.innerHTML = `
@@ -84,13 +87,13 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
         <div class="e-eyebrow"><span class="e-dot"></span>着いた。<em>You made it.</em></div>
         <h1 class="e-line">Indoor spaces shouldn't run on <span>guesswork.</span></h1>
         <p class="e-where">${esc(ENDCARD.kicker)}</p>
-        <p class="e-note">Built for the Oriient team by <b>Zack Niv</b> — a love letter to Namba and to indoor positioning.</p>
+        <p class="e-note">Built by <b>Zack Niv</b> — a love letter to Namba and to getting lost in Japan.</p>
         ${ENDCARD.contact ? `<p class="e-contact">${esc(ENDCARD.contact)}</p>` : ''}
         <div class="e-btns">
           <button type="button" class="g-btn sel" data-a="roam">Keep exploring <small>まだ歩く</small></button>
           <button type="button" class="g-btn" data-a="replay">Replay <small>もう一度</small></button>
         </div>
-        ${talk ? `<div class="e-talk">${ENDCARD.invite ? `<p class="e-invite">${esc(ENDCARD.invite)}</p>` : ''}<div class="e-links">${link(ENDCARD.agent, 'chat', 'agent')}${link(ENDCARD.call, 'cal', 'call')}</div></div>` : ''}
+        ${talk ? `<div class="e-talk">${ENDCARD.invite ? `<p class="e-invite">${esc(ENDCARD.invite)}</p>` : ''}<div class="e-links">${contactLinks()}</div></div>` : ''}
       </section>
       <section class="e-right" aria-label="Your journey, before and after">
         <div class="e-head"><span>Your journey, measured live</span></div>

@@ -3,8 +3,8 @@
 // Nankai platform while the type sits quietly in the corner.
 //   new Title(ctx, { onBegin }) · show() · hide() · update(dt)
 // =============================================================================
-import { buildSettingsPanel, buildControlsCard } from '../game/settings.js?v=0d08d5d';
-import { LAYOUT } from '../world/layout.js?v=0d08d5d';
+import { buildSettingsPanel, buildControlsCard } from '../game/settings.js?v=1d470ff';
+import { LAYOUT } from '../world/layout.js?v=1d470ff';
 
 export class Title {
   constructor(ctx, { onBegin } = {}) {
