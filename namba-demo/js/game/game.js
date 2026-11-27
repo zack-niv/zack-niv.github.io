@@ -496,7 +496,9 @@ export class Game {
     const T = this._gateTgt; if (!T) return null;
     // v22: the run's last tap (Aya has the tickets) is never a low-balance tap: see _tapGate
     const gt = T.g.gt, last = !!(T.entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
-    const low = T.entering && !last && this.ic.balance < MIN_FARE;
+    // v23: after the finished run (free roam) the gates are ordinary gates: the card balance is never a blocker
+    const over = !!(this.demo && this.demo.finished);
+    const low = T.entering && !last && !over && this.ic.balance < MIN_FARE;
     const sub = `${T.n.ja || gt.ja} ${T.n.name || gt.name} · ICOCA ${yen(this.ic.balance)}`;
     if (T.open) return { prompt: 'Open — walk through', promptJa: 'どうぞ', sub, passive: true };
     if (!T.ok) return { prompt: T.entering ? 'Exit only — try the next gate' : 'Entry only — try the next gate', promptJa: '✕', sub, passive: true };
@@ -520,7 +522,7 @@ export class Game {
     // v22: the run's last act is tapping in at the Nankai gates for the train. Aya has the tickets, so a card the player has
     // spent down (coffee, snacks) can never refuse that tap and strand a finished run outside the gate.
     const lastTap = !!(entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
-    if (entering && !again && !lastTap && this.ic.balance < MIN_FARE) {
+    if (entering && !again && !lastTap && !(this.demo && this.demo.finished) && this.ic.balance < MIN_FARE) {
       // not enough on the card to get in: the reader refuses it
       this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
       this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });

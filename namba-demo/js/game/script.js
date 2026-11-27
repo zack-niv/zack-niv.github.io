@@ -270,7 +270,7 @@ export const ENDCARD = {
   // v6 (item 8): ways to reach Zack — open in a new tab (rel=noopener noreferrer)
   // v21 (public launch): the two cards are the agent and LinkedIn (it was the agent and a calendar). A card with no url is not shown.
   invite: 'I\'d love to hear what you think.',
-  agent: { label: 'Chat with Mate, my agentic buddy', url: 'https://zacks-mate.vercel.app/mate' },
+  agent: { label: 'Chat with Mate', sub: 'my agentic buddy', url: 'https://zacks-mate.vercel.app/mate' },
   linkedin: { label: 'Connect on LinkedIn', url: 'https://www.linkedin.com/in/tsach-niv/' },
 };
 
