@@ -67,6 +67,9 @@ export class Demo {
     this.story = new Story(ctx, game, this);
   }
 
+  // v22: "the run is over / a cut-scene owns the screen" — the lunch beat or the end of leg 2 (the old arc: arrival). What used to read `arrived`
+  get over() { return this.story.classic ? this.arrived : (this.beat || this.finished); }
+
   // ---------------------------------------------------------------------------
   // Act 1: arrival
   begin({ cinematic = true, resume = null } = {}) {

@@ -62,7 +62,7 @@ export function orderItem(game, c) {
         if (sl > 0.35) dot = (sx * fwd.x + sz * fwd.z) / sl;
       }
       if (dot < FACE_DOT) return null;
-      if (game.demo && game.demo.arrived) return null;
+      if (game.demo && game.demo.over) return null;
       return (1 - dot) * 1.6 + d * 0.15 - 0.4;   // a little bonus: this is the thing you walked up to do
     },
     canUse() {

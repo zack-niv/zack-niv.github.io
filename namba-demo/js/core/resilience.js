@@ -172,7 +172,7 @@ export function armRecovery(ctx, rec) {
   };
   // v15: the story's checkpoint (null before the first text / after arrival); the last good one survives a bad read
   let lastCp;
-  const checkpoint = () => { try { const S = ctx.game && ctx.game.story; const c = S && S.checkpoint ? S.checkpoint() : null; if (c) lastCp = c; else if (ctx.game && ctx.game.demo && ctx.game.demo.arrived) lastCp = undefined; } catch (e) { /* keep the last */ } return lastCp; };
+  const checkpoint = () => { try { const S = ctx.game && ctx.game.story; const c = S && S.checkpoint ? S.checkpoint() : null; if (c) lastCp = c; else if (ctx.game && ctx.game.demo && (ctx.game.demo.finished || (ctx.game.demo.story && ctx.game.demo.story.classic && ctx.game.demo.arrived))) lastCp = undefined; } catch (e) { /* keep the last */ } return lastCp; };
   const write = (reason, hidden) => {
     if (ctx.dead) return;      // v20: a page that has been torn down (main.js teardown on pagehide) never writes a marker again
     if ((document.hidden || reloading) && !reason && !hidden) return;

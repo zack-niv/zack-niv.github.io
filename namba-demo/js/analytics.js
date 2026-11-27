@@ -149,9 +149,13 @@ export function setupAnalytics(ctx) {
       on_track_before: n(b.onTrackPct), on_track_after: n(a.onTrackPct), off_route_before_s: n(b.offRouteSec), off_route_after_s: n(a.offRouteSec),
       error_before_m: n(b.err), error_after_m: n(a.err), wrong_floor_before_pct: n(b.wrongPct), wrong_floor_after_pct: n(a.wrongPct),
       total_s: n(s.totalSeconds), total_m: n(s.totalMeters),
+      seats_made: s.mission ? !!s.mission.seats.made : null, seats_left: s.mission ? n(s.mission.seats.left) : null, hints: s.mission ? s.mission.hints : null,      // v22: "arrived" = reached Aya for lunch
     });
     perfAt(0, 'arrived');
   });
+  // v22: the end of leg 2 (train made or missed): the score
+  const n0 = (x) => (typeof x === 'number' && isFinite(x) ? Math.round(x * 10) / 10 : null);
+  E.on('mission:done', (m) => { if (!m) return; send('namba_finished', { score: m.score, tier: m.tier, seats_made: !!m.seats.made, coffee: !!m.coffee, train_left: n0(m.train.left), hints: m.hints, total_s: n0(m.seconds), t: t() }); });
   E.on('demo:end', () => { reach('endcard'); send('namba_endcard', { t: t() }); });
   E.on('demo:choice', (e) => send('namba_choice', { choice: e && e.choice }));
   E.on('score:post', (e) => { e = e || {}; send('namba_score', { ok: !!e.ok, score: e.score != null ? e.score : null, tier: e.tier || null, rank: e.rank != null ? e.rank : null, total: e.total != null ? e.total : null, error: e.error || null }); });

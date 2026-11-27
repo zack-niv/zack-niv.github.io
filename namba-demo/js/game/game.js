@@ -74,7 +74,7 @@ export class Game {
     this.discover = (id, en, ja) => this.journal.discover(id, en, ja);
     // v6: ONE way to pay with the ICOCA card (gates, café orders, vignettes, machines) — see icCharge below
     // discoveries are quiet in the demo: only the two real wonders get a soft place-name card
-    this.onDiscover = (d) => { if (this.quiet || this.ended || this.intro || this.demo.arrived) return; if (d.id === 'canyon' || d.id === 'parks') this.hud?.chapter({ ja: d.ja, en: d.en, sub: '' }, 4.5); };
+    this.onDiscover = (d) => { if (this.quiet || this.ended || this.intro || this.demo.over) return; if (d.id === 'canyon' || d.id === 'parks') this.hud?.chapter({ ja: d.ja, en: d.en, sub: '' }, 4.5); };
 
     this._gates = LAYOUT.gates.map(gt => this._gateInfo(gt));
     try { this._registerShops(); } catch (e) { console.error('[game] shops', e); }

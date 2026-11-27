@@ -628,6 +628,8 @@ export class Phone {
         this._lastPhoneInput = this._now;
         // chips on screen answer; otherwise the number is a dock slot (a short guard after a switch: no accidental reply)
         if (this.app === 'messages' && this.messages.pending && this._now - (this._appAt || -1e9) > 0.35) this.messages.reply(k);
+        // v22: no chips, the 📸 button showing: 1 sends the photo (the key the photo chip uses when it is the only action)
+        else if (this.app === 'messages' && k === 0 && this.messages._snapState() !== 'hide') { if (this._now - (this._appAt || -1e9) > 0.35) this.messages.snap(); }
         else if (!this._busyUpgrade()) { const L = this._dockApps(); if (L[k]) this._showApp(L[k]); }
         break;
       }

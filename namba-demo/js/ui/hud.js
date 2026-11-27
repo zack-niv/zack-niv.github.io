@@ -115,7 +115,7 @@ export class Hud {
     return inStation && di <= 1;
   }
   // the arrival moment (and the end card after it): nothing but Aya and the chef may speak or pop up
-  arrival() { const g = this.ctx.game; return !!(g && g.demo && g.demo.arrived); }
+  arrival() { const g = this.ctx.game; return !!(g && g.demo && g.demo.over); }      // v22: the lunch beat / the end of leg 2 (not the whole of leg 2)
   setVisible(v) { if (!this.quiet) this.root.style.visibility = v ? '' : 'hidden'; }
 
   // ---- interaction prompt -----------------------------------------------------
