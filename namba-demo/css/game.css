@@ -482,6 +482,7 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
   .g-panel.p-right { right: 5vw; }
 }
 /* v22: the race card (.e-race): time + board. Everything below is scoped to .e-race so the classic card is untouched. */
+.e-race { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }      /* phones inflate text in wide blocks otherwise, and the short layouts below are tuned to true sizes */
 .e-race .e-wrap { align-items: center; }
 .e-race .e-line { font-size: clamp(30px, 4.1vw, 58px); margin-top: 20px; }
 .e-time { margin-top: 18px; display: flex; align-items: baseline; gap: 14px; }
@@ -519,11 +520,11 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .e-msg.got { color: #d4ebff; font-weight: 600; font-size: 15px; }
 .e-list { margin-top: 8px; min-height: 0; }
 .e-ol { list-style: none; margin: 0; padding: 0; }
-.e-r { display: grid; grid-template-columns: 2.4em 3.6em 1fr auto; align-items: center; gap: 0 8px; padding: 6px 8px; border-radius: 8px; font: 500 14px/1.2 var(--g-sans); font-variant-numeric: tabular-nums; border-bottom: 1px solid rgba(244, 241, 234, .06); }
+.e-r { display: grid; grid-template-columns: 2.4em 3.4em 4.6em 1fr; align-items: center; gap: 0 8px; padding: 6px 8px; border-radius: 8px; font: 500 14px/1.2 var(--g-sans); font-variant-numeric: tabular-nums; border-bottom: 1px solid rgba(244, 241, 234, .06); }
 .e-rk { font-weight: 500; color: var(--g-faint); text-align: right; }
 .e-nm { font-weight: 700; letter-spacing: .14em; }
 .e-t { color: #d4ebff; }
-.e-x { display: inline-flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 2.8em; }
+.e-x { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-start; padding-left: 10px; }
 .e-x em { font-style: normal; width: 1.2em; font-size: 13px; text-align: center; }
 .e-tier { width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; display: inline-block; }
 .e-tier.s { background: var(--e-before); }
@@ -539,7 +540,7 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .e-legend { margin: 10px 0 0; font: 400 11px/1.4 var(--g-sans); color: var(--g-faint); letter-spacing: .03em; }
 .e-copy { margin-top: 14px; align-self: flex-start; }
 
-@media (max-height: 700px) and (min-width: 721px) {
+@media (max-height: 820px) and (min-width: 721px) {
   .e-race .e-wrap { padding: 2.5vh 0; align-items: start; }
   .e-race .e-line { font-size: clamp(26px, 3.4vw, 42px); margin-top: 12px; }
   .e-time { margin-top: 8px; } .e-time b { font-size: clamp(36px, 4.4vw, 52px); }
@@ -563,6 +564,7 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
   .e-race .e-where { margin-top: 6px; font-size: 9.5px; } .e-race .e-note { margin-top: 4px; font-size: 12px; max-width: none; }
   .e-race .e-btns { margin-top: 8px; gap: 8px; } .e-race .e-btns .g-btn { padding: 9px 15px; font-size: 13px; }
   .e-race .e-talk { margin-top: 8px; } .e-race .e-links { gap: 8px; }
+  .e-r { padding: 1.5px 8px; font-size: 12.5px; } .e-post { margin-top: 6px; } .e-msg { margin-top: 4px; min-height: 1em; } .e-copy { margin-top: 6px; } .e-ini, .e-mini { height: 32px; }
   .e-race .e-link { padding: 6px 20px 6px 8px; } .e-race .e-ic { width: 24px; height: 24px; } .e-race .e-ic svg { width: 13px; height: 13px; } .e-race .e-tx b { font-size: 11.5px; }
 }
 @media (max-width: 720px) {
