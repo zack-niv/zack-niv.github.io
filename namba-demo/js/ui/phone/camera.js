@@ -139,18 +139,24 @@ export class CameraMode {
     if (!viaChip && !(S && typeof S.snapState === 'function' && S.snapState() === 'ready' && !M.pending)) {
       this._tell('Aya is busy, try again in a moment'); return;
     }
-    const idx = this.reply;
-    const img = M._capture(this._f);
-    M._shutter();
-    this._end();
-    // send now: the story judges the camera pose at this very moment. The bubble's own animation waits for the phone to rise.
-    let sent = false;
-    M._late = true;
-    if (viaChip) sent = M.reply(idx, { img });
-    if (!sent) sent = !!(S && S.sendPhoto && S.sendPhoto(img));
-    M._late = false;
-    this.ctx.events.emit('phone:camera', { on: false, shot: true });
-    ph.open('messages');
+    if (this._shooting) return;
+    this._shooting = true;
+    const idx = this.reply, fr = this._f;
+    M._shutter();                                  // the flash and the click answer the tap at once
+    // the picture is taken from the next frame the game renders (apps.js grabNext: no second full-size render in the click handler)
+    M.grabNext(fr).then((img) => {
+      this._shooting = false;
+      if (!this.active) return;
+      this._end();
+      // send now: the story judges the camera pose at this very moment. The bubble's own animation waits for the phone to rise.
+      let sent = false;
+      M._late = true;
+      if (viaChip) sent = M.reply(idx, { img });
+      if (!sent) sent = !!(S && S.sendPhoto && S.sendPhoto(img));
+      M._late = false;
+      this.ctx.events.emit('phone:camera', { on: false, shot: true });
+      ph.open('messages');
+    });
   }
   // a toast on the world (the phone is down)
   _tell(t) {

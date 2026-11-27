@@ -162,11 +162,11 @@ export class MessagesApp {
   // v11: a downscaled snapshot of the current frame. Rendering a frame and copying it in the same task keeps the
   // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo).
   // v23: fr = the viewfinder frame as fractions of the viewport ({x, y, w, h}): the picture is exactly what was framed
-  _capture(fr) {
+  _capture(fr, noRender) {
     try {
       const eng = this.ctx.engine, cv = eng && eng.renderer && eng.renderer.domElement;
       if (!cv || !cv.width) return null;
-      if (typeof eng.render === 'function') eng.render(0);
+      if (!noRender && typeof eng.render === 'function') eng.render(0);
       const f = fr || { x: 0, y: 0, w: 1, h: 1 };
       const sx = f.x * cv.width, sy = f.y * cv.height, sw = f.w * cv.width, sh = f.h * cv.height;
       const w = 420, h = Math.max(1, Math.round(w * sh / sw));
@@ -174,6 +174,27 @@ export class MessagesApp {
       c.getContext('2d').drawImage(cv, sx, sy, sw, sh, 0, 0, w, h);
       return c.toDataURL('image/jpeg', 0.74);
     } catch (e) { console.warn('[messages] photo', e && e.message); return null; }
+  }
+  // v23 integration (desktop camera hang): the old capture forced a SECOND full-resolution render inside the click handler. Under
+  // software rendering that is 7 s of frozen page (and +450 MB), long enough that a second click or a script's next step piled up.
+  // This takes the picture from the frame the game renders next anyway: the engine's render() is wrapped for one call and the
+  // framed crop is drawn right after it, in the same task (the drawing buffer is still valid), downscaled to 420 px before it is
+  // encoded. Resolves with the data URL (or, if no frame comes within 800 ms, e.g. the game is paused, with the old direct capture).
+  grabNext(fr) {
+    return new Promise((resolve) => {
+      const eng = this.ctx.engine; if (!eng || typeof eng.render !== 'function') { resolve(this._capture(fr)); return; }
+      const own = Object.prototype.hasOwnProperty.call(eng, 'render'), orig = eng.render;
+      let done = false, timer = 0;
+      const finish = (v) => {
+        if (done) return; done = true; clearTimeout(timer);
+        if (eng.render === wrapped) { if (own) eng.render = orig; else delete eng.render; }
+        resolve(v);
+      };
+      const grab = () => this._capture(fr, true);
+      const wrapped = function (dt) { orig.call(this, dt); if (!done) finish(grab()); };
+      eng.render = wrapped;
+      timer = setTimeout(() => finish(this._capture(fr)), 800);
+    });
   }
   _shutter() {
     try {

@@ -213,6 +213,8 @@ function touchTarget(id, h, ph, up) {
   if (id === 'reply') return { sel: `${v} .ms-replies .ms-chip` };
   if (id === 'install') return ph.app === 'messages' ? { sel: `${v} .ms-link`, last: true } : { sel: '#phone-root .ph-dock [data-app="messages"]' };
   if (id === 'pick' || id === 'pick2') {
+    // v23: with Maps open the thumb stays in Maps (Directions on the place sheet, Aya's pick, the list's Next row); never on the dock
+    if (ph.app === 'maps') return { sel: `${v} .mq-go, ${v} .dl-next, ${v} .dl-r.aya, ${v} .mq-aya:not([hidden])` };
     if (h.html === TUTORIAL.maps) return { sel: '#phone-root .ph-dock [data-app="maps"]' };
     if (h.html === TUTORIAL.pickMsg) return { sel: `${v} .ms-place`, last: true };
     return { sel: `${v} .dl-next, ${v} .dl-r.aya, ${v} .mq-aya:not([hidden])` };

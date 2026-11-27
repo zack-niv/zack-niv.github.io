@@ -1302,3 +1302,17 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 html:has(#phone-root.ph-cam-on) .tu-point { opacity: 0 !important; }
 /* the pause button stays clear of the raised phone's frame whatever the touch column measured (it sits left of the phone, never over it) */
 html.ph-wide #touch-ui.ph-up .tu-pause { right: max(calc(14px + max(var(--tu-right, 0px), var(--sr, 0px)) + 4px), calc(var(--ph-wide-gap, 0px) + 14px)); }
+/* ---- Maps place sheet: Directions sits on the name's row (right side, 36 px+), never below the fold ---- */
+.mq-p-place .mp-pc { position: relative; }
+.mq-p-place .mp-pc > .mq-actions { position: absolute; top: 0; right: 38px; margin: 0; z-index: 2; }
+.mq-p-place .mp-pc > .mq-actions .mq-go { flex: 0 0 auto; min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.mq-p-place .mp-pc-t { padding-right: 150px; min-height: 36px; display: flex; align-items: center; }
+.mq-p-place .mp-tr-h .mp-pc-t { padding-right: 0; display: block; min-height: 0; }
+.mq-p-place .mp-tr-h { padding-right: 150px; min-height: 36px; }
+#phone-root:not(.ph-touch) .mq-p-place .mp-pc-t, #phone-root:not(.ph-touch) .mq-p-place .mp-tr-h { padding-right: 195px; }
+#phone-root:not(.ph-touch) .mq-p-place .mp-tr-h .mp-pc-t { padding-right: 0; }
+/* the floor strip is opaque (map labels no longer ghost through it); the camera button is 40 px like the chat bar */
+.mq-strip { background: #fff; }
+.ms-cam { width: 40px; height: 40px; }
+.ms-cam-ic { width: 22px; height: 22px; }
+#phone-root .ms-field { height: 40px; border-radius: 20px; }
