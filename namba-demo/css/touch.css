@@ -120,7 +120,6 @@ html.is-touch #phone-root .ms-chip, html.is-touch #phone-root .ph-dock button, h
 html.is-touch #phone-root .ld-x3d, html.is-touch #phone-root .ld-new, html.is-touch #phone-root .ld-end, html.is-touch #phone-root .ld-pv-go { position: relative; }
 html.is-touch #phone-root .ms-chip::after, html.is-touch #phone-root .dl-next::after, html.is-touch #phone-root .ld-x3d::after,
 html.is-touch #phone-root .ld-new::after, html.is-touch #phone-root .ld-end::after, html.is-touch #phone-root .ld-pv-go::after { content: ''; position: absolute; inset: -6px -4px; }
-html.is-touch #phone-root .ms-chip { min-height: 44px; }
 html.is-touch #phone-root kbd { display: none !important; }
 
 /* ---- short landscape screens (phones): compact the end card, the pause menu and the title ----------- */
@@ -184,8 +183,6 @@ html.is-touch #title .t-hint { flex-wrap: wrap; white-space: nowrap; row-gap: 4p
    The reply chips are filled buttons on touch, so a text that wants an answer looks like it wants a tap. */
 html.is-touch #phone-root.ph-compact .ms-b p { font-size: 16.5px; line-height: 1.3; padding: 9px 13px; }
 html.is-touch #phone-root.ph-compact .ms-b small { font-size: 11px; }
-html.is-touch #phone-root.ph-compact .ms-replies { gap: 9px; padding: 10px 12px 8px; }
-html.is-touch #phone-root.ph-compact .ms-chip { min-height: 58px; padding: 10px 18px 10px 16px; border-radius: 24px; font-size: 17px; }
 html.is-touch #phone-root.ph-compact .ms-l-t b { font-size: 16.5px; }
 html.is-touch #phone-root.ph-compact .ms-l-t small { font-size: 12.5px; }
 html.is-touch #phone-root.ph-compact .ms-link em { font-size: 16px; padding: 10px 18px; border-radius: 18px; }
@@ -194,11 +191,6 @@ html.is-touch #phone-root.ph-compact .gl-note .gl-t b { font-size: 17px; }
 html.is-touch #phone-root.ph-compact .gl-note .gl-t p { font-size: 16.5px; line-height: 1.2; }
 html.is-touch #phone-root.ph-compact .gl-read { font-size: 14px; padding: 8px 12px 8px 10px; border-radius: 14px; }
 html.is-touch #phone-root.ph-compact .gl-t b { font-size: 19px; }
-html.is-touch #phone-root .ms-chip { background: #0a84ff; color: #fff; border-color: #0a84ff; box-shadow: 0 4px 14px rgba(10,132,255,.32); animation: msChipBeat 1.5s ease-in-out .5s 3; }
-html.is-touch #phone-root .ms-chip:active { background: #0062d1; }
-html.is-touch #phone-root .ms-chip-photo { background: #ff9f0a; border-color: #ff9f0a; color: #fff; box-shadow: 0 4px 14px rgba(255,159,10,.32); }
-@keyframes msChipBeat { 50% { box-shadow: 0 0 0 4px rgba(10,132,255,.25), 0 4px 18px rgba(10,132,255,.5); } }
-@media (prefers-reduced-motion: reduce) { html.is-touch #phone-root .ms-chip { animation: none; } }
 /* the category chips in the "Where to?" list (25 px tall at phone scale): a taller invisible tap area */
 html.is-touch #phone-root .dl-chips button, html.is-touch #phone-root .mp-chips button { position: relative; }
 html.is-touch #phone-root .dl-chips button::after, html.is-touch #phone-root .mp-chips button::after { content: ''; position: absolute; inset: -9px -3px; }

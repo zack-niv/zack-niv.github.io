@@ -223,8 +223,8 @@ export class FloorGuides {
     const hh = Math.round(H * 0.14);
     g.fillStyle = '#24272c'; g.fillRect(0, 0, W, hh); g.fillStyle = bld.color; g.fillRect(0, hh - 6, W, 6);
     g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = '#ffffff';
-    fitFont(g, bld.ja, p => JA(p, 900), 50, W * 0.6); g.fillText(bld.ja, 14, hh * 0.40);
-    g.fillStyle = '#d3d7dd'; fitFont(g, bld.en, p => EN(p, 700), 27, W * 0.6); g.fillText(bld.en, 14, hh * 0.76);
+    fitFont(g, bld.ja, p => JA(p, 900), 42, W * 0.6); g.fillText(bld.ja, 14, hh * 0.35);
+    g.fillStyle = '#d3d7dd'; fitFont(g, bld.en, p => EN(p, 700), 23, W * 0.6); g.fillText(bld.en, 14, hh * 0.76);
     g.textAlign = 'right'; g.fillStyle = '#ffffff'; g.font = JA(26, 900); g.fillText('フロアガイド', W - 12, hh * 0.38);
     g.fillStyle = '#d3d7dd'; g.font = EN(18, 800); g.fillText('FLOOR GUIDE', W - 12, hh * 0.72);
     const lay = rowLayout(bld);
@@ -399,7 +399,7 @@ export class FloorGuides {
       const dotS = 0.14, cW = 0.5, cH = cW * 100 / 200;
       let p = at(u, v, F); sig._quadRect(b, reg(PIN.dot), p[0], p[1], p[2], nx, nz, dotS, dotS, pm);
       let cu = Math.max(pu - PW / 2 + cW / 2 + 0.02, Math.min(pu + PW / 2 - cW / 2 - 0.02, u));
-      let cv = v + dotS * 0.5 + cH / 2 + 0.01; if (cv + cH / 2 > BH / 2 - 0.02) cv = v - dotS * 0.5 - cH / 2 - 0.01;
+      let cv = v + dotS * 0.5 + cH / 2 + 0.01; if (cv + cH / 2 > BH / 2 - 0.27) cv = v - dotS * 0.5 - cH / 2 - 0.01;       // v23: never over the plan's header
       p = at(cu, cv, F * 1.5); sig._quadRect(b, reg(PIN.callout), p[0], p[1], p[2], nx, nz, cW, cH, pm);
     }
     // row highlight + tab on the list

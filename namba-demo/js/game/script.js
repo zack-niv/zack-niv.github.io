@@ -46,6 +46,12 @@ export const DEMO = {
   seatsS: 480, trainS: 420,
   gatesPlace: 't:tp_nk_gate',      // v22: leg 2's second suggestion in the phone's list: Nankai Namba, Central Gate (a transit place in Maps)
   helpGap: 60, photoGap: 15,         // v22: Aya's "want me to look?" at most once per helpGap s; the 📸 button's cooldown
+  // v23: the stall ladder (story.js _ladderTick). Progress = the smallest nav distance to the CURRENT target seen so far (route metres,
+  // escalator metres weigh 0.7 and stair metres 1.6, so a floor change that the route needs counts as progress); it must improve by
+  // stallStepM to restart the window. No improvement for stallS s = a stall; messages at least stallS s apart. stallNowS: "stuck right now"
+  // for the seats / train warnings. stallNearM: this close to the target (by foot) she stays quiet. gatesAt: the Nankai Central Gate
+  // as a nav goal (the paid-side lane line is z = -70; this is the concourse side of it; same place as places.js tp_nk_gate).
+  stallS: 75, stallNowS: 30, stallNearM: 25, stallStepM: 15, gatesAt: ['3F', -16, -73],
 };
 // v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)
 export const LATTE_REFUSABLE = true;
@@ -110,6 +116,55 @@ export const AYA = {
   photoBlur: { id: 'photo_again', text: 'hmm that could be anywhere 😅 send one with a sign or a shop in it?',
     replies: [{ id: 'photo', text: '📸 Send another', photo: true }, { id: 'fine', text: 'I\'m good 👍' }] },
   photoGiveUp: 'lol ok I\'ll stop playing detective 😂 shout if you\'re stuck',
+  // v23: the mission arc never leaves a photo without an answer. A floor / ceiling / failed shot: say what to aim at, offer another go
+  // (no cap, no "I give up"). A shot with nothing readable in it (a plain wall or corridor): `head`, then the zone-level step from AYA.steps
+  // as its own text, so the step is the LAST bubble (the phone's thread shows only the newest bubble and a sliver of the one above it)
+  photoRetry: {
+    floor: 'that\'s the floor 😂 point it at a sign or a shop',
+    ceiling: 'that\'s the ceiling 😂 point it at a sign or a shop',
+    nocapture: 'hmm that didn\'t come through 😅 try again, aim at a sign or a shop',
+  },
+  photoCoarse: { head: 'no sign in that one 😅 aim at a sign or a shop name next time 📸' },
+  // v23 (stall ladder): Aya cannot see you. Her story: she looks at the friend-location dot, which indoors is good to the BUILDING and
+  // not the floor, so every step names the zone and covers the floors ("up on 3F? ..."). `at` finishes "your dot's ..."; `go` is the step
+  // (checked against the nav routes: Nankai 3F gates > escalators down to 2F > Nankai 2F walks straight into Namba CITY 2F > the Parks
+  // bridge on 2F > Parks 2F hall > Parks escalators 2F>3F>4F>5F>6F; the café is on Namba CITY 1F at the foot of the big escalators
+  // between CITY 2F and 1F; Nankai 1F walks straight into CITY 1F; NAMBAWALK (B1) reaches CITY through Takashimaya B1 and the underground
+  // passage, and reaches the street by the Midosuji stairs; the Nankai gates are only reached up the Nankai escalators 1F>2F>3F).
+  // Words match Maps (mapsteps.js): Central Gate, Namba CITY, Namba Parks, the Parks bridge, Nankai Line, escalator.
+  // `go` is ONE short text (60 characters at most): it is its own bubble (after the lead-in), and the phone's thread shows only about
+  // 3.5 lines of ~22 characters above the pinned place card, so a bubble over ~70 characters is clipped at the top
+  steps: {
+    dk: {
+      nankai: { at: 'around Nankai station', go: 'out the Central Gate, escalator down to 2F, then Namba CITY signs' },
+      city: { at: 'around Namba CITY', go: 'get to 2F, follow the Namba Parks signs. Parks is past CITY' },
+      walk: { at: 'down in NAMBAWALK', go: 'too low 😂 up into Namba CITY, to 2F, follow the Parks signs' },
+      street: { at: 'out on the street', go: 'go inside via Nankai station into CITY, then up to 2F' },
+      parks: { at: 'at Namba Parks', go: 'so close!! escalators to 6F, the noren with 天 on it' },
+      other: { at: 'somewhere in the complex', go: 'head for Namba CITY 2F, follow the Namba Parks signs' },
+    },
+    cafe: {
+      nankai: { at: 'around Nankai station', go: 'next door in Namba CITY: 2F, big escalators down to 1F ☕' },
+      city: { at: 'around Namba CITY', go: 'big escalators down to 1F, the café\'s at the bottom ☕' },
+      walk: { at: 'down in NAMBAWALK', go: 'too low 😂 into Namba CITY, up to 1F, big escalators ☕' },
+      street: { at: 'out on the street', go: 'come inside, Namba CITY 1F, by the big escalators ☕' },
+      parks: { at: 'at Namba Parks', go: 'wrong way 😂 down to 2F, over the bridge, escalators to 1F ☕' },
+      other: { at: 'somewhere in the complex', go: 'head for Namba CITY 1F, by the big escalators ☕' },
+    },
+    gates: {
+      nankai: { at: 'around Nankai station', go: 'escalators up to 3F, the Central Gate\'s right there 🏃' },
+      city: { at: 'around Namba CITY', go: 'back to 2F, Nankai Line signs, escalators up to 3F 🏃' },
+      walk: { at: 'down in NAMBAWALK', go: 'up to street level, into Nankai station, escalators to 3F 🏃' },
+      street: { at: 'out on the street', go: 'into Nankai station, escalators up to 3F, Central Gate 🏃' },
+      parks: { at: 'at Namba Parks', go: 'wrong way!! down to 2F, bridge, Nankai Line signs, up to 3F 🏃' },
+      other: { at: 'somewhere in the complex', go: 'back to Nankai station, the Central Gate is up on 3F 🏃' },
+    },
+  },
+  // v23: the lead-ins of an outright rescue, in rotation ({at} = steps[..].at). Every third rescue ends with `floorGuide`.
+  rescueLead: ['your dot: {at} 📍', 'ok your dot: {at} 📍', 'checking… your dot: {at} 📍', 'your dot again: {at} 📍'],
+  floorGuide: 'or find a floor guide board 🗺️',
+  // v23: appended (as a second text) to the seats-gone and, when you are stuck right then, to the 2-minute warnings
+  stepLead: 'your dot: {at} 📍',
   // v11 (item 2): light engagement in long quiet stretches while you walk (≤ 1 per DEMO.engageGap, never over a
   // question, never stacking). Before Lodestone, then after it. Each line once.
   engageBefore: ['take your time, it\'s a maze lol 😅', 'the line just moved!! 🍤 no rush tho', 'the guy in front of me ordered for 6 people 😭'],
@@ -177,7 +232,7 @@ export const AYA = {
   },
   // v22: Aya's offer to look at a photo (replaces the Lodestone offer); chips = the existing photo chip + "I'm good"
   help: {
-    lost: 'you\'re lost aren\'t you 😂 send me a pic of a sign or a shop 📸 I\'ll tell you where you are',
+    lost: 'you\'re lost aren\'t you 😂 send me a pic of a sign or a shop 📸',      // v23: was "...I\'ll tell you where you are" (4 lines: clipped in the thread)
     floors: 'the floors in CITY are a maze 😵 send me a pic of what\'s near you 📸',
     parks: 'almost! Parks is a canyon of terraces 😅 pic of where you are? 📸',
     behind: 'you\'re taking ages 😅 want me to look? send a pic 📸',

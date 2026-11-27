@@ -738,18 +738,6 @@ body:has(.g-pause:not([hidden])) .h-amb, body:has(.g-end) .h-amb { opacity: 0; }
   .h-m-t { font-size: 20px; } .h-m-l { font-size: 8.5px; } .h-mission.gone .h-m-t { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .h-mission.pulse { animation: none; } }
-/* the persistent photo button (Messages): same slot as the reply chips, so it never collides with the tutorial tip or the touch controls */
-.ms-snap { flex: 0 0 auto; display: flex; justify-content: flex-end; padding: 8px 12px 6px; border-top: 1px solid #f0f0f2; background: linear-gradient(180deg, rgba(248,248,250,.96), #fff); }
-.ms-snap-b { display: flex; align-items: center; gap: 8px; border: 1.5px solid #ff9f0a; background: #fff; color: #b25f00; border-radius: 18px; padding: 7px 14px 7px 8px; font: 600 13.5px/1.25 Inter, "Noto Sans JP", sans-serif; cursor: pointer; transition: background .15s, color .15s, opacity .2s, transform .1s; }
-.ms-snap-b:hover, .ms-snap-b:focus-visible { background: #ff9f0a; color: #fff; outline: 0; }
-.ms-snap-b:active { transform: scale(.97); }
-.ms-snap-b kbd { display: grid; place-items: center; width: 19px; height: 19px; border-radius: 6px; background: rgba(255,159,10,.16); color: #b25f00; font: 800 11px/1 Inter, sans-serif; }
-.ms-snap-b.wait { opacity: .5; cursor: default; border-style: dashed; }
-.ms-snap-b.wait:hover { background: #fff; color: #b25f00; }
-#phone-root.ph-land .ms-snap { padding: 8px 10px 4px; border-radius: 16px 16px 0 0; }
-html.is-touch #phone-root .ms-snap-b { min-height: 44px; font-size: 15px; background: #ff9f0a; color: #fff; padding: 9px 18px; }
-html.is-touch #phone-root .ms-snap-b.wait { background: #f3c27a; }
-html.is-touch #phone-root.ph-compact .ms-snap-b { min-height: 58px; padding: 10px 20px; font-size: 17px; border-radius: 24px; }
 /* v22 amendment 2: the live score under the clock (fixed width, tabular numbers: no layout shift) and the bonus pop */
 .h-m-s { min-width: 5.2ch; text-align: center; font: 600 12.5px/1 var(--g-sans); color: var(--g-ink); opacity: .82; letter-spacing: .02em; }
 .h-m-s:empty { display: block; }

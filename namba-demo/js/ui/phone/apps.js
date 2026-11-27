@@ -105,7 +105,7 @@ export class MessagesApp {
     // tap (or Enter / Space on the focused button) on the Lodestone link card, or on a reply chip
     root.addEventListener('click', (e) => {
       if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
-      const pl = e.target.closest('.ms-place'); if (pl) { this.phone.openPlace(pl.dataset.id); return; }
+      const pl = e.target.closest('.ms-place'); if (pl) { this._pinSeen = pl.dataset.id; this.phone.openPlace(pl.dataset.id); this._syncPin(); return; }
       const c = e.target.closest('.ms-chip'); if (c) { this.reply(+c.dataset.i); return; }
       if (e.target.closest('.ms-cam')) this.snap();      // v23: the camera button
     });
@@ -233,6 +233,7 @@ export class MessagesApp {
       else { const b = this.root.querySelector('.ms-cam'); if (b) { b.dataset.s = c.s; b.style.setProperty('--p', c.p.toFixed(2)); b.setAttribute('aria-disabled', c.s !== 'ready'); } }
     }
     if (this._pulsePending && this.phone.isOpen && this.phone.app === 'messages') this._pulseCam();
+    this._pinC = (this._pinC || 0) - dt; if (this._pinC <= 0) { this._pinC = 0.5; if (this.phone.isOpen && this.phone.app === 'messages') this._syncPin(); }
     if (this._typT > 0) { this._typT -= dt; if (this._typT <= 0 && this.typingFrom) { this.typingFrom = null; this._renderTyping(); } }
   }
   // the camera button pulses once, the first time the thread is on screen after Aya's "send me a pic" line
@@ -289,11 +290,33 @@ export class MessagesApp {
   // v9.1: keep the newest message in view. Pinning once at render is not enough: the reply tray slides in (0.35 s) and
   // place-card thumbnails load late, and both change the list's height after the fact, which hid the newest text
   // behind the chips (Zack's screenshot). Re-pin after the next frame, after the tray animation, and on image loads.
+  // v23: the thread ends fully visible after every change that adds height: a photo bubble, the typing bubble coming and going, Aya's
+  // link card. Pin now, after the next two frames (layout and the bubble / tray animations have settled), after the 0.35 s tray and on
+  // every image load (photo bubbles and card tiles decode late).
   _pin() {
     const s = this.root.querySelector('.ms-list'); if (!s) return;
-    const go = () => { s.scrollTop = s.scrollHeight; };
-    go(); requestAnimationFrame(go); clearTimeout(this._pinT); this._pinT = setTimeout(go, 420);
-    s.querySelectorAll('img').forEach(i => { if (!i.complete) i.addEventListener('load', go, { once: true }); });
+    const go = () => { s.scrollTop = s.scrollHeight; this._syncPin(); };
+    go(); requestAnimationFrame(() => { go(); requestAnimationFrame(go); }); clearTimeout(this._pinT); this._pinT = setTimeout(go, 420);
+    s.querySelectorAll('img').forEach(i => { if (!i.complete || !i.naturalWidth) { i.addEventListener('load', go, { once: true }); i.addEventListener('error', go, { once: true }); } });
+  }
+  // v23 integration: Aya's link card (the Maps pick) sits in the thread, and her next texts scroll it out of sight, so a first-time
+  // player never saw "tap my link" (the tutorial's ghost thumb had nothing on screen to land on). While a link waits and no
+  // destination is picked, a compact copy of the card is docked above the reply pills / input row whenever the real card is not
+  // (mostly) visible in the thread. It is the same .ms-place button: a tap opens the place in Maps; the thumb points at the last one.
+  _syncPin() {
+    const pin = this.root.querySelector('.ms-pinrow'), list = this.root.querySelector('.ms-list');
+    if (!pin || !list) return;
+    const lr = list.getBoundingClientRect(); if (!lr.height) return;           // (the view is hidden: leave it as it is)
+    const id = this.lastPlace, d = this.phone.destination;
+    let show = false;
+    if (id && id !== this._pinSeen && !(d && !d.arrived)) {            // (once the player has tapped it, it has done its job)
+      const cards = list.querySelectorAll('.ms-place'), el = cards[cards.length - 1];
+      if (el) { const r = el.getBoundingClientRect(), vis = Math.min(r.bottom, lr.bottom) - Math.max(r.top, lr.top); show = !(vis >= r.height * 0.7); }
+    }
+    if (show) {
+      if (pin.dataset.id !== id || pin.hidden) { pin.innerHTML = this._placeCard(id, false); pin.dataset.id = id; }
+      if (pin.hidden) { pin.hidden = false; list.scrollTop = list.scrollHeight; }
+    } else if (!pin.hidden) { pin.hidden = true; pin.dataset.id = ''; }
   }
   _typingHtml() { return this.typingFrom ? `<div class="ms-b ms-typing" aria-label="${esc(this.typingFrom)} is typing"><p><i></i><i></i><i></i></p></div>` : ''; }
   _renderTyping() {
@@ -302,7 +325,7 @@ export class MessagesApp {
     if (this.typingFrom) list.insertAdjacentHTML('beforeend', this._typingHtml());
     const sm = this.root.querySelector('.ms-h small'); if (sm) sm.textContent = this.typingFrom ? 'typing…' : 'Osaka · usually replies fast';
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
-    list.scrollTop = list.scrollHeight;
+    this._pin();
   }
   render(sentNow) {
     const last = this.msgs.length - 1;
@@ -316,11 +339,13 @@ export class MessagesApp {
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
       <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>
+      <div class="ms-pinrow" hidden></div>
       ${this._chips()}
       <div class="ms-in">${this._camHtml()}<div class="ms-field"><span>iMessage</span><i>↑</i></div></div>`;
     this.root.classList.toggle('ms-has-replies', !!this.pending);
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
     this._pin();
+    const lst = this.root.querySelector('.ms-list'); if (lst) lst.addEventListener('scroll', () => this._syncPin(), { passive: true });
     // v23: the tapped pill flies into the thread and turns into the blue bubble (FLIP: from the pill's rect to the bubble's)
     if (sentNow && this._flyFrom && !reduceMotion()) {
       const p = this.root.querySelector('.ms-b.me.ms-sent:not(.ms-photo) p'), list = this.root.querySelector('.ms-list');

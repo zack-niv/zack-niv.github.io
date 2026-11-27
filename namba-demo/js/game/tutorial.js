@@ -191,6 +191,13 @@ export class Tutorial {
 // the on-screen control a touch hint is about ({ sel, last }: the last match = the newest message card), or null
 function touchTarget(id, h, ph, up) {
   const at = h.at;
+  // v23: a hint that is about SENDING AYA A PHOTO points at the camera button (.ms-cam) while Messages is open, at the Messages dock icon
+  // while another app is open, and at the phone button while the phone is down. (Recognised by the step id, a h.target of 'camera', or the
+  // words pic / photo / camera in the line; no line is drawn while the labelled control is on screen: see _touchCoach.)
+  if (/^(snap|photo|pic|camera)($|[^a-z])/i.test(String(id || '')) || h.target === 'camera' || /\b(pic|photo|camera)\b/i.test(String(h.html || ''))) {
+    if (!up || !ph) return { sel: '#touch-ui .tu-phone' };
+    return ph.app === 'messages' ? { sel: `#phone-root .ph-view[data-v="messages"] .ms-cam` } : { sel: '#phone-root .ph-dock [data-app="messages"]' };
+  }
   if (at === 'phone' && !up) return { sel: '#touch-ui .tu-phone' };
   if (at === 'prompt') return { sel: '#touch-ui.has-use .tu-use' };
   if (!up || !ph) return null;

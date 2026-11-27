@@ -70,6 +70,14 @@ export class Glance {
   _info() {
     const ph = this.phone;
     if (this.note) return { kind: 'note', cls: 'gl-note', title: this.note.title, sub: this.note.text };
+    // v23: once the run is over (the train made or missed: the end card) the phone says nothing about the mission any more: the quiet
+    // pill (the clock and the unread dot are all that is left). The "You've arrived" card is for the lunch beat only: leg 2 (back to the
+    // gates) starts when the beat ends, and from then on the strip is the Maps hint again.
+    const G = this.ctx.game, dm = G && G.demo, st0 = G && G.story;
+    if (dm && !(st0 && st0.classic)) {
+      if (dm.finished) { this.finale = null; return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' }; }
+      if (this.finale && !dm.beat) this.finale = null;
+    }
     if (this.finale) return { kind: 'arr', cls: ph.upgradeStage === 'ready' ? 'gl-ld' : 'gl-mp', icon: 'check', title: 'You’ve arrived', sub: this.finale };
     const st = ph.upgradeStage;
     if (st === 'installing' || st === 'calibrating') {

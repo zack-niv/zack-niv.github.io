@@ -87,7 +87,6 @@
 .mp { background: #ebe8e1; color: #202124; }
 .mp-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .mp-canvas:active { cursor: grabbing; }
-.mp-top { position: absolute; top: 50px; left: 10px; right: 10px; z-index: 6; }
 .mp-search { height: 44px; border-radius: 22px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.05); display: flex; align-items: center; padding: 0 6px 0 14px; gap: 8px; }
 .mp-s-ico { width: 18px; height: 18px; fill: none; stroke: #5f6368; stroke-width: 2.2; stroke-linecap: round; flex: 0 0 auto; }
 .mp-search input { flex: 1; min-width: 0; border: 0; outline: 0; font: 500 15px Inter, "Noto Sans JP", sans-serif; color: #202124; background: none; pointer-events: auto; -webkit-user-select: text; user-select: text; }
@@ -105,14 +104,7 @@
 .mp-sugg-i:hover { background: #f6f7f8; }
 .mp-sugg-i b { display: block; font-weight: 600; font-size: 13.5px; } .mp-sugg-i small { display: block; color: #70757a; font-size: 11px; }
 .mp-sugg-ic { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; color: #70757a; }
-.mp-banner { position: absolute; top: 50px; left: 10px; right: 10px; z-index: 7; min-height: 64px; border-radius: 16px; background: #0f7a4f; color: #fff; display: flex; align-items: center; gap: 12px; padding: 10px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
-.mp-banner b { display: block; font-size: 16px; font-weight: 700; line-height: 1.2; } .mp-banner small { display: block; font-size: 12px; opacity: .85; margin-top: 2px; }
-.mp-bn-ic { font-size: 30px; width: 34px; text-align: center; }
 .mp-spin { animation: mpSpin 1s linear infinite; } @keyframes mpSpin { to { transform: rotate(360deg); } }
-.mp-banner:not([hidden]) ~ .mp-top { display: none; }
-.mp-floorchip { position: absolute; top: 140px; left: 10px; z-index: 5; font-size: 11.5px; background: rgba(255,255,255,.95); border-radius: 12px; padding: 5px 10px; box-shadow: 0 1px 5px rgba(0,0,0,.15); color: #3c4043; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mp-floorchip b { color: #1a73e8; font-weight: 800; }
-.mp-floorchip.other { background: #1c2a3a; color: #fff; } .mp-floorchip.other b { color: #8ab4f8; }
 .mp-ctrls { position: absolute; right: 10px; top: 140px; z-index: 5; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .mp-floors { display: flex; flex-direction: column; background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.2); overflow-y: auto; max-height: 214px; scrollbar-width: none; width: 40px; }
 .mp-floors::-webkit-scrollbar { display: none; }
@@ -123,15 +115,8 @@
 .mp-btn svg { width: 22px; height: 22px; }
 .mp-locate svg { fill: #1a73e8; }
 .mp-compass.on { box-shadow: 0 0 0 2px #1a73e8, 0 1px 6px rgba(0,0,0,.22); }
-.mp-scale { position: absolute; left: 12px; z-index: 4; bottom: 222px; font: 600 10px Inter, sans-serif; color: #3c4043; display: flex; align-items: center; gap: 5px; pointer-events: none; }
-.mp-scale i { display: block; height: 5px; border: 1.5px solid #3c4043; border-top: 0; }
-.mp-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: #fff; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.14); max-height: 46%; display: flex; flex-direction: column; transition: max-height .3s cubic-bezier(.2,.8,.2,1); padding-bottom: 22px; }
-.mp-sheet.mp-full { max-height: 74%; }
-.mp-sheet.mp-home { max-height: 120px; }
-.mp-sheet.mp-home ~ .mp-scale, .mp-scale { bottom: 130px; }
 .mp-grab { flex: 0 0 auto; height: 16px; cursor: pointer; position: relative; }
 .mp-grab::after { content: ''; position: absolute; left: 50%; top: 6px; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #dadce0; }
-.mp-sheet-in { flex: 1; overflow-y: auto; padding: 0 14px 6px; scrollbar-width: thin; position: relative; }
 .mp-home-t { font-size: 18px; font-weight: 700; }
 .mp-home-s { font-size: 12.5px; color: #5f6368; margin-top: 1px; }
 .mp-home-acc { margin-top: 7px; font-size: 11.5px; color: #5f6368; display: flex; align-items: center; gap: 6px; }
@@ -353,9 +338,6 @@
 @keyframes ldLinkPulse { 50% { box-shadow: 0 4px 22px rgba(255,138,31,.45), inset 0 0 0 1.5px rgba(255,176,46,.8); } }
 .ms-b:has(.ms-link) { max-width: 88%; }
 
-.mp-gpswarn { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); z-index: 6; white-space: nowrap; background: #fff4d6; color: #7a4b00; font: 600 11.5px Inter, sans-serif; padding: 5px 12px 5px 10px; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.2); }
-.mp-gpswarn::before { content: '⚠'; margin-right: 6px; }
-.mp-banner:not([hidden]) ~ .mp-gpswarn { display: none; }
 .mp-compass-cal { position: absolute; left: 14px; right: 14px; bottom: 150px; z-index: 12; display: flex; align-items: center; gap: 12px; background: rgba(32,33,36,.94); color: #fff; padding: 12px 14px; border-radius: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.4); animation: phDrop .35s cubic-bezier(.2,.9,.3,1.2); }
 .mp-compass-cal b { display: block; font-size: 13.5px; } .mp-compass-cal small { font-size: 11.5px; opacity: .75; }
 .mp-cc-8 { flex: 0 0 44px; height: 44px; position: relative; }
@@ -412,13 +394,8 @@
 /* =============================================================================
    v2 — Maps: cleaner chrome (still the generic app)
    ============================================================================= */
-.mp-chips, .mp-scale, .mp-compass { display: none !important; }
-.mp-floorchip { top: 102px; font-size: 13px; padding: 6px 11px; border-radius: 14px; max-width: 200px; }
+.mp-chips, .mp-compass { display: none !important; }
 .mp-ctrls { top: 102px; }
-.mp-gpswarn { top: 138px; left: 10px; transform: none; font-size: 12px; }
-.mp-banner { min-height: 76px; border-radius: 20px; padding: 12px 16px; }
-.mp-banner b { font-size: 19px; line-height: 1.18; } .mp-banner small { font-size: 13px; }
-.mp-sheet.mp-home { max-height: 210px; }
 .mp-home { padding: 2px 0 4px; }
 .mp-here { display: flex; align-items: center; gap: 11px; }
 .mp-here-dot { flex: 0 0 14px; height: 14px; border-radius: 50%; background: #9aa0a6; box-shadow: 0 0 0 4px rgba(154,160,166,.25); }
@@ -565,9 +542,6 @@
 .ld .ld-sheet { bottom: 96px; }
 .ld-ctl { bottom: 302px; }
 .ld-main .ld-card:not(.big) { bottom: 288px; }
-.mp-sheet { padding-bottom: 92px; }
-.mp-sheet.mp-home { max-height: 286px; }
-.mp-sheet.mp-full { max-height: 82%; }
 .mp-compass-cal { bottom: 200px; }
 .tr { padding-bottom: 100px; }
 .nt { padding-bottom: 100px; overflow-y: auto; }
@@ -684,10 +658,8 @@
 .dl.kb .dl-r.sel { box-shadow: inset 0 0 0 2px #1a73e8; }
 .dl.kb.dl-lodestone .dl-r.sel { box-shadow: inset 0 0 0 2px #ffb02e; }
 .dl-maps .mp-open { color: #188038; } .dl-maps .mp-closed { color: #c5221f; }
-.mp-sheet.mp-home.mp-full { max-height: 66%; }
 .mp-home .mp-here { margin-bottom: 10px; }
 .mp-home .mp-here b { font-size: 15px; } .mp-home .mp-here small { font-size: 11.5px; }
-.mp-sheet.mp-results .mp-dl { margin: 2px -6px 0; }
 .mp-arr { display: flex; align-items: center; gap: 11px; margin: 0 0 10px; }
 .mp-arr > i { flex: 0 0 30px; height: 30px; border-radius: 50%; background: #188038; color: #fff; display: grid; place-items: center; font: 800 16px/1 Inter, sans-serif; font-style: normal; }
 .mp-arr b { display: block; font-size: 16px; font-weight: 750; } .mp-arr small { display: block; font-size: 12px; color: #5f6368; }
@@ -898,13 +870,7 @@
 
 /* ---- Maps: the map pane + the side panel (search on top, the sheet under it, full height) ---------------- */
 #phone-root.ph-land .mp-canvas { width: calc(100% - var(--side)); }
-#phone-root.ph-land .mp-top, #phone-root.ph-land .mp-banner { top: 8px; left: auto; right: var(--rail); width: var(--pan); }
-#phone-root.ph-land .mp-sheet, #phone-root.ph-land .mp-sheet.mp-home, #phone-root.ph-land .mp-sheet.mp-full, #phone-root.ph-land .mp-sheet.mp-home.mp-full {
-  top: 60px; bottom: 8px; left: auto; right: var(--rail); width: var(--pan); max-height: none; padding: 10px 0 6px; border-radius: 20px; box-shadow: 0 4px 22px rgba(0,0,0,.16); }
-#phone-root.ph-land .mp-banner:not([hidden]) ~ .mp-sheet { top: 96px; }
 #phone-root.ph-land .mp-grab { display: none; }
-#phone-root.ph-land .mp-floorchip { top: 8px; left: var(--isl); max-width: 190px; }
-#phone-root.ph-land .mp-gpswarn { top: 44px; left: var(--isl); }
 #phone-root.ph-land .mp-ctrls { top: 8px; right: calc(var(--side) + 8px); }
 #phone-root.ph-land .mp-floors { max-height: 250px; }
 #phone-root.ph-land .mp-compass-cal { left: var(--isl); right: calc(var(--side) + 8px); bottom: 10px; padding: 9px 12px; gap: 10px; }
@@ -1121,7 +1087,7 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
   background:
     linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
     linear-gradient(180deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
-.cam-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 7px 14px; border-radius: 16px; background: rgba(10,10,12,.62); color: #fff; font: 600 14px/1.2 Inter, sans-serif; white-space: nowrap; animation: camHint .4s ease-out; }
+.cam-hint { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); padding: 7px 14px; border-radius: 16px; background: rgba(10,10,12,.62); color: #fff; font: 600 14px/1.2 Inter, sans-serif; white-space: nowrap; animation: camHint .4s ease-out; }
 @keyframes camHint { from { opacity: 0; transform: translate(-50%, 8px); } }
 .cam-shutter { position: absolute; right: calc(26px + env(safe-area-inset-right, 0px)); top: 50%; width: 72px; height: 72px; margin: -36px 0 0; padding: 0; border: 4px solid #fff; border-radius: 50%; background: rgba(0,0,0,.12); box-shadow: 0 2px 14px rgba(0,0,0,.5); pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .cam-shutter i { position: absolute; inset: 5px; border-radius: 50%; background: #fff; transition: transform .08s; }
@@ -1293,15 +1259,44 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 .mq-me[hidden] { display: none; }
 .mq-gps { position: absolute; z-index: 5; left: 50%; bottom: calc(var(--mq-insb, 44px) + 8px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 96px); min-height: 46px; padding: 1px 12px 1px 1px; border: 0; border-radius: 24px; background: rgba(255,255,255,.94); box-shadow: 0 1px 6px rgba(0,0,0,.24); color: #1558b8; font-family: Inter, "Noto Sans JP", sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .35s, box-shadow .35s; }
 .mq-gps[hidden] { display: none; }
+.mq .mq-gps svg, .mq .mq-gps svg * { stroke: none; }
 .mq-gps svg { display: block; flex: 0 0 44px; width: 44px; height: 44px; margin: 1px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.28)); overflow: visible; }
 .mq-gps .t { position: relative; display: grid; min-width: 0; }
 .mq-gps .full, .mq-gps .cap { grid-area: 1 / 1; transition: opacity .35s; white-space: nowrap; font: 700 12px/1.25 Inter, "Noto Sans JP", sans-serif; }
 .mq-gps .full { display: flex; flex-direction: column; }
 .mq-gps .full b { font-weight: 800; color: #1558b8; }
 .mq-gps .full span { font-weight: 650; color: #3c4043; }
-.mq-gps.lab .cap, .mq-gps:not(.lab) .full { opacity: 0; pointer-events: none; }
+.mq-gps.lab .cap, .mq-gps:not(.lab) .full { opacity: 0; pointer-events: none; position: absolute; left: 0; top: 0; }
 /* collapsed: the pill drops its fill and keeps a small caption chip; the wedge's own disc stays white */
 .mq-gps:not(.lab) { padding-right: 4px; background: rgba(255,255,255,0); box-shadow: none; }
 .mq-gps:not(.lab) .cap { align-self: center; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.92); color: #5f6368; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
-.mq-has-panel:not(.mq-p-place-on) .mq-gps { display: none; }
+.mq-has-panel .mq-gps { display: none; }
 @media (prefers-reduced-motion: reduce) { .mq-gps, .mq-gps .full, .mq-gps .cap { transition: none; } }
+/* the floor strip: all ten floors (B2 .. 8F) share the width (30 px min: they all fit a 300 px box), so the viewed, destination and last-known floors are on screen together */
+.mq-strip button { flex: 1 1 0; min-width: 30px; }
+.mq-strip .dot { left: 4px; top: 6px; }
+.mq-strip em { right: 1px; }
+/* Maps: nothing under 12 px (the floor chip, the destination rows, the place card, the step list) */
+.mq .mq-fl, .mq .mq-rt-t small, .mq .mq-aya .a, .mq .mq-aya small, .mq .mq-sugg-h, .mq .mq-sugg-i small, .mq .mq-here small, .mq .mq-offline, .mq .mq-rt-from, .mq .mq-step .tx small,
+.mq .dl-m small, .mq .dl-d, .mq .dl-aya, .mq .dl-hint, .mq .dl-s kbd, .mq .dl-r kbd, .mq .dl-next em, .mq .dl-next small, .mq .dl-next kbd, .mq .mp-fl, .mq .mp-st, .mq .mp-st u, .mq .mp-stars,
+.mq .mp-open, .mq .mp-closed, .mq .mp-lb.square, .mq .mp-r-m small, .mq .mp-r-meta, .mq .mp-pop-l, .mq .mp-rev-h small, .mq .mp-rev-h i, .mq .mp-trip-t small, .mq .mp-fine, .mq .mp-chip-m,
+.mq .mp-actions .mp-k, .mq .mq-home-s, .mq .mq-here-s, .mq small { font-size: 12px; }
+.mq .mp-pop-l span, .mq .mp-pop-l, .mq .mp-pop small, .mq .mp-rev-h small, .mq .mp-pop-l i { font-size: 12px; }
+/* ---- Messages: reply pills size to their text and sit side by side when they fit (wrap otherwise); the block takes at most
+   40 % of the view height and scrolls inside beyond that, so Aya's last message always stays on screen ---- */
+#phone-root#phone-root .ms-replies { justify-content: center; align-items: flex-start; align-content: flex-start; gap: 8px; max-height: calc(var(--ph-view-h, 534px) * .4); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scrollbar-width: thin; }
+#phone-root#phone-root .ms-replies .ms-chip { flex: 0 1 auto; width: auto; max-width: 100%; min-height: 40px; }
+/* in the touch phone's small box the input row steps aside while pills are showing (the camera is disabled then anyway), so the thread keeps room for Aya's last message and its card */
+#phone-root.ph-flat .ms-has-replies .ms-in { display: none; }
+#phone-root.ph-flat#phone-root .ms-has-replies .ms-replies { padding-bottom: 8px; }
+/* Aya's link card, docked above the pills / input row while it is out of sight in the thread (apps.js _syncPin) */
+.ms-pinrow { flex: 0 0 auto; padding: 5px 10px 5px; background: #fff; border-top: 1px solid #ececef; }
+.ms-pinrow[hidden] { display: none; }
+.ms-pinrow .ms-place { margin: 0; border-radius: 14px; box-shadow: 0 0 0 1.5px #0a84ff, 0 2px 8px rgba(10,132,255,.22); }
+.ms-pinrow .ms-p-ph { flex-basis: 48px; width: 48px; min-height: 48px; }
+.ms-pinrow .ms-p-t { padding-top: 4px; padding-bottom: 4px; }
+.ms-pinrow .ms-p-t small { display: none; }
+.ms-pinrow .ms-p-t em { margin-top: 1px; font-size: 12px; }
+.ms-pinrow .ms-p-t em kbd { display: none; }
+/* camera mode: the tutorial's ghost thumb (it points at the phone button) stays out of the viewfinder */
+html:has(#phone-root.ph-cam-on) .tu-point { opacity: 0 !important; }

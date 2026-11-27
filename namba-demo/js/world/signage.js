@@ -115,7 +115,7 @@ const WAY_SIGNS = [
   // 3F concourse after the Central Gate: towards the escalator down (and the way back to the gate)
   { level: '3F', x: -9, z: -75, nx: 0, nz: 1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya', 'midosuji', 'sennichimae'], back: [_NKG], lm: 'the big overhead sign' },
   { level: '3F', x: 2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
-  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },      // back face: read by people riding UP to the concourse
+  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], lm: 'the big overhead sign' },
   // Nankai 2F hall: towards the corridor
   { level: '2F', x: 1.5, z: -62, nx: 0, nz: -1, op: 'metro', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
   // Parks: 2F entrance approach, landings (up signs read walking south->north, down signs the other way), 6F arrival
@@ -994,6 +994,8 @@ export class Signage {
       }
       // draw each face
       for (const f of s.faces) {
+        // v23: a way sign's face with nothing to say is not drawn at all (the back of a light box), never a blank panel
+        if (s.kind === 'way' && !(f.blocks || []).length) { f.rect = null; continue; }
         const isGuide = s.kind === 'guide';
         const ppm = isGuide ? this.GPPM : P;
         const wpx = s.kind === 'totem' ? s.w * ppm : Math.round(s.w * ppm), hpx = Math.round(s.h * ppm);

@@ -21,6 +21,9 @@
 // Words in script.js (AYA, UPGRADE, TUTORIAL); measurements in demo.js.
 // v22: NO Lodestone (unless ?lodestone = this.classic, the old arc untouched). Leg 1 LUNCH (seats clock) → lunch beat → leg 2 TRAIN (train clock,
 //   optional coffee, finish = a Nankai gate tap), scored in points (mission.js). Every old _offer(why) funnels into _help(why): Aya offers to read a photo.
+// v23 (story): the game never leaves a player silently lost, and every photo earns an answer. _ladderTick: no progress toward the CURRENT target for
+//   DEMO.stallS s = a stall; stall 1 is the photo offer, stall 2 and on are outright zone-level steps (AYA.steps, read off her "friend dot").
+//   A photo with nothing readable in it gets the same step (coarse), a floor / ceiling shot a retry line, with no cap. Mission arc only.
 // v9 (notes/v9-progression.md): every beat is gated on the conversation + whereabouts + time, never time alone.
 //   HELLO? ─reply─► MEET? (On my way / Which way??) ─► LATTE? (Sure / Not today) — each waits for its answer, Aya
 //   nudges ("hello?? 👀") and then follows up naturally (aya.js patience). The latte is asked only if the player is
@@ -62,6 +65,8 @@ export class Story {
     this.errand = { slot: cb ? DEMO.coffeeSlot : null, biz: cb, name: cb ? cb.en : 'the café', state: 'none', got: null, at: null };
     this.f.picked = false; this.f.picks = 0; this.f.pick2 = false; this.f.atCafe = false;
     this.suggested = null; this._reacted = false; this._leg2 = false;
+    // v23: the stall ladder (see _ladderTick). A fresh Story (a crash resume builds one) always starts with a clean ladder
+    this._stall = { key: null, best: Infinity, tBest: 0, n: 0 }; this._stallT = -1e9; this._lk = 0; this._fields = {}; this._zoneLast = null; this._viaBtn = false;
   }
   // the phone's destination list (v4 contract) — feature-detected, v3 behaviour without it
   get dests() { const p = this.ctx.phone; return !!(p && typeof p.suggest === 'function'); }
@@ -357,12 +362,13 @@ export class Story {
     this.tut.update(dt);
     this._gatePulse();
     this._missionTick();
+    this._ladderTick(dt);
 
     this._tick -= dt;
     if (this._tick > 0) return;
     this._tick = 0.5;
     if (!this._free()) return;
-    if (!this.classic && this.mission.leg === 2) { this._leg2Help(); return; }      // v22: leg 2 has its own, quieter conversation
+    if (!this.classic && this.mission.leg === 2) return;      // v22: leg 2 has its own, quieter conversation (v23: its help is the stall ladder, _ladderTick)
     // the phone buzzes once you have had a look and a few steps (or after a few seconds anyway)
     if (this.helloT == null && (this.tut.isDone('move') || this.t >= this.tHold + 8)) {
       if (!this.tut.isDone('move')) this._timer('hello-start', { moving: false });   // only a player who hasn't moved
@@ -403,6 +409,7 @@ export class Story {
     const leg = d.legState ? d.legState() : null, key = leg && leg.key === 'cafe' ? 'cafe' : 'dk';
     const n = this._checkins[key] || 0;
     if (n >= DEMO.checkinsPerLeg || (this._lastCheckT != null && t - this._lastCheckT < DEMO.checkinGap)) return;
+    if (t - this._stallT < 20) return;      // v23: never within 20 s of a stall message (the ladder holds the same gap the other way)
     const E = this.errand;
     if (E.at != null && t - E.at < DEMO.orderCool) return;
     if (this.engaged === 'early') return;              // she already knows ("Which way?? 😵"): the early offer handles it
@@ -414,11 +421,15 @@ export class Story {
     const rem = d.targetRem ? d.targetRem() : null;
     const kind = why ? (why === 'far' ? 'away' : why) : leg && leg.behind && !(rem != null && rem < 25) ? 'behind' : null;
     if (!kind) return;
+    // v23: a plain stall is the ladder's job now (photo offer, then outright steps); a check-in question here only queued two more
+    // questions (nudge, timeout, a second photo offer) in front of it. Wrong floor / walked away / behind keep their check-ins.
+    if (!this.classic && kind === 'stalled') return;
     const C = AYA.checkin, p = this.ctx.player.body;
     const text = kind === 'floor' ? C.floor[key].replace('{lvl}', p.level)
       : kind === 'stalled' ? (this._atStation() ? C.stalledStation : C.stalled[key])
       : kind === 'away' ? C.away[key] : C.behind[key];
     this._checkins[key] = n + 1; this._lastCheckT = t;
+    if (!this.classic) this._stall.tBest = t;      // v23: she just talked to you about it: the stall window restarts
     const id = this._wseq ? `where_${this._wseq + 1}` : 'where';
     this._wseq = (this._wseq || 0) + 1;
     this.whereWhy = kind;
@@ -526,8 +537,18 @@ export class Story {
     const aya = this.aya, sc = this._photoOk === false ? { ok: false, why: 'nocapture' } : this._photoScene();
     const p = this.ctx.player.body, sp = this._space();
     const follow = () => { if (!this.classic) return; if (fromCheckin) { if (this.t >= this.demo._offerMin) this._offer('photo'); else this.engaged = this.engaged || 'checkin'; } };
+    const via = this._viaBtn ? 'button' : 'chip';
     if (!sc.ok) {
       this._blurs = (this._blurs || 0) + 1;
+      // v23: the mission arc never leaves a photo without an answer (no cap, no "I give up")
+      if (!this.classic) {
+        if (sc.why === 'plain') { this._coarsePhoto(sc, via); return; }
+        this._beat('spot', 'blur-' + sc.why);
+        this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: false, coarse: false, why: sc.why, via, space: sp, level: p.level, pitch: +(this.ctx.player.pitch || 0).toFixed(2) });
+        aya.say(Object.assign({}, AYA.photoBlur, { id: `photo_again_${this._blurs}`, text: AYA.photoRetry[sc.why] || AYA.photoRetry.nocapture }), { wait: 1.2, typing: 1.4, patience: [null, 30],
+          onReply: (r, reply) => { if (reply && reply.photo) this._photoReply(fromCheckin); else aya.say(AYA.photoFine, { wait: 0.6 }); } });
+        return;
+      }
       this._beat('spot', 'blur-' + sc.why);
       this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: false, why: sc.why, space: sp, level: p.level, pitch: +(this.ctx.player.pitch || 0).toFixed(2) });
       if (this._blurs >= 2) { aya.say(AYA.photoGiveUp, { wait: 1.4, typing: 1.6 }); follow(); return; }
@@ -539,8 +560,9 @@ export class Story {
     const text = (sc.fg ? 'oh nice, the floor guide 🗺️ ' : '') + this._spot(sc);
     if (this.mission.leg) this.mission.hints++;      // v22: a photo she could read
     this._beat('spot', sc.lm || sc.zone);
-    this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: true, lm: sc.lm, zone: sc.zone, space: sp, level: p.level, text });
+    this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: true, coarse: false, lm: sc.lm, zone: sc.zone, via, space: sp, level: p.level, text });
     aya.say(text, { wait: 1.6, typing: 1.8 });
+    if (!this.classic) this._stall.tBest = this.t;      // v23: she told you where to go: the stall window restarts
     follow();
   }
   // the camera at capture: pitch (floor / ceiling = nothing), then the most specific landmark within ~22 m inside the
@@ -574,6 +596,8 @@ export class Story {
         // readable side: the viewer must be on the side the sign faces (face 1 normal; way signs read from both sides)
         const side = -(dx * s.nx + dz * s.nz) / d;
         if (isBoard ? side < 0.3 : Math.abs(side) < 0.3) continue;
+        // a way sign counts from a side only when that face is drawn (a sign with nothing to say that way is a plain light box)
+        if (isWay) { const fc = s.faces && s.faces[side > 0 ? 0 : 1]; if (!(fc && fc.rect)) continue; }
         if (d >= 1.5 && (dx * f.x + dz * f.z) / d <= 0.82) continue;
         const eff = isBoard ? d * 0.6 : d;
         if (eff < fgd) { fgd = eff; bestFg = s; }
@@ -757,6 +781,15 @@ export class Story {
     const f = this._mf; if (f[k]) return; f[k] = 1;
     if (ev) this.ctx.events.emit(ev, this.mission);
     if (text) this.aya.say(text, { keepOpen: true, wait: 0.4, stale: () => this.demo.over });
+    // v23: "they gave our seats away" is followed by how to get there; the 2-minute warnings add it when you are stuck right now
+    if (text && (k === 'sl' || ((k === 'sw' || k === 'tw') && this._stuckNow()))) {
+      const key = this._target(), step = this._stepFor(key, this._zoneKey());
+      if (step && !this._nearTarget()) {
+        this._stallT = this.t;
+        this.ctx.events.emit('story:rescue', { t: +this.t.toFixed(1), n: this._stall.n, zone: this._zoneKey(), target: key, rem: this._remRound(), via: k === 'sl' ? 'seatsLost' : k === 'sw' ? 'seatsWarn' : 'trainWarn' });
+        this._sayAll(this._stepBubbles(step, AYA.stepLead), { keepOpen: true, wait: 1.4, typing: 1.2, stale: () => this.demo.over });
+      }
+    }
   }
   _missionTick() {
     const m = this.mission, d = this.demo, M = AYA.mission; if (!m.leg || m.leg > 2 || d.over) return;
@@ -814,29 +847,120 @@ export class Story {
     this.ctx.events.emit('mission:done', m);
     return m;
   }
-  // leg 2's quiet help: one offer to look at a photo if the gates are taking a while (then the 60 s gap applies)
-  _leg2Help() {
-    const T = this.mission.train, f = this._mf;
-    if (T.seconds >= 150 && !f.h1) { f.h1 = 1; this._help('lost'); }
-    else if (T.seconds >= 290 && !f.h2) { f.h2 = 1; this._help('behind'); }
-  }
   // ---- v22: Aya offers to look at a photo (the old Lodestone offer's funnel) ---------------------------------------
   // at most once per DEMO.helpGap s, never over a question of hers (open or queued), never after arrival; floors / parks once each
   _asking() { const a = this.aya, q = (c) => !!(c && c.msg && c.msg.replies && c.msg.replies.length); return !!a.open || q(a.cur) || a.q.some(q); }
-  _help(why) {
+  _help(why, src) {
     const { aya, demo } = this;
     if (this.classic || demo.over || this.game.ended || !aya.wasSent('meet') || this._asking()) return false;
     if (this._helpT != null && this.t - this._helpT < DEMO.helpGap) return false;
+    if (this._nearTarget()) return false;      // v23: within 25 m of the door (or at the café counter) she stays quiet: you are nearly there
     const key = why === 'floors' ? 'floors' : why === 'parks' ? 'parks' : why === 'behind' ? 'behind' : 'lost';
     if ((key === 'floors' || key === 'parks') && this._helpUsed.has(key)) return false;
     this._helpUsed.add(key); this._helpT = this.t;
+    // v23: whichever path made it, a photo offer is the ladder's first rung: the window restarts, outright steps follow
+    if (!this.classic) { const S = this._stall; S.tBest = this.t; this._stallT = this.t; if (S.n < 1) S.n = 1; }
     const id = `help_${++this._helpN}`;
-    this.ctx.events.emit('story:help', { why, key, t: +this.t.toFixed(1) });
+    this.ctx.events.emit('story:help', { why, key, src: src || null, t: +this.t.toFixed(1) });
     this._beat('help', why);
     aya.say({ id, text: AYA.help[key], replies: AYA.photoAsk.replies }, { typing: 1.5, wait: 0.7, patience: [null, 45],
       stale: () => demo.over || !!aya.open,
       onReply: (r, reply) => { if (reply && reply.photo) this._photoReply(false); else aya.say(AYA.photoFine, { wait: 0.6 }); } });
     return true;
+  }
+  // ---- v23: the stall ladder (the game never leaves a player silently lost) -------------------------------------------------------
+  // Progress = the smallest nav distance to the CURRENT target (Daikichi in leg 1; the café while the coffee is wanted, else the Nankai
+  // gates in leg 2) seen so far. It is measured here with the nav fields (own fields: demo.targetRem() only follows Daikichi and the
+  // classic café leg, and stops updating at the lunch beat). It is route metres over every floor: escalator metres weigh 0.7, stairs 1.6,
+  // so riding the escalator the route needs counts as progress, and a floor change that takes you away from the route does not.
+  // Sampled once a second. An improvement of DEMO.stallStepM restarts the window. DEMO.stallS s without one = a STALL:
+  //   stall 1: the photo offer (_help('lost'));  stall 2 and on: she sends the next step outright (AYA.steps) and suggests the place again.
+  // A new target (leg change, coffee answered / bought) starts a fresh window and a fresh count.
+  _zoneKey() {
+    const P = this.ctx.player, sp = P && P.space, b = P && P.body;
+    if (!sp || !sp.id || !b) return this._zoneLast;      // on a ramp or between spaces: the last place you were in
+    const z = sp.zone || '';
+    const k = z === 'nankai' ? 'nankai' : z === 'city' ? 'city' : (z === 'parks' || z === 'parksGarden') ? 'parks'
+      : (z === 'nambawalk' || z === 'link' || z === 'midosuji' || z === 'sennichimae') ? 'walk'
+      : z === 'takashimaya' ? (b.level === 'B1' || b.level === 'B2' ? 'walk' : 'street') : 'street';
+    return (this._zoneLast = k);
+  }
+  _stepFor(key, zone) { const T = AYA.steps[key]; return T ? (T[zone] || T.other) : null; }
+  // the texts of a step: the lead-in, then the step's text; neighbours merge while they stay within `max` characters. The phone's thread
+  // shows about 3.5 lines (~22 characters a line) above the pinned place card, so a bubble over ~70 characters is clipped at the top
+  _bubbles(parts, max = 70) {
+    const out = [];
+    for (const t of parts) {
+      const last = out.length ? out[out.length - 1] : null;
+      // (a full stop between two clauses unless the first already ends in one, a ?, a ! or an emoji)
+      if (last != null && last.length + 2 + t.length <= max) out[out.length - 1] += (/[.!?]$|[^\x00-\x7f]$/.test(last) ? ' ' : '. ') + t; else out.push(t);
+    }
+    return out;
+  }
+  _stepBubbles(step, lead, tail) { return this._bubbles([lead.replace('{at}', step.at), step.go].concat(tail ? [tail] : [])); }
+  _sayAll(list, o) { list.forEach((t, i) => this.aya.say(t, Object.assign({}, o, { wait: i ? 0.9 : (o && o.wait != null ? o.wait : 0.6), typing: i ? 1.2 : (o && o.typing != null ? o.typing : 1.6) }))); }
+  _slotFor(key) { return key === 'dk' ? DEMO.slot : key === 'cafe' ? this.errand.slot : DEMO.gatesPlace; }
+  // the nav field of a target (cached; dk is the demo's own)
+  _fieldFor(key) {
+    const F = this._fields; if (key in F) return F[key];
+    let f = null; const nav = this.ctx.nav, b = this.errand.biz;
+    try {
+      if (key === 'dk') f = this.demo._field || null;
+      else if (key === 'cafe') f = nav && b && b.door ? nav.fieldToPoint('demo:cafe', b.level, b.door.ox, b.door.oz) : null;
+      else f = nav ? nav.fieldToPoint('story:gates', DEMO.gatesAt[0], DEMO.gatesAt[1], DEMO.gatesAt[2]) : null;
+    } catch (e) { console.warn('[story] field', key, e); }
+    if (f) F[key] = f;
+    return f;
+  }
+  _remTo(key) {
+    const f = this._fieldFor(key), b = this.ctx.player && this.ctx.player.body; if (!f || !b || !this.ctx.nav) return null;
+    const d = this.ctx.nav.distance(f, b); return typeof d === 'number' && isFinite(d) ? d : null;
+  }
+  _remRound() { const r = this._remTo(this._target()); return r == null ? null : Math.round(r); }
+  _nearTarget() { const r = this._remTo(this._target()); return (r != null && r < DEMO.stallNearM) || this._atCafe(); }
+  // stuck right now (for the seats / train warnings): no progress for DEMO.stallNowS s on the current target, not by the door
+  _stuckNow() { const S = this._stall; return !this.classic && S.key === this._target() && this.t - S.tBest >= DEMO.stallNowS && !this._nearTarget(); }
+  // test helper: forget the ladder (a teleport is not walking; the next sample starts a clean window and count)
+  ladderReset() { this._stall.key = null; this._stallT = -1e9; }
+  _ladderTick(dt) {
+    if (this.classic) return;
+    this._lk += dt; if (this._lk < 1) return; this._lk = 0;
+    const { aya, demo: d } = this, m = this.mission, S = this._stall, t = this.t;
+    const key = this._target();
+    if (key !== S.key) { S.key = key; S.best = Infinity; S.tBest = t; S.n = 0; }
+    this._zoneKey();
+    // nothing runs before "meet me" went out, in a cut-scene / pause / the lunch beat / after the run (the window is held, not spent)
+    if (!m.leg || m.leg > 2 || !aya.wasSent('meet') || !this._free() || d.over) { S.tBest = t; return; }
+    const rem = this._remTo(key); if (rem == null) return;
+    if (rem < S.best - DEMO.stallStepM) { S.best = rem; S.tBest = t; return; }
+    if (t - S.tBest < DEMO.stallS || t - this._stallT < DEMO.stallS) return;
+    if (rem < DEMO.stallNearM || this._atCafe()) return;
+    if (this._asking() || aya.busy() || aya.t - aya.lastSentT < 10 || aya.t - aya.lastReplyT < 10 || this._offering) return;      // (she spoke, or you answered her, in the last 10 s)
+    if (this._lastCheckT != null && t - this._lastCheckT < 20) return;      // a check-in and a stall message never land within 20 s
+    const r = S.n;
+    if (r === 0) { this._help('lost', 'stall'); return; }      // rung 1 (_help counts it and restarts the window itself)
+    this._rescue(r, key, rem);
+    S.n++; S.tBest = t; this._stallT = t;
+  }
+  // stall 2 and on: the next step, outright (no question, no reply needed), and the place suggested again in Maps
+  _rescue(r, key, rem) {
+    const zone = this._zoneKey(), step = this._stepFor(key, zone); if (!step) return;
+    const list = this._stepBubbles(step, AYA.rescueLead[(r - 1) % AYA.rescueLead.length], r % 3 === 0 ? AYA.floorGuide : null);      // every third rescue ends with the floor guide board
+    this._suggest(this._slotFor(key));
+    this.ctx.events.emit('story:rescue', { t: +this.t.toFixed(1), n: r, zone, target: key, rem: Math.round(rem), via: 'stall' });
+    this._beat('rescue', zone || 'other');
+    this._sayAll(list, { typing: 1.6, wait: 0.6, stale: () => this.demo.over });
+  }
+  // a shot with nothing readable in it: the zone-level step, "no sign in that one 😅 but ...", then what to aim at next time
+  _coarsePhoto(sc, via) {
+    const aya = this.aya, C = AYA.photoCoarse, key = this._target(), zone = this._zoneKey(), step = this._stepFor(key, zone), p = this.ctx.player.body;
+    if (!step) return;
+    const list = [C.head].concat(this._stepBubbles(step, AYA.rescueLead[0])), text = list.join(' ');
+    if (this.mission.leg) this.mission.hints++;      // an answer she could give counts as a hint
+    this._beat('spot', 'coarse');
+    this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: false, coarse: true, why: sc.why, via, zone, target: key, space: this._space(), level: p.level, text });
+    this._stall.tBest = this.t;
+    this._sayAll(list, { wait: 1.6, typing: 1.8 });
   }
   // the persistent "📸 Send Aya a pic" button: 'hide' (before the mission / after arrival / old arc) · 'ready' · 'wait' (cooldown, or she is typing)
   snapState() {
@@ -852,7 +976,8 @@ export class Story {
     const r = m.sendPhoto(img); if (!r) return false;
     this._photoT = this.t; this._blurs = 0; this._photoOk = r.img !== false;
     this.ctx.events.emit('story:snap', { t: +this.t.toFixed(1) });
-    this._photoReply(false);
+    this._viaBtn = true;      // v23: reported on the photo event: the camera button, not a reply chip
+    try { this._photoReply(false); } finally { this._viaBtn = false; }
     return true;
   }
 

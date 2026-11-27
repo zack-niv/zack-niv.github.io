@@ -184,6 +184,7 @@ export class Phone {
   openPlace(id) {
     if (!id || !this.dest || !this.dest.resolve(id)) return false;
     this._lastPhoneInput = this._now;
+    if (this.messages) this.messages._pinSeen = id;          // v23: the docked link card (apps.js _syncPin) has done its job
     const ld = this.upgradeStage === 'ready' && this.lodestone.state === 'ready';
     this.open(ld ? 'lodestone' : 'maps');
     if (ld) this.lodestone.preview(id); else this.maps.preview(id);
@@ -461,6 +462,7 @@ export class Phone {
     if (!hold) this._unlockForUse();
     this.maps._dirty = true;
     if (this.app === 'messages') this.messages.onShow();
+    else if (this.app === 'maps') this.maps.onShow();          // v23: the badge's words show for 5 s again, the floor strip is placed
     this.glance.clearNote(true);
     this._endAlert(true);
     this._badges();
