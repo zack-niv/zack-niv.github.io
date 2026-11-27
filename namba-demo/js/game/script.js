@@ -275,7 +275,7 @@ export const ENDCARD = {
 };
 
 // v22: the public score service (js/game/scores.js). Empty = no scoreboard: the finish card shows a friendly line and everything else works.
-export const SCORES = { url: '' };
+export const SCORES = { url: 'https://namba-scores-zacks.vercel.app' };
 
 // Shop lines ---------------------------------------------------------------
 export const BARISTA = {
