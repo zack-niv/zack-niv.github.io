@@ -553,6 +553,18 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
   .e-post { margin-top: 8px; } .e-ini, .e-mini { height: 34px; } .e-msg { margin-top: 6px; font-size: 12px; min-height: 1.2em; }
   .e-r { padding: 3px 8px; font-size: 13px; } .e-legend { margin-top: 6px; } .e-copy { margin-top: 8px; }
 }
+@media (max-height: 520px) and (min-width: 721px) {
+  .e-race .e-wrap { padding: 1.5vh 0; }
+  .e-race .e-eyebrow { font-size: 12px; }
+  .e-race .e-line { font-size: 23px; margin-top: 8px; letter-spacing: -.02em; }
+  .e-time b { font-size: 38px; } .e-time { margin-top: 6px; gap: 10px; }
+  .e-lines { margin-top: 4px; } .e-lines li { padding: 2px 0; } .e-ll small { display: inline; margin: 0 0 0 8px; } .e-ll b { display: inline; }
+  .e-facts { margin-top: 5px; font-size: 11.5px; gap: 2px 14px; }
+  .e-race .e-where { margin-top: 6px; font-size: 9.5px; } .e-race .e-note { margin-top: 4px; font-size: 12px; max-width: none; }
+  .e-race .e-btns { margin-top: 8px; gap: 8px; } .e-race .e-btns .g-btn { padding: 9px 15px; font-size: 13px; }
+  .e-race .e-talk { margin-top: 8px; } .e-race .e-links { gap: 8px; }
+  .e-race .e-link { padding: 6px 20px 6px 8px; } .e-race .e-ic { width: 24px; height: 24px; } .e-race .e-ic svg { width: 13px; height: 13px; } .e-race .e-tx b { font-size: 11.5px; }
+}
 @media (max-width: 720px) {
   .e-race .e-wrap { padding: 4vh 0; }
   .e-race .e-right { max-height: none; }
@@ -689,3 +701,36 @@ body:has(.g-pause:not([hidden])) .h-amb, body:has(.g-end) .h-amb { opacity: 0; }
 .p-esc b { color: var(--g-dim); font-weight: 600; }
 .p-talk .e-links { max-width: none; }
 .g-pause { --e-before: #f0b45a; --e-after: #6fb6ff; }
+
+/* v22 mission ----------------------------------------------------------------------------------------------------------
+   the clock chip (hud.js update): top centre, the elapsed lunch / train countdown; amber < 2 min, red < 30 s, one soft pulse at a
+   deadline. The Messages "📸 Send Aya a pic" button sits in the slot the reply chips use. */
+.h-mission { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); z-index: 6; display: grid; justify-items: center; gap: 2px; min-width: 96px; padding: 7px 16px 8px; border-radius: 14px; pointer-events: none;
+  background: rgba(10, 11, 14, .5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .08); text-shadow: 0 1px 6px rgba(0, 0, 0, .5); transition: border-color .4s ease, background .4s ease; }
+.h-mission[hidden] { display: none; }
+.h-m-l { font: 600 9.5px/1 var(--g-sans); letter-spacing: .2em; color: var(--g-dim); }
+.h-m-t { font: 700 26px/1 var(--g-sans); letter-spacing: .01em; color: var(--g-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.h-m-s { font: 500 11px/1 var(--g-sans); color: var(--g-faint); font-variant-numeric: tabular-nums; min-height: 0; }
+.h-m-s:empty { display: none; }
+.h-mission.gone .h-m-t { font-size: 17px; color: var(--g-dim); }
+.h-mission.amber { border-color: rgba(242, 193, 78, .55); } .h-mission.amber .h-m-t { color: var(--g-accent); }
+.h-mission.red { border-color: rgba(232, 84, 72, .65); background: rgba(40, 10, 10, .5); } .h-mission.red .h-m-t { color: #ff7468; }
+.h-mission.pulse { animation: h-m-pulse 1.5s ease-out 1; }
+@keyframes h-m-pulse { 0% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 0 rgba(255, 255, 255, .35); } 30% { transform: translateX(-50%) scale(1.08); } 100% { transform: translateX(-50%) scale(1); box-shadow: 0 0 0 16px rgba(255, 255, 255, 0); } }
+@media (pointer: coarse) and (max-height: 500px) {
+  .h-mission { top: 8px; min-width: 78px; padding: 4px 12px 5px; border-radius: 11px; }
+  .h-m-t { font-size: 20px; } .h-m-l { font-size: 8.5px; } .h-mission.gone .h-m-t { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .h-mission.pulse { animation: none; } }
+/* the persistent photo button (Messages): same slot as the reply chips, so it never collides with the tutorial tip or the touch controls */
+.ms-snap { flex: 0 0 auto; display: flex; justify-content: flex-end; padding: 8px 12px 6px; border-top: 1px solid #f0f0f2; background: linear-gradient(180deg, rgba(248,248,250,.96), #fff); }
+.ms-snap-b { display: flex; align-items: center; gap: 8px; border: 1.5px solid #ff9f0a; background: #fff; color: #b25f00; border-radius: 18px; padding: 7px 14px 7px 8px; font: 600 13.5px/1.25 Inter, "Noto Sans JP", sans-serif; cursor: pointer; transition: background .15s, color .15s, opacity .2s, transform .1s; }
+.ms-snap-b:hover, .ms-snap-b:focus-visible { background: #ff9f0a; color: #fff; outline: 0; }
+.ms-snap-b:active { transform: scale(.97); }
+.ms-snap-b kbd { display: grid; place-items: center; width: 19px; height: 19px; border-radius: 6px; background: rgba(255,159,10,.16); color: #b25f00; font: 800 11px/1 Inter, sans-serif; }
+.ms-snap-b.wait { opacity: .5; cursor: default; border-style: dashed; }
+.ms-snap-b.wait:hover { background: #fff; color: #b25f00; }
+#phone-root.ph-land .ms-snap { padding: 8px 10px 4px; border-radius: 16px 16px 0 0; }
+html.is-touch #phone-root .ms-snap-b { min-height: 44px; font-size: 15px; background: #ff9f0a; color: #fff; padding: 9px 18px; }
+html.is-touch #phone-root .ms-snap-b.wait { background: #f3c27a; }
+html.is-touch #phone-root.ph-compact .ms-snap-b { min-height: 58px; padding: 10px 20px; font-size: 17px; border-radius: 24px; }

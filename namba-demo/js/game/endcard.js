@@ -222,7 +222,7 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
     post.hidden = !(eligible && board && !posted);
     if (nap) { list.innerHTML = `<p class="e-nap">${NAP}</p>`; return; }
     if (!board) { list.innerHTML = '<ol class="e-ol skel" aria-hidden="true">' + '<li class="e-r"><b class="e-rk"></b><span class="e-nm"></span><span class="e-t"></span><span class="e-x"></span></li>'.repeat(10) + '</ol>'; return; }
-    if (!board.top.length && !mine) { list.innerHTML = '<p class="e-nap e-empty">No times yet. Be the first.</p>'; return; }
+    if (!board.top.length && !mine) { list.innerHTML = '<p class="e-nap e-empty">No scores yet. Be the first.</p>'; return; }
     const hi = mine && mine.rank <= board.top.length ? mine.rank : 0;
     list.innerHTML = `<ol class="e-ol">${board.top.map((r, i) => row(r, i + 1, hi === i + 1)).join('')}${mine && !hi ? `<li class="e-gap" aria-hidden="true"></li>${row(mine, mine.rank, true)}` : ''}</ol>`;
     if (mine) { const m = list.querySelector('.e-r.me'); try { m && m.scrollIntoView({ block: 'nearest' }); } catch (e) { /* old browsers */ } }

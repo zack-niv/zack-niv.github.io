@@ -44,7 +44,7 @@ export const DEMO = {
   orderCool: 20,                    // no "Where are you??" within this long of buying her latte
   // v22: the mission (mission.js): leg 1 = seats held seatsS s from Aya's "meet me" text; leg 2 = the Koya express leaves trainS s after the lunch beat
   seatsS: 480, trainS: 420,
-  gatesPlace: 't:st_nankai',        // v22: leg 2's second suggestion in the phone's list: Nankai Namba station (the ticket gates are inside)
+  gatesPlace: 't:tp_nk_gate',      // v22: leg 2's second suggestion in the phone's list: Nankai Namba, Central Gate (a transit place in Maps)
   helpGap: 60, photoGap: 15,         // v22: Aya's "want me to look?" at most once per helpGap s; the 📸 button's cooldown
 };
 // v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)

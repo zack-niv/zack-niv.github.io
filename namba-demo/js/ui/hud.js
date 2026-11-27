@@ -55,12 +55,13 @@ export class Hud {
       <div class="h-hint"></div>
       <div class="h-notify"></div>
       <div class="h-chapter"><div class="h-chapter-ja"></div><div class="h-chapter-en"></div><div class="h-chapter-sub"></div></div>
+      <div class="h-mission" role="timer" aria-label="Mission clock" hidden><span class="h-m-l"></span><b class="h-m-t"></b><small class="h-m-s"></small></div>
       <div class="h-fade"></div>`;
     const q = (s) => root.querySelector(s);
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
       toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icNote: q('.h-ic-note'), icBal: q('.h-ic-bal'),
-      cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
+      mission: q('.h-mission'), mL: q('.h-m-l'), mT: q('.h-m-t'), mS: q('.h-m-s'), cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
     this.quiet = params.test && !params.has('play');
@@ -284,5 +285,24 @@ export class Hud {
   ride(on) { this.el.fade.classList.toggle('ride', !!on); }
   fadeText(html) { this.el.fade.innerHTML = html ? `<div class="h-fade-text">${html}</div>` : ''; }
 
-  update() {}
+  // v22: the mission chip (top centre): LUNCH = the seats clock, TRAIN = the train clock (mission.js; game.mission). Hidden during the lunch
+  // beat, cut-scenes, the pause menu, the end card and free roam. No live score. Amber under 2 min, red under 30 s, a soft pulse at a deadline.
+  update() {
+    const el = this.el && this.el.mission; if (!el) return;
+    const g = this.ctx.game, m = g && g.mission, d = g && g.demo;
+    const show = !!(m && (m.leg === 1 || m.leg === 2) && d && d.began && !d.over && !g.paused && !g.busy && !g.intro && !g._endCard && !g.ended && !g.titleUp && !(g.story && g.story.classic));
+    if (!show) { if (!el.hidden) el.hidden = true; return; }
+    const T = m.leg === 1 ? m.seats : m.train, left = T.left, gone = left <= 0;
+    const fmt = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+    const label = m.leg === 1 ? 'LUNCH' : 'TRAIN', big = gone ? (m.leg === 1 ? 'seats gone' : 'train gone') : fmt(Math.ceil(left)), sub = gone && m.leg === 1 ? fmt(T.seconds) : '';
+    const cls = 'h-mission' + (gone ? ' gone' : left <= 30 ? ' red' : left <= 120 ? ' amber' : '') + (m.leg === 2 ? ' train' : '');
+    const key = m.leg + (gone ? 'g' : '');
+    if (el.hidden) el.hidden = false;
+    if (this._mK !== key) { const pulse = this._mK && this._mK[0] === String(m.leg) && gone; this._mK = key; if (pulse) { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); } }
+    const c2 = cls + (el.classList.contains('pulse') ? ' pulse' : '');
+    if (el.className !== c2) el.className = c2;
+    if (this._mL !== label) { this._mL = label; this.el.mL.textContent = label; }
+    if (this._mT !== big) { this._mT = big; this.el.mT.textContent = big; }
+    if (this._mS !== sub) { this._mS = sub; this.el.mS.textContent = sub; }
+  }
 }
