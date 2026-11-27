@@ -6,7 +6,8 @@
 
 export const QUESTS = {
   tempura: { text: 'Meet Aya at Tempura Daikichi', textJa: '天ぷら大吉でアヤと合流', detail: 'Namba Parks, 6F. She\'s already in the queue.' },
-  coffee: { text: 'An iced latte for Aya', textJa: 'アヤにアイスラテ', detail: 'On the way. She can\'t leave the queue.' },
+  coffee: { text: 'Iced coffees for the ride', textJa: '電車用のアイスコーヒー', detail: 'Optional. Only if you can still make the train.' },
+  train: { text: 'Catch the Koya express', textJa: '高野線に乗る', detail: 'Tap in at the Nankai gates before it leaves.' },
 };
 
 // The demo's destination and pacing knobs.
@@ -41,6 +42,9 @@ export const DEMO = {
   offerGrace: 15,                   // the 195 s fallback waits up to this long for a fresh question / the café counter
   aheadFrac: 0.3,                   // (v9) reaching Parks (or < 30% of the start distance left) before any offer
   orderCool: 20,                    // no "Where are you??" within this long of buying her latte
+  // v22: the mission (mission.js): leg 1 = seats held seatsS s from Aya's "meet me" text; leg 2 = the Koya express leaves trainS s after the lunch beat
+  seatsS: 480, trainS: 420,
+  helpGap: 60, photoGap: 15,         // v22: Aya's "want me to look?" at most once per helpGap s; the 📸 button's cooldown
 };
 // v9: Zack's call pending — can the player refuse the latte? (false = two yes-flavoured chips)
 export const LATTE_REFUSABLE = true;
@@ -57,7 +61,7 @@ export const AYA = {
   helloNudge: 'hello?? 👀 did you land?',
   helloAck: { yes: 'yay!! 🎉', huge: 'it\'s a whole city down there 😂' },
   meetAnyway: 'ok I\'ll assume you landed 😂 ',
-  meetLost: 'lol it\'s Namba, everyone\'s lost 😂 tap my link, Maps will get you close',
+  meetLost: 'lol it\'s Namba, everyone\'s lost 😂 tap my link, Maps will get you close. stuck? send me a pic 📸',
   coffeeReplies: [{ id: 'yes', text: 'Sure! ☕' }, { id: 'no', text: 'Not today 🙈' }],
   coffeeRepliesYes: [{ id: 'yes', text: 'Sure! ☕' }, { id: 'yes2', text: 'Only for you 😂' }],
   coffeeYes: '🥹🙏',
@@ -98,6 +102,7 @@ export const AYA = {
     parks: 'that\'s Namba Parks, by {lm}! 🌿 head up through the canyon, I\'m on 6F',
     parksHigh: 'omg you\'re close!! that\'s by {lm}, Daikichi\'s on 6F, the one with the noren 👋',
     other: 'hmm is that by {lm}? 😅 head for Namba CITY 2F and follow the signs to Parks',
+    otherCafe: 'hmm is that by {lm}? 😅 head for Namba CITY 1F, the café\'s by the big escalators ☕',   // v22: the latte leg points at the café, not Parks
     ramp: 'lol that\'s an escalator 😂 send me another one when you get off',
   },
   // v11 (lead): she reads what is IN the photo — a wall, the floor or a plain corridor tells her nothing
@@ -109,7 +114,7 @@ export const AYA = {
   engageBefore: ['take your time, it\'s a maze lol 😅', 'the line just moved!! 🍤 no rush tho', 'the guy in front of me ordered for 6 people 😭'],
   okAsk: { id: 'ok', text: 'you ok? 😊', replies: [{ id: 'ok', text: 'All good 👍' }, { id: 'lost', text: 'I\'m lost 😭', lost: true }] },
   okAck: 'yay 😌',
-  okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
+  okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, and send me a pic 📸 if it gets bad',
   engageAfter: ['omg the tempura smell from here 🤤', 'the chef just flipped a prawn into the air 😳', 'a kid next to me is eating a whole melon pan 😂', 'I\'m reading the menu like it\'s a novel 📖 the anago one 🤤', 'they have sweet potato tempura on the seasonal menu 🍠 we\'re getting it', 'ok I\'m officially starving 😭', 'the staff just brought out fresh shiso leaves 🌿 fancy', 'the old lady behind me just gave me a candy 🍬 Osaka people are the best', 'the guy at the counter got a whole anago and I\'m so jealous 😭', 'they just sold out of kisu 😱 hurry lol', 'ok it\'s almost our turn 👀', 'the couple in front just got seated!! we\'re next 😍'],   // ("did it install? 😌" already asks about the app)
   // the player's own texts (no chips: they come from what you do)
   mineCoffee: 'got your latte! ☕ on my way',
@@ -118,7 +123,7 @@ export const AYA = {
   // the second is her answer to "On my way!"
   where: { id: 'where', text: 'Where are you?? The line is moving. It\'s 6F, Parks, the one with the big green terraces',
     replies: [{ id: 'lost', text: 'I\'m lost 😭', lost: true }, { id: 'omw', text: 'On my way!' }] },
-  whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅', almost: 'yesss 🙏 ask your phone if it gets confusing' },
+  whereAck: { omw: 'ok!! 🙏 pic if you get stuck 📸', almost: 'yesss 🙏 pic if it gets confusing 📸' },
   // v4: the coffee errand ({cafe} = the café's name, read at runtime). Sent right after "meet"; the café is
   // suggested ("Aya's pick") in both apps' destination lists.
   coffee: { id: 'coffee', text: 'oh!! can you bring me an iced latte from {cafe}? Namba CITY 1F, it\'s on your way 🙏 the queue here is forever' },
@@ -127,11 +132,63 @@ export const AYA = {
   gotCoffee: 'omg you\'re an angel 😭☕ ok NOW come: Daikichi, Parks 6F',   // v11: answers YOUR text (AYA.mineCoffee)
   gotOtherCoffee: 'that\'s not {cafe}… but I\'ll allow it 😌 now come: Parks 6F',
   noCoffee: 'no latte? 🥲 fine. FINE. the tempura is worth it',
+  // v22: the old arc (?lodestone) keeps its old words for the lines that sent you to your phone
+  classic: {
+    meetLost: 'lol it\'s Namba, everyone\'s lost 😂 tap my link, Maps will get you close',
+    okLostEarly: 'lol it\'s Namba, everyone\'s lost 😂 try my link in Maps, I\'ll send you something better if it gets bad',
+    whereAck: { omw: 'Ask your phone! That\'s what it\'s for 😅', almost: 'yesss 🙏 ask your phone if it gets confusing' },
+  },
+  // v22: the mission. {seats} / {train} = the two limits in whole minutes (computed from DEMO), {cafe} = the café's name
+  mission: {
+    seats: 'they\'re holding our two counter seats for {seats} min ⏱️ after that they give them away',
+    koya: 'and we\'re on the Koya express after lunch 🚃 so no sightseeing',
+    teach: 'if you get lost send me a pic of whatever\'s near you 📸 I know this place',
+    seatsWarn: '2 minutes on those seats 😬 where are you??',
+    seatsLost: '…they gave our seats away 😭 ok. standing bar. just GET here',
+    // leg 2 (after the lunch beat)
+    cantMove: 'ok I can\'t move 😵 but the Koya leaves in {train} min ⏱️',
+    coffee: { id: 'coffee', text: 'I\'ll go get our tickets. you: two iced coffees from {cafe} for the ride ☕ only if you can still make the train',
+      replies: [{ id: 'yes', text: 'On it ☕' }, { id: 'no', text: 'Straight to the train 🚃' }] },
+    coffeeYes: 'yesss. don\'t get lost 😌',
+    coffeeNo: 'smart. see you at the gates',
+    gates: 'meet me at the Nankai gates. tap in and we\'re golden 🚃',
+    mine: 'got the coffees ☕ heading to the gates',
+    gotCoffee: 'you legend ☕☕ now MOVE',
+    trainWarn: '2 min to the train. RUN 🏃',
+    made: 'MADE IT 😭🎉 doors are closing, get in get in',
+    madeCoffee: 'MADE IT 😭🎉 and you brought coffee!! best friend ever. get in get in',
+    trainLost: 'the train just left 😑 …I waited. you owe me SO much tempura',
+  },
+  // v22: her photo answers when the target is the Nankai gates (leg 2); {lm} / {esc} / {gate} as in spot
+  spotGates: {
+    platform: 'omg that\'s the Nankai platforms 🚃 you\'re basically there, the Central Gate is {gate}',
+    nankai: 'that\'s Nankai Namba, by {lm}! the Central Gate is {gate} 🚃 tap in',
+    nankai2: 'that\'s Nankai 2F, by {lm}! go up to 3F 👆 the gates are up there (escalator {esc})',
+    nankaiLow: 'that\'s the Nankai station hall, by {lm}! go up to 3F 👆 the gates are up there (escalator {esc})',
+    city2: 'that\'s Namba CITY 2F, by {lm}! back towards Nankai station 👈 then up to 3F for the gates',
+    city1: 'that\'s CITY 1F, by {lm}! go up to 2F 👆 (escalator {esc}) then back to Nankai station',
+    cityB1: 'that\'s CITY B1, by {lm} 😂 go up to 2F 👆 (escalator {esc}) then back to Nankai station',
+    walk: 'that\'s NAMBAWALK, by {lm}! go up and back to Nankai station, the gates are on 3F',
+    street: 'that\'s outside on Midosuji! go back into Nankai station, the gates are on 3F',
+    canyon: 'that\'s the Parks canyon 🌿 wrong way!! back down and out towards Nankai station 🚃',
+    parks: 'that\'s Namba Parks, by {lm}! 🌿 you\'re going the wrong way, back to Nankai station 🚃',
+    other: 'hmm is that by {lm}? 😅 back to Nankai station, the gates are on 3F',
+  },
+  // v22: Aya's offer to look at a photo (replaces the Lodestone offer); chips = the existing photo chip + "I'm good"
+  help: {
+    lost: 'you\'re lost aren\'t you 😂 send me a pic of a sign or a shop 📸 I\'ll tell you where you are',
+    floors: 'the floors in CITY are a maze 😵 send me a pic of what\'s near you 📸',
+    parks: 'almost! Parks is a canyon of terraces 😅 pic of where you are? 📸',
+    behind: 'you\'re taking ages 😅 want me to look? send a pic 📸',
+  },
+  snap: '📸 Send Aya a pic',
   // v15: the first text after a crash resume (the phone "restarted": its message history is gone, so she re-sends the place)
   resume: { dk: 'ugh my messages glitched 😅 anyway, still here: Daikichi, Parks 6F 🍤', cafe: 'ugh my messages glitched 😅 still want that latte from {cafe} pls 🥺' },
 };
 // v4: what the player asks for at the errand café (overrides the café's own drink)
 export const ERRAND_DRINK = { say: 'iced latte', label: 'iced latte', ja: 'アイスラテ', price: 520, icon: '🥤', who: 'Barista', line: 'One iced latte, please. To go!' };
+// v22: leg 2's drink (the café is the same)
+export const ERRAND_DRINK_V22 = Object.assign({}, ERRAND_DRINK, { say: 'iced coffee', label: 'iced coffee', ja: 'アイスコーヒー', line: 'One iced coffee, please. To go!' });
 
 export const UPGRADE = {
   offer: 'you\'re lost aren\'t you 😂 install Lodestone, it actually works indoors',
@@ -196,6 +253,8 @@ export const ARRIVAL = {
   text: 'THERE you are 🥹 I saved us the two seats at the counter',
   // v4: with / without her iced latte
   textCoffee: 'THERE you are 🥹 and you brought my latte?? best friend ever. I saved us the two seats at the counter',
+  // v22: the lunch beat without the seats (with them: text above)
+  textStanding: 'THERE you are 😮‍💨 standing bar it is. the tempura\'s still hot',
   thanks: { ja: 'ありがとう〜！', en: 'Thank youuu! 🥤' },
   tease: '…wait. where\'s my latte 😑 kidding. (not kidding)',
   teaseDeclined: 'next latte\'s on you though 😌',          // v9 critic: you said "Not today", and she knows it
@@ -213,6 +272,9 @@ export const ENDCARD = {
   agent: { label: 'Chat with Mate, my agentic buddy', url: 'https://zacks-mate.vercel.app/mate' },
   linkedin: { label: 'Connect on LinkedIn', url: 'https://www.linkedin.com/in/tsach-niv/' },
 };
+
+// v22: the public score service (js/game/scores.js). Empty = no scoreboard: the finish card shows a friendly line and everything else works.
+export const SCORES = { url: '' };
 
 // Shop lines ---------------------------------------------------------------
 export const BARISTA = {

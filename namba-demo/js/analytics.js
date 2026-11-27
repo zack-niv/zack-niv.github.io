@@ -15,6 +15,7 @@
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
 //   namba_recovered {last_stage, reason, ago_s, safe, since_stage_s, tex_mb, canvas_mb, heap_mb, gl_contexts, ld_mode}
 //   namba_run_hidden {last_stage, ago_s, …same memory props} (v12.1: last tab hidden and never back)
+//   v22: namba_score {ok, score, tier, rank, total, error} (a finish-screen scoreboard post succeeded or failed; no initials)
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
 //   namba_pa {at: first|summary, mode, speech, tried, started, ended, missing, late, errors, last_err, clips, clip_mb, state, t} (v20: did a recorded PA line play?
@@ -153,6 +154,7 @@ export function setupAnalytics(ctx) {
   });
   E.on('demo:end', () => { reach('endcard'); send('namba_endcard', { t: t() }); });
   E.on('demo:choice', (e) => send('namba_choice', { choice: e && e.choice }));
+  E.on('score:post', (e) => { e = e || {}; send('namba_score', { ok: !!e.ok, score: e.score != null ? e.score : null, tier: e.tier || null, rank: e.rank != null ? e.rank : null, total: e.total != null ? e.total : null, error: e.error || null }); });
   E.on('game:pause', () => send('namba_pause', { t: t(), stage: STAGES[stage] || null }));
   E.on('game:restart', () => send('namba_restart', { t: t(), stage: STAGES[stage] || null }));
   // the contact cards (end card and pause menu): one delegated listener, capture phase (the cards stop propagation)
