@@ -117,6 +117,9 @@ export function bootTouch() {
       const inApp = /LinkedInApp|FBAN|FBAV|Instagram|MicroMessenger|Twitter|GSA\/|Line\/|Snapchat|Barcelona/.test(ua);
       const standalone = navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches);
       if (ios && !inApp && !standalone) html.classList.add('ios-a2hs');
+      // v23: in an in-app browser (LinkedIn's, mostly) the bars never go away and there is no home-screen option: the title
+      // says how to get out to the real browser instead. Android in-app browsers can go fullscreen, so iOS only.
+      if (ios && inApp) html.classList.add('ios-inapp');
       // v23: when the visible viewport changes (Safari's bars slide away) make sure the engine and the UI hear about it even
       // where only visualViewport reports it: re-fire one window resize, only if innerHeight really moved (no loops)
       if (window.visualViewport) {

@@ -430,3 +430,6 @@ html.is-touch .t-a2hs { font-size: 12px; }
 html.tu-use-on #hud .h-prompt:not(.passive) { visibility: hidden !important; }
 /* the walk card sits beside the stick, not above it (above, it covered the tracks) */
 .tcz-walk .tcz-lab { left: calc(148px + var(--sl)); bottom: calc(34px + var(--sb)); }
+/* v23 title: in-app browser hint (same look as the home-screen line) */
+.t-inapp { display: none; }
+html.ios-inapp .t-inapp { display: block; margin-top: 8px; font: 400 12px/1.3 var(--g-sans); letter-spacing: .04em; color: var(--g-faint); pointer-events: none; }

@@ -42,6 +42,13 @@ export class Tutorial {
     this.off = params.has('notutorial');
     this.teach = true;                 // v7: always (see the header); tutorialStore only records completion
     this.el = null; this._html = ''; this._at = '';
+    // v23: "open Aya's link / pick where to go" is taught once: after the player has opened Maps and then left it (another app, or the
+    // phone lowered) the step is retired even when no destination was picked (the hint stayed up through photos and texts)
+    this._mapsIn = false; this._mapsLeft = false;
+    const pickLive = () => { const st = this.steps.find(x => x.id === 'pick'); return !!st && safeTrue(st.available); };
+    ctx.events.on('phone:app', (e) => { if (!e || !pickLive()) return; if (e.app === 'maps') this._mapsIn = true; else if (this._mapsIn) this._mapsLeft = true; });
+    ctx.events.on('phone:open', (e) => { if (e && e.app === 'maps' && pickLive()) this._mapsIn = true; });
+    ctx.events.on('phone:close', () => { if (this._mapsIn && pickLive()) this._mapsLeft = true; });
   }
   start(steps) {
     this.steps = steps.map(s => Object.assign({ done: () => false, available: () => true, hint: () => null }, s));
@@ -81,6 +88,7 @@ export class Tutorial {
       if (st.done) continue;
       let ok = false;
       try { ok = !!s.done(); } catch (e) { ok = false; }
+      if (!ok && s.id === 'pick' && this._mapsLeft) ok = true;
       if (ok) { st.done = true; this.ctx.events.emit('tutorial:step', { id: s.id, done: true, t: +this.t.toFixed(1), nudges: st.nudges }); continue; }
       if (!s.side && !s.late) { if (s.core) coreLeft++; if (st.nudges <= NUDGE_S.length) liveLeft++; }
     }

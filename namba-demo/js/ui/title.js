@@ -37,6 +37,7 @@ export class Title {
         <button type="button" class="t-begin"><span class="t-begin-line"></span><span>${ctx.resumeFrom ? (touch ? 'Tap to continue' : 'Click to continue') : touch ? 'Tap to begin' : 'Click to begin'}</span><small>${ctx.resumeFrom ? 'つづきから' : touch ? 'タップしてはじめる' : 'クリックしてはじめる'}</small></button>
         <div class="t-swipe" aria-hidden="true">Swipe up for full screen ↑</div>
         <div class="t-a2hs">Best full screen: Share → Add to Home Screen</div>
+        <div class="t-inapp">For full screen: ⋯ menu → Open in browser</div>
       </div>
       <div class="t-drawer" hidden>
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>
