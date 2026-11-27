@@ -35,7 +35,7 @@ import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, ERRAND_DRINK_V22, UPGRADE, LATTE_REF
 import { businessBySlot } from '../world/directory.js?v=1d470ff';
 import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=1d470ff';
 import { params } from '../core/params.js?v=1d470ff';
-import { missionScore } from './mission.js?v=1d470ff';
+import { missionScore, START_PTS, SEATS_PTS, COFFEE_PTS } from './mission.js?v=1d470ff';
 import { Aya } from './aya.js?v=1d470ff';
 import { Tutorial } from './tutorial.js?v=1d470ff';
 
@@ -643,7 +643,7 @@ export class Story {
     if (ms) {
       const m = this.mission, S = m.seats, T = m.train;
       m.leg = ms.leg || 1; S.seconds = ms.e1 || 0; S.made = !!ms.sm; S.left = Math.max(0, S.limit - S.seconds); T.seconds = ms.e2 || 0; T.left = Math.max(0, T.limit - T.seconds);
-      m.hints = ms.h || 0; m.coffee = !!ms.c; m.seconds = S.seconds + T.seconds;
+      m.hints = ms.h || 0; m.coffee = !!ms.c; m.seconds = S.seconds + T.seconds; if (m.leg === 2) m.t1 = Math.round(S.seconds * 10);
       this._t1 = this.t - S.seconds; this._t2 = this.t - T.seconds;
       this._mf = Object.assign({}, ms.f); this._photoAsked = true;
       if (m.leg === 2) { demo.arrived = true; demo.arriveT = demo.t; demo._seeded = true; game.setQuest('tempura', 'done', 'Lunch', true); game.setQuest('train', 'active', null, true); }
@@ -738,10 +738,12 @@ export class Story {
     const m = this.mission, d = this.demo, M = AYA.mission; if (!m.leg || m.leg > 2 || d.over) return;
     if (m.leg === 1) {
       const S = m.seats; S.seconds = this.t - this._t1; S.left = Math.max(0, S.limit - S.seconds); m.seconds = S.seconds;
+      m.liveScore = START_PTS - Math.round(S.seconds * 10);
       if (S.left > 0 && S.left <= 120) this._fire('sw', M.seatsWarn);
       if (S.left <= 0) this._fire('sl', M.seatsLost, 'mission:seats_lost');
     } else {
       const S = m.seats, T = m.train; T.seconds = this.t - this._t2; T.left = Math.max(0, T.limit - T.seconds); m.seconds = S.seconds + T.seconds;
+      m.liveScore = START_PTS - m.t1 - Math.round(T.seconds * 10) + (S.made ? SEATS_PTS : 0) + (m.coffee ? COFFEE_PTS : 0);      // ticks 10 times a second; frozen while paused / in the lunch beat (the tick does not run)
       if (T.left > 0 && T.left <= 120) this._fire('tw', M.trainWarn);
       if (T.left <= 0) { this._fire('tl', null, 'mission:train_lost'); d.finish('timeout'); }
     }
@@ -751,6 +753,7 @@ export class Story {
     const m = this.mission, S = m.seats;
     if (!m.leg) { m.leg = 1; this._t1 = this.t; }
     S.seconds = this.t - this._t1; S.left = Math.max(0, S.limit - S.seconds); S.made = S.seconds <= S.limit; m.seconds = S.seconds;
+    m.t1 = Math.round(S.seconds * 10); m.liveScore = START_PTS - m.t1 + (S.made ? SEATS_PTS : 0);      // v22 (amendment 2): the leg's tenths, rounded once
     this.ctx.events.emit('mission:lunch', m);
   }
   // the lunch beat is over: the train clock starts, Aya sets the errand
@@ -779,7 +782,8 @@ export class Story {
     const m = this.mission, S = m.seats, T = m.train, M = AYA.mission;
     T.seconds = how === 'timeout' ? T.limit : Math.max(0, this.t - this._t2); T.left = Math.max(0, T.limit - T.seconds);
     T.made = how === 'gate' && T.seconds <= T.limit; m.seconds = S.seconds + T.seconds; m.leg = 3;
-    Object.assign(m, missionScore(m));
+    m.t2 = Math.round(T.seconds * 10);
+    Object.assign(m, missionScore(m)); m.liveScore = m.score;
     this.game.setQuest('train', T.made ? 'done' : 'failed', T.made ? 'You made the Koya express.' : 'The train left without you.', true);
     this.game.setQuest('coffee', 'hidden', null, true);
     this.aya.sayNow(T.made ? (m.coffee ? M.madeCoffee : M.made) : M.trainLost);

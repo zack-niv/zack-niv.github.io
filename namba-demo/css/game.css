@@ -488,15 +488,19 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
 .e-time { margin-top: 18px; display: flex; align-items: baseline; gap: 14px; }
 .e-time b { font: 300 clamp(44px, 5.6vw, 80px)/1 var(--g-sans); letter-spacing: -.035em; font-variant-numeric: tabular-nums; color: #d4ebff; min-width: 2ch; }
 .e-time small { font: 600 10.5px/1 var(--g-sans); letter-spacing: .26em; text-transform: uppercase; color: var(--g-faint); }
-.e-lines { list-style: none; margin: 14px 0 0; padding: 0; max-width: 30em; }
-.e-lines li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) auto; align-items: center; gap: 0 10px; padding: 7px 0; border-bottom: 1px solid rgba(244, 241, 234, .08); }
+.e-lines { list-style: none; margin: 12px 0 0; padding: 0; max-width: 30em; }
+.e-lines li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) auto; align-items: center; gap: 0 10px; padding: 5px 0; border-bottom: 1px solid rgba(244, 241, 234, .08); }
 .e-li { font-size: 17px; text-align: center; }
 .e-ll b { display: block; font: 600 14px/1.2 var(--g-sans); color: var(--g-ink); }
 .e-ll small { display: block; margin-top: 2px; font: 400 11.5px/1.3 var(--g-sans); color: var(--g-dim); }
 .e-lp { font: 600 15px/1 var(--g-sans); font-variant-numeric: tabular-nums; color: #d4ebff; }
 .e-lines li.dim { opacity: .5; } .e-lines li.dim .e-lp { color: var(--g-dim); }
-.e-lines li.x .e-ll b, .e-lines li.x .e-lp { text-decoration: line-through; text-decoration-thickness: 1.5px; }
-.e-lines li.x { opacity: .55; }
+.e-lines li.dim .e-lp { font-weight: 500; font-size: 12px; text-align: right; }
+.e-lines li.neg .e-lp { color: #f7dcb2; }
+.e-lines li.ok .e-lp { color: #8fe0a8; font-size: 17px; }
+.e-lines .e-sum { border-top: 1px solid rgba(244, 241, 234, .3); border-bottom: 0; margin-top: 2px; }
+.e-lines .e-sum b { font-weight: 500; color: var(--g-dim); } .e-lines .e-sum .e-lp { font-size: 16px; color: var(--g-ink); }
+.e-lines.void li { opacity: .42; }
 .e-lcap { margin: 6px 0 0; font: italic 400 12px/1.4 var(--g-sans); color: var(--e-before); }
 .e-facts { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 4px 18px; font: 500 13px/1.4 var(--g-sans); color: var(--g-dim); font-variant-numeric: tabular-nums; }
 .e-race .e-where { margin-top: 20px; }
@@ -544,7 +548,7 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
   .e-race .e-wrap { padding: 2.5vh 0; align-items: start; }
   .e-race .e-line { font-size: clamp(26px, 3.4vw, 42px); margin-top: 12px; }
   .e-time { margin-top: 8px; } .e-time b { font-size: clamp(36px, 4.4vw, 52px); }
-  .e-lines { margin-top: 8px; } .e-lines li { padding: 3px 0; } .e-li { font-size: 14px; } .e-ll b { font-size: 12.5px; } .e-ll small { margin-top: 0; font-size: 10.5px; } .e-lp { font-size: 13px; } .e-lcap { margin-top: 3px; font-size: 11px; }
+  .e-lines { margin-top: 8px; } .e-lines li { padding: 2px 0; } .e-li { font-size: 13px; } .e-ll b { font-size: 12.5px; } .e-ll small { display: inline; margin: 0 0 0 8px; font-size: 10.5px; } .e-ll b { display: inline; } .e-lp { font-size: 12.5px; } .e-lcap { margin-top: 3px; font-size: 11px; } .e-lines .e-sum { display: none; }
   .e-facts { margin-top: 8px; font-size: 12px; }
   .e-race .e-where { margin-top: 10px; font-size: 10.5px; } .e-race .e-note { margin-top: 6px; font-size: 13px; line-height: 1.45; }
   .e-race .e-btns { margin-top: 12px; } .e-race .e-btns .g-btn { padding: 11px 18px; font-size: 13.5px; }
@@ -558,15 +562,25 @@ body:has(.ph-peek:not([hidden])) .h-captions { bottom: max(8.5vh, 168px); }
   .e-race .e-wrap { padding: 1.5vh 0; }
   .e-race .e-eyebrow { font-size: 12px; }
   .e-race .e-line { font-size: 23px; margin-top: 8px; letter-spacing: -.02em; }
-  .e-time b { font-size: 38px; } .e-time { margin-top: 6px; gap: 10px; }
-  .e-lines { margin-top: 4px; } .e-lines li { padding: 2px 0; } .e-ll small { display: inline; margin: 0 0 0 8px; } .e-ll b { display: inline; }
+  .e-time b { font-size: 34px; } .e-time { margin-top: 4px; gap: 10px; }
+  .e-lines { margin-top: 4px; } .e-lines li { padding: 1px 0; } .e-li { font-size: 12px; } .e-ll b { font-size: 12px; } .e-lp { font-size: 12px; } .e-lines li.ok .e-lp { font-size: 13px; }
   .e-facts { margin-top: 5px; font-size: 11.5px; gap: 2px 14px; }
   .e-race .e-where { margin-top: 6px; font-size: 9.5px; } .e-race .e-note { margin-top: 4px; font-size: 12px; max-width: none; }
   .e-race .e-btns { margin-top: 8px; gap: 8px; } .e-race .e-btns .g-btn { padding: 9px 15px; font-size: 13px; }
   .e-race .e-talk { margin-top: 8px; } .e-race .e-links { gap: 8px; }
   .e-r { padding: 1.5px 8px; font-size: 12.5px; } .e-post { margin-top: 6px; } .e-msg { margin-top: 4px; min-height: 1em; } .e-copy { margin-top: 6px; } .e-ini, .e-mini { height: 32px; }
-  .e-race .e-link { padding: 6px 20px 6px 8px; } .e-race .e-ic { width: 24px; height: 24px; } .e-race .e-ic svg { width: 13px; height: 13px; } .e-race .e-tx b { font-size: 11.5px; }
+  .e-race .e-link { padding: 4px 20px 4px 8px; } .e-race .e-ic { width: 22px; height: 22px; } .e-race .e-ic svg { width: 13px; height: 13px; } .e-race .e-tx b { font-size: 11.5px; }
 }
+/* v22: touch.css tunes the classic card for a landscape phone (30px headline, one tall column of links); the race card has more on the left, so it takes the room back */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .e-race .e-line { font-size: 24px; margin-top: 8px; }
+  html.is-touch .e-race .e-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  html.is-touch .e-race .e-link { min-height: 44px; padding: 6px 20px 6px 8px; }
+  html.is-touch .e-race .e-btns { margin-top: 10px; } html.is-touch .e-race .e-talk { margin-top: 10px; } html.is-touch .e-race .e-note { margin-top: 6px; font-size: 12.5px; }
+  html.is-touch .e-race .e-right { padding: 12px 16px 12px; }
+}
+/* the very shortest landscape windows (a phone at 393 high): the kicker line gives way, everything else stays */
+@media (max-height: 420px) and (min-width: 721px) { .e-race .e-where { display: none; } .e-race .e-btns .g-btn { padding: 7px 14px; } }
 @media (max-width: 720px) {
   .e-race .e-wrap { padding: 4vh 0; }
   .e-race .e-right { max-height: none; }
@@ -736,3 +750,10 @@ body:has(.g-pause:not([hidden])) .h-amb, body:has(.g-end) .h-amb { opacity: 0; }
 html.is-touch #phone-root .ms-snap-b { min-height: 44px; font-size: 15px; background: #ff9f0a; color: #fff; padding: 9px 18px; }
 html.is-touch #phone-root .ms-snap-b.wait { background: #f3c27a; }
 html.is-touch #phone-root.ph-compact .ms-snap-b { min-height: 58px; padding: 10px 20px; font-size: 17px; border-radius: 24px; }
+/* v22 amendment 2: the live score under the clock (fixed width, tabular numbers: no layout shift) and the bonus pop */
+.h-m-s { min-width: 5.2ch; text-align: center; font: 600 12.5px/1 var(--g-sans); color: var(--g-ink); opacity: .82; letter-spacing: .02em; }
+.h-m-s:empty { display: block; }
+.h-m-pop { position: absolute; left: 50%; top: calc(100% + 6px); transform: translate(-50%, -4px); opacity: 0; white-space: nowrap; font: 700 12px/1 var(--g-sans); font-style: normal; color: var(--g-accent); text-shadow: 0 1px 6px rgba(0, 0, 0, .6); pointer-events: none; }
+.h-m-pop.on { animation: h-m-pop 2.4s ease-out 1; }
+@keyframes h-m-pop { 0% { opacity: 0; transform: translate(-50%, -4px); } 12%, 70% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 6px); } }
+@media (pointer: coarse) and (max-height: 500px) { .h-m-s { font-size: 10.5px; } .h-m-pop { font-size: 10.5px; } }

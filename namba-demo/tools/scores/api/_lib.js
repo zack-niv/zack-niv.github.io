@@ -4,9 +4,14 @@ import { put, list, del } from '@vercel/blob';
 import { createHash } from 'node:crypto';
 
 const ORIGINS = new Set(['https://zack-niv.github.io', 'http://localhost:8765']);
-export const MAX_SCORE = 9600;      // 1000 + 10*420 (train) + 500 + 5*480 (seats) + 1500 (coffee)
-const MIN_SCORE = 1000;             // a posted run made the train
-const MIN_SECONDS = 100;            // nobody walks both legs faster than this
+// v22 scoring, the same rule as the game's js/game/mission.js (keep the two in step): 10,000 at the start, minus 1 point
+// per tenth of a second over both legs, +1,000 for the counter seats (leg 1 within SEATS_T), +1,500 for the coffee, floor
+// 500. Only runs that made the train (leg 2 within TRAIN_T) are posted. The SERVER computes the score from the two leg
+// times and the coffee flag; a score sent by the browser is ignored.
+const SEATS_T = 4800, TRAIN_T = 4200;   // tenths of a second (DEMO.seatsS 480, DEMO.trainS 420)
+const MIN_T1 = 600, MIN_T2 = 400;       // nobody walks leg 1 in under a minute or leg 2 in under 40 s
+const MAX_T1 = 36000;                   // an hour: past that it is not a run any more
+export const scoreOf = (t1, t2, coffee) => Math.max(500, 10000 - t1 - t2 + (t1 <= SEATS_T ? 1000 : 0) + (coffee ? 1500 : 0));
 const PER_IP_HOUR = 12;
 const BLOCK = new Set(['ASS', 'FUK', 'FUC', 'FCK', 'FUX', 'SEX', 'CUM', 'FAG', 'NIG', 'NGR', 'KKK', 'TIT', 'DIK', 'DIC', 'DCK', 'COK', 'COC', 'PIS', 'SHT', 'CNT', 'KUM', 'JIZ', 'WTF', 'SUK', 'SUC', 'NAZ', 'SS1', 'HH8', '666', 'GAY', 'HOE', 'VAG', 'PUS', 'RAP', 'KYS']);
 
@@ -44,16 +49,13 @@ export function validate(b) {
   const name = String(b.name || '').toUpperCase();
   if (!/^[A-Z0-9]{3}$/.test(name)) return 'bad-name';
   if (BLOCK.has(name)) return 'name-taken';
-  const score = Math.round(+b.score), s = Math.round(+b.s);
-  if (!(score >= MIN_SCORE && score <= MAX_SCORE)) return 'bad-score';
-  if (!(s >= MIN_SECONDS && s <= 99999)) return 'bad-time';
-  const seats = !!b.seats, coffee = !!b.coffee;
-  // the parts must be able to add up: train 1000..5200, seats 0 or 500..2900, coffee 0 or 1500
-  const max = 5200 + (seats ? 2900 : 0) + (coffee ? 1500 : 0), min = 1000 + (seats ? 500 : 0) + (coffee ? 1500 : 0);
-  if (score > max || score < min) return 'bad-sum';
+  const t1 = Math.round(+b.t1), t2 = Math.round(+b.t2);
+  if (!(t1 >= MIN_T1 && t1 <= MAX_T1)) return 'bad-time';
+  if (!(t2 >= MIN_T2 && t2 <= TRAIN_T)) return 'bad-time';
+  const coffee = !!b.coffee, seats = t1 <= SEATS_T;
   const id = String(b.id || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
   if (id.length < 4) return 'bad-id';
-  return { name, score, s, seats, coffee, id };
+  return { name, score: scoreOf(t1, t2, coffee), s: Math.round((t1 + t2) / 10), seats, coffee, id };
 }
 export async function save(v, ip) {
   const at = Date.now();

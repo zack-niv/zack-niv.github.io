@@ -162,10 +162,20 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
   const num = (n) => Math.round(n).toLocaleString('en-US');
   const facts = [`${mmss(secs)} total`, hints > 0 ? `\u{1F4F8} ${hints} photo${hints === 1 ? '' : 's'} sent` : null, metersOn != null ? `${metres(metersOn)} m on foot` : null].filter(Boolean);
   const brag = eligible ? `I scored ${num(score)} in Lost in Namba \u{1F364}\u{1F683} Can you beat it? ${BRAG}` : `I missed the train in Lost in Namba \u{1F683} Can you make it? ${BRAG}`;
-  // the breakdown is computed by the story side: drawn exactly as given (struck through when the train was missed)
+  // the ledger is computed by the story side and drawn exactly as given, in order: Start, Time (negative), seats, coffee, train, optional floor.
+  // pts > 0 -> "+1,000"; pts < 0 -> true minus; pts 0 -> its note in place of the points, dimmed (the Train line, when made, shows a check instead).
   const lines = (Array.isArray(M.lines) ? M.lines : []).filter(l => l && typeof l === 'object');
-  const struck = (l) => !eligible && l.pts > 0;
-  const lineHtml = lines.map(l => `<li class="${l.pts > 0 ? '' : 'dim'}${struck(l) ? ' x' : ''}"><span class="e-li" aria-hidden="true">${esc(l.icon)}</span><span class="e-ll"><b>${esc(l.label)}</b>${l.note ? `<small>${esc(l.note)}</small>` : ''}</span><span class="e-lp">+${num(l.pts || 0)}</span></li>`).join('');
+  const isTrain = (l) => l.icon === '\u{1F686}' || /^train/i.test(String(l.label || ''));
+  const lineHtml = lines.map((l, i) => {
+    const pts = isFinite(l.pts) ? Math.round(l.pts) : 0, start = i === 0 && /^start/i.test(String(l.label || '')), train = isTrain(l) && eligible;
+    let right, sub = l.note || '', cls = '';
+    if (pts > 0) right = start ? num(pts) : `+${num(pts)}`;
+    else if (pts < 0) right = `\u2212${num(-pts)}`;
+    else if (train) right = '\u2713';
+    else { right = l.note ? esc(l.note) : '0'; sub = ''; cls = 'dim'; }
+    if (pts === 0 && isTrain(l) && !eligible) cls = 'dim';
+    return `<li class="${cls}${pts < 0 ? ' neg' : ''}${train ? ' ok' : ''}"><span class="e-li" aria-hidden="true">${esc(l.icon)}</span><span class="e-ll"><b>${esc(l.label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="e-lp">${right}</span></li>`;
+  }).join('');
   const talk = hasContact();
   const el = document.createElement('div');
   el.className = 'g-end e-race';
@@ -175,7 +185,7 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
         <div class="e-eyebrow"><span class="e-dot"></span>${eligible ? '着いた。<em>You made it.</em>' : '行っちゃった。<em>It left.</em>'}</div>
         <h1 class="e-line">${headline(tier, coffee)}</h1>
         <div class="e-time"><b aria-label="${num(score)}">${num(score)}</b><small>Your score</small></div>
-        ${lines.length ? `<ul class="e-lines">${lineHtml}</ul>${lines.some(struck) ? '<p class="e-lcap">not counted: the train left</p>' : ''}` : ''}
+        ${lines.length ? `<ul class="e-lines${eligible ? '' : ' void'}">${lineHtml}<li class="e-sum"><span class="e-li"></span><span class="e-ll"><b>Total</b></span><span class="e-lp">${num(score)}</span></li></ul>${eligible ? '' : '<p class="e-lcap">not counted: the train left</p>'}` : ''}
         <p class="e-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}</p>
         <p class="e-where">${esc(ENDCARD.kicker)}</p>
         <p class="e-note">${esc(ENDCARD.note)}</p>
@@ -242,13 +252,13 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
     if (name.length !== 3) { msg.textContent = 'Enter 3 letters or numbers.'; try { ini.focus(); } catch (e) { /* ignore */ } return; }
     posting = true; ini.value = name; ini.disabled = true; go.disabled = true; go.classList.add('wait'); go.textContent = 'Posting\u2026'; msg.textContent = '';
     lsSet('namba.initials', name);
-    const r = await postScore({ name, score, seats, coffee, s: Math.round(secs), hints, m: metersOn || 0, id });
+    const r = await postScore({ name, score, t1: M.t1, t2: M.t2, coffee, hints, m: metersOn || 0, id });
     posting = false;
     try { ctx.events.emit('score:post', { ok: !!r.ok, score, tier, rank: r.ok ? r.rank : null, total: r.ok ? r.total : null, error: r.ok ? null : r.error }); } catch (e) { /* analytics only */ }
     if (closed) return;
     if (r.ok) {
       posted = true; board = { ok: true, top: r.top, total: r.total }; nap = false;
-      mine = { name, score, seats, coffee, rank: Math.max(1, r.rank | 0) };
+      mine = { ...(r.you || { name, score, seats, coffee }), rank: Math.max(1, r.rank | 0) };
       msg.textContent = `You're #${mine.rank} of ${r.total}`;
       msg.classList.add('got');
       draw();

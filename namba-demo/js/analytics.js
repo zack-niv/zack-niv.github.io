@@ -155,7 +155,7 @@ export function setupAnalytics(ctx) {
   });
   // v22: the end of leg 2 (train made or missed): the score
   const n0 = (x) => (typeof x === 'number' && isFinite(x) ? Math.round(x * 10) / 10 : null);
-  E.on('mission:done', (m) => { if (!m) return; send('namba_finished', { score: m.score, tier: m.tier, seats_made: !!m.seats.made, coffee: !!m.coffee, train_left: n0(m.train.left), hints: m.hints, total_s: n0(m.seconds), t: t() }); });
+  E.on('mission:done', (m) => { if (!m) return; send('namba_finished', { score: m.score, tier: m.tier, seats_made: !!m.seats.made, coffee: !!m.coffee, train_left: n0(m.train.left), t1: m.t1, t2: m.t2, hints: m.hints, total_s: n0(m.seconds), t: t() }); });
   E.on('demo:end', () => { reach('endcard'); send('namba_endcard', { t: t() }); });
   E.on('demo:choice', (e) => send('namba_choice', { choice: e && e.choice }));
   E.on('score:post', (e) => { e = e || {}; send('namba_score', { ok: !!e.ok, score: e.score != null ? e.score : null, tier: e.tier || null, rank: e.rank != null ? e.rank : null, total: e.total != null ? e.total : null, error: e.error || null }); });

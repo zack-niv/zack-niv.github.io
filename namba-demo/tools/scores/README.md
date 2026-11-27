@@ -9,4 +9,6 @@ The scoreboard on the finish screen talks to a tiny service deployed on Vercel a
 - The service needs the Blob store's `BLOB_READ_WRITE_TOKEN` (added by connecting the store) and, optionally,
   `ADMIN_KEY` to allow `DELETE /api/score?key=…&name=ABC&score=1234` for removing an entry.
 
-Scores are sent by the browser, so they can be faked. The service only checks that the numbers are possible.
+The browser sends the two leg times and whether the coffee was bought; the service works out the score itself
+(the same rule as `js/game/mission.js`: keep the two in step). Times can still be faked, so the service only
+refuses impossible ones.

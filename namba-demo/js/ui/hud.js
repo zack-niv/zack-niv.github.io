@@ -55,13 +55,13 @@ export class Hud {
       <div class="h-hint"></div>
       <div class="h-notify"></div>
       <div class="h-chapter"><div class="h-chapter-ja"></div><div class="h-chapter-en"></div><div class="h-chapter-sub"></div></div>
-      <div class="h-mission" role="timer" aria-label="Mission clock" hidden><span class="h-m-l"></span><b class="h-m-t"></b><small class="h-m-s"></small></div>
+      <div class="h-mission" role="timer" aria-label="Mission clock" hidden><span class="h-m-l"></span><b class="h-m-t"></b><small class="h-m-s"></small><i class="h-m-pop"></i></div>
       <div class="h-fade"></div>`;
     const q = (s) => root.querySelector(s);
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
       toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icNote: q('.h-ic-note'), icBal: q('.h-ic-bal'),
-      mission: q('.h-mission'), mL: q('.h-m-l'), mT: q('.h-m-t'), mS: q('.h-m-s'), cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
+      mission: q('.h-mission'), mL: q('.h-m-l'), mT: q('.h-m-t'), mS: q('.h-m-s'), mP: q('.h-m-pop'), cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
     this.quiet = params.test && !params.has('play');
@@ -294,7 +294,11 @@ export class Hud {
     if (!show) { if (!el.hidden) el.hidden = true; return; }
     const T = m.leg === 1 ? m.seats : m.train, left = T.left, gone = left <= 0;
     const fmt = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
-    const label = m.leg === 1 ? 'LUNCH' : 'TRAIN', big = gone ? (m.leg === 1 ? 'seats gone' : 'train gone') : fmt(Math.ceil(left)), sub = gone && m.leg === 1 ? fmt(T.seconds) : '';
+    const label = m.leg === 1 ? 'LUNCH' : 'TRAIN', big = gone ? (m.leg === 1 ? 'seats gone' : 'train gone') : fmt(Math.ceil(left)), sub = Math.round(m.liveScore).toLocaleString('en-US');      // the live score: 10,000 - tenths + banked bonuses (story._missionTick)
+    // the bonus pops: seats made (banked at the lunch, shown when the chip comes back), coffee bought
+    const pop = (txt) => { const P = this.el.mP; P.textContent = txt; P.classList.remove('on'); void P.offsetWidth; P.classList.add('on'); };
+    this._mSeen = this._mSeen || { s: false, c: false };
+    if (m.seats.made && !this._mSeen.s) { this._mSeen.s = true; pop('+1,000 seats'); } else if (m.coffee && !this._mSeen.c) { this._mSeen.c = true; pop('+1,500 coffee'); }
     const cls = 'h-mission' + (gone ? ' gone' : left <= 30 ? ' red' : left <= 120 ? ' amber' : '') + (m.leg === 2 ? ' train' : '');
     const key = m.leg + (gone ? 'g' : '');
     if (el.hidden) el.hidden = false;
