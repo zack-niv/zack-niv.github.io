@@ -19,6 +19,8 @@
 //   there ('demo:order') → she suggests Daikichi and a short "next stop" hint
 //   shows. Walking on past the café without it → one tease, never a block.
 // Words in script.js (AYA, UPGRADE, TUTORIAL); measurements in demo.js.
+// v22: NO Lodestone (unless ?lodestone = this.classic, the old arc untouched). Leg 1 LUNCH (seats clock) → lunch beat → leg 2 TRAIN (train clock,
+//   optional coffee, finish = a Nankai gate tap), scored in points (mission.js). Every old _offer(why) funnels into _help(why): Aya offers to read a photo.
 // v9 (notes/v9-progression.md): every beat is gated on the conversation + whereabouts + time, never time alone.
 //   HELLO? ─reply─► MEET? (On my way / Which way??) ─► LATTE? (Sure / Not today) — each waits for its answer, Aya
 //   nudges ("hello?? 👀") and then follows up naturally (aya.js patience). The latte is asked only if the player is
