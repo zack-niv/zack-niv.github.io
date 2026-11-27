@@ -87,7 +87,7 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
         <div class="e-eyebrow"><span class="e-dot"></span>着いた。<em>You made it.</em></div>
         <h1 class="e-line">Indoor spaces shouldn't run on <span>guesswork.</span></h1>
         <p class="e-where">${esc(ENDCARD.kicker)}</p>
-        <p class="e-note">Built by <b>Zack Niv</b> — a love letter to Namba and to indoor positioning.</p>
+        <p class="e-note">Built by <b>Zack Niv</b> — a love letter to Namba and to getting lost in Japan.</p>
         ${ENDCARD.contact ? `<p class="e-contact">${esc(ENDCARD.contact)}</p>` : ''}
         <div class="e-btns">
           <button type="button" class="g-btn sel" data-a="roam">Keep exploring <small>まだ歩く</small></button>
