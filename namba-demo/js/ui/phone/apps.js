@@ -317,7 +317,7 @@ export class MessagesApp {
   _pin() {
     const s = this.root.querySelector('.ms-list'); if (!s) return;
     const go = () => { s.scrollTop = s.scrollHeight; this._syncPin(); };
-    go(); requestAnimationFrame(() => { go(); requestAnimationFrame(go); }); clearTimeout(this._pinT); this._pinT = setTimeout(go, 420);
+    go(); requestAnimationFrame(() => { go(); requestAnimationFrame(go); }); clearTimeout(this._pinT); clearTimeout(this._pinT2); this._pinT = setTimeout(go, 420); this._pinT2 = setTimeout(go, 1000);
     s.querySelectorAll('img').forEach(i => { if (!i.complete || !i.naturalWidth) { i.addEventListener('load', go, { once: true }); i.addEventListener('error', go, { once: true }); } });
   }
   // v23 integration: Aya's link card (the Maps pick) sits in the thread, and her next texts scroll it out of sight, so a first-time

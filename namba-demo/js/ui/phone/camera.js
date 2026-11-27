@@ -48,8 +48,11 @@ export class CameraMode {
     addEventListener('mousedown', (e) => {
       if (!this.active || e.button !== 0 || (e.target && e.target.closest && e.target.closest('.ph-cam button'))) return;
       if (e.sourceCapabilities && e.sourceCapabilities.firesTouchEvents) return;
-      e.preventDefault(); this.shoot();
+      e.preventDefault(); this._eatClickUntil = performance.now() + 900; this.shoot();
     }, true);
+    // the click that follows a mouse shot must not reach the game: its canvas click handler would grab the pointer lock again
+    // while the phone comes up on Messages (a hidden, locked cursor over the thread)
+    addEventListener('click', (e) => { if (performance.now() < (this._eatClickUntil || 0)) { e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     addEventListener('resize', () => { if (this.active) this._layout(); });
   }
 
