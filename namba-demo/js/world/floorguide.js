@@ -146,8 +146,9 @@ export class FloorGuides {
         single: true, cat: 'guide', bld: sp.bld, area: !!sp.area, stand, major: true, label: sp.label || '' });
       if (stand) {
         // free-standing: two posts + the panel; blocks the cells it stands on (the nav graph is built after this)
-        const hx = s.nz ? BW / 2 : 0.1, hz = s.nz ? 0.1 : BW / 2;
-        world.addBox(s.level, s.x, s.z, hx, hz, 0);
+        // v23 signs2: any facing (the Parks landing boards are turned 45 degrees towards the people stepping off): the box's local x
+        // axis runs along the board (its right vector (nz, -nx))
+        world.addBox(s.level, s.x, s.z, BW / 2, 0.1, Math.atan2(-s.nx, s.nz));
       }
       this.boards.push(s);
     }
@@ -176,7 +177,7 @@ export class FloorGuides {
     }
     for (const s of this.boards) {
       const f = [-s.nx, -s.nz];
-      const rot = ((Math.round(Math.atan2(f[0], -f[1]) / (Math.PI / 2)) % 4) + 4) % 4;
+      const rot = ((Math.round(Math.atan2(f[0], -f[1]) / (Math.PI / 4)) % 8) + 8) % 8;       // v23: 45 degree steps
       const key = `plan|${s.bld}|${s.level}|${rot}`;
       let rec = this.plans.get(key);
       if (!rec) {
@@ -295,7 +296,7 @@ export class FloorGuides {
   // ---- plan texture -------------------------------------------------------------
   _drawPlan(g, W, H, s, rec) {
     const { JA, EN, picto, rr } = this.K, sig = this.sig, world = sig.ctx.world, bld = BLD[s.bld];
-    const [x0, z0, x1, z1] = rec.fp, th = -rec.rot * Math.PI / 2;
+    const [x0, z0, x1, z1] = rec.fp, th = -rec.rot * Math.PI / 4;
     g.fillStyle = '#f8f6ef'; g.fillRect(0, 0, W, H);
     const hh = Math.round(H * 0.105);
     g.fillStyle = '#24272c'; g.fillRect(0, 0, W, hh); g.fillStyle = bld.color; g.fillRect(0, hh - 5, W, 5);

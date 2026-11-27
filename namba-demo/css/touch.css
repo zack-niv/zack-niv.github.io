@@ -436,3 +436,5 @@ html.is-touch .t-swipe { font-size: 12px; }
 html.is-touch .t-a2hs { font-size: 12px; }
 /* the HUD's own E prompt is gone (not just transparent) whenever the Use card shows: one prompt, the card */
 html.tu-use-on #hud .h-prompt:not(.passive) { visibility: hidden !important; }
+/* the walk card sits beside the stick, not above it (above, it covered the tracks) */
+.tcz-walk .tcz-lab { left: calc(148px + var(--sl)); bottom: calc(34px + var(--sb)); }

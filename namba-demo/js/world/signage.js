@@ -68,8 +68,8 @@ const FLOOR_GUIDE_SPECS = [
   { level: '2F', bld: 'nankai', x: -6.5, z: -72, nx: 0, nz: 1, wall: false },
   { level: '2F', bld: 'parks', x: 9, z: 211, nx: 0, nz: -1, wall: false },
   // v23 signs2: the Parks landing boards stand on the landing facing the people who step off (they were on the east wall, seen edge-on)
-  { level: '3F', bld: 'parks', x: 2.3, z: 239.2, nx: 0, nz: -1, wall: false }, { level: '4F', bld: 'parks', x: 2.3, z: 257.2, nx: 0, nz: -1, wall: false },
-  { level: '5F', bld: 'parks', x: 2.3, z: 275.2, nx: 0, nz: -1, wall: false }, { level: '6F', bld: 'parks', x: 2.3, z: 293.5, nx: 0, nz: -1, wall: false },
+  { level: '3F', bld: 'parks', x: 1.95, z: 241.5, nx: -0.7071, nz: -0.7071, wall: false }, { level: '4F', bld: 'parks', x: 1.95, z: 259.5, nx: -0.7071, nz: -0.7071, wall: false },
+  { level: '5F', bld: 'parks', x: 1.95, z: 277.5, nx: -0.7071, nz: -0.7071, wall: false }, { level: '6F', bld: 'parks', x: 1.95, z: 295.5, nx: -0.7071, nz: -0.7071, wall: false },
   _E('7F', 'parks', 336, 3.85, 4),
 ];
 
@@ -91,27 +91,27 @@ const MANUAL_DESTS = [
   { id: 'gatex', kind: 'gatex', ja: '中央改札口', en: 'Central Gate', manual: true, tier: 1, ops: ['nankai'], level: '3F', goals: [['3F', -42, -64], ['3F', -30, -64], ['3F', -16, -64], ['3F', 0, -64], ['3F', 8, -64]] },
   { id: 'nkgate', kind: 'floor', ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', manual: true, tier: 1, ops: ['nankai'], level: '3F', goals: [['3F', -42, -64], ['3F', -30, -64], ['3F', -16, -64], ['3F', 0, -64], ['3F', 8, -64]] },
   Object.assign({ id: 'daik', kind: 'shop', manual: true, tier: 1, ops: ['parks'], level: '6F' }, _bz('parks_6Fdw03') || { ja: '天ぷら 大吉', en: 'Tempura Daikichi', goals: [['6F', -4.8, 310]] }),
-  Object.assign({ id: 'mitsu', kind: 'shop', manual: true, tier: 1, ops: ['city'], level: '1F' }, _bz('city_1e12') || { ja: 'カフェ', en: 'Café Mitsubachi', goals: [['1F', 3.8, 111]] }),
+  Object.assign({ id: 'mitsu', kind: 'shop', manual: true, escVia: true, tier: 1, ops: ['city'], level: '1F' }, _bz('city_1e12') || { ja: 'カフェ', en: 'Café Mitsubachi', goals: [['1F', 3.8, 111]] }),
 ];
 // the list: platform signs are generated (all four islands); the rest are placed by hand. n = the direction the face-1 reader
 // comes from (the sign's normal points at the reader): (0,1) = read walking north (-z), (0,-1) south, (-1,0) east, (1,0) west.
 const _NKG = ['gatex', { ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', key: 'nk', lvlTarget: '3F' }];
 const _plat = [];
-for (const xc of [-42.5, -25.5, -8.5, 8.5]) for (const z of [60, 16, 2, -34, -46]) {
+for (const xc of [-42.5, -25.5, -8.5, 8.5]) for (const z of [60, 46, 16, 2, -10, -32, -44]) {
   _plat.push({ level: '3F', x: xc, z, nx: 0, nz: 1, op: 'nankai', h: 0.9, maxW: 5.6, dests: ['gatex'], note: { ja: '出口は反対方向', en: 'Exit: the other way' }, lm: 'the exit sign' });
 }
 const _corr = [];
-for (const z of [-56, -26, 4, 34, 64, 94, 128, 160, 190]) {
-  _corr.push({ level: '2F', x: 0, z, nx: 0, nz: -1, op: 'city', h: 0.85, maxW: 6.8, dests: z >= 150 ? ['parks', 'dining'] : ['parks'], back: [_NKG], lm: 'the overhead signs' });
+for (const z of [-34, -4, 26, 56, 86, 116, 146, 176, 198]) {
+  _corr.push({ level: '2F', x: 0, z, nx: 0, nz: -1, op: 'metro', h: 1.05, maxW: 6.8, dests: z >= 150 ? ['parks', 'dining'] : ['parks'], back: [_NKG], lm: 'the overhead signs' });
 }
 const WAY_SIGNS = [
   ..._plat, ..._corr,
   // 3F concourse after the Central Gate: towards the escalator down (and the way back to the gate)
-  { level: '3F', x: -9, z: -75, nx: 0, nz: 1, op: 'nankai', h: 0.95, maxW: 6.8, dests: ['city', 'parks', 'takashimaya', 'midosuji', 'sennichimae'], back: [_NKG], lm: 'the big overhead sign' },
-  { level: '3F', x: -2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 0.95, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
-  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 0.95, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: ['city', 'parks'], lm: 'the big overhead sign' },
+  { level: '3F', x: -9, z: -75, nx: 0, nz: 1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya', 'midosuji', 'sennichimae'], back: [_NKG], lm: 'the big overhead sign' },
+  { level: '3F', x: -2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
+  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: ['city', 'parks'], lm: 'the big overhead sign' },
   // Nankai 2F hall: towards the corridor
-  { level: '2F', x: 2, z: -72, nx: 0, nz: -1, op: 'nankai', h: 0.95, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
+  { level: '2F', x: 1.5, z: -62, nx: 0, nz: -1, op: 'metro', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
   // Parks: 2F entrance approach, landings (up signs read walking south->north, down signs the other way), 6F arrival
   { level: '2F', x: -3, z: 214, nx: 0, nz: -1, op: 'parks', h: 0.85, maxW: 4.4, dests: ['dining', 'parks'], back: [_NKG, 'city'], lm: 'the Parks sign' },
   { level: '3F', x: -3, z: 241.5, nx: 0, nz: -1, op: 'parks', h: 0.85, maxW: 3.8, dests: ['dining'], lm: 'the restaurants sign' },
@@ -121,7 +121,8 @@ const WAY_SIGNS = [
   { level: '4F', x: -1, z: 255.5, nx: 0, nz: 1, op: 'parks', h: 0.85, maxW: 3.8, dests: [_NKG, 'city'], lm: 'the Nankai sign' },
   { level: '5F', x: -1, z: 273.5, nx: 0, nz: 1, op: 'parks', h: 0.85, maxW: 3.8, dests: [_NKG, 'city'], lm: 'the Nankai sign' },
   { level: '6F', x: -1, z: 292, nx: 0, nz: 1, op: 'parks', h: 0.85, maxW: 4.4, dests: [_NKG, 'city'], lm: 'the Nankai sign' },
-  { level: '6F', x: -1, z: 296, nx: 0, nz: -1, op: 'parks', h: 0.95, maxW: 5.0, dests: ['daik', 'toilet', 'dining'], lm: 'the restaurant sign' },
+  { level: '6F', x: -1, z: 296, nx: 0, nz: -1, op: 'parks', h: 0.95, maxW: 6.8, dests: ['daik', 'toilet'], lm: 'the restaurant sign' },
+  { level: '6F', x: -3, z: 304, nx: 0, nz: -1, op: 'parks', h: 0.95, maxW: 4.6, dests: ['daik'], back: [_NKG], lm: 'the restaurant sign' },
 ];
 
 const PRIORITY = { gate: 10, esc: 8, exitHang: 7, end: 5, side: 4, hall: 3, interval: 2, column: 1 };
@@ -847,6 +848,15 @@ export class Signage {
       blocks.push({ type: d.kind === 'facility' ? 'fac' : d.kind === 'gatex' ? 'gatex' : 'dir', ang: c.ang, lvl: c.lvl, d, score: c.score });
     }
     if (!blocks.length && f.note) blocks.push({ type: 'note', ja: f.note.ja, en: f.note.en, label: f.note.ja, ang: null, score: 1 });
+    // destinations that share an arrow and a level tag stack in ONE block ("▼2F  なんばCITY / なんばパークス / 高島屋"), as real signs do
+    const stacked = [];
+    for (const b of blocks) {
+      const k = b.type === 'dir' ? b.ang + '|' + (b.lvl ? b.lvl.dir + b.lvl.label : '') : null;
+      const m = k && stacked.find(q => q.k === k);
+      if (m) { m.b.items.push(b.d); m.b.score = Math.max(m.b.score, b.score); } else { if (k && blocks.some(o => o !== b && o.type === 'dir' && o.ang + '|' + (o.lvl ? o.lvl.dir + o.lvl.label : '') === k)) { b.type = 'list'; b.items = [b.d]; b.label = 'list'; stacked.push({ k, b }); } }
+    }
+    const merged = blocks.filter(b => !(b.type === 'dir' && stacked.some(q => q.k === b.ang + '|' + (b.lvl ? b.lvl.dir + b.lvl.label : ''))));
+    blocks.length = 0; blocks.push(...merged);
     for (const b of blocks) b.w = this._measureBlock(g, b, H, st);
     blocks.sort((a, b) => b.score - a.score);
     while (blocks.length > 1 && blocks.reduce((a, b) => a + b.w, 0) > maxPx) blocks.pop();
@@ -905,6 +915,11 @@ export class Signage {
       g.font = JA(H * 0.34, 900); const jw = measW(g, b.d.ja); g.font = EN(H * 0.22, 700); const ew = measW(g, b.d.en);
       return pad * 2 + arrow + lvl + H * 0.7 + Math.max(jw, ew) + pad * 0.5;
     }
+    if (b.type === 'list') {
+      const n = b.items.length, jp = Math.min(H * 0.36, H / n * 0.6); let mw = 0;
+      for (const d of b.items) { g.font = JA(jp, 700); const jw = measW(g, this._ja(d)); g.font = EN(jp * 0.58, 600); mw = Math.max(mw, jw + jp * 0.4 + measW(g, this._en(d, st))); }
+      return pad * 2 + arrow + lvl + mw + pad * 0.3;
+    }
     if (b.type === 'note') {
       g.font = JA(H * 0.3, 900); const jw = measW(g, b.ja); g.font = EN(H * 0.2, 600); const ew = measW(g, b.en);
       return pad * 2 + Math.max(jw, ew);
@@ -934,7 +949,7 @@ export class Signage {
   _en(d, st) {
     let t = d.en;
     if (d.kind === 'line' && d.line === 'nankai') t = 'Nankai Line';
-    return st && st.lower ? t.toLowerCase() : t;
+    return st && st.lower ? t.toLowerCase().replace(/(\d)f\b/g, '$1F') : t;      // v23: floors keep their capital F
   }
 
   // ===========================================================================
@@ -1198,6 +1213,17 @@ export class Signage {
       g.fillStyle = st.fg2; g.font = EN(H * 0.2, 600); g.fillText(st.lower ? fi.en.toLowerCase() : fi.en, x, H * 0.72);
       return;
     }
+    if (b.type === 'list') {
+      const n = b.items.length, jp = Math.min(H * 0.36, H / n * 0.6);
+      g.textAlign = 'left'; g.textBaseline = 'middle';
+      b.items.forEach((d, i) => {
+        const yy = H * (i + 0.5) / n;
+        g.fillStyle = st.fg; g.font = JA(jp, 700); g.fillText(this._ja(d), x, yy);
+        const jw = measW(g, this._ja(d));
+        g.fillStyle = st.fg2; g.font = EN(jp * 0.58, 600); g.fillText(this._en(d, st), x + jw + jp * 0.4, yy + jp * 0.04);
+      });
+      return;
+    }
     if (b.type === 'lvlOnly') return;
     const d = b.d;
     for (const ln of this._badges(d)) { lineBadge(g, ln, x + H * 0.27, H / 2, H * 0.26); x += H * 0.62; }
@@ -1232,6 +1258,12 @@ export class Signage {
       dir = s.end === 'low' ? 1 : -1;
       lvlLabel = LEVELS[dir > 0 ? r0.upper : r0.lower].label;
       for (const c of f.cands) if (c.r.ramp >= 0 && bankR.has(c.r.ramp) && c.r.rampAt < 6 && c.d.kind !== 'facility') via.push(c);
+      // v23: sign-only destinations that ride this bank (the café on 1F, the Central Gate on 3F) lead the list
+      for (const d of this._allDests) {
+        if (!d.manual || !d.escVia) continue;
+        const di = this._dests.findIndex(q => q.id === d.id), r = di >= 0 && this._r(f.fi, di);
+        if (r && r.ramp >= 0 && bankR.has(r.ramp) && r.rampAt < 6) via.unshift({ d, r, score: 50 });
+      }
     } else {
       // stepping off: normal directional content
       return this._blocks(s, f, (s.maxW || 4) * this.PPM, g);
