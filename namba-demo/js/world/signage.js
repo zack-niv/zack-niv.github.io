@@ -70,7 +70,7 @@ const FLOOR_GUIDE_SPECS = [
   // v23 signs2: the Parks landing boards stand on the landing facing the people who step off (they were on the east wall, seen edge-on)
   { level: '3F', bld: 'parks', x: 1.95, z: 241.5, nx: -0.7071, nz: -0.7071, wall: false }, { level: '4F', bld: 'parks', x: 1.95, z: 259.5, nx: -0.7071, nz: -0.7071, wall: false },
   { level: '5F', bld: 'parks', x: 1.95, z: 277.5, nx: -0.7071, nz: -0.7071, wall: false }, { level: '6F', bld: 'parks', x: 1.95, z: 295.5, nx: -0.7071, nz: -0.7071, wall: false },
-  _E('7F', 'parks', 336, 3.85, 4),
+  { level: '7F', bld: 'parks', x: 1.95, z: 338, nx: -0.7071, nz: -0.7071, wall: false },
 ];
 
 // v23: the Parks restaurant floors were on no sign at all (the Parks landings only pointed back to Nankai / Namba CITY).
@@ -90,16 +90,22 @@ const _bz = (slot) => { const b = businessBySlot[slot]; return b && b.door ? { j
 const MANUAL_DESTS = [
   { id: 'gatex', kind: 'gatex', ja: '中央改札口', en: 'Central Gate', manual: true, tier: 1, ops: ['nankai'], level: '3F', goals: [['3F', -42, -64], ['3F', -30, -64], ['3F', -16, -64], ['3F', 0, -64], ['3F', 8, -64]] },
   { id: 'nkgate', kind: 'floor', ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', manual: true, tier: 1, ops: ['nankai'], level: '3F', goals: [['3F', -42, -64], ['3F', -30, -64], ['3F', -16, -64], ['3F', 0, -64], ['3F', 8, -64]] },
+  // the same gate seen from the free side (the nav field of the platform side does not enter through a gate)
+  { id: 'nkgate', kind: 'floor', ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', manual: true, tier: 1, ops: ['nankai'], level: '3F', lvlTarget: '3F', goals: [['3F', -42, -70], ['3F', -30, -70], ['3F', -16, -70], ['3F', 0, -70], ['3F', 8, -70]] },
   Object.assign({ id: 'daik', kind: 'shop', manual: true, tier: 1, ops: ['parks'], level: '6F' }, _bz('parks_6Fdw03') || { ja: '天ぷら 大吉', en: 'Tempura Daikichi', goals: [['6F', -4.8, 310]] }),
-  Object.assign({ id: 'mitsu', kind: 'shop', manual: true, escVia: true, tier: 1, ops: ['city'], level: '1F' }, _bz('city_1e12') || { ja: 'カフェ', en: 'Café Mitsubachi', goals: [['1F', 3.8, 111]] }),
+  Object.assign({ id: 'mitsu', kind: 'shop', manual: true, escVia: true, escZones: ['city'], tier: 1, ops: ['city'], level: '1F' }, _bz('city_1e12') || { ja: 'カフェ', en: 'Café Mitsubachi', goals: [['1F', 3.8, 111]] }),
 ];
 // the list: platform signs are generated (all four islands); the rest are placed by hand. n = the direction the face-1 reader
 // comes from (the sign's normal points at the reader): (0,1) = read walking north (-z), (0,-1) south, (-1,0) east, (1,0) west.
-const _NKG = ['gatex', { ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', key: 'nk', lvlTarget: '3F' }];
+// (the existing 'nankai' field enters the paid area, so the bearing from outside the gates is the true one: through the gate)
+const _NKG = ['nankai', { ja: '南海線 中央改札口', en: 'Nankai Line · Central Gate', key: 'gate', kind: 'floor' }];
 const _plat = [];
-for (const xc of [-42.5, -25.5, -8.5, 8.5]) for (const z of [60, 46, 16, 2, -10, -32, -44]) {
+for (const xc of [-42.5, -25.5, -8.5, 8.5]) for (const z of [60, 46, 12, -2, -14, -32, -44]) {
   _plat.push({ level: '3F', x: xc, z, nx: 0, nz: 1, op: 'nankai', h: 0.9, maxW: 5.6, dests: ['gatex'], note: { ja: '出口は反対方向', en: 'Exit: the other way' }, lm: 'the exit sign' });
 }
+// at the train doors: a sign over the platform edge facing across the platform ("← 出口 Exit"), read by whoever steps out
+// of a train on either side (face 1 reads east-looking passengers, the back face west-looking ones)
+for (const xc of [-42.5, -25.5, -8.5, 8.5]) _plat.push({ level: '3F', x: xc + 2.7, z: 22, nx: -1, nz: 0, op: 'nankai', h: 0.8, maxW: 4.2, dests: ['gatex'], back: ['gatex'], lm: 'the exit sign' });
 const _corr = [];
 for (const z of [-34, -4, 26, 56, 86, 116, 146, 176, 198]) {
   _corr.push({ level: '2F', x: 0, z, nx: 0, nz: -1, op: 'metro', h: 1.05, maxW: 6.8, dests: z >= 150 ? ['parks', 'dining'] : ['parks'], back: [_NKG], lm: 'the overhead signs' });
@@ -109,7 +115,7 @@ const WAY_SIGNS = [
   // 3F concourse after the Central Gate: towards the escalator down (and the way back to the gate)
   { level: '3F', x: -9, z: -75, nx: 0, nz: 1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya', 'midosuji', 'sennichimae'], back: [_NKG], lm: 'the big overhead sign' },
   { level: '3F', x: -2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
-  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: ['city', 'parks'], lm: 'the big overhead sign' },
+  { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },      // back face: read by people riding UP to the concourse
   // Nankai 2F hall: towards the corridor
   { level: '2F', x: 1.5, z: -62, nx: 0, nz: -1, op: 'metro', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
   // Parks: 2F entrance approach, landings (up signs read walking south->north, down signs the other way), 6F arrival
@@ -1260,7 +1266,7 @@ export class Signage {
       for (const c of f.cands) if (c.r.ramp >= 0 && bankR.has(c.r.ramp) && c.r.rampAt < 6 && c.d.kind !== 'facility') via.push(c);
       // v23: sign-only destinations that ride this bank (the café on 1F, the Central Gate on 3F) lead the list
       for (const d of this._allDests) {
-        if (!d.manual || !d.escVia) continue;
+        if (!d.manual || !d.escVia || (d.escZones && !d.escZones.includes(s.zone))) continue;
         const di = this._dests.findIndex(q => q.id === d.id), r = di >= 0 && this._r(f.fi, di);
         if (r && r.ramp >= 0 && bankR.has(r.ramp) && r.rampAt < 6) via.unshift({ d, r, score: 50 });
       }

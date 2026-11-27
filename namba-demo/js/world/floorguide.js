@@ -24,7 +24,8 @@ import { FACILITY_INFO, DESTINATIONS, EXIT_INFO } from '../ui/phone/places.js?v=
 // v23 signs2: 3.0 x 2.2 m (was 2.72 x 1.9) so the list type can be read from 3 m
 export const BW = 3.0, BH = 2.2, LW = 1.85, PW = 1.05;
 // texture density (logical px per metre): lists carry small tenant text, plans are shapes
-const LD = 300, PD = 220;
+// v23 signs2: 270 / 190 so that two lists (499 px) fit a 1024 page side by side and five plans fill the shelf under them (3 pages)
+const LD = 270, PD = 190;
 const LPX = [Math.round(LW * LD), Math.round(BH * LD)], PPX = [Math.round(PW * PD), Math.round(BH * PD)];
 
 // ---- buildings -------------------------------------------------------------

@@ -74,6 +74,8 @@ export class MapApp {
     this._labelsFor = new Map(); this._shopsFor = new Map(); this._tw = new Map();
     this._ins = { t: 46, b: 44 };
     this._build();
+    // text widths are cached; measure again once the web fonts are in (a narrower fallback font would clip labels)
+    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { this._tw.clear(); this._dirty = true; }); } catch (e) { /* ignore */ }
   }
 
   // ---------------------------------------------------------------- DOM ----
@@ -741,6 +743,7 @@ export class MapApp {
   }
   // "you are facing this way": a fixed compass badge at the bottom centre (a direction, never a location)
   _drawWedge(g) {
+    if (this._where().gps) return;     // on a GPS fix the dot has its own heading cone
     const v = this.view, p = this.pos, x = this.W / 2, y = this.H - this._ins.b - 36;
     const ang = -(p.heading - v.rot) - Math.PI / 2;
     g.save();
@@ -762,12 +765,18 @@ export class MapApp {
     g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 4; g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 12, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
     g.fillStyle = '#e8710a'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy - 2.6, 2.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4, sy + 5); g.quadraticCurveTo(sx, sy - 1, sx + 4, sy + 5); g.closePath(); g.fill();
-    const l1 = k.text, l2 = `${this._ageTxt(age)} ago`, f1 = `700 11px ${FONT}`, f2 = `600 11px ${FONT}`;
-    const w = Math.max(this._textW(g, f1, l1), this._textW(g, f2, l2)) + 16, h = 34;
+    const f1 = `700 11px ${FONT}`, f2 = `600 11px ${FONT}`, l2 = `${this._ageTxt(age)} ago`;
+    // the label wraps (nothing is cut): up to ~118 px wide, to the right of the marker (left when there is no room)
+    const lines = []; let cur = '';
+    for (const wd of k.text.split(' ')) { const t = cur ? `${cur} ${wd}` : wd; if (cur && this._textW(g, f1, t) > 118) { lines.push(cur); cur = wd; } else cur = t; }
+    lines.push(cur);
+    const w = Math.max(this._textW(g, f2, l2), ...lines.map(t => this._textW(g, f1, t))) + 20, h = lines.length * 13 + 13 + 10;
     let x = sx + 18 + w / 2; if (x + w / 2 > this.W - 4) x = sx - 18 - w / 2; x = Math.max(4 + w / 2, x);
     const y = sy;
     g.fillStyle = '#fff4e5'; g.strokeStyle = '#e8710a'; g.lineWidth = 1.5; this._rr(g, x - w / 2, y - h / 2, w, h, 9); g.fill(); g.stroke();
-    g.fillStyle = '#5a2d00'; g.font = f1; g.fillText(l1, x, y - 7); g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(l2, x, y + 8);
+    g.fillStyle = '#5a2d00'; g.font = f1;
+    lines.forEach((t, i) => g.fillText(t, x, y - h / 2 + 11 + i * 13));
+    g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(l2, x, y - h / 2 + 11 + lines.length * 13 + 1);
     g.restore();
   }
   // the destination's shop block, outlined
