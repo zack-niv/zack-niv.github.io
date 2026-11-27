@@ -1102,7 +1102,8 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 
 /* ---- camera mode: the world through a viewfinder (js/ui/phone/camera.js). Above the touch controls (z 25) ---- */
 .ph-cam { position: fixed; inset: 0; z-index: 30; pointer-events: none; -webkit-user-select: none; user-select: none; font-family: Inter, "Noto Sans JP", system-ui, sans-serif; }
-.cam-frame { position: absolute; box-shadow: 0 0 0 100vmax rgba(0,0,0,.34); }
+.cam-dim { position: absolute; background: rgba(0,0,0,.34); }
+.cam-frame { position: absolute; }
 .cam-c { position: absolute; width: 26px; height: 26px; border: 0 solid rgba(255,255,255,.96); filter: drop-shadow(0 0 2px rgba(0,0,0,.45)); }
 .cam-c.a { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 7px; }
 .cam-c.b { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 7px; }

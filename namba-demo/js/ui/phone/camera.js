@@ -17,11 +17,12 @@ export class CameraMode {
     const touch = !!(this.ctx.input && this.ctx.input.touch);
     const el = document.createElement('div');
     el.className = 'ph-cam'; el.hidden = true;
-    el.innerHTML = `<div class="cam-frame"><i class="cam-c a"></i><i class="cam-c b"></i><i class="cam-c c"></i><i class="cam-c d"></i><div class="cam-grid"></div>
+    el.innerHTML = `<i class="cam-dim t"></i><i class="cam-dim b"></i><i class="cam-dim l"></i><i class="cam-dim r"></i><div class="cam-frame"><i class="cam-c a"></i><i class="cam-c b"></i><i class="cam-c c"></i><i class="cam-c d"></i><div class="cam-grid"></div>
         <div class="cam-hint" hidden>Point at a sign or a shop</div></div>
       <button type="button" class="cam-x" aria-label="Close camera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>${touch ? '' : '<kbd>Esc</kbd>'}</button>
       <button type="button" class="cam-shutter" aria-label="Take photo"><i></i>${touch ? '' : '<kbd>Space</kbd>'}</button>`;
     phone.root.appendChild(el);
+    this.dim = { t: el.querySelector('.cam-dim.t'), b: el.querySelector('.cam-dim.b'), l: el.querySelector('.cam-dim.l'), r: el.querySelector('.cam-dim.r') };
     this.el = el; this.frame = el.querySelector('.cam-frame'); this.hint = el.querySelector('.cam-hint');
     // the buttons act on click (never on pointerdown): the click ends here, so nothing underneath can receive it when
     // the phone comes back up under the same finger
@@ -61,6 +62,10 @@ export class CameraMode {
     if (w < 160) { w = Math.min(W - 24, 220); h = Math.round(w / FRAME_ASPECT); }
     const f = this.frame.style;
     f.width = w + 'px'; f.height = h + 'px'; f.left = Math.round((W - w) / 2) + 'px'; f.top = Math.round((H - h) / 2) + 'px';
+    // four dim panels round the frame (a huge box-shadow would need a layer many times the screen: memory)
+    const L = Math.round((W - w) / 2), T = Math.round((H - h) / 2), d = this.dim;
+    Object.assign(d.t.style, { left: 0, top: 0, width: W + 'px', height: T + 'px' }); Object.assign(d.b.style, { left: 0, top: (T + h) + 'px', width: W + 'px', height: Math.max(0, H - T - h) + 'px' });
+    Object.assign(d.l.style, { left: 0, top: T + 'px', width: L + 'px', height: h + 'px' }); Object.assign(d.r.style, { left: (L + w) + 'px', top: T + 'px', width: Math.max(0, W - L - w) + 'px', height: h + 'px' });
     this._f = { x: (W - w) / 2 / W, y: (H - h) / 2 / H, w: w / W, h: h / H };
   }
   // the framed area as fractions of the viewport (messages._capture crops the canvas to it)
