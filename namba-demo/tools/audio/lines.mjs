@@ -10,7 +10,7 @@
 //          their DESTS kana, and a few place names whose reading a TTS engine gets wrong
 //   style  pa-station | pa-mall | staff | passerby      voices  1 for PA lines, 2 for staff, 3 for passerby
 // =============================================================================
-const V = '?v=1d470ff';
+const V = '?v=5442362';
 const J = '../../js/';
 const { voiceText, voiceKey, firstSentences, ESCALATOR_LINES, AREA_PA, IRASSHAI, DINING_CALLS, EXCUSE, CALLOUT } = await import(J + 'audio/phrases.js' + V);
 const { NK_PATTERNS, METRO_DESTS, DESTS, TYPES, hhmm } = await import(J + 'world/transit/timetable.js' + V);

@@ -10,11 +10,11 @@
 //
 // Contract: calls S.service('barista', order, staff)  ->  ctx.counters (see notes/v2-shops.md).
 // =============================================================================
-import { mix, WHITE } from './kit.js?v=1d470ff';
-import { MENU } from './catalog.js?v=1d470ff';
-import { hash } from '../../core/rng.js?v=1d470ff';
-import { foodItem, aFrame, queuePoints } from './shopbuild.js?v=1d470ff';
-import { WOOD, WOODS, FABRIC, GREENS, POTS, frameOf, obox, chair, barStool, sofa, armchair, cushion, roundTable, squareTable, cup, glass, laptop, book, plantPot, hangingPlant, pendant, globeLamp } from './furnish.js?v=1d470ff';
+import { mix, WHITE } from './kit.js?v=5442362';
+import { MENU } from './catalog.js?v=5442362';
+import { hash } from '../../core/rng.js?v=5442362';
+import { foodItem, aFrame, queuePoints } from './shopbuild.js?v=5442362';
+import { WOOD, WOODS, FABRIC, GREENS, POTS, frameOf, obox, chair, barStool, sofa, armchair, cushion, roundTable, squareTable, cup, glass, laptop, book, plantPot, hangingPlant, pendant, globeLamp } from './furnish.js?v=5442362';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 

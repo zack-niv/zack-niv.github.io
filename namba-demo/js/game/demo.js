@@ -17,12 +17,13 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=1d470ff';
-import { params } from '../core/params.js?v=1d470ff';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=1d470ff';
-import { Story } from './story.js?v=1d470ff';
-import { makeLook, BIT } from '../npc/looks.js?v=1d470ff';
-import { showEndCard } from './endcard.js?v=1d470ff';
+import { businessBySlot } from '../world/directory.js?v=5442362';
+import { params } from '../core/params.js?v=5442362';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=5442362';
+import { Story } from './story.js?v=5442362';
+import { makeLook, BIT } from '../npc/looks.js?v=5442362';
+import { showEndCard } from './endcard.js?v=5442362';
+import { newMission } from './mission.js?v=5442362';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -45,7 +46,11 @@ export class Demo {
     this.began = false;
     this.offered = false; this.offerT = null; this.offerWhy = null;
     this.upgraded = false; this.readyT = null; this.readyDist = 0; this.installT = null;
+    // v22: `arrived` = reached Aya (the lunch beat); it stays true. `beat` = the lunch beat is playing; `finished` = leg 2 is over
+    // (train made or missed) and the end card is coming: the places that used to read `arrived` as "game over" read `finished` now
     this.arrived = false; this.arriveT = null; this.arriveDist = 0;
+    this.beat = false; this.finished = false;
+    this.mission = newMission(DEMO.seatsS, DEMO.trainS); game.mission = this.mission;      // one object, mutated in place (mission.js)
     this.ended = false;
     this._sent = new Set(); this._canyonSent = false;
     this._lost = { wrongT: 0, best: Infinity, init: null, rem: null, lastCheck: 0, hist: [] };
@@ -61,6 +66,9 @@ export class Demo {
     this._offerMin = params.has('offerat') ? Math.min(DEMO.offerMin, this._offerAt) : DEMO.offerMin;
     this.story = new Story(ctx, game, this);
   }
+
+  // v22: "the run is over / a cut-scene owns the screen" — the lunch beat or the end of leg 2 (the old arc: arrival). What used to read `arrived`
+  get over() { return this.story.classic ? this.arrived : (this.beat || this.finished); }
 
   // ---------------------------------------------------------------------------
   // Act 1: arrival
@@ -206,7 +214,7 @@ export class Demo {
         L.hist.push([this.t, d]);
         while (L.hist.length > 2 && L.hist[1][0] < this.t - 62) L.hist.shift();
         // queue banter as the route shortens ("the noren" line only once you are on the dining floor)
-        if (this.offered) for (const [at, text] of QUEUE_LINES) {
+        if (this.offered || !this.story.classic) for (const [at, text] of QUEUE_LINES) {      // v22: no Lodestone offer any more: the queue banter runs on its own
           if (d < at && !this._sent.has(at) && !game.busy && (at > 100 || b.level === this.biz.level)) { this._sent.add(at); this._banter(text); }
         }
       }
@@ -325,11 +333,14 @@ export class Demo {
     this.remArrive = this._navRem();
     const { ctx, game } = this;
     const hud = game.hud, b = this.biz, body = ctx.player.body;
+    const classic = this.story.classic;
+    if (!classic) { this.beat = true; this.story.lunchDone(); }      // v22: leg 1 ends (the seats clock stops), the lunch beat plays
+    const seatsMade = classic || this.mission.seats.made;
     game.busy = true; game._syncFrozen();
     hud?.prompt(null);
     try { if (ctx.phone && ctx.phone.isOpen) ctx.phone.close(true); } catch (e) { /* optional */ }
     ctx.events.emit('demo:arrive', { slot: b.slot, t: this.t, upgraded: this.upgraded, summary: this.summary() });
-    game.setQuest('tempura', 'done', 'Tempura Daikichi, Namba Parks 6F. Aya saved a seat.', true);
+    game.setQuest('tempura', 'done', seatsMade ? 'Tempura Daikichi, Namba Parks 6F. Aya saved a seat.' : 'Tempura Daikichi, Namba Parks 6F. The seats are gone: standing bar.', true);
     ctx.audio?.play?.('tempura');
 
     // 1) walk the last few metres, eyes on the shopfront: the noren, the lanterns
@@ -366,15 +377,15 @@ export class Demo {
     if (aya) hud?.caption({ ja: ARRIVAL.aya.ja, en: ARRIVAL.aya.en, speaker: 'Aya', duration: 3.4 });
     ctx.audio?.play?.('notify');
     // v4: her iced latte — handed over (the cup leaves your HUD), or a tease if you came empty-handed
-    const st = this.story, coffee = st.hasCoffee, asked = st.errand.state !== 'none' && st.errand.state !== 'dropped';   // v9: 'dropped' = never asked
+    const st = this.story, coffee = classic && st.hasCoffee, asked = st.errand.state !== 'none' && st.errand.state !== 'dropped';   // v9: 'dropped' = never asked
     // polish: the payoff runs on REAL time like the rest of this cut-scene (game.after / Aya's outbox run on game
     // time, which crawls when frames are slow, so on a slow machine the end card used to arrive first)
     const later = (ms, fn) => setTimeout(() => { if (!this.ended) { try { fn(); } catch (e) { console.error('[arrive]', e); } } }, ms);
     const text = (t) => { if (st.aya && st.aya.sayNow) st.aya.sayNow(t); else game.message(t, 'Aya'); };
-    later(700, () => text(coffee ? ARRIVAL.textCoffee : ARRIVAL.text));
+    later(700, () => text(coffee ? ARRIVAL.textCoffee : seatsMade ? ARRIVAL.text : ARRIVAL.textStanding));
     if (coffee) {
       later(1500, () => { hud?.caption({ ja: ARRIVAL.thanks.ja, en: ARRIVAL.thanks.en, speaker: 'Aya', duration: 3.6 }); hud?.cup(false); ctx.audio?.play?.('cup'); });
-    } else if (asked) later(2300, () => text(st.errand.state === 'declined' && ARRIVAL.teaseDeclined ? ARRIVAL.teaseDeclined : ARRIVAL.tease));
+    } else if (asked && classic) later(2300, () => text(st.errand.state === 'declined' && ARRIVAL.teaseDeclined ? ARRIVAL.teaseDeclined : ARRIVAL.tease));
     await sleep(3100);
 
     // 3) back to the shopfront: the noren, the lanterns, the oil you can hear
@@ -384,7 +395,22 @@ export class Demo {
     await sleep(2500);
     this._showMarker(false); this._wave = 0; this._aya = null;
     this._releaseQueue();
-    await this._end();
+    if (classic) { await this._end(); return; }
+    // v22: the lunch beat is over: the player is released and leg 2 (the train) begins; the end card waits for the gates
+    this.beat = false; game.busy = false; game.clearLook(); game._syncFrozen();
+    try { ctx.input.requestLock(); } catch (e) { /* optional */ }
+    st.leg2Begin();
+  }
+  // v22: leg 2 is over — 'gate' (tapped through a Nankai gate) or 'timeout' (the train clock reached zero). Aya answers, the end card follows
+  finish(how) {
+    if (this.finished) return;
+    this.finished = true;
+    const { ctx, game } = this, st = this.story, M = st.leg2Done(how);
+    game.busy = true; game._syncFrozen(); game.hud?.prompt(null);
+    try { if (ctx.phone && ctx.phone.isOpen) ctx.phone.close(true); } catch (e) { /* optional */ }
+    ctx.audio?.play?.(how === 'gate' ? 'notify' : 'train_depart');
+    setTimeout(() => { if (!this.ended) { try { this._end(); } catch (e) { console.error('[finish]', e); } } }, how === 'gate' ? 2600 : 3000);
+    return M;
   }
   _pickAya() {
     const { ctx } = this, b = this.biz;
@@ -553,7 +579,8 @@ export class Demo {
     }
     const E = this.story.errand;
     const errand = E.state === 'none' || E.state === 'dropped' ? null : { delivered: !!E.got, item: E.got ? E.got.item : null, cafe: E.got ? E.got.name : E.name, mine: !!(E.got && E.got.slotId === E.slot) };
-    return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm, errand };
+    return { upgraded, before, after, progress, totalSeconds: tEnd, totalMeters: Math.max(0, dEnd - this._walk0), phone: ps, offerWhy: this.offerWhy, clock: ctx.clock.hhmm, errand,
+      mission: this.story.classic ? null : this.mission };      // v22: the other end card reads this (mission.js)
   }
   async _end() {
     if (this.ended) return;

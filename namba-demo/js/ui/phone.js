@@ -48,14 +48,14 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=1d470ff';
-import { MapApp } from './phone/mapapp.js?v=1d470ff';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=1d470ff';
-import { LodestoneApp } from './phone/lodestone.js?v=1d470ff';
-import { PhoneStats } from './phone/stats.js?v=1d470ff';
-import { Glance } from './phone/glance.js?v=1d470ff';
-import { buzzSound } from './phone/track.js?v=1d470ff';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=1d470ff';
+import { Positioning } from './phone/positioning.js?v=5442362';
+import { MapApp } from './phone/mapapp.js?v=5442362';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=5442362';
+import { LodestoneApp } from './phone/lodestone.js?v=5442362';
+import { PhoneStats } from './phone/stats.js?v=5442362';
+import { Glance } from './phone/glance.js?v=5442362';
+import { buzzSound } from './phone/track.js?v=5442362';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -207,7 +207,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=1d470ff'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=5442362'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';
@@ -628,6 +628,8 @@ export class Phone {
         this._lastPhoneInput = this._now;
         // chips on screen answer; otherwise the number is a dock slot (a short guard after a switch: no accidental reply)
         if (this.app === 'messages' && this.messages.pending && this._now - (this._appAt || -1e9) > 0.35) this.messages.reply(k);
+        // v22: no chips, the 📸 button showing: 1 sends the photo (the key the photo chip uses when it is the only action)
+        else if (this.app === 'messages' && k === 0 && this.messages._snapState() !== 'hide') { if (this._now - (this._appAt || -1e9) > 0.35) this.messages.snap(); }
         else if (!this._busyUpgrade()) { const L = this._dockApps(); if (L[k]) this._showApp(L[k]); }
         break;
       }

@@ -12,8 +12,8 @@
 //   others: a greeting and a one-line reply ("Say hi").
 // Emits ctx.events 'demo:order' { slotId, name, item, kind }.
 // =============================================================================
-import { businessBySlot, isOpen } from '../world/directory.js?v=1d470ff';
-import { DEMO, PEEK } from './script.js?v=1d470ff';
+import { businessBySlot, isOpen } from '../world/directory.js?v=5442362';
+import { DEMO, PEEK } from './script.js?v=5442362';
 
 const REACH = 1.7;          // metres from the order spot (spec: ~1.6)
 const FACE_DOT = 0.3;       // cos of the largest angle between the view and the staff (about 72 degrees)
@@ -62,7 +62,7 @@ export function orderItem(game, c) {
         if (sl > 0.35) dot = (sx * fwd.x + sz * fwd.z) / sl;
       }
       if (dot < FACE_DOT) return null;
-      if (game.demo && game.demo.arrived) return null;
+      if (game.demo && game.demo.over) return null;
       return (1 - dot) * 1.6 + d * 0.15 - 0.4;   // a little bonus: this is the thing you walked up to do
     },
     canUse() {

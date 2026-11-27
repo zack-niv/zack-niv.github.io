@@ -16,12 +16,12 @@
 //      hud.ic({balance,fare,ok,reason,label,note}) · hud.cup(on, label?, count?) · hud.fade(alpha, ms) → Promise
 //      hud.chapter({ja,en,sub}) · hud.hint('keys'|'phone'|html, seconds) · hud.setVisible(bool)
 // =============================================================================
-import { params } from '../core/params.js?v=1d470ff';
-import { LEVEL_ORDER } from '../world/layout.js?v=1d470ff';
+import { params } from '../core/params.js?v=5442362';
+import { LEVEL_ORDER } from '../world/layout.js?v=5442362';
 
 export function ensureGameCss() {
-  if (document.querySelector('link[data-game-css]') || document.querySelector('link[href$="css/game.css?v=1d470ff"]')) return;
-  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/game.css?v=1d470ff'; l.dataset.gameCss = '1';
+  if (document.querySelector('link[data-game-css]') || document.querySelector('link[href$="css/game.css?v=5442362"]')) return;
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/game.css?v=5442362'; l.dataset.gameCss = '1';
   document.head.appendChild(l);
 }
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -55,12 +55,13 @@ export class Hud {
       <div class="h-hint"></div>
       <div class="h-notify"></div>
       <div class="h-chapter"><div class="h-chapter-ja"></div><div class="h-chapter-en"></div><div class="h-chapter-sub"></div></div>
+      <div class="h-mission" role="timer" aria-label="Mission clock" hidden><span class="h-m-l"></span><b class="h-m-t"></b><small class="h-m-s"></small><i class="h-m-pop"></i></div>
       <div class="h-fade"></div>`;
     const q = (s) => root.querySelector(s);
     this.el = {
       dot: q('.h-dot'), prompt: q('.h-prompt'), promptSub: q('.h-prompt-sub'), promptText: q('.h-prompt-text'), promptJa: q('.h-prompt-ja'), promptKey: q('.h-prompt .g-key'),
       toasts: q('.h-toasts'), captions: q('.h-captions'), amb: q('.h-amb'), ic: q('.h-ic'), icState: q('.h-ic-state'), icNote: q('.h-ic-note'), icBal: q('.h-ic-bal'),
-      cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
+      mission: q('.h-mission'), mL: q('.h-m-l'), mT: q('.h-m-t'), mS: q('.h-m-s'), mP: q('.h-m-pop'), cup: q('.h-cup'), hint: q('.h-hint'), notify: q('.h-notify'), chapter: q('.h-chapter'), fade: q('.h-fade'),
     };
     // Other leads screenshot with ?test: keep the HUD out of their pictures.
     this.quiet = params.test && !params.has('play');
@@ -115,7 +116,7 @@ export class Hud {
     return inStation && di <= 1;
   }
   // the arrival moment (and the end card after it): nothing but Aya and the chef may speak or pop up
-  arrival() { const g = this.ctx.game; return !!(g && g.demo && g.demo.arrived); }
+  arrival() { const g = this.ctx.game; return !!(g && g.demo && g.demo.over); }      // v22: the lunch beat / the end of leg 2 (not the whole of leg 2)
   setVisible(v) { if (!this.quiet) this.root.style.visibility = v ? '' : 'hidden'; }
 
   // ---- interaction prompt -----------------------------------------------------
@@ -284,5 +285,28 @@ export class Hud {
   ride(on) { this.el.fade.classList.toggle('ride', !!on); }
   fadeText(html) { this.el.fade.innerHTML = html ? `<div class="h-fade-text">${html}</div>` : ''; }
 
-  update() {}
+  // v22: the mission chip (top centre): LUNCH = the seats clock, TRAIN = the train clock (mission.js; game.mission). Hidden during the lunch
+  // beat, cut-scenes, the pause menu, the end card and free roam. No live score. Amber under 2 min, red under 30 s, a soft pulse at a deadline.
+  update() {
+    const el = this.el && this.el.mission; if (!el) return;
+    const g = this.ctx.game, m = g && g.mission, d = g && g.demo;
+    const show = !!(m && (m.leg === 1 || m.leg === 2) && d && d.began && !d.over && !g.paused && !g.busy && !g.intro && !g._endCard && !g.ended && !g.titleUp && !(g.story && g.story.classic));
+    if (!show) { if (!el.hidden) el.hidden = true; return; }
+    const T = m.leg === 1 ? m.seats : m.train, left = T.left, gone = left <= 0;
+    const fmt = (s) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+    const label = m.leg === 1 ? 'LUNCH' : 'TRAIN', big = gone ? (m.leg === 1 ? 'seats gone' : 'train gone') : fmt(Math.ceil(left)), sub = Math.round(m.liveScore).toLocaleString('en-US');      // the live score: 10,000 - tenths + banked bonuses (story._missionTick)
+    // the bonus pops: seats made (banked at the lunch, shown when the chip comes back), coffee bought
+    const pop = (txt) => { const P = this.el.mP; P.textContent = txt; P.classList.remove('on'); void P.offsetWidth; P.classList.add('on'); };
+    this._mSeen = this._mSeen || { s: false, c: false };
+    if (m.seats.made && !this._mSeen.s) { this._mSeen.s = true; pop('+1,000 seats'); } else if (m.coffee && !this._mSeen.c) { this._mSeen.c = true; pop('+1,500 coffee'); }
+    const cls = 'h-mission' + (gone ? ' gone' : left <= 30 ? ' red' : left <= 120 ? ' amber' : '') + (m.leg === 2 ? ' train' : '');
+    const key = m.leg + (gone ? 'g' : '');
+    if (el.hidden) el.hidden = false;
+    if (this._mK !== key) { const pulse = this._mK && this._mK[0] === String(m.leg) && gone; this._mK = key; if (pulse) { el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse'); } }
+    const c2 = cls + (el.classList.contains('pulse') ? ' pulse' : '');
+    if (el.className !== c2) el.className = c2;
+    if (this._mL !== label) { this._mL = label; this.el.mL.textContent = label; }
+    if (this._mT !== big) { this._mT = big; this.el.mT.textContent = big; }
+    if (this._mS !== sub) { this._mS = sub; this.el.mS.textContent = sub; }
+  }
 }

@@ -18,8 +18,8 @@
 //   ?notutorial   no hints at all (the conversation still plays)
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
-import { params } from '../core/params.js?v=1d470ff';
-import { TUTORIAL } from './script.js?v=1d470ff';
+import { params } from '../core/params.js?v=5442362';
+import { TUTORIAL } from './script.js?v=5442362';
 
 const KEY = 'namba.tutorial.v3';
 const NUDGE_S = [12, 26, 42];          // seconds a step may sit idle before each nudge
@@ -90,7 +90,7 @@ export class Tutorial {
       this.ctx.events.emit('tutorial:done', { t: +this.t.toFixed(1), skipped: false });
     }
     // 2) which step owns the hint: the first undone, available, not retired main/late step; else a side step
-    const quiet = g.paused || g.busy || g.intro || g.ended || g._endCard || (g.demo && g.demo.arrived) || !g.started;
+    const quiet = g.paused || g.busy || g.intro || g.ended || g._endCard || (g.demo && g.demo.over) || !g.started;
     // Late steps (the Lodestone link) first; then the main steps strictly in order — if the first pending one is not
     // available yet (Aya still typing) nothing shows rather than a hint from further down; side steps fill the gaps.
     let cur = null;

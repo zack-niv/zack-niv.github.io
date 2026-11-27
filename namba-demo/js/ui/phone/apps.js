@@ -2,10 +2,10 @@
 // Phone apps other than Maps: home screen, Notes (quest checklist), Messages
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
-import { LINES } from './places.js?v=1d470ff';
-import { businessBySlot } from '../../world/directory.js?v=1d470ff';
-import { placeArt } from './art.js?v=1d470ff';
-import { bizSub, levelLabel, zoneShort } from './destinations.js?v=1d470ff';
+import { LINES } from './places.js?v=5442362';
+import { businessBySlot } from '../../world/directory.js?v=5442362';
+import { placeArt } from './art.js?v=5442362';
+import { bizSub, levelLabel, zoneShort } from './destinations.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -73,6 +73,7 @@ export class NotesApp {
   }
 }
 
+const AYA_SNAP = '📸 Send Aya a pic';
 export class MessagesApp {
   // v3: replies. A text may carry reply chips (replies: [{id, text}], max 3); the player answers with
   // the phone up (click a chip, or keys 1 / 2 / 3). 'phone:reply' {msgId, replyId, text} is emitted and
@@ -99,7 +100,8 @@ export class MessagesApp {
     root.addEventListener('click', (e) => {
       if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
       const pl = e.target.closest('.ms-place'); if (pl) { this.phone.openPlace(pl.dataset.id); return; }
-      const c = e.target.closest('.ms-chip'); if (c) this.reply(+c.dataset.i);
+      const c = e.target.closest('.ms-chip'); if (c) { this.reply(+c.dataset.i); return; }
+      if (e.target.closest('.ms-snap')) this.snap();      // v22: the persistent 📸 button
     });
     this.render();
   }
@@ -162,6 +164,24 @@ export class MessagesApp {
       this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select', { rate: 1.7, gain: 1.4 });
     } catch (e) { /* cosmetic */ }
   }
+  // v22: "📸 Send Aya a pic" — takes the photo like the 📸 chip does, without a question to answer. The story (story.sendPhoto) owns the
+  // cooldown and Aya's answer; this only shows the button (when no reply chips are showing) and sends the bubble.
+  _snapState() { const S = this.ctx.game && this.ctx.game.story; return this.pending || !S || typeof S.snapState !== 'function' ? 'hide' : S.snapState(); }
+  _snapHtml() {
+    const st = this._snapState(); if (st === 'hide') return '';
+    const kb = !(this.ctx.input && this.ctx.input.touch);
+    return `<div class="ms-snap" data-s="${st}"><button class="ms-snap-b${st === 'wait' ? ' wait' : ''}" aria-disabled="${st === 'wait'}">${kb ? '<kbd>1</kbd>' : ''}<span>${esc(AYA_SNAP)}</span></button></div>`;
+  }
+  snap() { const S = this.ctx.game && this.ctx.game.story; return !!(S && typeof S.sendPhoto === 'function' && S.sendPhoto()); }
+  sendPhoto() {
+    const img = this._capture(); this._shutter();
+    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: '📸', time: this.ctx.clock.hhmm, me: true, sent: true });
+    this.render(true);
+    this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
+    this.ctx.events.emit('phone:photo', { img: !!img });
+    this.phone._badges();
+    return { img: !!img };
+  }
   clearReplies() { if (!this.pending) return; this.pending = null; this.render(); this.phone._badges(); }
   setTyping(from, on) {
     from = from || 'Aya';
@@ -172,6 +192,9 @@ export class MessagesApp {
     this.phone.glance && this.phone.glance.refresh(true);
   }
   update(dt) {
+    // v22: the 📸 button appears / greys with the story's state (cooldown, Aya typing); a re-render only when it shows or hides
+    const sn = this._snapState();
+    if (sn !== this._snapSt) { const was = this._snapSt; this._snapSt = sn; if ((sn === 'hide') !== (was === 'hide' || was == null)) this.render(); else { const b = this.root.querySelector('.ms-snap-b'); if (b) { b.classList.toggle('wait', sn === 'wait'); b.setAttribute('aria-disabled', sn === 'wait'); } } }
     if (this._typT > 0) { this._typT -= dt; if (this._typT <= 0 && this.typingFrom) { this.typingFrom = null; this._renderTyping(); } }
   }
   _linkCard() {
@@ -247,7 +270,7 @@ export class MessagesApp {
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
       <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>
-      ${this._chips()}
+      ${this._chips()}${this._snapHtml()}
       <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
     this.root.classList.toggle('ms-has-replies', !!this.pending);
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);

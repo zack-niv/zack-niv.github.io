@@ -7,8 +7,11 @@
 // v7.2: a fixed set of four rows, each defined identically in both phases; primary buttons above two contact cards.
 // v7.3: 'On track' (with time off route) replaces 'arrow catches up' as the headline row.
 // The only colours are ours (warm amber = guesswork, cool blue = Lodestone's own).
+// v22: the game is a race to Aya; with summary.mission the card shows the player's score, its breakdown and the public board (showMission below).
+//   Without summary.mission (the old ?lodestone arc) the original card below is untouched.
 // =============================================================================
-import { ENDCARD } from './script.js?v=1d470ff';
+import { ENDCARD } from './script.js?v=5442362';
+import { fetchScores, postScore, hasScores } from './scores.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -38,6 +41,7 @@ export const contactLinks = () => `${link(ENDCARD.linkedin, 'people', 'call')}${
 export const hasContact = () => !!((ENDCARD.linkedin && ENDCARD.linkedin.url) || (ENDCARD.agent && ENDCARD.agent.url));
 
 export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
+  if (s && s.mission) return showMission(ctx, s, { onRoam, onReplay });
   const b = s.before, a = s.after;
   const ok = (v) => v != null && isFinite(v);
   // v7.2: a FIXED set of four rows, each defined identically in both phases (same samples, same formula), so the
@@ -136,5 +140,187 @@ export function showEndCard(ctx, s, { onRoam, onReplay } = {}) {
   return {
     el,
     close() { removeEventListener('keydown', key, true); el.classList.remove('on'); setTimeout(() => el.remove(), 900); },
+  };
+}
+
+// =============================================================================
+// v22: the race card. Left: how it ended, the score and its breakdown, the buttons, the contact cards. Right: "Top scores" (scores.js).
+// =============================================================================
+const headline = (tier, coffee) => (tier === 'full' ? `Counter seats. ${coffee ? 'Coffee' : 'Hot tempura'}. <span>Train made.</span>` : tier === 'train' ? 'No seats, but you <span>made the train.</span>' : 'The Koya left <span>without you.</span>');
+const BRAG = 'https://zack-niv.github.io/namba-demo/?ref=brag';
+const lsGet = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
+const initialsOf = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
+const runId = () => { try { return crypto.randomUUID(); } catch (e) { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } };
+const NAP = 'Scoreboard is taking a nap. Your score still counts for bragging.';
+
+function showMission(ctx, s, { onRoam, onReplay } = {}) {
+  const M = s.mission, tier = ['full', 'train'].includes(M.tier) ? M.tier : 'missed';
+  const eligible = tier !== 'missed', seats = tier === 'full', coffee = !!M.coffee;
+  const score = isFinite(M.score) ? Math.max(0, Math.round(M.score)) : 0, secs = isFinite(M.seconds) ? Math.max(0, M.seconds) : 0;
+  const hints = Math.max(0, M.hints | 0), metersOn = s.totalMeters != null && isFinite(s.totalMeters) ? Math.round(s.totalMeters) : null;
+  const num = (n) => Math.round(n).toLocaleString('en-US');
+  const facts = [`${mmss(secs)} total`, hints > 0 ? `\u{1F4F8} ${hints} photo${hints === 1 ? '' : 's'} sent` : null, metersOn != null ? `${metres(metersOn)} m on foot` : null].filter(Boolean);
+  const brag = eligible ? `I scored ${num(score)} in Lost in Namba \u{1F364}\u{1F683} Can you beat it? ${BRAG}` : `I missed the train in Lost in Namba \u{1F683} Can you make it? ${BRAG}`;
+  // the ledger is computed by the story side and drawn exactly as given, in order: Start, Time (negative), seats, coffee, train, optional floor.
+  // pts > 0 -> "+1,000"; pts < 0 -> true minus; pts 0 -> its note in place of the points, dimmed (the Train line, when made, shows a check instead).
+  const lines = (Array.isArray(M.lines) ? M.lines : []).filter(l => l && typeof l === 'object');
+  const isTrain = (l) => l.icon === '\u{1F686}' || /^train/i.test(String(l.label || ''));
+  const lineHtml = lines.map((l, i) => {
+    const pts = isFinite(l.pts) ? Math.round(l.pts) : 0, start = i === 0 && /^start/i.test(String(l.label || '')), train = isTrain(l) && eligible;
+    let right, sub = l.note || '', cls = '';
+    if (pts > 0) right = start ? num(pts) : `+${num(pts)}`;
+    else if (pts < 0) right = `\u2212${num(-pts)}`;
+    else if (train) right = '\u2713';
+    else { right = l.note ? esc(l.note) : '0'; sub = ''; cls = 'dim'; }
+    if (pts === 0 && isTrain(l) && !eligible) cls = 'dim';
+    return `<li class="${cls}${pts < 0 ? ' neg' : ''}${train ? ' ok' : ''}"><span class="e-li" aria-hidden="true">${esc(l.icon)}</span><span class="e-ll"><b>${esc(l.label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="e-lp">${right}</span></li>`;
+  }).join('');
+  const talk = hasContact();
+  const el = document.createElement('div');
+  el.className = 'g-end e-race';
+  el.innerHTML = `
+    <div class="e-wrap">
+      <section class="e-left">
+        <div class="e-eyebrow"><span class="e-dot"></span>${eligible ? '着いた。<em>You made it.</em>' : '行っちゃった。<em>It left.</em>'}</div>
+        <h1 class="e-line">${headline(tier, coffee)}</h1>
+        <div class="e-time"><b aria-label="${num(score)}">${num(score)}</b><small>Your score</small></div>
+        ${lines.length ? `<ul class="e-lines${eligible ? '' : ' void'}">${lineHtml}<li class="e-sum"><span class="e-li"></span><span class="e-ll"><b>Total</b></span><span class="e-lp">${num(score)}</span></li></ul>${eligible ? '' : '<p class="e-lcap">not counted: the train left</p>'}` : ''}
+        <p class="e-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}</p>
+        <p class="e-where">${esc(ENDCARD.kicker)}</p>
+        <p class="e-note">${esc(ENDCARD.note)}</p>
+        <div class="e-btns">
+          <button type="button" class="g-btn sel" data-a="replay">Run it again <small>もう一度</small></button>
+          <button type="button" class="g-btn" data-a="roam">Keep exploring <small>まだ歩く</small></button>
+        </div>
+        ${talk ? `<div class="e-talk">${ENDCARD.invite ? `<p class="e-invite">${esc(ENDCARD.invite)}</p>` : ''}<div class="e-links">${contactLinks()}</div></div>` : ''}
+      </section>
+      <section class="e-right e-board" aria-label="Top scores">
+        <div class="e-head"><span>Top scores</span></div>
+        <div class="e-post" hidden>
+          <input class="e-ini" type="text" maxlength="3" size="3" placeholder="AAA" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="Your initials, 3 letters or numbers">
+          <button type="button" class="e-mini e-go">Post my score</button>
+        </div>
+        <p class="e-msg" role="status" aria-live="polite"></p>
+        <div class="e-list" aria-live="polite"></div>
+        <p class="e-legend">\u{1F364} got the seats &nbsp; \u2615 brought coffee</p>
+        <button type="button" class="e-mini e-copy">Copy my score</button>
+      </section>
+    </div>`;
+  (ctx.ui.overlay || document.body).appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('on')));
+  const $ = (q) => el.querySelector(q);
+  // count the score up from 0 over ~0.9 s (not with reduced motion); always ends on the exact score, even if frames are throttled
+  const big = $('.e-time b');
+  let reduced = false; try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* old browsers */ }
+  if (!reduced && score > 0) {
+    big.textContent = '0';
+    const t0 = performance.now(), D = 900;
+    const tick = (now) => { if (closed) return; const k = Math.min(1, (now - t0) / D); big.textContent = num(score * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+    setTimeout(() => { big.textContent = num(score); }, D + 400);
+  }
+  const list = $('.e-list'), msg = $('.e-msg'), post = $('.e-post'), ini = $('.e-ini'), go = $('.e-go'), legend = $('.e-legend');
+  let closed = false, board = null, mine = null, posted = false, posting = false, nap = !hasScores();
+  const id = runId();
+  ini.value = initialsOf(lsGet('namba.initials'));
+
+  const row = (r, rank, me) => `<li class="e-r${me ? ' me' : ''}"><b class="e-rk">${rank}</b><span class="e-nm">${esc(r.name)}</span><span class="e-t">${num(r.score)}</span><span class="e-x"><em title="got the seats">${r.seats ? '\u{1F364}' : ''}</em><em title="brought coffee">${r.coffee ? '\u2615' : ''}</em></span></li>`;
+  const draw = () => {
+    if (closed) return;
+    legend.hidden = !board || !board.top.length;
+    post.hidden = !(eligible && board && !posted);
+    if (nap) { list.innerHTML = `<p class="e-nap">${NAP}</p>`; return; }
+    if (!board) { list.innerHTML = '<ol class="e-ol skel" aria-hidden="true">' + '<li class="e-r"><b class="e-rk"></b><span class="e-nm"></span><span class="e-t"></span><span class="e-x"></span></li>'.repeat(10) + '</ol>'; return; }
+    if (!board.top.length && !mine) { list.innerHTML = '<p class="e-nap e-empty">No scores yet. Be the first.</p>'; return; }
+    const hi = mine && mine.rank <= board.top.length ? mine.rank : 0;
+    list.innerHTML = `<ol class="e-ol">${board.top.map((r, i) => row(r, i + 1, hi === i + 1)).join('')}${mine && !hi ? `<li class="e-gap" aria-hidden="true"></li>${row(mine, mine.rank, true)}` : ''}</ol>`;
+    if (mine) { const m = list.querySelector('.e-r.me'); try { m && m.scrollIntoView({ block: 'nearest' }); } catch (e) { /* old browsers */ } }
+  };
+  msg.textContent = eligible ? '' : 'Catch the train to get on the board.';
+  draw();
+  // the board loads in the background; the buttons never wait for it
+  if (!nap) fetchScores().then((r) => {
+    if (closed) return;
+    if (r && r.ok) board = r; else nap = true;
+    draw();
+  }).catch(() => { nap = true; draw(); });
+
+  const submit = async () => {
+    if (!eligible || posted || posting || closed) return;
+    const name = initialsOf(ini.value);
+    if (name.length !== 3) { msg.textContent = 'Enter 3 letters or numbers.'; try { ini.focus(); } catch (e) { /* ignore */ } return; }
+    posting = true; ini.value = name; ini.disabled = true; go.disabled = true; go.classList.add('wait'); go.textContent = 'Posting\u2026'; msg.textContent = '';
+    lsSet('namba.initials', name);
+    const r = await postScore({ name, score, t1: M.t1, t2: M.t2, coffee, hints, m: metersOn || 0, id });
+    posting = false;
+    try { ctx.events.emit('score:post', { ok: !!r.ok, score, tier, rank: r.ok ? r.rank : null, total: r.ok ? r.total : null, error: r.ok ? null : r.error }); } catch (e) { /* analytics only */ }
+    if (closed) return;
+    if (r.ok) {
+      posted = true; board = { ok: true, top: r.top, total: r.total }; nap = false;
+      mine = { ...(r.you || { name, score, seats, coffee }), rank: Math.max(1, r.rank | 0) };
+      msg.textContent = `You're #${mine.rank} of ${r.total}`;
+      msg.classList.add('got');
+      draw();
+    } else {
+      ini.disabled = false; go.disabled = false; go.classList.remove('wait'); go.textContent = 'Post my score';
+      msg.textContent = 'Could not post just now. Try again?';
+    }
+  };
+  go.addEventListener('click', (ev) => { ev.stopPropagation(); submit(); });
+
+  const copy = $('.e-copy');
+  let copyT = 0;
+  const flash = () => { copy.textContent = 'Copied \u2713'; clearTimeout(copyT); copyT = setTimeout(() => { copy.textContent = 'Copy my score'; }, 2000); };
+  const fallbackCopy = () => {
+    try {
+      const t = document.createElement('textarea'); t.value = brag; t.setAttribute('readonly', ''); t.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+      document.body.appendChild(t); t.select(); const ok = document.execCommand && document.execCommand('copy'); t.remove(); if (ok) flash();
+    } catch (e) { /* nothing more to try */ }
+  };
+  copy.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(brag).then(flash, fallbackCopy); else fallbackCopy(); } catch (e) { fallbackCopy(); }
+  });
+
+  ini.addEventListener('input', () => { const v = initialsOf(ini.value); if (v !== ini.value) ini.value = v; if (msg.textContent.startsWith('Enter 3')) msg.textContent = ''; });
+  // a soft keyboard shrinks the viewport: bring the field into view inside the card rather than letting the page jump
+  ini.addEventListener('focus', () => setTimeout(() => { try { ini.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* old browsers */ } }, 300));
+
+  const btns = [...el.querySelectorAll('.g-btn')];
+  const act = (v) => {
+    removeEventListener('keydown', key, true); removeEventListener('keyup', keyUp, true);
+    try { ctx.events.emit('demo:choice', { choice: v === 'replay' ? 'replay' : 'roam' }); } catch (e) { /* analytics only */ }
+    if (v === 'replay') return onReplay && onReplay();
+    onRoam && onRoam();
+  };
+  const select = (x, focus) => { btns.forEach(y => y.classList.toggle('sel', y === x)); if (focus) try { x.focus({ preventScroll: true }); } catch (e) { /* old browsers */ } };
+  // Keys as the classic card (E / Enter / Space confirm, arrows / A D switch), except while the player is typing in the initials
+  // field (every key goes to the field, Enter posts) or is on one of the board's own buttons or a link (native behaviour).
+  const key = (e) => {
+    const fx = document.activeElement;
+    if (fx === ini) {
+      e.stopImmediatePropagation();
+      if (e.code === 'Enter' && !e.repeat && !e.isComposing) { e.preventDefault(); submit(); }
+      return;
+    }
+    if (e.repeat) return;
+    if (fx && el.contains(fx) && (fx.tagName === 'A' || fx.classList.contains('e-mini'))) { e.stopImmediatePropagation(); return; }
+    if (e.code === 'KeyE' || e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); e.stopImmediatePropagation(); act(el.querySelector('.g-btn.sel').dataset.a); }
+    if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) { e.preventDefault(); e.stopImmediatePropagation(); select(btns.find(x => !x.classList.contains('sel')) || btns[0], true); }
+    if (e.code === 'Tab') e.stopImmediatePropagation();
+  };
+  // keyup too: the game must not see the field's keys release
+  const keyUp = (e) => { if (document.activeElement === ini) e.stopImmediatePropagation(); };
+  addEventListener('keydown', key, true);
+  addEventListener('keyup', keyUp, true);
+  btns.forEach(x => {
+    x.addEventListener('click', (ev) => { ev.stopPropagation(); act(x.dataset.a); });
+    x.addEventListener('focus', () => select(x, false));
+  });
+  el.querySelectorAll('.e-link').forEach(x => x.addEventListener('click', (ev) => ev.stopPropagation()));
+  return {
+    el,
+    close() { closed = true; clearTimeout(copyT); removeEventListener('keydown', key, true); removeEventListener('keyup', keyUp, true); el.classList.remove('on'); setTimeout(() => el.remove(), 900); },
   };
 }

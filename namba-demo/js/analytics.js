@@ -15,6 +15,7 @@
 //   namba_coffee_ordered · namba_arrived {stats} · namba_endcard · namba_choice {roam|replay}
 //   namba_recovered {last_stage, reason, ago_s, safe, since_stage_s, tex_mb, canvas_mb, heap_mb, gl_contexts, ld_mode}
 //   namba_run_hidden {last_stage, ago_s, …same memory props} (v12.1: last tab hidden and never back)
+//   v22: namba_score {ok, score, tier, rank, total, error} (a finish-screen scoreboard post succeeded or failed; no initials)
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
 //   namba_pa {at: first|summary, mode, speech, tried, started, ended, missing, late, errors, last_err, clips, clip_mb, state, t} (v20: did a recorded PA line play?
@@ -46,7 +47,7 @@ const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
 
-import { liveStats } from './core/resilience.js?v=1d470ff';
+import { liveStats } from './core/resilience.js?v=5442362';
 
 // v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
 const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, geo_mb: m.geo != null ? m.geo : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null,
@@ -148,11 +149,16 @@ export function setupAnalytics(ctx) {
       on_track_before: n(b.onTrackPct), on_track_after: n(a.onTrackPct), off_route_before_s: n(b.offRouteSec), off_route_after_s: n(a.offRouteSec),
       error_before_m: n(b.err), error_after_m: n(a.err), wrong_floor_before_pct: n(b.wrongPct), wrong_floor_after_pct: n(a.wrongPct),
       total_s: n(s.totalSeconds), total_m: n(s.totalMeters),
+      seats_made: s.mission ? !!s.mission.seats.made : null, seats_left: s.mission ? n(s.mission.seats.left) : null, hints: s.mission ? s.mission.hints : null,      // v22: "arrived" = reached Aya for lunch
     });
     perfAt(0, 'arrived');
   });
+  // v22: the end of leg 2 (train made or missed): the score
+  const n0 = (x) => (typeof x === 'number' && isFinite(x) ? Math.round(x * 10) / 10 : null);
+  E.on('mission:done', (m) => { if (!m) return; send('namba_finished', { score: m.score, tier: m.tier, seats_made: !!m.seats.made, coffee: !!m.coffee, train_left: n0(m.train.left), t1: m.t1, t2: m.t2, hints: m.hints, total_s: n0(m.seconds), t: t() }); });
   E.on('demo:end', () => { reach('endcard'); send('namba_endcard', { t: t() }); });
   E.on('demo:choice', (e) => send('namba_choice', { choice: e && e.choice }));
+  E.on('score:post', (e) => { e = e || {}; send('namba_score', { ok: !!e.ok, score: e.score != null ? e.score : null, tier: e.tier || null, rank: e.rank != null ? e.rank : null, total: e.total != null ? e.total : null, error: e.error || null }); });
   E.on('game:pause', () => send('namba_pause', { t: t(), stage: STAGES[stage] || null }));
   E.on('game:restart', () => send('namba_restart', { t: t(), stage: STAGES[stage] || null }));
   // the contact cards (end card and pause menu): one delegated listener, capture phase (the cards stop propagation)

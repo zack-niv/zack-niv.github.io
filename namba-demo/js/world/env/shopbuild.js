@@ -7,14 +7,14 @@
 // and merchandise inside goes to a per-shop batch (S.inner) that the Shops
 // system hides beyond ~45 m.
 // =============================================================================
-import { rgb, mix, WHITE, protoUV } from './kit.js?v=1d470ff';
-import * as D from './draw.js?v=1d470ff';
-import { drawPoster, POSTER_PORT, POSTER_LAND } from './posters.js?v=1d470ff';
-import { CAT, MENU, SAMPLES, LIGHT } from './catalog.js?v=1d470ff';
-import { rng, hash } from '../../core/rng.js?v=1d470ff';
-import { cafeInterior } from './cafe.js?v=1d470ff';
-import { diningInterior } from './dining.js?v=1d470ff';
-import { Cells, scatter } from './seating.js?v=1d470ff';
+import { rgb, mix, WHITE, protoUV } from './kit.js?v=5442362';
+import * as D from './draw.js?v=5442362';
+import { drawPoster, POSTER_PORT, POSTER_LAND } from './posters.js?v=5442362';
+import { CAT, MENU, SAMPLES, LIGHT } from './catalog.js?v=5442362';
+import { rng, hash } from '../../core/rng.js?v=5442362';
+import { cafeInterior } from './cafe.js?v=5442362';
+import { diningInterior } from './dining.js?v=5442362';
+import { Cells, scatter } from './seating.js?v=5442362';
 
 const K = (hex, k = 1) => rgb(hex, k);
 const GLOW = 2.0;   // lit atlas multiplier (keep band colours in step)

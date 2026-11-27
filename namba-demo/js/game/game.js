@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=1d470ff';
-import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=1d470ff';
-import { BUSINESSES } from '../world/directory.js?v=1d470ff';
-import { Interactions } from './interact.js?v=1d470ff';
-import { Panels, yen, esc } from './panel.js?v=1d470ff';
-import { Journal } from './journal.js?v=1d470ff';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=1d470ff';
-import { Title } from '../ui/title.js?v=1d470ff';
-import { Demo } from './demo.js?v=1d470ff';
-import * as V from './vignettes.js?v=1d470ff';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=1d470ff';
-import { orderItem, hasCounter } from './order.js?v=1d470ff';
-import { contactLinks, hasContact } from './endcard.js?v=1d470ff';
+import { params } from '../core/params.js?v=5442362';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=5442362';
+import { BUSINESSES } from '../world/directory.js?v=5442362';
+import { Interactions } from './interact.js?v=5442362';
+import { Panels, yen, esc } from './panel.js?v=5442362';
+import { Journal } from './journal.js?v=5442362';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=5442362';
+import { Title } from '../ui/title.js?v=5442362';
+import { Demo } from './demo.js?v=5442362';
+import * as V from './vignettes.js?v=5442362';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=5442362';
+import { orderItem, hasCounter } from './order.js?v=5442362';
+import { contactLinks, hasContact } from './endcard.js?v=5442362';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -74,7 +74,7 @@ export class Game {
     this.discover = (id, en, ja) => this.journal.discover(id, en, ja);
     // v6: ONE way to pay with the ICOCA card (gates, café orders, vignettes, machines) — see icCharge below
     // discoveries are quiet in the demo: only the two real wonders get a soft place-name card
-    this.onDiscover = (d) => { if (this.quiet || this.ended || this.intro || this.demo.arrived) return; if (d.id === 'canyon' || d.id === 'parks') this.hud?.chapter({ ja: d.ja, en: d.en, sub: '' }, 4.5); };
+    this.onDiscover = (d) => { if (this.quiet || this.ended || this.intro || this.demo.over) return; if (d.id === 'canyon' || d.id === 'parks') this.hud?.chapter({ ja: d.ja, en: d.en, sub: '' }, 4.5); };
 
     this._gates = LAYOUT.gates.map(gt => this._gateInfo(gt));
     try { this._registerShops(); } catch (e) { console.error('[game] shops', e); }
@@ -494,7 +494,9 @@ export class Game {
   }
   _gateView() {
     const T = this._gateTgt; if (!T) return null;
-    const gt = T.g.gt, low = T.entering && this.ic.balance < MIN_FARE;
+    // v22: the run's last tap (Aya has the tickets) is never a low-balance tap: see _tapGate
+    const gt = T.g.gt, last = !!(T.entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
+    const low = T.entering && !last && this.ic.balance < MIN_FARE;
     const sub = `${T.n.ja || gt.ja} ${T.n.name || gt.name} · ICOCA ${yen(this.ic.balance)}`;
     if (T.open) return { prompt: 'Open — walk through', promptJa: 'どうぞ', sub, passive: true };
     if (!T.ok) return { prompt: T.entering ? 'Exit only — try the next gate' : 'Entry only — try the next gate', promptJa: '✕', sub, passive: true };
@@ -515,7 +517,10 @@ export class Game {
       if (gt.line === 'nankai' && !this._rapitDone) { fare = FARES.nankai.amount; note = FARES.nankai.note; }
       else if ((gt.line === 'midosuji' || gt.line === 'sennichimae') && this._tapInLine === gt.line) { fare = Math.min(FARES.metro.amount, this.ic.balance); metro = true; }
     }
-    if (entering && !again && this.ic.balance < MIN_FARE) {
+    // v22: the run's last act is tapping in at the Nankai gates for the train. Aya has the tickets, so a card the player has
+    // spent down (coffee, snacks) can never refuse that tap and strand a finished run outside the gate.
+    const lastTap = !!(entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
+    if (entering && !again && !lastTap && this.ic.balance < MIN_FARE) {
       // not enough on the card to get in: the reader refuses it
       this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
       this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });
