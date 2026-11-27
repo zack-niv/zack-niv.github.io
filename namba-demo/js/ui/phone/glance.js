@@ -14,8 +14,8 @@
 // Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
-import { icon, logo } from './lodestone.js?v=5442362';
-import { levelLabel, zoneShort } from './destinations.js?v=5442362';
+import { icon, logo } from './lodestone.js?v=bdb557c';
+import { levelLabel, zoneShort } from './destinations.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 // v23: a text shows as the big card for about 6 s, then shrinks to the small badge on the peeking phone (still tappable)
@@ -89,8 +89,8 @@ export class Glance {
           if (!d || d.arrived) return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Open Aya’s link in Maps', sub: pin || 'Aya sent you a place', warn: '' };
           return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: `${d.name} · ${place(d.slotId)}`, sub: pin, warn: '' };
         }
-        const E = S0.errand, cafe = E && E.state === 'asked' && E.slot ? `☕ ${E.name}, ${place(E.slot)}` : '';
-        return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Train · Nankai Central Gate, 3F', sub: cafe || pin, warn: '' };
+        const E = S0.errand, cafe = E && E.state === 'asked' && E.slot ? `☕ ${place(E.slot).replace(/^Namba /, '')} · ${E.name}` : '';
+        return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Train · Nankai gates, 3F', sub: cafe || pin, warn: '' };
       }
     }
     if (this.finale) return { kind: 'arr', cls: ph.upgradeStage === 'ready' ? 'gl-ld' : 'gl-mp', icon: 'check', title: 'You’ve arrived', sub: this.finale };

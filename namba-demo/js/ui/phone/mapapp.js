@@ -14,16 +14,16 @@
 //   * PERFORMANCE: one visible canvas (box size x dpr, e.g. 600 x 510 px), floor-plan caches of 1-4 floors (ppm 2 on phones,
 //     3 on desktop), redrawn only when something changed (a gesture, the floor, the dot, the heading in 2-degree steps).
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=5442362';
-import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES, FEATURED } from '../../world/directory.js?v=5442362';
-import { businessBySlot } from '../../world/directory.js?v=5442362';
-import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=5442362';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO, FLOOR_NAMES, areaOf } from './places.js?v=5442362';
-import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=5442362';
-import { buildSteps, routeFloors } from './mapsteps.js?v=5442362';
-import { hash } from '../../core/rng.js?v=5442362';
-import { placeArt, reviewsFor, popularTimes } from './art.js?v=5442362';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml, levelLabel } from './destinations.js?v=5442362';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=bdb557c';
+import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES, FEATURED } from '../../world/directory.js?v=bdb557c';
+import { businessBySlot } from '../../world/directory.js?v=bdb557c';
+import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=bdb557c';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO, FLOOR_NAMES, areaOf } from './places.js?v=bdb557c';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=bdb557c';
+import { buildSteps, routeFloors } from './mapsteps.js?v=bdb557c';
+import { hash } from '../../core/rng.js?v=bdb557c';
+import { placeArt, reviewsFor, popularTimes } from './art.js?v=bdb557c';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml, levelLabel } from './destinations.js?v=bdb557c';
 
 const ZOOM_MIN = 0.5, ZOOM_MAX = 12;
 const MAX_BASE = 4;                  // floor-plan caches kept at once

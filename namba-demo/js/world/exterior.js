@@ -16,10 +16,10 @@
 // reads ctx.exterior.sun every frame (intensity 1 = clear midday).
 // =============================================================================
 import * as THREE from 'three';
-import { sunPosition, daylight } from './outdoor/sun.js?v=5442362';
-import { createSky } from './outdoor/sky.js?v=5442362';
-import { OutdoorMask } from './outdoor/outmask.js?v=5442362';
-import { defineOutdoorMaterials } from './outdoor/mats.js?v=5442362';
+import { sunPosition, daylight } from './outdoor/sun.js?v=bdb557c';
+import { createSky } from './outdoor/sky.js?v=bdb557c';
+import { OutdoorMask } from './outdoor/outmask.js?v=bdb557c';
+import { defineOutdoorMaterials } from './outdoor/mats.js?v=bdb557c';
 
 export const SHADOW_LAYER = 3;
 export const SKY_GAIN = 4.5; // sky radiance scale to match the light-field units (sun ≈ 18)
@@ -52,9 +52,9 @@ export class Exterior {
     this._updateSun(true);
     // --- the city & streets (optional modules, isolated) ---
     const mods = [
-      ['./outdoor/massing.js?v=5442362', 'buildMassing'],
-      ['./outdoor/skyline.js?v=5442362', 'buildSkyline'],
-      ['./outdoor/street.js?v=5442362', 'buildStreets'],
+      ['./outdoor/massing.js?v=bdb557c', 'buildMassing'],
+      ['./outdoor/skyline.js?v=bdb557c', 'buildSkyline'],
+      ['./outdoor/street.js?v=bdb557c', 'buildStreets'],
     ];
     for (const [path, fn] of mods) {
       try {

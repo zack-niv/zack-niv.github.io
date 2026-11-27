@@ -15,10 +15,10 @@
 // Driven by Signage (world/signage.js): place() in _place, drawBoard() in _draw, mesh() in _buildMeshes.
 // =============================================================================
 import * as THREE from 'three';
-import { LAYOUT, LEVELS, LEVEL_ORDER, rampEnds } from './layout.js?v=5442362';
-import { BUSINESSES, CATEGORIES, businessBySlot } from './directory.js?v=5442362';
-import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=5442362';
-import { FACILITY_INFO, DESTINATIONS, EXIT_INFO } from '../ui/phone/places.js?v=5442362';
+import { LAYOUT, LEVELS, LEVEL_ORDER, rampEnds } from './layout.js?v=bdb557c';
+import { BUSINESSES, CATEGORIES, businessBySlot } from './directory.js?v=bdb557c';
+import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=bdb557c';
+import { FACILITY_INFO, DESTINATIONS, EXIT_INFO } from '../ui/phone/places.js?v=bdb557c';
 
 // board geometry (metres)
 // v23 signs2: 3.0 x 2.2 m (was 2.72 x 1.9) so the list type can be read from 3 m

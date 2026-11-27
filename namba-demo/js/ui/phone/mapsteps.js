@@ -9,8 +9,8 @@
 // The words are the ones the signs in the world use (places.js SIGN_NAME / areaOf). The whole route is known up front
 // (the plan is accurate; only the player's position is vague), so every floor it crosses has a step. Pure data, no DOM.
 // =============================================================================
-import { LAYOUT, LEVELS } from '../../world/layout.js?v=5442362';
-import { areaOf, SIGN_NAME } from './places.js?v=5442362';
+import { LAYOUT, LEVELS } from '../../world/layout.js?v=bdb557c';
+import { areaOf, SIGN_NAME } from './places.js?v=bdb557c';
 
 const lv = (l) => (LEVELS[l] ? LEVELS[l].label : String(l)).replace('B1F', 'B1').replace('B2F', 'B2');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);

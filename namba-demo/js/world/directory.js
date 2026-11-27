@@ -8,8 +8,8 @@
 // else is generated from zone-appropriate pools. All names are invented (no
 // real brands) but true to type.
 // =============================================================================
-import { LAYOUT } from './layout.js?v=5442362';
-import { rng, hash } from '../core/rng.js?v=5442362';
+import { LAYOUT } from './layout.js?v=bdb557c';
+import { rng, hash } from '../core/rng.js?v=bdb557c';
 
 // category -> display info + crowd behaviour hints
 export const CATEGORIES = {

@@ -26,12 +26,12 @@
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=5442362';
-import { CELL } from '../world/world.js?v=5442362';
-import { params } from '../core/params.js?v=5442362';
-import { QUALITY_ORDER } from '../core/engine.js?v=5442362';
-import * as visFan from './visfan.js?v=5442362';
-import { clipIntrusions } from './intrusions.js?v=5442362';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=bdb557c';
+import { CELL } from '../world/world.js?v=bdb557c';
+import { params } from '../core/params.js?v=bdb557c';
+import { QUALITY_ORDER } from '../core/engine.js?v=bdb557c';
+import * as visFan from './visfan.js?v=bdb557c';
+import { clipIntrusions } from './intrusions.js?v=bdb557c';
 
 // v21: DRS governor under a frame cap (see drsGovern). Each number says why.
 const GOV_LATE = 1.2;        // a frame is late when its interval exceeds this x the cap's period (a healthy 30 fps frame is 1.0, a missed refresh 1.5)

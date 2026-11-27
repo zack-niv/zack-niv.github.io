@@ -48,15 +48,15 @@
 //   the player picks from the "Where to?" list (both apps; 1–9 / ↑↓ Enter / click; / focuses the search box).
 //   listens 'phone:message' {id?,from,text,time,link?,replies?}, 'phone:typing' {from,on}, 'quest:update', 'demo:arrive'
 // =============================================================================
-import { Positioning } from './phone/positioning.js?v=5442362';
-import { MapApp } from './phone/mapapp.js?v=5442362';
-import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=5442362';
-import { LodestoneApp } from './phone/lodestone.js?v=5442362';
-import { PhoneStats } from './phone/stats.js?v=5442362';
-import { Glance } from './phone/glance.js?v=5442362';
-import { buzzSound } from './phone/track.js?v=5442362';
-import { Destinations, DEST_KEYS } from './phone/destinations.js?v=5442362';
-import { CameraMode } from './phone/camera.js?v=5442362';
+import { Positioning } from './phone/positioning.js?v=bdb557c';
+import { MapApp } from './phone/mapapp.js?v=bdb557c';
+import { HomeApp, NotesApp, MessagesApp, TransitApp } from './phone/apps.js?v=bdb557c';
+import { LodestoneApp } from './phone/lodestone.js?v=bdb557c';
+import { PhoneStats } from './phone/stats.js?v=bdb557c';
+import { Glance } from './phone/glance.js?v=bdb557c';
+import { buzzSound } from './phone/track.js?v=bdb557c';
+import { Destinations, DEST_KEYS } from './phone/destinations.js?v=bdb557c';
+import { CameraMode } from './phone/camera.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -222,7 +222,7 @@ export class Phone {
     const { ctx } = this;
     // stylesheet
     if (!document.querySelector('link[data-namba="phone-css"]')) {
-      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=5442362'; l.dataset.namba = 'phone-css';
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'css/phone.css?v=bdb557c'; l.dataset.namba = 'phone-css';
       document.head.appendChild(l);
     }
     this.lowQ = ctx.engine && ctx.engine.qualityName === 'low';

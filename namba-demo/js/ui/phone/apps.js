@@ -2,10 +2,10 @@
 // Phone apps other than Maps: home screen, Notes (quest checklist), Messages
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
-import { LINES } from './places.js?v=5442362';
-import { businessBySlot } from '../../world/directory.js?v=5442362';
-import { placeArt } from './art.js?v=5442362';
-import { bizSub, levelLabel, zoneShort } from './destinations.js?v=5442362';
+import { LINES } from './places.js?v=bdb557c';
+import { businessBySlot } from '../../world/directory.js?v=bdb557c';
+import { placeArt } from './art.js?v=bdb557c';
+import { bizSub, levelLabel, zoneShort } from './destinations.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -171,7 +171,25 @@ export class MessagesApp {
       const sx = f.x * cv.width, sy = f.y * cv.height, sw = f.w * cv.width, sh = f.h * cv.height;
       const w = 420, h = Math.max(1, Math.round(w * sh / sw));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(cv, sx, sy, sw, sh, 0, 0, w, h);
+      const g2 = c.getContext('2d');
+      // v23 integration: read ONLY the framed rectangle with readPixels (a couple of MB), then downscale 2D -> 2D. drawImage(webglCanvas)
+      // copies the whole drawing buffer through the compositor: under software GL that took 5 to 60 s and 2 GB, and froze or crashed the
+      // desktop page. (Same task as the render: the buffer is still valid.) drawImage stays as the fallback.
+      let done = false;
+      try {
+        const gl = eng.renderer.getContext(), BW = gl.drawingBufferWidth, BH = gl.drawingBufferHeight;
+        const rx = Math.max(0, Math.round(f.x * BW)), rw = Math.max(1, Math.min(BW - rx, Math.round(f.w * BW))), rh = Math.max(1, Math.min(BH, Math.round(f.h * BH))), ry = Math.max(0, Math.min(BH - rh, Math.round(f.y * BH)));
+        const buf = new Uint8Array(rw * rh * 4);
+        gl.readPixels(rx, BH - ry - rh, rw, rh, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        if (!gl.getError || gl.getError() === 0) {
+          const id = new ImageData(rw, rh), row = rw * 4;
+          for (let y = 0; y < rh; y++) id.data.set(buf.subarray((rh - 1 - y) * row, (rh - y) * row), y * row);
+          for (let i = 3; i < id.data.length; i += 4) id.data[i] = 255;
+          const big = document.createElement('canvas'); big.width = rw; big.height = rh; big.getContext('2d').putImageData(id, 0, 0);
+          g2.drawImage(big, 0, 0, rw, rh, 0, 0, w, h); big.width = big.height = 0; done = true;
+        }
+      } catch (e) { done = false; }
+      if (!done) g2.drawImage(cv, sx, sy, sw, sh, 0, 0, w, h);
       return c.toDataURL('image/jpeg', 0.74);
     } catch (e) { console.warn('[messages] photo', e && e.message); return null; }
   }

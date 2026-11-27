@@ -1318,3 +1318,5 @@ html.ph-wide #touch-ui.ph-up .tu-pause { right: max(calc(14px + max(var(--tu-rig
 #phone-root .ms-field { height: 40px; border-radius: 20px; }
 /* the chat bar is 40 px of button plus 2 + 4 px: the thread keeps every pixel it can */
 #phone-root .ms-in { padding: 2px 10px 4px; }
+/* the goal card: a title of up to two lines over ONE line of detail (three lines fit the lowered card) */
+#phone-root#phone-root .gl-pick .gl-t span { -webkit-line-clamp: 1; }

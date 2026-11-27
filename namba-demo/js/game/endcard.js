@@ -10,8 +10,8 @@
 // v22: the game is a race to Aya; with summary.mission the card shows the player's score, its breakdown and the public board (showMission below).
 //   Without summary.mission (the old ?lodestone arc) the original card below is untouched.
 // =============================================================================
-import { ENDCARD } from './script.js?v=5442362';
-import { fetchScores, postScore, hasScores } from './scores.js?v=5442362';
+import { ENDCARD } from './script.js?v=bdb557c';
+import { fetchScores, postScore, hasScores } from './scores.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };

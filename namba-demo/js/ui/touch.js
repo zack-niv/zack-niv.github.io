@@ -21,8 +21,8 @@
 // Layout: the right-hand cluster sits above the lowered phone, and steps left of the raised phone, so a raised phone
 // never covers a control and the controls never cover the phone.
 // =============================================================================
-import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=5442362';
-import { params } from '../core/params.js?v=5442362';
+import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=bdb557c';
+import { params } from '../core/params.js?v=bdb557c';
 
 // v23: ?nofs turns every full-screen / browser-bar trick in this file off (Begin's requestFullscreen + orientation lock,
 // the iPhone swipe-up title page, both title lines, the visualViewport nudge)

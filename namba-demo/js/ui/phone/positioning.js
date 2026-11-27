@@ -35,8 +35,8 @@
 // by a right-floor coarse. Events are drawn from their own seeded stream (this.S), so runs are comparable.
 // Lodestone mode is untouched (true position, +-1 m).
 // =============================================================================
-import { LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=5442362';
-import { rng } from '../../core/rng.js?v=5442362';
+import { LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=bdb557c';
+import { rng } from '../../core/rng.js?v=bdb557c';
 
 const gauss = (R) => { let u = 0, v = 0; while (u === 0) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 

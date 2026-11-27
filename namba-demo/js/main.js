@@ -12,43 +12,43 @@
 //   materials, player, and every system by name (ctx.crowd, ctx.audio, ...)
 // =============================================================================
 import * as THREE from 'three';
-import { Engine } from './core/engine.js?v=5442362';
-import { Events } from './core/events.js?v=5442362';
-import { Clock } from './core/clock.js?v=5442362';
-import { Input } from './core/input.js?v=5442362';
-import { params } from './core/params.js?v=5442362';
-import { World } from './world/world.js?v=5442362';
-import { Nav } from './world/nav.js?v=5442362';
-import { LAYOUT } from './world/layout.js?v=5442362';
-import { Loader } from './core/loader.js?v=5442362';
-import { precompileVisible, precompileRest } from './render/precompile.js?v=5442362';
-import { bootTouch, TouchUI } from './ui/touch.js?v=5442362';
-import { setCanvasRes } from './render/canvasres.js?v=5442362';
-import { readRecovery, armRecovery } from './core/resilience.js?v=5442362';
-import { setGeoCompact } from './render/geobatch.js?v=5442362';
+import { Engine } from './core/engine.js?v=bdb557c';
+import { Events } from './core/events.js?v=bdb557c';
+import { Clock } from './core/clock.js?v=bdb557c';
+import { Input } from './core/input.js?v=bdb557c';
+import { params } from './core/params.js?v=bdb557c';
+import { World } from './world/world.js?v=bdb557c';
+import { Nav } from './world/nav.js?v=bdb557c';
+import { LAYOUT } from './world/layout.js?v=bdb557c';
+import { Loader } from './core/loader.js?v=bdb557c';
+import { precompileVisible, precompileRest } from './render/precompile.js?v=bdb557c';
+import { bootTouch, TouchUI } from './ui/touch.js?v=bdb557c';
+import { setCanvasRes } from './render/canvasres.js?v=bdb557c';
+import { readRecovery, armRecovery } from './core/resilience.js?v=bdb557c';
+import { setGeoCompact } from './render/geobatch.js?v=bdb557c';
 
 // [name, module path, export name, phase]
 // phase 'build' systems run before the nav graph (they may register obstacles);
 // phase 'live' systems run after.
 const SYSTEMS = [
-  ['materials',    './render/materials.js?v=5442362',   'Materials',    'build'],
-  ['lighting',     './render/lighting.js?v=5442362',    'Lighting',     'build'],
-  ['architecture', './world/architecture.js?v=5442362', 'Architecture', 'build'],
-  ['props',        './world/props.js?v=5442362',        'Props',        'build'],
-  ['shops',        './world/shops.js?v=5442362',        'Shops',        'build'],
-  ['exterior',     './world/exterior.js?v=5442362',     'Exterior',     'build'],
-  ['parks',        './world/parks.js?v=5442362',        'Parks',        'build'],
-  ['transit',      './world/transit.js?v=5442362',      'Transit',      'build'],
-  ['signage',      './world/signage.js?v=5442362',      'Signage',      'build'],
-  ['player',       './player/player.js?v=5442362',      'Player',       'live'],
-  ['crowd',        './npc/crowd.js?v=5442362',          'Crowd',        'live'],
-  ['audio',        './audio/audio.js?v=5442362',        'Audio',        'live'],
-  ['phone',        './ui/phone.js?v=5442362',           'Phone',        'live'],
-  ['hud',          './ui/hud.js?v=5442362',             'Hud',          'live'],
-  ['game',         './game/game.js?v=5442362',          'Game',         'live'],
-  ['visibility',   './render/visibility.js?v=5442362',  'Visibility',   'live'],
-  ['post',         './render/post.js?v=5442362',        'Post',         'live'],
-  ['memdiet',      './render/memdiet.js?v=5442362',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
+  ['materials',    './render/materials.js?v=bdb557c',   'Materials',    'build'],
+  ['lighting',     './render/lighting.js?v=bdb557c',    'Lighting',     'build'],
+  ['architecture', './world/architecture.js?v=bdb557c', 'Architecture', 'build'],
+  ['props',        './world/props.js?v=bdb557c',        'Props',        'build'],
+  ['shops',        './world/shops.js?v=bdb557c',        'Shops',        'build'],
+  ['exterior',     './world/exterior.js?v=bdb557c',     'Exterior',     'build'],
+  ['parks',        './world/parks.js?v=bdb557c',        'Parks',        'build'],
+  ['transit',      './world/transit.js?v=bdb557c',      'Transit',      'build'],
+  ['signage',      './world/signage.js?v=bdb557c',      'Signage',      'build'],
+  ['player',       './player/player.js?v=bdb557c',      'Player',       'live'],
+  ['crowd',        './npc/crowd.js?v=bdb557c',          'Crowd',        'live'],
+  ['audio',        './audio/audio.js?v=bdb557c',        'Audio',        'live'],
+  ['phone',        './ui/phone.js?v=bdb557c',           'Phone',        'live'],
+  ['hud',          './ui/hud.js?v=bdb557c',             'Hud',          'live'],
+  ['game',         './game/game.js?v=bdb557c',          'Game',         'live'],
+  ['visibility',   './render/visibility.js?v=bdb557c',  'Visibility',   'live'],
+  ['post',         './render/post.js?v=bdb557c',        'Post',         'live'],
+  ['memdiet',      './render/memdiet.js?v=bdb557c',     'MemDiet',      'live'],   // v15: phones drop static geometry's CPU copy
 ];
 
 // Fetch every system's module graph in parallel right away (no evaluation): the sequential
@@ -205,8 +205,8 @@ async function boot() {
   if (params.debug) setupDebug(ctx);
   // v21: a phone starts at drs 0.8 (not 1) so the first seconds are gentle, and the late-fraction governor (render/visibility.js) climbs from there. Not after a crash (safe tier).
   if (touchOnly && !engine.qualityForced && !recovery) engine.setDRS(0.8);
-  import('./ui/perf.js?v=5442362').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
-  import('./analytics.js?v=5442362').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
+  import('./ui/perf.js?v=bdb557c').then((m) => { ctx.perf = new m.Perf(ctx); }).catch((e) => console.warn('[perf]', e.message));   // hidden Ctrl+Shift+F / F3 FPS overlay (not a loader stage)
+  import('./analytics.js?v=bdb557c').then((m) => m.setupAnalytics(ctx)).catch((e) => console.warn('[analytics]', e.message));   // v7.4 journey funnel (PostHog; off locally / in tests)
 
   ctx.start = () => {
     if (ctx.started) return;
