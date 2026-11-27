@@ -34,6 +34,7 @@ import { LINES, DESTINATIONS, EXIT_INFO, FACILITIES, FACILITY_INFO, PLATFORM_BOA
 import { computeDirections, STRIDE } from '../ui/phone/routes.js?v=5442362';
 import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=5442362';
 import { lcanvas } from '../render/canvasres.js?v=5442362';
+import { FloorGuides } from './floorguide.js?v=5442362';
 
 const CHUNK = 48;
 // font sizes are quantised (2 px steps above 14 px) so the glyph cache is reused
@@ -57,6 +58,10 @@ const STYLES = {
   parks:  { bg: '#3d3026', fg: '#f3ead9', fg2: '#c9b89f', div: '#66543f', arrow: '#a5d47f', exitBg: '#a5d47f', exitFg: '#1b1914', frame: 'steel_dark', lower: true },
   taka:   { bg: '#163424', fg: '#f0e4bf', fg2: '#c0b287', div: '#3a5848', arrow: '#f0e4bf', exitBg: '#ffd400', exitFg: '#141414', frame: 'steel_dark' },
 };
+
+// v23: floor guide placements [filled below the class]
+let FLOOR_GUIDE_SPECS = [];
+export function setFloorGuideSpecs(a) { FLOOR_GUIDE_SPECS = a; }
 
 const PRIORITY = { gate: 10, esc: 8, exitHang: 7, end: 5, side: 4, hall: 3, interval: 2, column: 1 };
 
@@ -211,7 +216,9 @@ export class Signage {
     const { world, params } = this.ctx;
     this.lowQ = (this.ctx.engine && this.ctx.engine.qualityName === 'low');
     this.PPM = this.lowQ ? 96 : 136;      // pixels per metre on sign faces
-    this.GPPM = this.lowQ ? 190 : 260;    // floor guide boards
+    this.GPPM = this.lowQ ? 170 : 260;    // legacy floor guide boards (NAMBAWALK, Metro, Takashimaya); v23: 170 so 12 fit one 1024 page on phones
+    // v23: the floor guide boards of Namba CITY / Namba Parks / Nankai live in world/floorguide.js (shared textures, own atlas)
+    this.fg = new FloorGuides(this, { Atlas, JA, EN, measW, fitFont, picto, rr, drawArrow, lcanvas });
     // fonts (cap the wait: a blocked CDN must not stall loading)
     this._fontsP = (async () => {
       if (!document.fonts || !document.fonts.load) return;
@@ -429,6 +436,7 @@ export class Signage {
     this._placePlatforms(world);
     // ---- G. floor guide boards ------------------------------------------------
     this._placeGuides(world, R);
+    this._placeFloorGuides();
     // ---- H. column wraps on existing columns ------------------------------------
     this._placeColumns(world);
     // ---- I. totems (outdoors / Parks) ------------------------------------------
@@ -508,11 +516,19 @@ export class Signage {
     ];
     this.guides = [];
     for (const [lv, ax, az, op] of anchors) {
+      // v23: Namba CITY, Namba Parks and Nankai boards are the new floor guides (_placeFloorGuides)
+      if (op === 'city' || op === 'parks' || op === 'nankai') continue;
       const m = this._wallMount(lv, ax, az, 1.9);
       if (!m) continue;
       const north = op === 'nankai' || op === 'metro' || (op === 'parks' && hash(lv) % 2 === 0);
       this._add({ kind: 'guide', level: lv, x: m.x, z: m.z, nx: m.nx, nz: m.nz, w: 1.8, h: 1.2, yc: 1.45, op, single: true, northUp: north, cat: 'guide' });
     }
+  }
+  // v23: floor guide boards (フロアガイド). SPECS is filled by hand from the plans: escalator landings on the floors the
+  // routes use and their neighbours, the Parks entrance, and the station-area guide outside the Nankai Central Gate.
+  _placeFloorGuides() {
+    this.fg.place(FLOOR_GUIDE_SPECS);
+    this.fguides = this.fg.boards;
   }
   // find a wall (or a solid partition) near (x,z) to mount a board of width w
   _wallMount(level, x, z, w) {
@@ -574,7 +590,7 @@ export class Signage {
     for (const s of this.signs) {
       s.faceIdx = [];
       const sides = s.kind === 'totem' || s.kind === 'hang' || s.kind === 'esc' || s.kind === 'gate' || s.kind === 'exitHang' ? [1, -1]
-        : s.kind === 'column' ? [0, 1, 2, 3] : s.kind === 'guide' ? [] : [];
+        : s.kind === 'column' ? [0, 1, 2, 3] : s.kind === 'fguide' && s.area ? [1] : [];
       for (const sd of sides) {
         let nx, nz;
         if (s.four) { const a = sd * Math.PI / 2; nx = Math.round(Math.sin(a)); nz = Math.round(Math.cos(a)); }
@@ -587,7 +603,7 @@ export class Signage {
         // the back face is read by people stepping off — from the mouth
         if (s.kind === 'esc' && sd === -1) { vx = s.mouth[0] + s.nx * 0.7; vz = s.mouth[1] + s.nz * 0.7; }
         s.faceIdx.push(faces.length);
-        faces.push({ level: s.level, x: vx, z: vz, fx: -nx, fz: -nz, nx, nz, len: s.kind === 'esc' ? 8 : 18 });
+        faces.push({ level: s.level, x: vx, z: vz, fx: -nx, fz: -nz, nx, nz, len: s.kind === 'esc' ? 8 : s.kind === 'fguide' ? 40 : 18 });
       }
     }
     return faces;
@@ -650,11 +666,32 @@ export class Signage {
     if (m < 122) return 90 * s;
     return null; // behind you: belongs on the other face
   }
+  // v23: the station-area board's rows: for each destination the TRUE first bearing of the nav route from the board
+  // (unquantised and including "behind you", which a hanging sign would leave to its other face), plus the level change
+  _areaRows(s) {
+    const ids = ['nankai', 'city', 'parks', 'takashimaya', 'midosuji', 'sennichimae', 'yotsubashi', 'walk'];
+    const col = { nankai: '#F08300', city: '#1f6fb8', parks: '#5c9e3f', takashimaya: '#1d4a33', midosuji: '#E5171F', sennichimae: '#E44D93', yotsubashi: '#1d6fb8', walk: '#b88a00' };
+    const label = { nankai: ['南海線 のりば・改札', 'Nankai Line · platforms'], city: ['なんばCITY', 'Namba CITY'], parks: ['なんばパークス', 'Namba Parks'],
+      takashimaya: ['高島屋', 'Takashimaya'], midosuji: ['御堂筋線', 'Osaka Metro Midosuji Line'], sennichimae: ['千日前線', 'Osaka Metro Sennichimae Line'],
+      yotsubashi: ['四つ橋線・JR難波', 'Yotsubashi Line / JR Namba'], walk: ['なんばウォーク', 'NAMBAWALK'] };
+    const face = this._faces[s.faceIdx[0]]; s.areaRows = [];
+    for (const id of ids) {
+      const di = this._dests.findIndex(d => d.id === id); if (di < 0) continue;
+      const r = this._r(s.faceIdx[0], di); if (!r) continue;
+      const dx = r.ex - face.x, dz = r.ez - face.z;
+      let ang = 0;
+      if (Math.hypot(dx, dz) >= 1.2) { const f = [face.fx, face.fz], rt = [-face.fz, face.fx]; ang = Math.round(Math.atan2(dx * rt[0] + dz * rt[1], dx * f[0] + dz * f[1]) * 180 / Math.PI / 15) * 15; }
+      const row = { id, ja: label[id][0], en: label[id][1], color: col[id], ang, dist: r.dist };
+      if (r.ramp >= 0 && r.rampAt < 70) { row.lvl = LEVEL_ORDER[r.toLevel]; row.dir = r.dir; }
+      s.areaRows.push(row);
+    }
+  }
   _compose() {
     const D = DESTINATIONS;
     for (const s of this.signs) {
       const R = rng(hash(s.id + s.level));
       s.faces = [];
+      if (s.kind === 'fguide') { s.faces = [{ side: 1 }]; if (s.area) this._areaRows(s); continue; }
       if (s.kind === 'guide' || s.kind === 'platName' || s.kind === 'platTrack' || s.kind === 'wallName' || s.kind === 'nkHead') {
         s.faces = s.single ? [{ side: 1 }] : [{ side: 1 }, { side: -1 }];
         continue;
@@ -774,12 +811,14 @@ export class Signage {
   async _draw(yieldNow) {
     const atlas = this.atlas = new Atlas(2048);
     let tSlice = performance.now();
-    const gAtlas = this.guideAtlas = new Atlas(2048);
+    const gAtlas = this.guideAtlas = new Atlas(this.lowQ ? 1024 : 2048);
+    this.fg.drawAll();      // v23: the floor guide textures (private atlas), once each
     const meas = document.createElement('canvas').getContext('2d');
     const P = this.PPM;
     const cache = new Map();
     for (const s of this.signs) {
       if (yieldNow && performance.now() - tSlice > 25) { await yieldNow(); tSlice = performance.now(); }
+      if (s.kind === 'fguide') continue;
       const st = STYLES[s.op] || STYLES.metro;
       if (s.kind === 'hang' || s.kind === 'gate' || s.kind === 'exitHang' || s.kind === 'esc' || s.kind === 'column' || s.kind === 'totem') {
         // decide physical width from both faces' content
@@ -829,14 +868,14 @@ export class Signage {
       return t;
     };
     this.pageMats = new Map();
-    for (const p of [...atlas.pages, ...gAtlas.pages]) {
+    for (const p of [...atlas.pages, ...gAtlas.pages, ...(this.fg.atlas ? this.fg.atlas.pages : [])]) {
       const tex = mk(p);
       const m = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(1.35, 1.35, 1.35) });
       m.name = 'sign_face';
       this.pageMats.set(p, m);
       p.tex = tex;
     }
-    this.stats = { pages: atlas.pages.length + gAtlas.pages.length, faces: cache.size };
+    this.stats = { pages: atlas.pages.length + gAtlas.pages.length, faces: cache.size, guidePages: this.fg.atlas ? this.fg.atlas.pages.length : 0, guideBoards: this.fg.boards.length };
   }
   // which way "plus" (south / east) lies for the reader of face f (+1 right, -1 left)
   _orient(s, f) {
@@ -1373,6 +1412,7 @@ export class Signage {
       const st = STYLES[s.op] || STYLES.metro;
       const housing = st.frame === 'aluminium' ? 'sign_housing_light' : 'sign_housing';
       const rotY = Math.atan2(s.nx, s.nz);
+      if (s.kind === 'fguide') { this.fg.mesh(b, s, housing); continue; }
       if (s.kind === 'guide' || s.kind === 'wallName') {
         // wall-mounted light box
         const dep = 0.08;

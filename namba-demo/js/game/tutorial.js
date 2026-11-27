@@ -149,7 +149,15 @@ export class Tutorial {
       T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M }, nudge });
       return up ? h : null;
     }
-    T.coach(h ? { target: touchTarget(id, h, ph, up), nudge } : null);
+    const tg = h ? touchTarget(id, h, ph, up) : null;
+    T.coach(h ? { target: tg, nudge } : null);
+    // v23 (owner shots 2 / 4: "the IC card prompt is duplicated"): when the thing to do is a control that is itself on
+    // screen with its own label (the Use button, the phone button, a reply chip, a dock icon, a message card), the ghost
+    // thumb on that control IS the hint and the text line is not drawn. The line stays only when there is nothing to
+    // point at (look, walk, "walk up to a lane", "read Aya's message"), and returns half a second after the control
+    // goes away so a control that blinks out never leaves a hole.
+    if (tg && T.targetOn && T.targetOn(tg.sel)) this._noTextUntil = this.t + 0.5;
+    if (h && tg && this._noTextUntil != null && this.t < this._noTextUntil) h = null;
     return h;
   }
   // the player just did something on-topic (raised the phone, walked): the idle clock restarts
@@ -186,7 +194,8 @@ function touchTarget(id, h, ph, up) {
     if (h.html === TUTORIAL.pickMsg) return { sel: `${v} .ms-place`, last: true };
     return { sel: `${v} .dl-next, ${v} .dl-r.aya` };
   }
-  if (id === 'order' || id === 'gate' || id === 'gateAgain') return { sel: '#touch-ui.has-use .tu-use' };
+  // v23: order / gate / gateAgain point at Use only through at:'prompt' (above): their 'center' lines are about walking up
+  // to the counter or lane, when Use is not (or not yet) the control, and a Use button for something else must not be pointed at
   return null;
 }
 function safeTrue(fn) { try { return !!fn(); } catch (e) { return false; } }

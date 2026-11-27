@@ -821,10 +821,13 @@ export class Story {
     if (this.classic || !this.mission.leg || this.mission.leg > 2 || this.demo.over || this.game.ended) return 'hide';
     return this.t - this._photoT >= DEMO.photoGap && !this.aya.busy() ? 'ready' : 'wait';
   }
-  sendPhoto() {
+  // v23: how far the camera button's 15 s cooldown has run (0..1; 1 = ready). The button draws it as a ring.
+  snapProgress() { const gap = DEMO.photoGap || 15; return Math.max(0, Math.min(1, (this.t - this._photoT) / gap)); }
+  // v23: `img` is the picture the camera mode framed and shot (phone/camera.js); the pose is judged right now, at the shutter
+  sendPhoto(img) {
     const m = this.ctx.phone && this.ctx.phone.messages;
     if (!m || typeof m.sendPhoto !== 'function' || m.pending || this.snapState() !== 'ready') return false;
-    const r = m.sendPhoto(); if (!r) return false;
+    const r = m.sendPhoto(img); if (!r) return false;
     this._photoT = this.t; this._blurs = 0; this._photoOk = r.img !== false;
     this.ctx.events.emit('story:snap', { t: +this.t.toFixed(1) });
     this._photoReply(false);

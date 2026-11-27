@@ -56,6 +56,7 @@ import { PhoneStats } from './phone/stats.js?v=5442362';
 import { Glance } from './phone/glance.js?v=5442362';
 import { buzzSound } from './phone/track.js?v=5442362';
 import { Destinations, DEST_KEYS } from './phone/destinations.js?v=5442362';
+import { CameraMode } from './phone/camera.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -85,6 +86,7 @@ const ALERT_H = 176;           // device px of the phone's top that show while i
 const ALERT_GROW = 1.12;       // its scale vs the raised phone's
 const ALERT_AGAIN = [20, 45];  // seconds after an unanswered text: nudge again (then it stays quiet). v14: was 13 / 32 s
 const CUE_MAX = 4;             // touch: the "tap your phone" cue shows on the first few alerts
+const FLAT_BEZ = 6;            // v23: the raised touch phone's slim bezel (device px)
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
 const WALK_LOWER_WIDE_S = 1.0; // v12: the wide phone covers the crosshair and the look area: walking lowers it to the
@@ -225,6 +227,7 @@ export class Phone {
     this.transit = new TransitApp(this, this.views.transit);
     this.lodestone = new LodestoneApp(this, this.views.lodestone);
     this.glance = new Glance(this, this.el.isl);
+    this.camera = new CameraMode(this);          // v23: camera mode (a viewfinder over the world)
     this.apps = { home: this.home, maps: this.maps, notes: this.notes, messages: this.messages, transit: this.transit, lodestone: this.lodestone };
     this._showApp('maps');
     this._applyPose(0, true);
@@ -358,42 +361,58 @@ export class Phone {
     // scale the 340×700 device to the viewport (held low: the top ~85 % shows when up)
     let s = Math.max(0.55, Math.min(1.15, (innerHeight * 0.9) / 700, (innerWidth * 0.92) / 340));
     let dh = 700;
-    // v11 touch: legibility first. A 390-px-tall landscape phone would get a 0.55 phone (7-px text, the dock cut off).
-    // Instead the device keeps a readable scale and gets SHORTER (the apps lay out in flexible height), fully on
-    // screen; portrait (the "play anyway" escape) gets a phone as wide as the screen allows.
     const touch = !!(this.ctx.input && this.ctx.input.touch);
     this._touch = touch;
-    if (touch) {
-      const W = innerWidth, H = innerHeight;
+    const W = innerWidth, H = innerHeight;
+    const legacyWide = touch && W > H && !!(this.ctx.params && this.ctx.params.has && this.ctx.params.has('widephone'));
+    // v23 (Zack: "the in-game mobile is crammed ... the chat is trimmed, or the maps nav app becomes less useful"): on a touch
+    // screen in landscape the raised phone is REAL SIZE (scale 1, no shrinking transform): a screen content box
+    // FLAT_BEZ-slim bezel round it, 40 % of the width (300..400 px) and the viewport height minus 24 px (300..700), on the
+    // right. Slim chrome: a 24 px status row and a 40 px icon dock. The lowered glance card keeps its old size (_sRef).
+    const flat = touch && W > H && !legacyWide;
+    this._flat = flat;
+    // v11 touch (portrait "play anyway", or ?widephone): legibility first. A 390-px-tall landscape phone would get a 0.55 phone.
+    if (touch && !flat) {
       if (H > W) { s = Math.max(0.6, Math.min(1, (W - 24) / 340, (H * 0.8) / 700)); dh = Math.round(Math.min(700, Math.max(430, (H - 14) / s))); }
-      // v13 (Zack: "on mobile the phone layout looks odd, it should look more like on desktop"): a landscape phone gets
-      // the desktop's portrait phone, uniformly scaled down, nearly the desktop's proportions (340 x ~540 at 750 x 342,
-      // vs the v11 squat 340 x 451 and the v12 sideways phone). Text ~8-9 px CSS at 0.61; css/touch.css lifts the
-      // texts and buttons you must read or tap. A tablet (H >= 560) is the desktop phone at scale 1.
       else { s = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340)); dh = Math.round(Math.min(700, Math.max(430, (H - 12) / s))); }
     }
-    this._dh = dh;
+    // the glance card's reference scale (v13's: a landscape phone held further away)
+    let sRef = s, PW = 340, bez = 12, st = 50, dk = 92;
+    if (flat) {
+      bez = FLAT_BEZ; st = 24; dk = 40;
+      sRef = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340));
+      const sw = Math.max(300, Math.min(400, Math.floor(W * 0.4)));
+      const sh = Math.max(300, Math.min(700, H - 24, H - 8 - 2 * bez));
+      s = 1; PW = sw + 2 * bez; dh = sh + 2 * bez;
+    }
+    this._dh = dh; this._sRef = sRef; this._flatPW = PW; this._bez = bez;
     this.wrap.style.height = dh + 'px';
     this.wrap.style.setProperty('--ph-h', dh + 'px');
     this.root.classList.toggle('ph-touch', touch);
+    this.root.classList.toggle('ph-flat', flat);
     this.root.classList.toggle('ph-compact', dh < 640);
     this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
-    // v12 (item 2b): on a short landscape screen (a phone held sideways) the RAISED phone turns sideways too: a wide,
-    // short landscape phone (~70 % of the screen), its apps side by side (map / 3D left, sheet right, the dock a rail).
-    // The lowered (glance) phone stays the portrait one; raising morphs it wider (_applyPose). notes/v12-phone.md
-    // v13: off by default (the desktop-style portrait phone above); ?widephone brings the v12 sideways phone back for an A/B
-    const wide = touch && innerWidth > innerHeight && dh < 640 && !!(this.ctx.params && this.ctx.params.has && this.ctx.params.has('widephone'));
+    // v23: the app view box (every app's .ph-view): the screen minus the status row and the dock. Apps lay out inside it.
+    const rs = this.root.style;
+    rs.setProperty('--bez', bez + 'px'); rs.setProperty('--ph-st', st + 'px'); rs.setProperty('--ph-dk', dk + 'px');
+    rs.setProperty('--ph-view-w', (PW - 2 * bez) + 'px'); rs.setProperty('--ph-view-h', (dh - 2 * bez - st - dk) + 'px');
+    this.viewBox = { w: PW - 2 * bez, h: dh - 2 * bez - st - dk };
+    // v12 (item 2b): on a short landscape screen (a phone held sideways) the RAISED phone turns sideways too (opt-in now: ?widephone)
+    const wide = legacyWide && dh < 640;
     this._wideOK = wide;
     // v12 (lead / Zack: the lowered card was 301×100 at 852×393, too big): a phone-sized screen holds it further away
-    this._gS = touch && dh < 640 ? GLANCE_S_COMPACT : GLANCE_S;
+    // v23: relative to _sRef; the flat phone's screen is 24 px wider than v13's, so the card gets a touch smaller scale
+    this._gS = flat ? GLANCE_S_COMPACT * 0.93 : touch && dh < 640 ? GLANCE_S_COMPACT : GLANCE_S;
     this._landW = wide ? Math.round(Math.min(820, Math.max(540, (innerWidth * WIDE_FRAC) / s))) : 340;
     if (!wide && this.land) this._setLand(false);
     else if (wide && this.isOpen && !this.land) this._setLand(true);
     // where the raised phone starts, from the right edge (CSS px): the touch HUD keeps left of it (contract: Shell)
-    this.upGap = Math.round((wide ? this._landW : 340) * s + 12 + (touch ? safeRight() : 0));
-    document.documentElement.style.setProperty('--ph-wide-gap', (wide ? this.upGap : 0) + 'px');
-    if (this.land) document.documentElement.classList.toggle('ph-wide', this.isOpen);
+    this.upGap = Math.round((wide ? this._landW : flat ? PW : 340) * s + 12 + (touch ? safeRight() : 0));
+    // v23: the flat phone reuses the v12 wide-phone hooks (html.ph-wide + --ph-wide-gap): the touch buttons stack in the
+    // free strip left of it, the tutorial hints step aside, and the upper half of the left strip turns the view
+    document.documentElement.style.setProperty('--ph-wide-gap', (wide || flat ? this.upGap : 0) + 'px');
+    if (this.land || flat) document.documentElement.classList.toggle('ph-wide', this.isOpen);
     this._poseDirty = true;
     this._landDirty = true;
   }
@@ -417,7 +436,7 @@ export class Phone {
     this.isOpen = true;
     this._upAt = this._now; this._walkUp = 0; this._raises = (this._raises || 0) + 1;
     if (this._wideOK) this._setLand(true);
-    document.documentElement.classList.toggle('ph-wide', !!this.land);
+    document.documentElement.classList.toggle('ph-wide', !!(this.land || this._flat));
     this.wrap.classList.add('open');
     this.root.classList.add('ph-is-open');
     if (!hold) this._unlockForUse();
@@ -466,7 +485,7 @@ export class Phone {
   }
   _wantDown() {
     const { ctx } = this, g = ctx.game;
-    return this._pocket || !ctx.started || !!(g && (g.titleUp || g.paused || g.intro || g._endCard));
+    return this._pocket || !!(this.camera && this.camera.active) || !ctx.started || !!(g && (g.titleUp || g.paused || g.intro || g._endCard));
   }
   _setPose(p) {
     if (p === this.pose) return;
@@ -628,14 +647,13 @@ export class Phone {
         this._lastPhoneInput = this._now;
         // chips on screen answer; otherwise the number is a dock slot (a short guard after a switch: no accidental reply)
         if (this.app === 'messages' && this.messages.pending && this._now - (this._appAt || -1e9) > 0.35) this.messages.reply(k);
-        // v22: no chips, the 📸 button showing: 1 sends the photo (the key the photo chip uses when it is the only action)
-        else if (this.app === 'messages' && k === 0 && this.messages._snapState() !== 'hide') { if (this._now - (this._appAt || -1e9) > 0.35) this.messages.snap(); }
         else if (!this._busyUpgrade()) { const L = this._dockApps(); if (L[k]) this._showApp(L[k]); }
         break;
       }
     }
     const pressed = inp && (typeof inp.action === 'function' ? inp.action('phone') : (inp.pressed('KeyQ') || inp.pressed('Tab')));
-    if (pressed && !tabbed && this._canUse()) {
+    if (pressed && this.camera && this.camera.active) this.camera.close(true);     // v23: Q / the phone button leaves camera mode
+    else if (pressed && !tabbed && this._canUse()) {
       this._lastPhoneInput = this._now;
       const M = this.messages;
       if (this.isOpen && this._held) { this._held = false; this._unlockForUse(); }          // Q while holding: keep it up, free the cursor
@@ -650,6 +668,7 @@ export class Phone {
     // the upgrade: keyboard (Enter / E while the offer is on screen). v3: no timer fallback — Story calls offerLodestone()
     if (ctx.started && !ctx.paused && !(ctx.game && ctx.game.paused)) this._play += dt;
     this.messages.update(dt);
+    if (this.camera.active) { const g = ctx.game; if (g && (g.paused || g._endCard || g.titleUp || g.ended)) this.camera.close(false); }
     if (this.el.screen.dataset.stage !== this.upgradeStage) this.el.screen.dataset.stage = this.upgradeStage;   // (the dock hides during install / calibration)
     if (this._buzzT > 0) { this._buzzT -= dt; this._poseDirty = true; }
     this._alertTick(dt);
@@ -743,37 +762,37 @@ export class Phone {
     const moving = Math.abs(bx) + Math.abs(by) > 0.05 || this.sway || this._buzzT > 0;
     if (settled && !moving && !this._poseDirty && !snap) return;
     this._poseDirty = false;
-    const vw = innerWidth, s = this._scale, a = Math.max(0, S.a.x), DH = this._dh || 700;
+    const vw = innerWidth, s = this._scale, sR = this._sRef || s, a = Math.max(0, S.a.x), DH = this._dh || 700, flat = !!this._flat;
     // (v13: popped up by an alert; on a desktop a gentler pop: the card is already large there)
-    const sg = lerp(s * (this._gS || GLANCE_S), s * (this._touch ? ALERT_GROW : GLANCE_S * 1.04), a), GH = lerp(GLANCE_H, this._touch ? ALERT_H : 150, a);
+    const sg = lerp(sR * (this._gS || GLANCE_S), sR * (this._touch ? ALERT_GROW : GLANCE_S * 1.04), a), GH = lerp(GLANCE_H, this._touch ? ALERT_H : 150, a);
     const u = S.u.x, tl = S.tilt.x, d = S.d.x;
     // v12: the wide (landscape) phone morphs from the portrait one as it rises, and back as it lowers; the wide
     // layout drops once the phone is back down to the glance
     if (this.land && !this.isOpen && u < 0.08) this._setLand(false);
     const uc = Math.max(0, Math.min(1, u)), ue = uc * uc * (3 - 2 * uc);
-    const PW = this.land ? Math.round(lerp(340, this._landW, ue)) : 340;
+    const PW = this.land ? Math.round(lerp(340, this._landW, ue)) : flat ? this._flatPW : 340;
     if (PW !== this._curW) { this._curW = PW; this.wrap.style.width = PW + 'px'; this._landDirty = true; }
     // up: just right of the crosshair (you can still see where you walk), bottom 35 px below the edge.
     // v11 touch: wholly on screen against the right edge (the dock and reply chips are what you tap), clear of the
     // left thumb's stick; portrait: centred.
     const uw = PW * s;
     let upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
-    if (this._touch) { upY = -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
+    if (this._touch) { upY = flat ? -Math.round(Math.max(0, innerHeight - DH) / 2) : -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
     // glance: bottom-right corner, only the top GLANCE_H shows
-    const gw = 340 * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GH * sg;
+    const gw = (flat ? PW : 340) * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GH * sg;
     const sc = lerp(sg, s, u);
     const cx = lerp(gCx, upCx, u);
     let y = lerp(gY, upY, u);
     y += d * (GH * sg + 60);                                          // pocketed: slides out of view
     // (a wide phone tilts less: its corners stay on screen; v13: popped up by an alert, it turns toward you a little)
-    const rz = lerp(3.2 - a * 2.4, this.land ? -0.35 : -1.2, u) + br;
-    const rx = lerp(9, 2.5, tl);                                      // tilted away a little when lowered
+    const rz = lerp(3.2 - a * 2.4, this.land ? -0.35 : flat ? 0 : -1.2, u) + br;
+    const rx = lerp(9, flat ? 0 : 2.5, tl);                                      // tilted away a little when lowered
     const lift = Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * -14; // a little arc on the way up
     this.wrap.style.transform = `translate3d(${(cx - PW / 2 + bx).toFixed(1)}px, ${(y + by + lift).toFixed(1)}px, 0) scale(${sc.toFixed(4)}) rotate(${rz.toFixed(2)}deg)`;
     this.device.style.transform = `rotateX(${rx.toFixed(2)}deg)`;
     this.wrap.style.filter = u < 0.6 ? `brightness(${(0.88 + u * 0.2).toFixed(3)})` : '';
     // the glance strip's on-screen height (for HUD layout), 0 when not glancing
-    const gh = pose === 'glance' ? Math.round(GLANCE_H * s * (this._gS || GLANCE_S)) : 0;   // (v13 critic: the resting card, not the alert pop: no restyle per frame)
+    const gh = pose === 'glance' ? Math.round(GLANCE_H * sR * (this._gS || GLANCE_S)) : 0;   // (v13 critic: the resting card, not the alert pop: no restyle per frame)
     if (gh !== this._gh) { this._gh = gh; document.documentElement.style.setProperty('--phone-glance-h', gh + 'px'); }
   }
 }

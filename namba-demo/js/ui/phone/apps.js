@@ -73,11 +73,15 @@ export class NotesApp {
   }
 }
 
-const AYA_SNAP = '📸 Send Aya a pic';
+// v23: the camera button's icon (the same on every device)
+const CAM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.2A2.2 2.2 0 0 1 6.2 6h1.5l1.1-1.6a1.5 1.5 0 0 1 1.2-.65h4a1.5 1.5 0 0 1 1.2.65L16.3 6h1.5A2.2 2.2 0 0 1 20 8.2v8.6a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 16.8Z" fill="currentColor"/><circle cx="12" cy="12.4" r="3.5" fill="#fff"/><circle cx="12" cy="12.4" r="1.9" fill="currentColor" opacity=".55"/></svg>';
+const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
 export class MessagesApp {
   // v3: replies. A text may carry reply chips (replies: [{id, text}], max 3); the player answers with
   // the phone up (click a chip, or keys 1 / 2 / 3). 'phone:reply' {msgId, replyId, text} is emitted and
   // the player's bubble appended. 'phone:typing' {from, on} shows the typing bubble ("Aya is typing…").
+  // v23: the chips are OUTLINED suggestion pills above the input bar (they fly into the thread as a blue bubble when
+  // tapped); the 📸 button is a camera icon at the left of the input bar that opens camera mode (phone/camera.js).
   constructor(phone, root) {
     this.phone = phone; this.root = root; this.ctx = phone.ctx;
     root.classList.add('ms');
@@ -94,6 +98,8 @@ export class MessagesApp {
     this.typingFrom = null; this._typT = 0;
     this._seen = new Set();
     this._autoId = 0;
+    this._capDone = false;        // v23: the "Tap to reply" caption shows until the first reply
+    this._late = false;           // v23: the next photo bubble waits for the phone to rise (camera mode)
     this.ctx.events.on('phone:message', (m) => this.receive(m));
     this.ctx.events.on('phone:typing', (e) => this.setTyping(e && e.from, !!(e && e.on)));
     // tap (or Enter / Space on the focused button) on the Lodestone link card, or on a reply chip
@@ -101,7 +107,7 @@ export class MessagesApp {
       if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
       const pl = e.target.closest('.ms-place'); if (pl) { this.phone.openPlace(pl.dataset.id); return; }
       const c = e.target.closest('.ms-chip'); if (c) { this.reply(+c.dataset.i); return; }
-      if (e.target.closest('.ms-snap')) this.snap();      // v22: the persistent 📸 button
+      if (e.target.closest('.ms-cam')) this.snap();      // v23: the camera button
     });
     this.render();
   }
@@ -117,20 +123,29 @@ export class MessagesApp {
     const reps = Array.isArray(m.replies) ? m.replies.filter(r => r && r.text).slice(0, 3) : [];
     if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text), photo: !!r.photo })), at: this.phone._now || 0 };
     if (m.link === 'lodestone') this.phone._noteOffer();
+    // v23: Aya's "send me a pic of whatever's near you 📸" is the cue to the camera button: it pulses once the thread is on screen
+    if (/send me a pic of whatever/i.test(String(m.text || '')) && !this._pulsed) this._pulsePending = true;
     const reading = this.phone.isOpen && this.phone.app === 'messages';
     if (!reading) this.unread++;
     this.render();
     this.phone.notify('messages', { title: from, text: m.text, reply: !!reps.length });
   }
-  // answer the pending text with chip i (0-based). Returns true when sent.
-  reply(i) {
+  // answer the pending text with chip i (0-based). Returns true when sent. v23: a 📸 chip opens camera mode and the picture
+  // is sent when it is shot (reply(i, { img })); opts.img is that picture.
+  reply(i, opts) {
     const P = this.pending; if (!P) return false;
     const r = P.replies[i]; if (!r) return false;
+    if (r.photo && !(opts && 'img' in opts)) {
+      const cam = this.phone.camera;
+      if (cam && cam.open({ reply: i })) return true;
+    }
     this.pending = null;
-    // v11: the 📸 chip takes a photo of what is in front of you (the game view) and sends it as an image bubble
-    const img = r.photo ? this._capture() : null;
-    if (r.photo) this._shutter();
-    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
+    const img = r.photo ? (opts && opts.img) || null : null;
+    const chip = this.root.querySelector(`.ms-chip[data-i="${i}"]`);
+    this._flyFrom = chip && !r.photo ? chip.getBoundingClientRect() : null;
+    this._capDone = true;
+    if (r.photo && !(opts && opts.img)) { if (!opts || !opts.late) this._shutter(); }
+    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true, late: this._late } : { from: 'me', text: r.photo ? '📸' : r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
     this.render(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
     this.ctx.events.emit('phone:reply', { msgId: P.msgId, replyId: r.id, text: r.text, from: P.from, photo: !!r.photo, img: !!img });
@@ -145,42 +160,60 @@ export class MessagesApp {
     this.ctx.events.emit('phone:sent', { text });
   }
   // v11: a downscaled snapshot of the current frame. Rendering a frame and copying it in the same task keeps the
-  // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo)
-  _capture() {
+  // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo).
+  // v23: fr = the viewfinder frame as fractions of the viewport ({x, y, w, h}): the picture is exactly what was framed
+  _capture(fr) {
     try {
       const eng = this.ctx.engine, cv = eng && eng.renderer && eng.renderer.domElement;
       if (!cv || !cv.width) return null;
       if (typeof eng.render === 'function') eng.render(0);
-      const w = 360, h = Math.max(1, Math.round(w * cv.height / cv.width));
+      const f = fr || { x: 0, y: 0, w: 1, h: 1 };
+      const sx = f.x * cv.width, sy = f.y * cv.height, sw = f.w * cv.width, sh = f.h * cv.height;
+      const w = 420, h = Math.max(1, Math.round(w * sh / sw));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(cv, 0, 0, w, h);
-      return c.toDataURL('image/jpeg', 0.72);
+      c.getContext('2d').drawImage(cv, sx, sy, sw, sh, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', 0.74);
     } catch (e) { console.warn('[messages] photo', e && e.message); return null; }
   }
   _shutter() {
     try {
       const f = document.createElement('div'); f.className = 'ms-shutter';
       document.body.appendChild(f); setTimeout(() => f.remove(), 450);
-      this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select', { rate: 1.7, gain: 1.4 });
+      // two quick clicks of the existing UI blip, pitched up: a shutter
+      const a = this.ctx.audio;
+      if (a && a.play) { a.play('ui_select', { rate: 2.1, gain: 1.5 }); setTimeout(() => { try { a.play('ui_select', { rate: 1.4, gain: 1.2 }); } catch (e) { /* cosmetic */ } }, 70); }
     } catch (e) { /* cosmetic */ }
   }
-  // v22: "📸 Send Aya a pic" — takes the photo like the 📸 chip does, without a question to answer. The story (story.sendPhoto) owns the
-  // cooldown and Aya's answer; this only shows the button (when no reply chips are showing) and sends the bubble.
-  _snapState() { const S = this.ctx.game && this.ctx.game.story; return this.pending || !S || typeof S.snapState !== 'function' ? 'hide' : S.snapState(); }
-  _snapHtml() {
-    const st = this._snapState(); if (st === 'hide') return '';
-    const kb = !(this.ctx.input && this.ctx.input.touch);
-    return `<div class="ms-snap" data-s="${st}"><button class="ms-snap-b${st === 'wait' ? ' wait' : ''}" aria-disabled="${st === 'wait'}">${kb ? '<kbd>1</kbd>' : ''}<span>${esc(AYA_SNAP)}</span></button></div>`;
+  // v23: the camera button. State comes from the story (cooldown, Aya typing); 'hide' before the mission, after arrival, in the old arc.
+  //   s: 'hide' | 'ready' | 'cool' (the 15 s cooldown; p shows it as a ring) | 'typing' (Aya is answering / a question is open)
+  camState() {
+    const S = this.ctx.game && this.ctx.game.story;
+    const st = !S || typeof S.snapState !== 'function' ? 'hide' : S.snapState();
+    if (st === 'hide') return { s: 'hide', p: 1 };
+    const p = typeof S.snapProgress === 'function' ? S.snapProgress() : 1;
+    if (this.pending) return { s: 'typing', p: 1 };
+    if (st === 'ready') return { s: 'ready', p: 1 };
+    return p < 1 ? { s: 'cool', p } : { s: 'typing', p: 1 };
   }
-  snap() { const S = this.ctx.game && this.ctx.game.story; return !!(S && typeof S.sendPhoto === 'function' && S.sendPhoto()); }
-  sendPhoto() {
-    const img = this._capture(); this._shutter();
-    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: '📸', time: this.ctx.clock.hhmm, me: true, sent: true });
+  _camHtml() {
+    const c = this.camState(); if (c.s === 'hide') return '';
+    const kb = !(this.ctx.input && this.ctx.input.touch);
+    const label = c.s === 'ready' ? 'Take a photo for Aya' : c.s === 'cool' ? 'Camera is recharging' : 'Camera is waiting for Aya';
+    return `<button type="button" class="ms-cam" data-s="${c.s}" style="--p:${c.p.toFixed(2)}" aria-label="${label}" aria-disabled="${c.s !== 'ready'}"><span class="ms-cam-ic">${CAM_ICON}</span>${kb ? '<kbd>P</kbd>' : ''}</button>`;
+  }
+  snap() {
+    if (this.camState().s !== 'ready') { this._nudgeCam(); return false; }
+    const cam = this.phone.camera; return !!(cam && cam.open());
+  }
+  _nudgeCam() { const b = this.root.querySelector('.ms-cam'); if (!b) return; b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); }
+  sendPhoto(img) {
+    const pic = img || this._capture(); if (!img) this._shutter();
+    this.msgs.push(pic ? { from: 'me', text: '', img: pic, time: this.ctx.clock.hhmm, me: true, sent: true, late: this._late } : { from: 'me', text: '📸', time: this.ctx.clock.hhmm, me: true, sent: true });
     this.render(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
-    this.ctx.events.emit('phone:photo', { img: !!img });
+    this.ctx.events.emit('phone:photo', { img: !!pic });
     this.phone._badges();
-    return { img: !!img };
+    return { img: !!pic };
   }
   clearReplies() { if (!this.pending) return; this.pending = null; this.render(); this.phone._badges(); }
   setTyping(from, on) {
@@ -192,10 +225,22 @@ export class MessagesApp {
     this.phone.glance && this.phone.glance.refresh(true);
   }
   update(dt) {
-    // v22: the 📸 button appears / greys with the story's state (cooldown, Aya typing); a re-render only when it shows or hides
-    const sn = this._snapState();
-    if (sn !== this._snapSt) { const was = this._snapSt; this._snapSt = sn; if ((sn === 'hide') !== (was === 'hide' || was == null)) this.render(); else { const b = this.root.querySelector('.ms-snap-b'); if (b) { b.classList.toggle('wait', sn === 'wait'); b.setAttribute('aria-disabled', sn === 'wait'); } } }
+    // v23: the camera button follows the story's state (cooldown ring, disabled while Aya types); a re-render only when it shows or hides
+    const c = this.camState(), was = this._camSt;
+    if (!was || c.s !== was.s || Math.abs(c.p - was.p) >= 0.02) {
+      this._camSt = c;
+      if (!was || (c.s === 'hide') !== (was.s === 'hide')) this.render();
+      else { const b = this.root.querySelector('.ms-cam'); if (b) { b.dataset.s = c.s; b.style.setProperty('--p', c.p.toFixed(2)); b.setAttribute('aria-disabled', c.s !== 'ready'); } }
+    }
+    if (this._pulsePending && this.phone.isOpen && this.phone.app === 'messages') this._pulseCam();
     if (this._typT > 0) { this._typT -= dt; if (this._typT <= 0 && this.typingFrom) { this.typingFrom = null; this._renderTyping(); } }
+  }
+  // the camera button pulses once, the first time the thread is on screen after Aya's "send me a pic" line
+  _pulseCam() {
+    const b = this.root.querySelector('.ms-cam'); if (!b || b.dataset.s !== 'ready') return;
+    this._pulsePending = false; this._pulsed = true;
+    b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse');
+    setTimeout(() => b.classList.remove('pulse'), 2600);
   }
   _linkCard() {
     const st = this.phone.upgradeStage;
@@ -234,11 +279,12 @@ export class MessagesApp {
     return '';
   }
   _refreshPlaces() { this.root.querySelectorAll('.ms-place').forEach(el => { const t = el.querySelector('.ms-p-d'); const v = this._placeDist(el.dataset.id); if (t && t.textContent !== v) t.textContent = v; }); }
-  onShow() { this._refreshPlaces(); this.unread = 0; this.phone._badges && this.phone._badges(); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
+  onShow() { this._refreshPlaces(); this.unread = 0; this.phone._badges && this.phone._badges(); this._pin(); }
   _chips() {
     const P = this.pending; if (!P) return '';
-    const kb = !(this.ctx.input && this.ctx.input.touch);
-    return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip${r.photo ? ' ms-chip-photo' : ''}" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
+    const touch = !!(this.ctx.input && this.ctx.input.touch), kb = !touch;
+    const cap = this._capDone ? '' : `<div class="ms-cap">${touch ? 'Tap to reply' : 'Click a reply, or press 1 2 3'}</div>`;
+    return `${cap}<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button type="button" class="ms-chip${r.photo ? ' ms-chip-photo' : ''}" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
   }
   // v9.1: keep the newest message in view. Pinning once at render is not enough: the reply tray slides in (0.35 s) and
   // place-card thumbnails load late, and both change the list's height after the fact, which hid the newest text
@@ -265,16 +311,29 @@ export class MessagesApp {
     const bubble = (m, i) => {
       if (m.day) return `<div class="ms-day">${esc(m.day)}</div>`;
       const fresh = sentNow && i === last && m.me ? ' ms-sent' : '';
-      if (m.img) return `<div class="ms-b me ms-photo${fresh}"><img src="${m.img}" alt="Photo you sent"><small>${esc(m.time)}${i === last && m.sent ? ' · Delivered' : ''}</small></div>`;   // v11
+      if (m.img) return `<div class="ms-b me ms-photo${fresh}${fresh && m.late ? ' late' : ''}"><img src="${m.img}" alt="Photo you sent"><small>${esc(m.time)}${i === last && m.sent ? ' · Delivered' : ''}</small></div>`;   // v11
       return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}${m.place ? ' ms-has-place' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}${m.place ? this._placeCard(m.place, m.place === lastPl && i === lastPlI) : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
       <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>
-      ${this._chips()}${this._snapHtml()}
-      <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
+      ${this._chips()}
+      <div class="ms-in">${this._camHtml()}<div class="ms-field"><span>iMessage</span><i>↑</i></div></div>`;
     this.root.classList.toggle('ms-has-replies', !!this.pending);
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
     this._pin();
+    // v23: the tapped pill flies into the thread and turns into the blue bubble (FLIP: from the pill's rect to the bubble's)
+    if (sentNow && this._flyFrom && !reduceMotion()) {
+      const p = this.root.querySelector('.ms-b.me.ms-sent:not(.ms-photo) p'), list = this.root.querySelector('.ms-list');
+      if (p && list && list.offsetWidth) {
+        const k = list.getBoundingClientRect().width / list.offsetWidth || 1, a = this._flyFrom, r = p.getBoundingClientRect();
+        if (r.width && a.width) {
+          p.style.setProperty('--fx', ((a.right - r.right) / k).toFixed(1) + 'px'); p.style.setProperty('--fy', ((a.top + a.height / 2 - r.top - r.height / 2) / k).toFixed(1) + 'px');
+          p.parentNode.classList.add('fly');
+        }
+      }
+    }
+    this._flyFrom = null;
+    this._camSt = this.camState();
     this.phone._badges && this.phone._badges();
   }
 }

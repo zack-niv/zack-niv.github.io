@@ -259,6 +259,9 @@ export class TouchUI {
   // target: a ghost thumb taps on the real control the current hint is about (the Phone button, a reply, Maps in the
   //   dock, Aya's pick, Use). It follows the control every frame and hides when that control is not on screen.
   coach(s) { this._co = s || null; }
+  // v23: is the ghost thumb on this control right now (it was found, visible and on screen at the last tick)? The tutorial
+  // drops its text line while it is, so the player gets one prompt, not two
+  targetOn(sel) { return !!(this._ptOn && this._ptSel === sel); }
   _coachTick(dt) {
     const el = this.el, s = this._co, de = document.documentElement;
     if (!el || !el.coach) return;
@@ -296,6 +299,7 @@ export class TouchUI {
       }
     }
     const P = el.point;
+    this._ptOn = !!pt;
     if (!pt) { if (P.classList.contains('on')) P.classList.remove('on'); return; }
     const k = pt[0] + ',' + pt[1];
     if (P._k !== k) { P._k = k; P.style.transform = `translate(${pt[0]}px, ${pt[1]}px)`; }

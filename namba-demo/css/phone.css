@@ -1006,3 +1006,127 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 @media (prefers-reduced-motion: reduce) {
   #phone-root.ph-alert .ph-device, #phone-root.ph-alert .ph-wrap[data-pose="glance"] .ph-isl, #phone-root.ph-alert .gl-read, .ph-cue.in { animation: none; }
 }
+
+/* =============================================================================
+   v23 phone — a raised phone you can use: real size on touch, one app view box, outlined reply pills, a camera button
+   ============================================================================= */
+/* the shell: bezel, status row and dock heights are variables (phone.js _layout sets them; --ph-view-w/h = the app view box).
+   The apps no longer pad themselves round the status bar and the dock: .ph-view IS the free box between them. */
+#phone-root { --bez: 12px; --ph-st: 50px; --ph-dk: 92px; --ph-view-w: 316px; --ph-view-h: 534px; }
+.ph-screen, .ph-glare { inset: var(--bez); }
+.ph-views { top: var(--ph-st); bottom: var(--ph-dk); }
+.ph-view { display: flex; flex-direction: column; }
+.ph-screen { transition: none; }
+.ph-screen[data-app="home"] { background: #1b1e3f; }
+.ph-screen[data-app="messages"] { background: #fff; }
+.ph-screen[data-app="maps"] { background: #ebe8e1; }
+.ph-screen[data-app="notes"] { background: #fbfaf7; }
+.ph-screen[data-app="transit"] { background: #f2f2f7; }
+#phone-root.ph-land .ph-views { top: 0; bottom: 0; }
+.hs-widget { top: 14px; } .hs-grid { top: 140px; }
+.nt, .tr { padding-top: 6px; }
+.nt { padding-bottom: 12px; } .tr { padding-bottom: 14px; }
+
+/* touch, landscape: the slim real-size phone */
+#phone-root.ph-flat .ph-device { border-radius: 34px; box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 3px #0b0b0c; }
+#phone-root.ph-flat .ph-screen, #phone-root.ph-flat .ph-glare { border-radius: 28px; }
+#phone-root.ph-flat .ph-btn, #phone-root.ph-flat .ph-homebar { display: none; }
+#phone-root.ph-flat .ph-status { height: var(--ph-st); padding: 3px 18px 0 20px; font-size: 12.5px; }
+#phone-root.ph-flat .ph-net { font-size: 10.5px; }
+#phone-root.ph-flat .ph-bat { width: 23px; height: 11px; }
+#phone-root.ph-flat .ph-bat b { font-size: 7.5px; }
+#phone-root.ph-flat .ph-wrap[data-pose="up"] .ph-isl { top: 5px; height: 14px; left: calc(50% - 30px); right: calc(50% - 30px); border-radius: 8px; }
+#phone-root.ph-flat .ph-dock { left: 0; right: 0; bottom: 0; height: var(--ph-dk); padding: 0 8px; gap: 4px; border-radius: 0; background: #14161b; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); align-items: center; }
+#phone-root.ph-flat .ph-dock button { height: 100%; padding: 0; border-radius: 12px; justify-content: center; gap: 0; }
+#phone-root.ph-flat .ph-dock button span { display: none; }
+#phone-root.ph-flat .ph-dock .ph-d-ic { width: 28px; height: 28px; border-radius: 8px; }
+#phone-root.ph-flat .ph-dock .ph-d-ic.ic-apps { padding: 5px; }
+#phone-root.ph-flat .ph-dock button.on { background: rgba(255,255,255,.16); }
+#phone-root.ph-flat .ph-notif { top: 26px; }
+#phone-root.ph-flat .ph-toast { bottom: 48px; }
+
+/* ---- Messages ---- */
+#phone-root .ms { padding: 0; background: #fff; }
+#phone-root .ms-h { flex: 0 0 auto; padding: 4px 12px 5px; gap: 9px; }
+#phone-root .ms-back { font-size: 26px; }
+#phone-root .ms-av { width: 30px; height: 30px; font-size: 14px; flex: 0 0 30px; }
+#phone-root .ms-h b { font-size: 15px; } #phone-root .ms-h small { font-size: 11px; }
+#phone-root .ms-list { flex: 1 1 auto; min-height: 0; padding: 8px 10px; gap: 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+#phone-root .ms-list > :first-child { margin-top: auto; }
+#phone-root .ms-b { max-width: 82%; }
+#phone-root#phone-root .ms-b p { font-size: 15.5px; line-height: 1.3; padding: 7px 12px; overflow-wrap: anywhere; }
+#phone-root#phone-root .ms-b small { font-size: 11px; margin: 1px 8px 0; }
+#phone-root .ms-day { font-size: 11px; margin: 4px 0 0; }
+#phone-root .ms-b.ms-photo { max-width: 76%; }
+/* the suggestions: outlined pills on a quiet strip, nothing like the blue sent bubbles */
+#phone-root .ms-cap { flex: 0 0 auto; padding: 7px 12px 0; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .02em; color: #8e8e93; text-align: center; border-top: 1px solid #ececef; }
+#phone-root#phone-root .ms-replies { flex: 0 0 auto; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: stretch; align-items: stretch; gap: 7px 8px; padding: 7px 10px 8px; border-top: 0; background: #fff; animation: msChipsFade .22s ease-out; }
+.ms-cap + .ms-replies { padding-top: 6px; }
+#phone-root#phone-root .ms-list + .ms-replies { border-top: 1px solid #ececef; }
+@keyframes msChipsFade { from { opacity: 0; } }
+#phone-root#phone-root .ms-replies .ms-chip { flex: 1 1 auto; max-width: 100%; min-height: 40px; padding: 7px 14px; gap: 7px; justify-content: center; text-align: center; border: 1.5px solid #0a84ff; background: #fff; color: #0a68cf; border-radius: 22px; font: 600 15px/1.2 Inter, "Noto Sans JP", sans-serif; box-shadow: none; animation: none; -webkit-tap-highlight-color: transparent; }
+#phone-root#phone-root .ms-replies .ms-chip:active { background: #d9eaff; transform: scale(.98); }
+@media (hover: hover) { #phone-root#phone-root .ms-replies .ms-chip:hover, #phone-root#phone-root .ms-replies .ms-chip:focus-visible { background: #eaf3ff; color: #0a68cf; } }
+#phone-root#phone-root .ms-replies .ms-chip kbd { width: 18px; height: 18px; border-radius: 5px; background: #eaf3ff; color: #0a68cf; font-size: 11px; box-shadow: inset 0 -1.5px 0 rgba(10,132,255,.35); }
+#phone-root#phone-root .ms-replies .ms-chip-photo { border-color: #0a84ff; color: #0a68cf; background: #fff; box-shadow: none; }
+#phone-root .ms-replies .ms-chip span { min-width: 0; overflow-wrap: anywhere; }
+/* the sent bubble: the pill flies from its place and turns blue (phone/apps.js render: FLIP vars --fx / --fy) */
+.ms-b.me.ms-sent.fly p { animation: msFly .36s cubic-bezier(.2,.8,.25,1) both; }
+@keyframes msFly {
+  from { transform: translate(var(--fx, 0), var(--fy, 0)); background: #fff; color: #0a68cf; box-shadow: inset 0 0 0 1.5px #0a84ff; }
+  to { transform: none; background: #0a84ff; color: #fff; box-shadow: inset 0 0 0 1.5px #0a84ff; }
+}
+.ms-b.ms-photo.ms-sent img { animation: msPhotoIn .42s cubic-bezier(.2,.9,.3,1.15) both; transform-origin: 100% 100%; }
+.ms-b.ms-photo.ms-sent.late img { animation-delay: .4s; }
+@keyframes msPhotoIn { from { transform: translateY(18px) scale(.72); opacity: 0; } }
+/* the input bar: [camera] [iMessage field ↑] */
+#phone-root .ms-in { position: static; flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-start; gap: 8px; height: auto; padding: 6px 10px 8px; border: 0; border-top: 1px solid #ececef; border-radius: 0; background: #fff; }
+#phone-root .ms-replies + .ms-in, #phone-root .ms-cap + .ms-replies + .ms-in { border-top: 0; }
+.ms-field { flex: 1 1 auto; min-width: 0; height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 14px; border: 1px solid #d1d1d6; border-radius: 18px; color: #aeaeb2; font-size: 15px; background: #fff; }
+.ms-field i { width: 28px; height: 28px; border-radius: 50%; background: #c7c7cc; color: #fff; display: grid; place-items: center; font-style: normal; }
+/* the camera button: a 36 px round button (44 px tap area) with a ring that fills over the 15 s cooldown */
+.ms-cam { position: relative; flex: 0 0 auto; width: 36px; height: 36px; margin: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #0a84ff;
+  background: conic-gradient(#0a84ff calc(var(--p, 1) * 360deg), #d3d8e0 0); -webkit-tap-highlight-color: transparent; transition: opacity .2s; }
+.ms-cam::before { content: ''; position: absolute; inset: 2.5px; border-radius: 50%; background: #e9f3ff; }
+.ms-cam::after { content: ''; position: absolute; inset: -4px; }
+.ms-cam-ic { position: relative; display: block; width: 20px; height: 20px; }
+.ms-cam-ic svg { display: block; width: 100%; height: 100%; }
+.ms-cam:active { transform: scale(.94); }
+.ms-cam:not([data-s="ready"]) { color: #9aa3b0; opacity: .75; cursor: default; }
+.ms-cam[data-s="typing"] { background: #d3d8e0; opacity: .55; }
+.ms-cam[data-s="typing"]::before { background: #f1f2f4; }
+.ms-cam kbd { position: absolute; right: -6px; bottom: -6px; z-index: 1; font: 800 9.5px/1 Inter, sans-serif; color: #4a4a50; background: #fff; border: 1px solid #c7c7cc; border-bottom-width: 2px; border-radius: 4px; padding: 1px 4px; }
+.ms-cam.pulse { animation: msCamPulse 1.1s ease-out 2; }
+@keyframes msCamPulse { 0% { box-shadow: 0 0 0 0 rgba(10,132,255,.6); } 100% { box-shadow: 0 0 0 16px rgba(10,132,255,0); } }
+.ms-cam.nope { animation: msCamNope .3s; }
+@keyframes msCamNope { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ms-b.me.ms-sent p, .ms-b.ms-photo.ms-sent img, #phone-root .ms-replies, .ms-cam.pulse, .ms-cam.nope { animation: none !important; }
+}
+
+/* ---- camera mode: the world through a viewfinder (js/ui/phone/camera.js). Above the touch controls (z 25) ---- */
+.ph-cam { position: fixed; inset: 0; z-index: 30; pointer-events: none; -webkit-user-select: none; user-select: none; font-family: Inter, "Noto Sans JP", system-ui, sans-serif; }
+.cam-frame { position: absolute; box-shadow: 0 0 0 100vmax rgba(0,0,0,.34); }
+.cam-c { position: absolute; width: 26px; height: 26px; border: 0 solid rgba(255,255,255,.96); filter: drop-shadow(0 0 2px rgba(0,0,0,.45)); }
+.cam-c.a { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 7px; }
+.cam-c.b { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 7px; }
+.cam-c.c { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 7px; }
+.cam-c.d { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 7px; }
+.cam-grid { position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
+    linear-gradient(180deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
+.cam-hint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 7px 14px; border-radius: 16px; background: rgba(10,10,12,.62); color: #fff; font: 600 14px/1.2 Inter, sans-serif; white-space: nowrap; animation: camHint .4s ease-out; }
+@keyframes camHint { from { opacity: 0; transform: translate(-50%, 8px); } }
+.cam-shutter { position: absolute; right: calc(26px + env(safe-area-inset-right, 0px)); top: 50%; width: 72px; height: 72px; margin: -36px 0 0; padding: 0; border: 4px solid #fff; border-radius: 50%; background: rgba(0,0,0,.12); box-shadow: 0 2px 14px rgba(0,0,0,.5); pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cam-shutter i { position: absolute; inset: 5px; border-radius: 50%; background: #fff; transition: transform .08s; }
+.cam-shutter:active i { transform: scale(.86); }
+.cam-shutter kbd { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 8px; }
+.cam-x { position: absolute; left: calc(14px + env(safe-area-inset-left, 0px)); top: 12px; min-width: 44px; height: 44px; padding: 0; border: 0; border-radius: 22px; display: flex; align-items: center; justify-content: center; gap: 7px; background: rgba(10,10,12,.55); color: #fff; pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cam-x svg { width: 20px; height: 20px; }
+.cam-x kbd { margin-right: 12px; }
+.ph-cam kbd { font: 700 11px/1 Inter, sans-serif; color: #fff; border: 1px solid rgba(255,255,255,.55); border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px 2px; background: rgba(10,10,12,.5); }
+.cam-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); padding: 8px 14px; border-radius: 16px; background: rgba(10,10,12,.7); color: #fff; font: 600 13.5px/1.2 Inter, sans-serif; opacity: 0; white-space: nowrap; }
+.cam-toast.on { animation: camToast 2.2s ease-out; }
+@keyframes camToast { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cam-hint, .cam-toast.on { animation: none; } .cam-toast.on { opacity: 1; } }

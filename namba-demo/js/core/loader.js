@@ -46,13 +46,21 @@ const TIPS = [
 ];
 
 const TOTAL = Object.values(STAGES).reduce((a, s) => a + s[0], 0);
+// v23: where each station's dot sits on the line = the progress at which its group of stages is complete, so the dot
+// lights at the very moment the fill reaches it (they used to be evenly spaced and lit when their stage STARTED, up to
+// 25 % ahead of the fill). The last one ends the line.
+const STATION_END = (() => {
+  const end = STATIONS.map(() => 0);
+  for (const k in STAGES) end[STAGES[k][1]] += STAGES[k][0] / TOTAL;
+  let c = 0; return end.map(w => (c += w));
+})();
 
 export class Loader {
   constructor(root) {
     this.root = root;
     this.progress = 0;
     this._done = new Set();
-    this._cur = null;
+    this._cur = null; this._doneW = 0;
     this._tip = 0;
     this._t0 = performance.now();
     if (!root) return;
@@ -66,7 +74,7 @@ export class Loader {
         <div class="nbl-latin">Lost in Namba</div>
         <div class="nbl-line" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
           <div class="nbl-track"><i class="nbl-fill"></i><b class="nbl-train"></b></div>
-          <ol class="nbl-stations">${STATIONS.map(([en, ja]) => `<li><span class="nbl-dot"></span><em>${en}</em><small lang="ja">${ja}</small></li>`).join('')}</ol>
+          <ol class="nbl-stations">${STATIONS.map(([en, ja], i) => `<li style="left:${(STATION_END[i] * 100).toFixed(1)}%"><span class="nbl-dot"></span><em>${en}</em><small lang="ja">${ja}</small></li>`).join('')}</ol>
         </div>
         <div class="nbl-row"><div class="ld-msg">Loading…</div><div class="nbl-pct">0%</div></div>
         <div class="nbl-tip"></div>
@@ -85,6 +93,49 @@ export class Loader {
       stations: [...root.querySelectorAll('.nbl-stations li')], touch: q('.nbl-touch'), go: q('.nbl-go') };
     this._showTip();
     this._tipTimer = setInterval(() => this._showTip(), 4200);
+    // v23: ONE displayed value drives the fill, the white dot (both transforms, no CSS transitions that could disagree
+    // while the main thread is busy) and the percentage; it eases towards the real progress every frame, drifts on
+    // slowly when nothing new is reported (a long stage no longer looks frozen), and never goes backwards.
+    this.shown = 0; this._target = 0; this._real = 0; this._tReal = performance.now(); this._last = performance.now();
+    this.el.stations.forEach((li, i) => { li.style.left = `${(STATION_END[i] * 100).toFixed(1)}%`; });
+    this._W = 0;
+    this._measure = () => { const t = this.el.fill.parentNode; this._W = t ? t.offsetWidth : 0; };
+    this._measure(); addEventListener('resize', this._measure);
+    this._raf = 0;
+    const tick = (now) => { this._tick(now); if (!this._dead) this._raf = requestAnimationFrame(tick); };
+    this._raf = requestAnimationFrame(tick);
+    // rAF can be held back while the GPU process is busy; a timer keeps the bar honest in that case
+    this._tm = setInterval(() => this._tick(performance.now()), 120);
+  }
+
+  _tick(now) {
+    if (this._dead || !this.el) return;
+    const dt = Math.min(0.25, Math.max(0, (now - this._last) / 1000)); this._last = now;
+    // drift: from the last real report, creep towards the ceiling of the current stage (never past it), slowly
+    const cur = this._cur && STAGES[this._cur];
+    let tgt = this._real;
+    if (cur) {
+      const last = this._cur === 'compile';
+      const ceil = last ? 0.995 : Math.min(1, (this._doneW + cur[0] * 0.92) / TOTAL);
+      const tau = Math.max(1.6, cur[0] * 40);
+      if (ceil > this._real) tgt = this._real + (ceil - this._real) * (1 - Math.exp(-((now - this._tReal) / 1000) / tau));
+    }
+    tgt = Math.max(tgt, this._target); this._target = tgt;
+    const gap = tgt - this.shown;
+    this.shown = gap < 0.0004 ? Math.max(this.shown, tgt) : this.shown + gap * (1 - Math.exp(-dt / 0.22));
+    this._paint();
+  }
+  _paint() {
+    const e = this.el, v = Math.min(1, this.shown);
+    const q = Math.round(v * 1000) / 1000;
+    if (q !== this._q) {
+      this._q = q;
+      e.fill.style.transform = `scaleX(${q})`;
+      e.train.style.transform = `translate3d(${(q * this._W).toFixed(1)}px,0,0)`;
+      const pc = Math.min(100, Math.floor(q * 100 + 0.5));
+      if (pc !== this._pc) { this._pc = pc; e.pct.textContent = `${pc}%`; e.line.setAttribute('aria-valuenow', String(pc)); }
+      e.stations.forEach((li, i) => { const on = q >= STATION_END[i] - 0.002; if (on !== li.classList.contains('on')) li.classList.toggle('on', on); });
+    }
   }
 
   _showTip() {
@@ -100,6 +151,7 @@ export class Loader {
     this._cur = key;
     let p = 0;
     for (const k of this._done) p += STAGES[k] ? STAGES[k][0] : 0;   // v11: an unknown stage (a new system) must never break loading
+    this._doneW = p;
     p += s[0] * Math.max(0, Math.min(1, frac));
     this.set(p / TOTAL, msg || s[2], s[1]);
   }
@@ -108,15 +160,13 @@ export class Loader {
 
   set(p, msg, station) {
     p = Math.max(this.progress, Math.min(1, p)); // never goes backwards
+    const moved = p > this.progress;
     this.progress = p;
     const e = this.el; if (!e) return;
-    const pc = Math.round(p * 100);
-    e.fill.style.transform = `scaleX(${p})`;
-    e.train.style.left = `${p * 100}%`;
-    e.pct.textContent = `${pc}%`;
-    e.line.setAttribute('aria-valuenow', String(pc));
+    if (moved) { this._real = p; this._tReal = performance.now(); }   // v23: the drift restarts from every real report
     if (msg) e.msg.textContent = msg;
-    if (station != null) e.stations.forEach((li, i) => { li.classList.toggle('on', i <= station); li.classList.toggle('cur', i === station); });
+    // v23: the current station only; its dot lights (class on) in _paint() when the fill gets there
+    if (station != null) e.stations.forEach((li, i) => { li.classList.toggle('cur', i === station); });
   }
 
   // Polite notice for touch-only devices. Resolves when the person taps "Continue anyway".
@@ -136,7 +186,9 @@ export class Loader {
 
   done() {
     clearInterval(this._tipTimer);
-    this.set(1, 'Welcome to Namba');
+    this.set(1, 'Welcome to Namba', 5);
+    if (this.el) { this._real = this._target = this.shown = 1; this._paint(); }   // v23: it is over: fill, dot and 100 % together
+    this._dead = true; clearInterval(this._tm); try { cancelAnimationFrame(this._raf); removeEventListener('resize', this._measure); } catch (e) { /* ignore */ }
     if (this.root) this.root.classList.add('done');
     this.seconds = (performance.now() - this._t0) / 1000;
   }
