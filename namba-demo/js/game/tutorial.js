@@ -192,7 +192,7 @@ function touchTarget(id, h, ph, up) {
   if (id === 'pick' || id === 'pick2') {
     if (h.html === TUTORIAL.maps) return { sel: '#phone-root .ph-dock [data-app="maps"]' };
     if (h.html === TUTORIAL.pickMsg) return { sel: `${v} .ms-place`, last: true };
-    return { sel: `${v} .dl-next, ${v} .dl-r.aya` };
+    return { sel: `${v} .dl-next, ${v} .dl-r.aya, ${v} .mq-aya:not([hidden])` };
   }
   // v23: order / gate / gateAgain point at Use only through at:'prompt' (above): their 'center' lines are about walking up
   // to the counter or lane, when Use is not (or not yet) the control, and a Use button for something else must not be pointed at

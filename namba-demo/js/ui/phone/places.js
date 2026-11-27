@@ -174,7 +174,7 @@ export function walkStreet(x) {
 // prints "3F · Nankai platforms" on the floor you are looking at. (4F-7F are Namba Parks shop floors; 6F is the
 // restaurant floor; 7F-8F are the Parks Garden terraces.)
 export const FLOOR_NAMES = {
-  B2: 'Metro platforms', B1: 'Metro gates · NAMBAWALK', '1F': 'Street level', '2F': 'Nankai concourse · Namba CITY',
+  B2: 'Metro platforms', B1: 'Metro gates · NAMBAWALK', '1F': 'Street level', '2F': 'Nankai · Namba CITY · Parks',
   '3F': 'Nankai platforms', '4F': 'Namba Parks', '5F': 'Namba Parks', '6F': 'Restaurants · Namba Parks', '7F': 'Parks Garden', '8F': 'Parks roof garden',
 };
 // the name a space has in a route sentence ("Through Namba CITY, follow “Namba Parks” signs")

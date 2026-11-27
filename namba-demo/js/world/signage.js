@@ -59,9 +59,23 @@ const STYLES = {
   taka:   { bg: '#163424', fg: '#f0e4bf', fg2: '#c0b287', div: '#3a5848', arrow: '#f0e4bf', exitBg: '#ffd400', exitFg: '#141414', frame: 'steel_dark' },
 };
 
-// v23: floor guide placements [filled below the class]
-let FLOOR_GUIDE_SPECS = [];
-export function setFloorGuideSpecs(a) { FLOOR_GUIDE_SPECS = a; }
+// v23: floor guide placements (hand-picked at the escalator landings of the floors the routes use, their neighbours, the
+// Parks entrance and outside the Nankai Central Gate). wall:false = free-standing stand; slide dodges shop doors.
+const _E = (level, bld, z, x, wallX, extra) => Object.assign({ level, bld, x, z, nx: -1, nz: 0, wall: false, wallX, slide: 6 }, extra);
+const FLOOR_GUIDE_SPECS = [
+  _E('B1', 'city', 44, 4.85, 5), _E('1F', 'city', 76, 4.85, 5), _E('1F', 'city', 103, 4.85, 5), _E('2F', 'city', 131, 4.85, 5),
+  { level: '3F', bld: 'nankai', area: true, x: -16, z: -84, nx: 0, nz: 1, wall: false },
+  { level: '2F', bld: 'nankai', x: -6.5, z: -72, nx: 0, nz: 1, wall: false },
+  { level: '2F', bld: 'parks', x: 9, z: 211, nx: 0, nz: -1, wall: false },
+  _E('3F', 'parks', 238, 3.85, 4), _E('4F', 'parks', 256, 3.85, 4), _E('5F', 'parks', 274, 3.85, 4), _E('6F', 'parks', 294, 3.85, 4), _E('7F', 'parks', 336, 3.85, 4),
+];
+
+// v23: the Parks restaurant floors were on no sign at all (the Parks landings only pointed back to Nankai / Namba CITY).
+// A sign-only destination, shown on Parks signs: same words as the floor guide ("Restaurants レストラン 6F–8F").
+const EXTRA_DESTS = [
+  { id: 'dining', kind: 'floor', ja: 'レストラン 6F–8F', en: 'Restaurants 6F–8F', tier: 1, ops: ['parks'], only: ['parks'],
+    goals: [['6F', -1, 300], ['6F', -1, 340]], level: '6F' },
+];
 
 const PRIORITY = { gate: 10, esc: 8, exitHang: 7, end: 5, side: 4, hall: 3, interval: 2, column: 1 };
 
@@ -234,7 +248,8 @@ export class Signage {
     this._place(world); lap('place');
     this._declare(); lap('declare');
     this._faces = this._faceViewers();
-    this._dests = DESTINATIONS.map(d => ({ id: d.id, kind: d.kind, goals: d.goals })); lap('faces');
+    this._allDests = [...DESTINATIONS, ...EXTRA_DESTS];
+    this._dests = this._allDests.map(d => ({ id: d.id, kind: d.kind, goals: d.goals })); lap('faces');
   }
 
   // ===========================================================================
@@ -687,7 +702,7 @@ export class Signage {
     }
   }
   _compose() {
-    const D = DESTINATIONS;
+    const D = this._allDests;
     for (const s of this.signs) {
       const R = rng(hash(s.id + s.level));
       s.faces = [];
@@ -704,6 +719,8 @@ export class Signage {
         for (let di = 0; di < D.length; di++) {
           const d = D[di];
           const r = this._r(fi, di); if (!r) continue;
+          if (d.only && !d.only.includes(zone)) continue;
+          if (d.id === 'dining' && LEVEL_ORDER.indexOf(s.level) >= LEVEL_ORDER.indexOf('6F')) continue;
           if (d.inside && d.inside.includes(zone) && !(s.kind === 'gate' || s.kind === 'esc')) continue;
           if (d.inside && d.inside.includes(zone) && d.kind === 'area') continue;
           const tierMax = d.tier === 1 ? (s.major ? 1400 : 650) : d.tier === 2 ? (s.major ? 650 : 380) : (s.major ? 230 : 150);

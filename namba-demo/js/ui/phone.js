@@ -368,7 +368,7 @@ export class Phone {
     // v23 (Zack: "the in-game mobile is crammed ... the chat is trimmed, or the maps nav app becomes less useful"): on a touch
     // screen in landscape the raised phone is REAL SIZE (scale 1, no shrinking transform): a screen content box
     // FLAT_BEZ-slim bezel round it, 40 % of the width (300..400 px) and the viewport height minus 24 px (300..700), on the
-    // right. Slim chrome: a 24 px status row and a 40 px icon dock. The lowered glance card keeps its old size (_sRef).
+    // right. Slim chrome: no status row (iOS hides it in landscape too) and a 40 px icon dock. The lowered glance card keeps its old size (_sRef).
     const flat = touch && W > H && !legacyWide;
     this._flat = flat;
     // v11 touch (portrait "play anyway", or ?widephone): legibility first. A 390-px-tall landscape phone would get a 0.55 phone.
@@ -379,7 +379,7 @@ export class Phone {
     // the glance card's reference scale (v13's: a landscape phone held further away)
     let sRef = s, PW = 340, bez = 12, st = 50, dk = 92;
     if (flat) {
-      bez = FLAT_BEZ; st = 24; dk = 40;
+      bez = FLAT_BEZ; st = 0; dk = 40;
       sRef = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340));
       const sw = Math.max(300, Math.min(400, Math.floor(W * 0.4)));
       const sh = Math.max(300, Math.min(700, H - 24, H - 8 - 2 * bez));

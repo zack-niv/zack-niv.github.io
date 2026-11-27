@@ -70,7 +70,7 @@ export function buildingData(key) {
     for (const b of sorted) {
       const g = b.cat; if (used[g] && !b.key) continue;
       if (b.key && !(b.key === 'tempura_great')) { if (!/Mitsubachi/.test(b.en)) continue; }
-      used[g] = 1; pick.push(b); if (pick.length >= 4) break;
+      used[g] = 1; pick.push(b); if (pick.length >= 3) break;
     }
     // the café Aya sends you to is on its floor even if not rated highest
     const cafe = arr.find(b => /Mitsubachi/.test(b.en)); if (cafe && !pick.includes(cafe)) { pick.pop(); pick.unshift(cafe); }
@@ -111,7 +111,26 @@ export class FloorGuides {
   // ---------------------------------------------------------------------------
   place(specs) {
     const sig = this.sig, world = sig.ctx.world;
-    for (const sp of specs) {
+    for (const sp0 of specs) {
+      const sp = Object.assign({}, sp0);
+      // slide along the wall (x = wallX) to the spot in front of the least door / opening, nearest the target z
+      if (sp.slide && sp.wallX != null) {
+        const spans = [];
+        for (const sl of LAYOUT.shopSlots) if (sl.level === sp.level && sl.door[0] === sl.door[2] && sl.door[0] === sp.wallX) spans.push([sl.door[1], sl.door[3]]);
+        let best = null;
+        for (let dz = -sp.slide; dz <= sp.slide; dz += 0.5) {
+          const z = sp.z + dz; let bad = 0;
+          for (let t = z - BW / 2; t <= z + BW / 2; t += 0.5) {
+            if (spans.some(q => t >= q[0] && t <= q[1])) bad += 0.5;
+            if (sig.ctx.world.isWalkable(sp.level, sp.wallX - sp.nx * 0.8, t)) bad += 0.5;
+            if (!sig.ctx.world.isWalkable(sp.level, sp.x + sp.nx * 1.2, t)) bad += 3;
+          }
+          if (sig._near(sp.level, sp.x, z, 2.5)) bad += 2;
+          const sc = bad + Math.abs(dz) * 0.08;
+          if (!best || sc < best.sc) best = { sc, z };
+        }
+        if (best) sp.z = best.z;
+      }
       let m = sp.wall === false ? null : sig._wallMount(sp.level, sp.x, sp.z, BW);
       let stand = false;
       if (m && sp.maxWall != null && Math.hypot(m.x - sp.x, m.z - sp.z) > sp.maxWall) m = null;
@@ -211,11 +230,11 @@ export class FloorGuides {
       // category + tenants
       const x0 = 78, mw = W - x0 - 8;
       g.textAlign = 'left';
-      g.fillStyle = '#16191d'; const tp = fitFont(g, r.ja, p => JA(p, 900), 17 * k, mw * 0.55); g.fillText(r.ja, x0, y + rh * 0.22);
+      g.fillStyle = '#16191d'; const tp = fitFont(g, r.ja, p => JA(p, 900), 18 * k, mw * 0.55); g.fillText(r.ja, x0, y + rh * 0.22);
       const tw = measW(g, r.ja);
       g.fillStyle = '#5c616a'; fitFont(g, r.en, p => EN(p, 700), 12.5 * k, mw - tw - 10); g.fillText(r.en, x0 + tw + 8, y + rh * 0.23);
-      g.fillStyle = '#1f2328'; fitFont(g, r.jaL, p => JA(p, 700), 14 * k, mw); g.fillText(r.jaL, x0, y + rh * 0.53);
-      g.fillStyle = '#5c616a'; fitFont(g, r.enL, p => EN(p, 600), 11.5 * k, mw); g.fillText(r.enL, x0, y + rh * 0.81);
+      g.fillStyle = '#1f2328'; fitFont(g, r.jaL, p => JA(p, 700), 16 * k, mw); g.fillText(r.jaL, x0, y + rh * 0.53);
+      g.fillStyle = '#5c616a'; fitFont(g, r.enL, p => EN(p, 700), 13 * k, mw); g.fillText(r.enL, x0, y + rh * 0.81);
     });
     this._legend(g, W, H);
   }
@@ -348,7 +367,7 @@ export class FloorGuides {
     if (s.stand) {
       for (const o of [-0.5, 0.5]) {
         const px = s.x + rx * o * BW * 0.78, pz = s.z + rz * o * BW * 0.78;
-        b.box(housing, px, s.y0 + (y - BH / 2) / 2 - s.y0 / 2 + 0.0, pz, 0.1, y - BH / 2 - s.y0 + 0.02, 0.1, 0);
+        b.box(housing, px, s.y0 + (s.yc - BH / 2) / 2, pz, 0.1, s.yc - BH / 2 + 0.02, 0.1, 0);
       }
     }
     const at = (u, v, d = 0) => [fx + rx * u + nx * d, y + v, fz + rz * u + nz * d];

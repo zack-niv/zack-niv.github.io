@@ -22,9 +22,10 @@ function scan(lg, world) {
   let last = null;
   const pts = lg.pts;
   for (let j = 0; j < pts.length; j++) {
-    if (j % 2 && j !== pts.length - 1) continue;
-    const a = areaOf(world.spaceAt(lg.level, pts[j][0], pts[j][1]));
-    if (a && a.key !== last) { names.push({ ...a, j }); last = a.key; }
+    if (!(j % 2) || j === pts.length - 1) {
+      const a = areaOf(world.spaceAt(lg.level, pts[j][0], pts[j][1]));
+      if (a && a.key !== last) { names.push({ ...a, j }); last = a.key; }
+    }
     if (j > 0) {
       const p = pts[j - 1], q = pts[j];
       for (const gt of LAYOUT.gates) {
@@ -73,7 +74,7 @@ export function buildSteps(R, world) {
     for (const g of sc.gates) push({ kind: 'gate', icon: 'gate', text: `Through ${g.gt.name} (${lv(lg.level)})`, level: lg.level, to: lg.level, at: g.at });
     const after = sc.gates.length ? sc.names.filter(n => n.j > sc.gates[sc.gates.length - 1].j) : sc.names;
     const names = after.length ? after : sc.names.slice(-1);
-    const first = names[0], lastN = names[names.length - 1], sign = lastN && first && lastN.key !== first.key ? SIGN_NAME[lastN.key] : null;
+    const first = names[0], lastN = names[names.length - 1], sign = lastN && first && SIGN_NAME[lastN.key] !== SIGN_NAME[first.key] ? SIGN_NAME[lastN.key] || null : null;
     const walkLen = lg.len || 0;
     if (r) {
       // ---- walk to the ramp (a few metres of walking between two floors is not a step) ----
@@ -83,8 +84,8 @@ export function buildSteps(R, world) {
         if (mids.length) text = `Through ${mids.map(n => n.name).join(' and ')}${sign ? `, follow “${sign}” signs` : ''}`;
         else if (sign) text = `Follow “${sign}” signs`;
         else if (names.length >= 2) text = `Walk on to ${lastN.name}`;
-        else text = `Walk to the ${r.kind === 'escalator' ? 'escalator' : 'stairs'}`;
-        push({ kind: 'walk', icon: 'walk', text, level: lg.level, to: lg.level, at: last });
+        else text = walkLen >= 70 ? `Walk on to the ${r.kind === 'escalator' ? 'escalator' : 'stairs'}` : null;
+        if (text) push({ kind: 'walk', icon: 'walk', text, level: lg.level, to: lg.level, at: last });
       }
       // ---- the ramp(s): a run of short hops in the same direction is one step ("Parks escalators up to 6F") ----
       let n = 1, to = lg.dir > 0 ? r.upper : r.lower, j = i + 1;

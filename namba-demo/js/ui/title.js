@@ -35,12 +35,13 @@ export class Title {
         <div class="t-tag">Somewhere in this labyrinth, a tempura lunch is waiting.</div>
         <div class="t-tag-ja">この迷宮のどこかで、天ぷらが待っている。</div>
         <button type="button" class="t-begin"><span class="t-begin-line"></span><span>${ctx.resumeFrom ? (touch ? 'Tap to continue' : 'Click to continue') : touch ? 'Tap to begin' : 'Click to begin'}</span><small>${ctx.resumeFrom ? 'つづきから' : touch ? 'タップしてはじめる' : 'クリックしてはじめる'}</small></button>
+        <div class="t-swipe" aria-hidden="true">Swipe up for full screen ↑</div>
+        <div class="t-a2hs">Best full screen: Share → Add to Home Screen</div>
       </div>
       <div class="t-drawer" hidden>
         <div class="t-drawer-head"><span class="t-drawer-title"></span><button type="button" class="t-close" aria-label="Close">✕</button></div>
         <div class="t-drawer-body"></div>
       </div>
-      ${touch ? `<div class="t-swipe" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 14.5 12 8.5 18 14.5M6 20 12 14 18 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Swipe up for full screen</span><small>上にスワイプで全画面</small></div>` : ''}
       <div class="t-foot">
         <div class="t-hint">${touch ? 'Left thumb walks · drag to look' : 'Best with keyboard &amp; mouse'}<span class="t-sep">·</span>headphones on <span class="t-hp" aria-hidden="true">🎧</span></div>
         <div class="t-keys"><span>${k('W')}${k('A')}${k('S')}${k('D')} <i>walk</i></span><span>${k('Shift', 1)} <i>hurry</i></span><span>${k('Q')} <i>phone</i></span><span>${k('E')} <i>interact</i></span></div>
