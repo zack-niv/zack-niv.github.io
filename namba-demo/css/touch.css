@@ -86,7 +86,7 @@ html.is-touch * { -webkit-tap-highlight-color: transparent; }
 .tu-ghost { position: absolute; left: calc(56px + var(--sl)); bottom: calc(40px + var(--sb)); width: 104px; height: 104px; border-radius: 50%;
   border: 1.5px dashed rgba(244,241,234,.32); display: grid; place-items: center; transition: opacity .4s ease; }
 .tu-ghost i { width: 40px; height: 40px; border-radius: 50%; background: rgba(244,241,234,.22); }
-.tu-ghost span { position: absolute; bottom: -20px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
+.tu-ghost span { position: absolute; bottom: -20px; font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .55; }
 #touch-ui:not(.free) .tu-ghost, html.tu-stick-live .tu-ghost { opacity: 0; }
 html:has(#touch-controls.stick-on) .tu-ghost { opacity: 0; }
 /* v12 critic: with the wide phone up, the strip's upper half turns the camera (js/core/input.js); this faint twin of the WALK
@@ -94,7 +94,7 @@ html:has(#touch-controls.stick-on) .tu-ghost { opacity: 0; }
 .tu-lookghost { position: absolute; left: calc(56px + var(--sl)); width: 104px; top: max(128px, calc(50% - 72px)); display: none; flex-direction: column; align-items: center; gap: 2px;
   color: rgba(244,241,234,.6); pointer-events: none; transition: opacity .4s ease; }
 .tu-lookghost svg { width: 30px; height: 30px; }
-.tu-lookghost span { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .9; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
+.tu-lookghost span { font-size: 12px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; opacity: .9; text-shadow: 0 1px 6px rgba(0,0,0,.6); }
 html.ph-wide .tu-lookghost { display: flex; }
 html.tu-wide-looked .tu-lookghost, #touch-ui:not(.free) .tu-lookghost { opacity: 0; }
 @media (max-height: 300px) { .tu-lookghost { display: none !important; } }
@@ -236,7 +236,7 @@ html.ios-iphone .g-settings::after { content: 'Play full screen: Share \2192  Ad
   html.is-touch #title .t-latin { font-size: clamp(32px, calc(var(--vh, 100vh) * .15), 56px); }
   html.is-touch #title .t-rule { margin: 12px 0 10px; }
   html.is-touch #title .t-tag { font-size: 13px; line-height: 1.45; }
-  html.is-touch #title .t-tag-ja { font-size: 10.5px; margin-top: 3px; }
+  html.is-touch #title .t-tag-ja { font-size: 12px; margin-top: 3px; }
   html.is-touch #title .t-begin { margin-top: 14px; }
   html.is-touch #title .t-foot { left: max(6vw, calc(var(--tu-sl) + 14px)); right: max(6vw, calc(var(--tu-sr) + 14px)); bottom: max(var(--tu-sb), 8px); font-size: 10.5px; gap: 8px; }
   html.is-touch #title .t-drawer { top: calc(max(8px, var(--tu-st)) + 40px); right: max(4vw, calc(var(--tu-sr) + 12px)); max-height: calc(var(--vh, 100vh) - 64px); overflow-y: auto; padding: 16px 18px 18px; touch-action: pan-y; }

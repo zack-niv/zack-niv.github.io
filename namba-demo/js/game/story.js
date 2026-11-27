@@ -535,7 +535,8 @@ export class Story {
         onReply: (r, reply) => { if (reply && reply.photo) this._photoReply(fromCheckin); else { aya.say(AYA.photoFine, { wait: 0.6 }); follow(); } } });
       return;
     }
-    const text = this._spot(sc);
+    // v23: a floor guide board in the picture: her usual answer for where you are, with the board named first
+    const text = (sc.fg ? 'oh nice, the floor guide 🗺️ ' : '') + this._spot(sc);
     if (this.mission.leg) this.mission.hints++;      // v22: a photo she could read
     this._beat('spot', sc.lm || sc.zone);
     this.ctx.events.emit('story:photo', { t: +this.t.toFixed(1), ok: true, lm: sc.lm, zone: sc.zone, space: sp, level: p.level, text });
@@ -558,6 +559,27 @@ export class Story {
       const b = businessBySlot[k]; if (!b || !b.door || b.level !== p.level || !b.en) continue;
       const d = inView(b.door.ox, b.door.oz, bd); if (d != null) { bd = d; lm = b.en; }
     }
+    // v23: the floor guide boards (フロアガイド) and the hand-placed way-finding signs are landmarks too. A board counts only from
+    // its readable side (the viewer stands in front of it), inside the view cone and within 8 m; it wins over a shop that is
+    // not clearly nearer (Aya: "oh nice, the floor guide"). A way sign counts within 12 m under the same two rules.
+    const sgn = this.ctx.signage;
+    let fgBoard = false;
+    if (sgn && sgn.signs) {
+      let bestFg = null, fgd = 1e9;
+      for (const s of sgn.signs) {
+        const isBoard = s.kind === 'fguide', isWay = s.kind === 'way' && s.lm;
+        if (!(isBoard || isWay) || s.level !== p.level || s.dead) continue;
+        const dx = s.x - p.x, dz = s.z - p.z, d = Math.hypot(dx, dz);
+        if (d > (isBoard ? 8 : 12) || d < 0.6) continue;
+        // readable side: the viewer must be on the side the sign faces (face 1 normal; way signs read from both sides)
+        const side = -(dx * s.nx + dz * s.nz) / d;
+        if (isBoard ? side < 0.3 : Math.abs(side) < 0.3) continue;
+        if (d >= 1.5 && (dx * f.x + dz * f.z) / d <= 0.82) continue;
+        const eff = isBoard ? d * 0.6 : d;
+        if (eff < fgd) { fgd = eff; bestFg = s; }
+      }
+      if (bestFg && fgd < bd) { bd = fgd; lm = bestFg.kind === 'fguide' ? 'the escalators' : bestFg.lm; fgBoard = bestFg.kind === 'fguide'; }
+    }
     const g = this.game, gates = (g && g._gates) || [];
     let gateNear = null, gd = Infinity;
     for (const { gt } of gates) {
@@ -578,7 +600,7 @@ export class Story {
     const tg = this._target(), li = LEVEL_ORDER.indexOf(p.level), E = this.errand;
     const want = tg === 'gates' ? (li < LEVEL_ORDER.indexOf('3F') ? LEVEL_ORDER[li + 1] : '3F') : tg === 'cafe' && E.biz ? (li > LEVEL_ORDER.indexOf(E.biz.level) ? LEVEL_ORDER[li - 1] : LEVEL_ORDER[li + 1]) : '2F';
     const esc = ends(want);
-    return { ok: true, lm, distinct, zone, id, esc: esc ? rel(esc.x, esc.z) : 'nearby', gate: gateNear ? rel(gateNear.x, gateNear.z) : 'ahead' };
+    return { ok: true, lm, fg: fgBoard, distinct: fgBoard ? null : distinct, zone, id, esc: esc ? rel(esc.x, esc.z) : 'nearby', gate: gateNear ? rel(gateNear.x, gateNear.z) : 'ahead' };
   }
   // v22: leg 2, no café errand pending: every answer points back to the Nankai gates (3F)
   _spotGates(sc) {
