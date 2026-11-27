@@ -301,6 +301,8 @@ export class TouchUI {
         if (!!done !== zEl.classList.contains('done')) zEl.classList.toggle('done', !!done);
       };
       set(el.walkZ, z.walk, z.walkDone); set(el.lookZ, z.look, z.lookDone);
+      // v23: one card at a time (js/game/tutorial.js decides which)
+      if (z.showLook != null) { el.lookZ.classList.toggle('hide', !z.showLook); el.walkZ.classList.toggle('hide', !z.showWalk); }
       const n = s.nudge || 0; if (el.coach._n !== n) { el.coach._n = n; el.coach.classList.toggle('nudge', n > 0); }
     }
     // the tap pointer: re-find the control a few times a second (apps re-render), place it every frame
@@ -318,7 +320,8 @@ export class TouchUI {
         const r = e.getBoundingClientRect();
         if (r.width > 4 && r.height > 4 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight) {
           // a small control: its centre; a wide card or chip: towards its right end, so the thumb does not hide the words
-          const x = r.width > 90 ? r.right - Math.min(34, r.width * 0.18) : r.left + r.width / 2;
+          // v23: on the Use card the ring sits on its hand icon, not on the price (QA M2); elsewhere towards the right end
+          const x = e.classList && e.classList.contains('tu-use') ? r.left + 28 : r.width > 90 ? r.right - Math.min(34, r.width * 0.18) : r.left + r.width / 2;
           pt = [Math.round(x), Math.round(r.top + r.height / 2)];
         }
       }

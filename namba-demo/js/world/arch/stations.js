@@ -48,11 +48,11 @@ function platformEdges(K) {
       if (!nx && !nz) continue;
       const b = K.B(lv, (e.ax + e.bx) / 2, (e.az + e.bz) / 2);
       // coping band, white safety line
-      strip(b, 'inlay_stone_light', e.ax, e.az, e.bx, e.bz, nx, nz, 0.55, y + 0.003);
-      strip(b, 'steel_painted_white', e.ax, e.az, e.bx, e.bz, nx, nz, 0.05, y + 0.004, 0.55);
+      strip(b, 'inlay_stone_light', e.ax, e.az, e.bx, e.bz, nx, nz, 0.55, y + 0.007);
+      strip(b, 'steel_painted_white', e.ax, e.az, e.bx, e.bz, nx, nz, 0.05, y + 0.009, 0.55);
       // JIS dot blocks with the inner-side bar (内方線付き点状ブロック)
-      strip(b, 'tactile_dot', e.ax, e.az, e.bx, e.bz, nx, nz, 0.3, y + 0.006, 0.8);
-      strip(b, 'esc_comb', e.ax, e.az, e.bx, e.bz, nx, nz, 0.035, y + 0.008, 1.13);
+      strip(b, 'tactile_dot', e.ax, e.az, e.bx, e.bz, nx, nz, 0.3, y + 0.011, 0.8);
+      strip(b, 'esc_comb', e.ax, e.az, e.bx, e.bz, nx, nz, 0.035, y + 0.013, 1.13);
       // lip (faces the track), underside, refuge recess under the platform
       face(b, 'concrete_exposed', e.ax, e.az, e.bx, e.bz, y - 0.3, y, -nx, -nz, 0);
       const ox = nx * 0.55, oz = nz * 0.55;

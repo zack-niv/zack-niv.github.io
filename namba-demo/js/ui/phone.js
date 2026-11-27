@@ -60,6 +60,17 @@ import { CameraMode } from './phone/camera.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lerp = (a, b, t) => a + (b - a) * t;
+// v23: the bottom safe-area inset (the iPhone home indicator): the raised phone's dock keeps clear of it
+let _sb = null;
+function safeBottom() {
+  if (_sb != null) return _sb;
+  try {
+    const d = document.createElement('div'); d.style.cssText = 'position:fixed;bottom:0;height:env(safe-area-inset-bottom,0px);width:0;visibility:hidden';
+    document.body.appendChild(d); _sb = d.getBoundingClientRect().height || 0; d.remove();
+  } catch (e) { _sb = 0; }
+  return _sb;
+}
+addEventListener('resize', () => { _sb = null; });
 // v11: the right safe-area inset (a landscape iPhone's notch side), read once per layout from a CSS probe
 let _sr = null;
 function safeRight() {
@@ -86,7 +97,8 @@ const ALERT_H = 176;           // device px of the phone's top that show while i
 const ALERT_GROW = 1.12;       // its scale vs the raised phone's
 const ALERT_AGAIN = [20, 45];  // seconds after an unanswered text: nudge again (then it stays quiet). v14: was 13 / 32 s
 const CUE_MAX = 4;             // touch: the "tap your phone" cue shows on the first few alerts
-const FLAT_BEZ = 6;            // v23: the raised touch phone's slim bezel (device px)
+const FLAT_BEZ = 8;            // v23: the raised touch phone's bezel (device px)
+const FLAT_TOP = 6;            // v23: the raised touch phone's top edge sits this far under the viewport's top edge
 const WALK_LOWER_S = 3.5;      // seconds of walking with the phone up before it lowers itself
 const WIDE_FRAC = 0.70;        // v12: the raised landscape phone's share of the screen width
 const WALK_LOWER_WIDE_S = 1.0; // v12: the wide phone covers the crosshair and the look area: walking lowers it to the
@@ -377,27 +389,32 @@ export class Phone {
       else { s = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340)); dh = Math.round(Math.min(700, Math.max(430, (H - 12) / s))); }
     }
     // the glance card's reference scale (v13's: a landscape phone held further away)
-    let sRef = s, PW = 340, bez = 12, st = 50, dk = 92;
+    let sRef = s, PW = 340, bez = 12, st = 50, dk = 92, viewH = null, sbot = 0;
     if (flat) {
-      bez = FLAT_BEZ; st = 0; dk = 40;
+      // v23 (Zack: "the phone dimension ratio is weird"): a REAL phone's proportions (about 2.1 : 1), held up close and
+      // anchored under the top edge: its lower part runs off the bottom of the screen, like the lowered phone peeks up
+      // from it. The visible part (status row .. viewport bottom) is the usable box: app view, then a slim dock.
+      bez = FLAT_BEZ; st = 28; sbot = safeBottom(); dk = 40 + sbot;
       sRef = Math.max(0.56, Math.min(1, H / 560, (W * 0.42) / 340));
       const sw = Math.max(300, Math.min(400, Math.floor(W * 0.4)));
-      const sh = Math.max(300, Math.min(700, H - 24, H - 8 - 2 * bez));
-      s = 1; PW = sw + 2 * bez; dh = sh + 2 * bez;
+      s = 1; PW = sw + 2 * bez; dh = Math.max(Math.round(PW * 2.1), H - FLAT_TOP + bez + 60);
+      viewH = Math.max(120, H - FLAT_TOP - bez - st - dk);
     }
     this._dh = dh; this._sRef = sRef; this._flatPW = PW; this._bez = bez;
     this.wrap.style.height = dh + 'px';
     this.wrap.style.setProperty('--ph-h', dh + 'px');
     this.root.classList.toggle('ph-touch', touch);
     this.root.classList.toggle('ph-flat', flat);
-    this.root.classList.toggle('ph-compact', dh < 640);
+    this.root.classList.toggle('ph-compact', dh < 640 || flat);
     this._scale = s;
     this.wrap.style.setProperty('--s', s.toFixed(3));
     // v23: the app view box (every app's .ph-view): the screen minus the status row and the dock. Apps lay out inside it.
     const rs = this.root.style;
     rs.setProperty('--bez', bez + 'px'); rs.setProperty('--ph-st', st + 'px'); rs.setProperty('--ph-dk', dk + 'px');
-    rs.setProperty('--ph-view-w', (PW - 2 * bez) + 'px'); rs.setProperty('--ph-view-h', (dh - 2 * bez - st - dk) + 'px');
-    this.viewBox = { w: PW - 2 * bez, h: dh - 2 * bez - st - dk };
+    const vh2 = viewH != null ? viewH : dh - 2 * bez - st - dk;
+    rs.setProperty('--ph-sb', sbot + 'px');
+    rs.setProperty('--ph-view-w', (PW - 2 * bez) + 'px'); rs.setProperty('--ph-view-h', vh2 + 'px');
+    this.viewBox = { w: PW - 2 * bez, h: vh2 };
     // v12 (item 2b): on a short landscape screen (a phone held sideways) the RAISED phone turns sideways too (opt-in now: ?widephone)
     const wide = legacyWide && dh < 640;
     this._wideOK = wide;
@@ -408,6 +425,8 @@ export class Phone {
     if (!wide && this.land) this._setLand(false);
     else if (wide && this.isOpen && !this.land) this._setLand(true);
     // where the raised phone starts, from the right edge (CSS px): the touch HUD keeps left of it (contract: Shell)
+    // v23: the lowered card's effective scale (CSS sizes its small texts so they come out at a readable size on screen)
+    this.root.style.setProperty('--ph-gs', (sRef * this._gS).toFixed(3));
     this.upGap = Math.round((wide ? this._landW : flat ? PW : 340) * s + 12 + (touch ? safeRight() : 0));
     // v23: the flat phone reuses the v12 wide-phone hooks (html.ph-wide + --ph-wide-gap): the touch buttons stack in the
     // free strip left of it, the tutorial hints step aside, and the upper half of the left strip turns the view
@@ -777,7 +796,7 @@ export class Phone {
     // left thumb's stick; portrait: centred.
     const uw = PW * s;
     let upCx = Math.max(uw / 2 + 8, Math.min(vw - uw / 2 - 16, vw / 2 + uw / 2 + 28)), upY = 35;
-    if (this._touch) { upY = flat ? -Math.round(Math.max(0, innerHeight - DH) / 2) : -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
+    if (this._touch) { upY = flat ? DH - innerHeight + FLAT_TOP : -6; upCx = innerHeight > vw ? vw / 2 : vw - uw / 2 - 12 - safeRight(); }
     // glance: bottom-right corner, only the top GLANCE_H shows
     const gw = (flat ? PW : 340) * sg, gCx = Math.min(vw - gw / 2 - 8 - (this._touch ? safeRight() : 0), Math.max(vw * 0.62, vw - 36 - gw / 2)), gY = DH * sg - GH * sg;
     const sc = lerp(sg, s, u);

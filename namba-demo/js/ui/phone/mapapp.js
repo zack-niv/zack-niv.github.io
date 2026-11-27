@@ -18,7 +18,7 @@ import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout
 import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES, FEATURED } from '../../world/directory.js?v=5442362';
 import { businessBySlot } from '../../world/directory.js?v=5442362';
 import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=5442362';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO, FLOOR_NAMES } from './places.js?v=5442362';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO, FLOOR_NAMES, areaOf } from './places.js?v=5442362';
 import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=5442362';
 import { buildSteps, routeFloors } from './mapsteps.js?v=5442362';
 import { hash } from '../../core/rng.js?v=5442362';
@@ -68,7 +68,7 @@ export class MapApp {
     this.follow = true; this.headingUp = true;
     this.base = new Map();
     this.selected = null; this.results = []; this.route = null;
-    this.steps = []; this.cur = 0; this.focus = -1; this._minIdx = 0;
+    this.steps = []; this.focus = -1; this.known = null; this._clk = 0; this._lastPan = -99;
     this.sheet = 'map';        // the panel over the plan: 'map' (none) | 'home' (list) | 'results' | 'place' | 'steps'
     this._dirty = true; this._sig = ''; this._drawT = 0; this._routeV = 0;
     this._labelsFor = new Map(); this._shopsFor = new Map(); this._tw = new Map();
@@ -83,7 +83,7 @@ export class MapApp {
     r.classList.add('mp', 'mq');
     r.innerHTML = `
       <canvas class="mq-canvas"></canvas>
-      <div class="mq-chips"><span class="mq-fl"></span><span class="mq-me"><i></i><span><b></b><small></small></span></span></div>
+      <div class="mq-chips"><span class="mq-fl"></span><button class="mq-me" type="button"><span class="p"><i></i><b></b></span></button></div>
       <div class="mq-ctl">
         <button class="mq-btn mq-orient" type="button" aria-label="Map orientation"><span></span></button>
         <button class="mq-btn mq-locate" type="button" aria-label="Centre on me">${I.locate}</button>
@@ -93,14 +93,14 @@ export class MapApp {
       <div class="mq-strip" role="tablist" aria-label="Floors"></div>
       <div class="mq-bar">
         <label class="mq-search"><span class="mq-s-ico">${I.search}</span><input type="text" placeholder="Where to?" spellcheck="false" autocomplete="off" aria-label="Search Namba"><button class="mq-clear" type="button" hidden aria-label="Clear">${I.close}</button></label>
-        <button class="mq-rt" type="button" hidden><i class="mq-rt-ic"></i><span class="mq-rt-t"><b></b><small></small></span><span class="mq-rt-go">Steps</span></button>
+        <button class="mq-rt" type="button" hidden><i class="mq-rt-ic">${I.pin}</i><span class="mq-rt-t"><b></b><small></small></span><span class="mq-rt-go">Directions</span></button><button class="mq-rt-x" type="button" hidden aria-label="Clear destination">${I.close}</button>
       </div>
       <div class="mq-sugg" hidden></div>
       <div class="mq-panel" hidden><div class="mq-ph"><b class="mq-pt"></b><button class="mq-x" type="button" aria-label="Close">${I.close}</button></div><div class="mq-pb"></div></div>`;
     const q = (s) => r.querySelector(s);
     this.canvas = q('canvas'); this.g = this.canvas.getContext('2d');
     this.input = q('.mq-search input'); this.clearBtn = q('.mq-clear');
-    this.bar = q('.mq-bar'); this.searchEl = q('.mq-search'); this.rtEl = q('.mq-rt');
+    this.bar = q('.mq-bar'); this.searchEl = q('.mq-search'); this.rtEl = q('.mq-rt'); this.rtX = q('.mq-rt-x');
     this.strip = q('.mq-strip'); this.sugg = q('.mq-sugg');
     this.panel = q('.mq-panel'); this.panelT = q('.mq-pt'); this.panelB = q('.mq-pb');
     this.flEl = q('.mq-fl'); this.meEl = q('.mq-me'); this.orientBtn = q('.mq-orient'); this.locBtn = q('.mq-locate');
@@ -120,6 +120,8 @@ export class MapApp {
     this.clearBtn.addEventListener('click', (e) => { e.preventDefault(); this.input.value = ''; this.clearBtn.hidden = true; this.clearSearch(); });
     q('.mq-x').addEventListener('click', () => this.closePanel());
     this.rtEl.addEventListener('click', () => this.openSteps());
+    this.rtX.addEventListener('click', () => this.endRoute());
+    this.meEl.addEventListener('click', () => this._toast('No GPS indoors\nFind a shop or a sign near you on the map, or send Aya a photo 📸', 5200));
     this.ayaEl.addEventListener('click', () => this._ayaGo());
     this.orientBtn.addEventListener('click', () => this._toggleOrient());
     this.locBtn.addEventListener('click', () => this._recenter());
@@ -131,7 +133,12 @@ export class MapApp {
     this._renderStrip(true);
     this.showHome();
     const ev = this.ctx.events;
-    if (ev && ev.on) { ev.on('gate:tap', (e) => this._onGate(e)); ev.on('gate:pass', (e) => this._onGate(e)); }
+    // v23 round 2: the phone has no position indoors; it learns where you are only when something tells it
+    if (ev && ev.on) {
+      ev.on('story:photo', (e) => { if (e && e.ok) this._knownHere('Aya spotted you here', 'Aya spotted you', e.lm); });
+      ev.on('gate:tap', (e) => { if (e && e.player) this._knownAt(e.level, e.x, e.z, `Tapped in at ${this._gateName(e)}`, `Tapped in at ${this._gateName(e)}, ${lvl(e.level)}`); });
+      ev.on('demo:order', (e) => { if (e && e.name) this._knownHere(`Paid at ${e.name}`, `Paid at ${e.name}`, null, true); });
+    }
   }
 
   // ------------------------------------------------------------ pointer ----
@@ -162,13 +169,13 @@ export class MapApp {
         // keep the world point under the fingers' midpoint under the fingers
         const now = this.toWorld(mx, my);
         this.view.cx += pinch.w[0] - now[0]; this.view.cz += pinch.w[1] - now[1];
-        this.follow = false; this._dirty = true; moved += 10; return;
+        this.follow = false; this._dirty = true; this._lastPan = this._clk; moved += 10; return;
       }
       const dx = sx - p.x, dy = sy - p.y;
       p.x = sx; p.y = sy;
       moved += Math.abs(dx) + Math.abs(dy);
       if (moved > 6) {
-        this.follow = false; this.focus = -1;
+        this.follow = false; this.focus = -1; this._lastPan = this._clk;
         const k = this.view.zoom, cr = Math.cos(this.view.rot), sr = Math.sin(this.view.rot);
         // screen delta -> world delta (inverse rotation)
         this.view.cx -= (dx * cr + dy * sr) / k; this.view.cz -= (-dx * sr + dy * cr) / k;
@@ -198,7 +205,7 @@ export class MapApp {
     this.view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.view.zoom * f));
     const after = this.toWorld(sx, sy);
     this.view.cx += before[0] - after[0]; this.view.cz += before[1] - after[1];
-    if (Math.hypot(before[0] - after[0], before[1] - after[1]) > 0.3) this.follow = false;
+    if (Math.hypot(before[0] - after[0], before[1] - after[1]) > 0.3) { this.follow = false; this._lastPan = this._clk; }
     this._dirty = true;
   }
   // ratio between CSS px of the canvas element and its on-screen size (the desktop phone is scaled)
@@ -223,7 +230,7 @@ export class MapApp {
   _measure() {
     const bh = this.bar.offsetHeight || 46, sh = this.strip.offsetHeight || 44;
     const ph = this.sheet === 'place' ? Math.min(this.panel.offsetHeight || 0, this.H * 0.6) : 0;
-    this._ins = { t: bh, b: sh + ph };
+    this._ins = { t: bh, b: sh + ph + (this.ayaEl.hidden ? 0 : 60) };
     this.root.style.setProperty('--mq-bar', (bh + 8) + 'px');
     this._measured = true;
   }
@@ -276,41 +283,61 @@ export class MapApp {
   }
 
   // ------------------------------------------------------------ position ----
-  // What the phone honestly knows about WHERE and WHICH FLOOR. The compass (heading) is reliable; the position is not.
+  // v23 round 2: indoors the phone has a compass and a map and NO position. It draws a dot only in the open air on a real GPS fix
+  // (or in the retired Lodestone mode). Everywhere else it knows where you were only at "known moments" (a photo Aya read, a
+  // gate you tapped, a café you paid at, the arrival): a labelled last-known pin that ages and fades.
   _where() {
-    const p = this.pos, body = this.ctx.player && this.ctx.player.body;
-    const gps = p.mode === 'gps', fix = !gps || p.state === 'fix';
-    const outdoors = p.env === 'outdoor' || p.env === 'canyon';
-    const tl = body && p.trueLevel ? p.trueLevel(body) : p.level;
-    const lv = [p.level];
-    const unsure = !fix && !outdoors;
-    if (unsure) {
-      // "somewhere on 2F or 3F": the believed floor and the one next to it that may be the real one (the pair always holds the truth)
-      let other = tl !== p.level ? tl : null;
-      if (!other) {
-        const bucket = Math.floor((this.ctx.clock ? this.ctx.clock.minutes * 60 : performance.now() / 1000) / 45), i = LEVEL_ORDER.indexOf(p.level);
-        const opts = [LEVEL_ORDER[i - 1], LEVEL_ORDER[i + 1]].filter(l => l && this.ctx.world.grids[l]);
-        other = opts.length ? opts[hash(`nb:${p.level}:${bucket}`) % opts.length] : null;
-      }
-      if (other) lv.push(other);
-    }
-    lv.sort((a, b) => LEVEL_ORDER.indexOf(a) - LEVEL_ORDER.indexOf(b));
-    return { fix, unsure, outdoors, levels: lv, level: p.level };
+    const p = this.pos, outdoors = p.env === 'outdoor' || p.env === 'canyon';
+    const gps = p.mode === 'lodestone' || (p.mode === 'gps' && p.state === 'fix' && outdoors);
+    return { gps, fix: gps, outdoors, unsure: false, level: p.level, levels: [p.level] };
   }
-  _ageTxt(s) { s = Math.max(0, Math.round(s)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min`; }
+  _ageTxt(s) { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
   _youText(w) {
-    const p = this.pos, A = w.levels.map(lvl);
-    if (p.noService && p.state !== 'fix') return { a: w.unsure ? `Somewhere on ${A.join(' or ')}` : `Probably on ${lvl(p.level)}`, b: 'No service' };
-    if (w.fix) return { a: `You are on ${lvl(p.level)}`, b: p.mode === 'gps' ? `GPS · ±${Math.round(p.acc)} m` : `±${Math.round(p.acc)} m` };
-    if (w.unsure) return { a: `Somewhere on ${A.join(' or ')}`, b: p.state === 'stale' ? `no signal · last seen ${this._ageTxt(p.ageS)} ago` : `Wi‑Fi guess · ±${Math.round(p.acc)} m` };
-    return { a: `Probably on ${lvl(p.level)}`, b: 'waiting for GPS' };
+    const p = this.pos, k = this.known;
+    if (w.gps) return { a: `You are on ${lvl(p.level)}`, b: `GPS · ±${Math.round(p.acc)} m` };
+    return { a: 'No GPS indoors', b: k ? `Last known: ${k.where}` : '' };
   }
-  _accTxt() { const t = this._youText(this._where()); return `${t.a} · ${t.b}`; }
+  _accTxt() { const t = this._youText(this._where()); return t.b ? `${t.a} · ${t.b}` : t.a; }
+  _trueHere() { const b = this.ctx.player && this.ctx.player.body; return b ? { level: this.pos.trueLevel ? this.pos.trueLevel(b) : b.level, x: b.x, z: b.z } : null; }
+  // "Nankai platforms, 3F"
+  _whereName(level, x, z) {
+    const a = areaOf(this.ctx.world.spaceAt(level, x, z)), n = a ? a.name.replace(/^the /, '') : '';
+    return `${n ? n.charAt(0).toUpperCase() + n.slice(1) + ', ' : ''}${lvl(level)}`;
+  }
+  _gateName(e) {
+    const g = LAYOUT.gates.find(q => q.id === e.gate) || LAYOUT.gates.filter(q => q.level === e.level)[0];
+    return g ? g.name : 'the ticket gate';
+  }
+  _knownHere(text, glancePre, lm, noLm) {
+    const h = this._trueHere(); if (!h) return;
+    const w = this._whereName(h.level, h.x, h.z);
+    this._setKnown({ level: h.level, x: h.x, z: h.z, text, where: w, glance: glancePre === 'Aya spotted you' ? `Aya spotted you: ${lm ? `${lm}, ${lvl(h.level)}` : w}` : `${glancePre}, ${lvl(h.level)}` });
+  }
+  _knownAt(level, x, z, text, glance) {
+    if (!level || x == null) { this._knownHere(text, text); return; }
+    this._setKnown({ level, x, z, text, where: text.replace(/^Tapped in at /, '').replace(/^/, '') + `, ${lvl(level)}`, glance });
+  }
+  _setKnown(k) {
+    k.t0 = this._clk; k.id = (this._kn = (this._kn || 0) + 1);
+    this.known = k;
+    // a new pin takes the plan to its floor, unless you are looking around (panned in the last 5 s)
+    if (this._clk - this._lastPan > 5 || k.id === 1) { this.view.level = k.level; this.view.cx = k.x; this.view.cz = k.z; this.follow = false; }
+    this.focus = -1; this._dirty = true;
+    this._renderStrip(); this._syncUI(true);
+    if (this.sheet === 'steps') this.openSteps(true);
+  }
 
   // ------------------------------------------------------------- update ----
   update(dt, visible) {
     const p = this.pos, v = this.view;
-    if (this.follow) {
+    this._clk += dt;
+    if (!this.known && this.ctx.player && this.ctx.player.body && this.ctx.world && this.ctx.world.spaceAt) {
+      const h = this._trueHere(), w = this._whereName(h.level, h.x, h.z);
+      this._setKnown({ level: h.level, x: h.x, z: h.z, text: `Arrived: ${w}`, where: w, glance: `Arrived: ${w}` });
+    }
+    const W = this._where();
+    if (W.gps !== this._gpsPrev) { this._gpsPrev = W.gps; if (W.gps) this.follow = true; this._renderStrip(); this._syncUI(true); }
+    if (this.follow && W.gps) {
       const k = 1 - Math.exp(-dt / 0.25);
       const ex = p.x - v.cx, ez = p.z - v.cz;
       if (Math.abs(ex) + Math.abs(ez) < 0.04) { v.cx = p.x; v.cz = p.z; } else { v.cx += ex * k; v.cz += ez * k; }
@@ -321,21 +348,18 @@ export class MapApp {
       // 2-degree steps: no redraw for a hair of turn
       if (Math.abs(d) > 0.035) v.rot += d * (1 - Math.exp(-dt / 0.18)); else if (Math.abs(d) > 0.004) v.rot += d;
     } else if (Math.abs(v.rot) > 0.001) { v.rot *= Math.exp(-dt / 0.12); if (Math.abs(v.rot) < 0.004) v.rot = 0; }
-    if (this._lastMe !== p.level) { this._lastMe = p.level; this._floorSince = 0; this._renderStrip(); }
-    this._floorSince = (this._floorSince || 0) + dt;
-    if (this.route) this._routeTick(dt);
     this._uiT = (this._uiT || 0) - dt;
     if (this._uiT <= 0 && visible) { this._uiT = 0.25; this._syncUI(); }
     if (!visible) return;
     this._drawT += dt;
-    const sig = [v.level, v.cx.toFixed(1), v.cz.toFixed(1), v.zoom.toFixed(2), Math.round(v.rot * 28.6), p.x.toFixed(1), p.z.toFixed(1), p.level, Math.round(p.acc), p.state, this.selected && this.selected.id, this._routeV, this.sheet, this.focus, this.cur, this._toastV].join('|');
+    const k0 = this.known, age = k0 ? Math.min(100, Math.floor(this._clk - k0.t0)) : 0;
+    const sig = [v.level, v.cx.toFixed(1), v.cz.toFixed(1), v.zoom.toFixed(2), Math.round(v.rot * 28.6), W.gps ? p.x.toFixed(1) + p.z.toFixed(1) : '', p.level, W.gps ? Math.round(p.acc) : '', this.selected && this.selected.id, this._routeV, this.sheet, this.focus, this._toastV, k0 && k0.id, age].join('|');
     if (sig === this._sig && !this._dirty) return;
-    // gestures redraw at once; the dot and the heading at most 30 times a second
+    // gestures redraw at once; the heading and the dot at most 30 times a second
     if (!this._dirty && this._drawT < 0.033) return;
     this._sig = sig; this._dirty = false; this._drawT = 0;
     this._draw();
   }
-
   // ------------------------------------------------------------- draw -----
   _draw() {
     const c = this.canvas, g = this.g;
@@ -364,6 +388,7 @@ export class MapApp {
       if (v.zoom * dpr > base.ppm * 1.1) drawFloor(g, this.ctx.world, v.level, T, { bounds: vis, businessBySlot, _spaceCol: this._spaceCol || (this._spaceCol = new Map()) });
       else { g.imageSmoothingEnabled = true; g.drawImage(base.canvas, base.x0, base.z0, base.w, base.h); }
     }
+    this._drawDestBlock(g, v);
     // the route on this floor
     if (this.route && this.route.legs) this._drawRoute(g, v.zoom, dpr);
     // screen-space overlays
@@ -371,9 +396,11 @@ export class MapApp {
     this._hits = [];
     this._drawLabels(g, vis);
     this._drawPins(g);
-    this._drawMe(g);
+    if (this._where().gps) this._drawMe(g);
+    this._drawKnown(g);
     this._drawEdgeArrow(g);
     this._drawRose(g);
+    this._drawWedge(g);
   }
 
   _footprint() {
@@ -701,45 +728,72 @@ export class MapApp {
     g.restore();
   }
   // north marker on the plan when it is turned (heading up): a small "N" on a rose pointing north
+  // the north rose, when the plan is turned (heading up)
   _drawRose(g) {
     const v = this.view; if (Math.abs(v.rot) < 0.04) return;
-    const x = this.W - 24, y = this._ins.t + 70;
+    const x = this.W - 26, y = this.H - this._ins.b - 28;
     g.save(); g.translate(x, y); g.rotate(v.rot);
-    g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.arc(0, 0, 13, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#d93025'; g.beginPath(); g.moveTo(0, -11); g.lineTo(4, 0); g.lineTo(-4, 0); g.closePath(); g.fill();
-    g.fillStyle = '#8a9099'; g.beginPath(); g.moveTo(0, 11); g.lineTo(4, 0); g.lineTo(-4, 0); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.94)'; g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 4; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#d93025'; g.beginPath(); g.moveTo(0, -14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+    g.fillStyle = '#8a9099'; g.beginPath(); g.moveTo(0, 14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+    g.restore();
+    g.fillStyle = '#d93025'; g.font = `800 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  }
+  // "you are facing this way": a fixed compass badge at the bottom centre (a direction, never a location)
+  _drawWedge(g) {
+    const v = this.view, p = this.pos, x = this.W / 2, y = this.H - this._ins.b - 36;
+    const ang = -(p.heading - v.rot) - Math.PI / 2;
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 5; g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(x, y, 25, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    const gr = g.createRadialGradient(x, y, 2, x, y, 23); gr.addColorStop(0, 'rgba(26,115,232,.95)'); gr.addColorStop(1, 'rgba(26,115,232,.55)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(x, y); g.arc(x, y, 23, ang - 0.62, ang + 0.62); g.closePath(); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.fill();
+    g.font = `700 11px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.95)';
+    ['You face', 'this way'].forEach((t, i) => { g.strokeText(t, x + 30, y - 7 + i * 14); g.fillStyle = '#1558b8'; g.fillText(t, x + 30, y - 7 + i * 14); });
     g.restore();
   }
-
+  // the one place the map shows where you were: the last known moment, ageing to a faint ghost
+  _drawKnown(g) {
+    const k = this.known; if (!k || k.level !== this.view.level) return;
+    const age = this._clk - k.t0, a = age < 90 ? 1 - 0.62 * age / 90 : 0.38;
+    const [sx, sy] = this.toScreen(k.x, k.z);
+    g.save(); g.globalAlpha = a; g.textBaseline = 'middle'; g.textAlign = 'center';
+    g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 4; g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 12, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#e8710a'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy - 2.6, 2.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4, sy + 5); g.quadraticCurveTo(sx, sy - 1, sx + 4, sy + 5); g.closePath(); g.fill();
+    const l1 = k.text, l2 = `${this._ageTxt(age)} ago`, f1 = `700 11px ${FONT}`, f2 = `600 11px ${FONT}`;
+    const w = Math.max(this._textW(g, f1, l1), this._textW(g, f2, l2)) + 16, h = 34;
+    let x = sx + 18 + w / 2; if (x + w / 2 > this.W - 4) x = sx - 18 - w / 2; x = Math.max(4 + w / 2, x);
+    const y = sy;
+    g.fillStyle = '#fff4e5'; g.strokeStyle = '#e8710a'; g.lineWidth = 1.5; this._rr(g, x - w / 2, y - h / 2, w, h, 9); g.fill(); g.stroke();
+    g.fillStyle = '#5a2d00'; g.font = f1; g.fillText(l1, x, y - 7); g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(l2, x, y + 8);
+    g.restore();
+  }
+  // the destination's shop block, outlined
+  _drawDestBlock(g, v) {
+    const t = this.selected || (this.route && this.route.target);
+    if (!t || t.kind !== 'biz' || t.level !== v.level || !t.b) return;
+    const sh = this._levelShops(v.level).find(q => q.id === t.b.slot); if (!sh) return;
+    g.fillStyle = 'rgba(217,48,37,.2)'; g.fillRect(sh.x0, sh.z0, sh.w, sh.h);
+    g.strokeStyle = '#d93025'; g.lineWidth = 2.4 / v.zoom; g.strokeRect(sh.x0, sh.z0, sh.w, sh.h);
+  }
+  // v23 round 2: a thin DASHED line: a suggestion between two known places, not a guide
   _drawRoute(g, zoom, dpr) {
     const R = this.route, v = this.view;
-    g.lineJoin = 'round'; g.lineCap = 'round';
+    g.lineJoin = 'round'; g.lineCap = 'butt';
     const k = zoom * dpr;
-    for (let i = 0; i < R.legs.length; i++) {
-      const lg = R.legs[i];
+    for (const lg of R.legs) {
       if (lg.level !== v.level || !lg.draw || lg.draw.length < 2) continue;
       const pts = lg.draw;
-      g.strokeStyle = '#ffffff'; g.lineWidth = 9 / k * dpr;
+      g.setLineDash([8 / zoom, 6 / zoom]);
+      g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 5.5 / k * dpr;
       g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts) g.lineTo(p[0], p[1]); g.stroke();
-      g.strokeStyle = '#1a73e8'; g.lineWidth = 5.5 / k * dpr;
+      g.strokeStyle = '#1a5fd0'; g.lineWidth = 3 / k * dpr;
       g.stroke();
-      // small chevrons along the line: which way it goes
-      const step = 46 / zoom;
-      let acc = step * 0.5;
-      g.fillStyle = '#fff';
-      for (let j = 0; j + 1 < pts.length; j++) {
-        const [ax, az] = pts[j], [bx, bz] = pts[j + 1], L = Math.hypot(bx - ax, bz - az); if (L < 1e-6) continue;
-        const ux = (bx - ax) / L, uz = (bz - az) / L;
-        while (acc < L) {
-          const px = ax + ux * acc, pz = az + uz * acc, s = 2.6 / zoom;
-          g.beginPath(); g.moveTo(px + ux * s, pz + uz * s); g.lineTo(px - ux * s - uz * s * 0.9, pz - uz * s + ux * s * 0.9); g.lineTo(px - ux * s + uz * s * 0.9, pz - uz * s - ux * s * 0.9); g.closePath(); g.fill();
-          acc += step;
-        }
-        acc -= L;
-      }
     }
+    g.setLineDash([]);
   }
-
   // ------------------------------------------------------------ search ----
   // What the maps app lists is what the directory knows (the v23 plan is true; only YOU are vague). Tiny places keep a
   // Japanese-only name.
@@ -795,7 +849,7 @@ export class MapApp {
   }
   _crow(p) { return Math.hypot(p.x - this.pos.x, p.z - this.pos.z); }
   // "6F · about 300 m": the floor says more than the metres do
-  _farTxt(p) { return p.level !== this.pos.level ? `${lvl(p.level)} · ${fmtDist(this._crow(p))}` : fmtDist(this._crow(p)); }
+  _farTxt(p) { return lvl(p.level); }
 
   _suggest(q) {
     if (!q || !q.trim()) {
@@ -940,34 +994,25 @@ export class MapApp {
   _refreshHome() {
     if (this.sheet !== 'home' || !this.panelB) return;
     const set = (c, t) => { const e = this.panelB.querySelector(c); if (e && e.textContent !== t) e.textContent = t; };
-    const w = this._where(), y = this._youText(w);
-    const sp = this.ctx.world.spaceAt(this.pos.level, this.pos.x, this.pos.z), z = sp && ZONES[sp.zone];
-    set('.mq-home-t', y.a); set('.mq-home-s', `${y.b}${z && !w.unsure ? ` · ${z.name}` : ''}`);
-    const dot = this.panelB.querySelector('.mq-here-dot'); if (dot) dot.classList.toggle('ok', w.fix);
-    if (this.list) this.list.refreshRight(it => it.place ? this._farTxt(it.place) : null);
+    const w = this._where(), y = this._youText(w), k = this.known;
+    set('.mq-home-t', y.a); set('.mq-home-s', y.b ? `${y.b}${k && !w.gps ? ` · ${this._ageTxt(this._clk - k.t0)} ago` : ''}` : '');
+    const dot = this.panelB.querySelector('.mq-here-dot'); if (dot) dot.classList.toggle('ok', w.gps);
   }
-
   // ---- the lowered phone's glance card: honest, no metre-precise distance from a position the phone does not have ----
   glanceInfo() {
-    const p = this.pos, R = this.route, W = this._where();
-    const gpsBad = p.mode === 'gps' && p.state !== 'fix';
-    const warn = p.noService ? 'No service' : gpsBad ? (p.state === 'stale' ? 'No GPS signal' : 'Approximate location') : '';
-    const here = W.unsure ? `somewhere on ${W.levels.map(lvl).join(' or ')}` : W.fix ? `you’re on ${lvl(p.level)}` : `probably on ${lvl(p.level)}`;
-    const angTo = (x, z) => { const dx = x - p.x, dz = z - p.z; let d = Math.atan2(-dx, -dz) - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); return -d * 180 / Math.PI; };
-    if (R && R.arrived) return { kind: 'arr', icon: 'arrow', ang: 0, title: 'You have arrived', sub: `${R.target.en} · probably`, warn: '' };
-    const st = this.steps[this.cur];
-    if (R && !R.failed && st && st.kind !== 'end') {
-      // "next: escalator down to 2F" and where the phone thinks you are; the arrow only on a real fix (the position is a guess otherwise)
-      return { kind: 'route', icon: W.fix ? 'arrow' : 'lost', ang: angTo(st.at[0], st.at[1]), title: st.text, sub: `Next · ${here}`, warn };
+    const R = this.route, k = this.known, W = this._where();
+    const pinTxt = k && this._clk - k.t0 < 90 ? k.glance : null;
+    if (R && R.arrived) return { kind: 'arr', icon: 'check', ang: 0, title: 'You have arrived', sub: R.target.en, warn: '' };
+    const areaOf = (t) => (t.kind === 'biz' ? zoneShort(t.b.zone) : (t.sub || '').split(' · ')[0]) || '';
+    if (R && !R.failed && R.target) {
+      const t = R.target, where = `${areaOf(t) ? areaOf(t) + ' · ' : ''}${lvl(t.level)}`;
+      return { kind: 'crow', icon: 'pin', title: `To ${t.en}`, sub: pinTxt || where, warn: '' };
     }
-    const t = R && R.target;
-    if (R && !R.failed && t) return { kind: 'crow', icon: W.fix ? 'arrow' : 'lost', ang: angTo(t.x, t.z), title: t.en, sub: `${lvl(t.level)} · ${here}`, warn };
     const D = this.phone.dest, C = D && D.current, nx = D && D.next(), sug = nx && D.name(nx);
-    if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : here, warn: '' };
-    if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: sug ? `Where to? · Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
-    return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
+    if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : (pinTxt || ''), warn: '' };
+    if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: pinTxt || (sug ? `Where to? · Aya: ${sug}` : 'Where to?'), warn: '' };
+    return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: pinTxt || (sug ? `Aya: ${sug}` : 'Where to?'), warn: '' };
   }
-
   showResults() {
     const mins = this.ctx.clock.minutes;
     const D = this.phone.dest, sug = D && D.suggested;
@@ -985,7 +1030,7 @@ export class MapApp {
       }
       return { id, place: r, name: r.en, iconHtml: this._iconHtml(r), aya: id && id === sug ? 'From Aya' : null, subHtml, closed, right: this._farTxt(r) };
     }));
-    if (this.results.length) { this.follow = false; this._fit(this.results.filter(r => r.level === this.view.level).slice(0, 12).map(r => [r.x, r.z]).concat([[this.pos.x, this.pos.z]]), 3); }
+    if (this.results.length) { this.follow = false; this._fit(this.results.filter(r => r.level === this.view.level).slice(0, 12).map(r => [r.x, r.z]), 3); }
   }
   _stars(r) { const n = Math.round(r || 0); return '<i class="mp-st">' + '★'.repeat(n) + '<u>' + '★'.repeat(5 - n) + '</u></i>'; }
 
@@ -997,12 +1042,12 @@ export class MapApp {
     this.follow = false;
     if (p.level !== this.view.level) { this.view.level = p.level; this._renderStrip(); }
     this.showPlace(p);
-    this._fit(p.level === this.pos.level ? [[p.x, p.z], [this.pos.x, this.pos.z]] : [[p.x, p.z]], 3.4, 30);
+    this._fit([[p.x, p.z]], 3.2, 30);
   }
   showPlace(p) {
     const mins = this.ctx.clock.minutes;
     const otherFloor = p.level !== this.pos.level;
-    const floorNote = otherFloor ? `<div class="mp-note">📍 On <b>${lvl(p.level)}</b>${this._where().unsure ? '' : ` · you are on ${lvl(this.pos.level)}`}</div>` : '';
+    const floorNote = otherFloor ? `<div class="mp-note">📍 On <b>${lvl(p.level)}</b></div>` : '';
     const crow = this._farTxt(p);
     let body = '';
     if (p.kind === 'biz') {
@@ -1068,23 +1113,24 @@ export class MapApp {
 
   // ----------------------------------------------------------- routing ----
   startRoute(target) {
-    this.route = { target, legs: [], leg: null, t: 0, recalc: 0 };
-    this.focus = -1; this._minIdx = 0; this.cur = 0;
+    this.route = { target, legs: [], leg: null };
+    this.focus = -1;
     this._computeRoute(true);
     this.ctx.events.emit('phone:route', { id: target.id, level: target.level });
   }
+  // directions are a static overview between two known places: from the LAST KNOWN spot (the arrival, a photo, a gate, a café) to the pin
   _computeRoute(first) {
     const R = this.route; if (!R) return;
     const nav = this.ctx.nav; if (!nav) return;
-    const t = R.target, p = this.pos;
+    const t = R.target, from = this.known || (() => { const h = this._trueHere(); return h && { level: h.level, x: h.x, z: h.z, where: lvl(h.level), id: 0 }; })();
+    if (!from) { R.failed = true; return; }
     const key = 'phone:' + t.id;
     // anything that is not a train/gate/platform must not route through the fare gates
     const f = t.kind === 'transit' ? nav.fieldToPoint(key, t.level, t.x, t.z) : fieldNoEntry(nav, key, [nav.nodeAtPoint(t.level, t.x, t.z)]);
-    // the route starts where the PHONE thinks you are, on the floor it thinks
-    let v = nav.nodeAtPoint(p.level, p.x, p.z);
+    let v = nav.nodeAtPoint(from.level, from.x, from.z);
     if (v < 0 || !isFinite(f.dist[v])) {
-      for (let r = 2; r <= 12 && (v < 0 || !isFinite(f.dist[v])); r += 2) for (let a = 0; a < 8; a++) {
-        const w = nav.nodeAtPoint(p.level, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+      for (let r = 2; r <= 14 && (v < 0 || !isFinite(f.dist[v])); r += 2) for (let a = 0; a < 8; a++) {
+        const w = nav.nodeAtPoint(from.level, from.x + Math.cos(a * 0.785) * r, from.z + Math.sin(a * 0.785) * r);
         if (w >= 0 && isFinite(f.dist[w])) { v = w; break; }
       }
     }
@@ -1094,27 +1140,18 @@ export class MapApp {
     for (const lg of R.legs) lg.draw = simplify(lg.pts, 0.9);
     R.leg = R.legs[0];
     R.total = f.dist[v];
-    R.level = p.level;
-    R.recalc = 0; R.offCount = 0; R.floors = routeFloors(R);
+    R.fromId = from.id; R.fromWhere = from.where; R.floors = routeFloors(R);
     this.steps = buildSteps(R, this.ctx.world);
     this._routeV++; this._rss = null;
-    this.cur = Math.min(this.steps.length - 1, this._firstOn(p.level, 0));
-    this._minIdx = this.cur;
-    if (!first) this._toast('Route updated', 1800);
-    else {
-      // the plan opens on the floor you are on, showing your leg of the route
-      this.view.level = R.legs.some(l => l.level === p.level) ? p.level : R.legs[0].level;
-      const lg = R.legs.find(l => l.level === this.view.level);
+    if (first) {
+      // the plan shows the pin's place, or the stretch of the route on the floor you are on
+      const lg = R.legs.find(l => l.level === from.level), dl = R.legs[R.legs.length - 1];
+      this.view.level = from.level;
+      if (lg) this._fit(lg.draw.concat([[from.x, from.z]]), 3.0, 40);
       this._renderStrip();
-      if (lg) this._fit(lg.draw.concat([[p.x, p.z]]), 3.2, 34);
-      // a tall box (the desktop phone) shows the step list at once; a short one shows the plan, one tap from "Steps"
-      if (this.H >= 420 && !this._stepsShown) { this._stepsShown = true; this.openSteps(); }
-      else this._rtPulse = 6;
     }
     this._syncUI(true);
   }
-  // first step on a floor, at or after index `from`
-  _firstOn(level, from) { for (let i = from; i < this.steps.length; i++) if (this.steps[i].level === level) return i; return -1; }
 
   // End / × on the route = no destination any more
   endRoute() {
@@ -1126,12 +1163,12 @@ export class MapApp {
   }
   // the next milestone as Maps believes it: the first connector at or after the current step, or the place itself
   milestone() {
-    const R = this.route, p = this.pos;
-    if (!R || R.failed || R.arrived || !R.target) return null;
-    const st = this.steps.slice(this.cur).find(s => s.kind === 'ramp');
-    if (st) return { kind: st.ramp === 'escalator' ? 'escalator' : 'stairs', dir: st.dir > 0 ? 'up' : 'down', toLevel: st.to, dist: Math.round(Math.hypot(st.at[0] - p.x, st.at[1] - p.z)), level: st.level, x: st.at[0], z: st.at[1], side: null, app: 'maps' };
+    const R = this.route; if (!R || R.failed || R.arrived || !R.target) return null;
+    const h = this._trueHere(); if (!h) return null;
+    const st = this.steps.find(s => s.kind === 'ramp' && s.level === h.level);
+    if (st) return { kind: st.ramp === 'escalator' ? 'escalator' : 'stairs', dir: st.dir > 0 ? 'up' : 'down', toLevel: st.to, dist: Math.round(Math.hypot(st.at[0] - h.x, st.at[1] - h.z)), level: st.level, x: st.at[0], z: st.at[1], side: null, app: 'maps' };
     const t = R.target;
-    return { kind: 'arrive', dir: null, toLevel: t.level, dist: Math.round(this._crow(t)), name: t.en, level: t.level, x: t.x, z: t.z, side: null, app: 'maps' };
+    return { kind: 'arrive', dir: null, toLevel: t.level, dist: Math.round(Math.hypot(t.x - h.x, t.z - h.z)), name: t.en, level: t.level, x: t.x, z: t.z, side: null, app: 'maps' };
   }
   // a place link from a text: its place card, Directions = Go (click / Enter / 1)
   preview(id) {
@@ -1147,36 +1184,9 @@ export class MapApp {
     return true;
   }
 
-  _routeTick(dt) {
-    const R = this.route; if (!R || R.failed) return;
-    R.recalc += dt;
-    this._stepT = (this._stepT || 0) - dt;
-    if (this._stepT > 0) return;
-    this._stepT = 1;
-    const p = this.pos, W = this._where();
-    // 1. the floor the phone believes you are on moved the current step (a blip of a few seconds does not)
-    if (this._floorSince > (W.unsure ? 6 : 1.5)) {
-      const k = this._firstOn(p.level, this._minIdx);
-      if (k >= 0 && k !== this.cur && !(this.steps[this.cur] && this.steps[this.cur].level === p.level && this.cur >= k)) { this.cur = k; this._minIdx = k; this._routeV++; }
-      else if (k < 0) {
-        // the believed floor is not on the route (any more): plan again from where it says you are, once it has said so for a while
-        if (this._floorSince > 8 && R.recalc > 8) this._computeRoute(false);
-      }
-    }
-    // 2. a good GPS fix close to the step's spot: that part is done
-    const st = this.steps[this.cur];
-    if (W.fix && st && st.kind === 'walk' && st.level === p.level && Math.hypot(st.at[0] - p.x, st.at[1] - p.z) < 9) { this.cur = Math.min(this.steps.length - 1, this.cur + 1); this._minIdx = this.cur; this._routeV++; }
-  }
-  // the ticket gate you tapped moves the current step on from the gate step
-  _onGate(e) {
-    if (!this.route || !e || e.player === false) return;
-    const k = this.steps.findIndex((s, i) => i >= this.cur && s.kind === 'gate' && s.level === e.level);
-    if (k >= 0 && k <= this.cur + 1) { this.cur = Math.min(this.steps.length - 1, k + 1); this._minIdx = Math.max(this._minIdx, this.cur); this._routeV++; this._syncUI(true); }
-  }
-
   // ------------------------------------------------------------ UI layer ----
   _toast(t, ms = 2200) {
-    this.toastEl.textContent = t; this.toastEl.hidden = false; this._toastV = (this._toastV || 0) + 1;
+    this.toastEl.textContent = t; this.toastEl.hidden = false; this._dirty = true; this._toastV = (this._toastV || 0) + 1;
     clearTimeout(this._toastT); this._toastT = setTimeout(() => { this.toastEl.hidden = true; }, ms);
   }
   _toggleOrient() {
@@ -1185,36 +1195,40 @@ export class MapApp {
     this._syncUI(true);
   }
   _recenter() {
-    this._warnT = 0; this.follow = true; this.focus = -1;
-    this.view.level = this.pos.level; this.view.zoom = Math.max(this.view.zoom, 2.2); this._dirty = true;
+    const W = this._where(), k = this.known;
+    this.focus = -1;
+    if (W.gps) { this.follow = true; this.view.level = this.pos.level; }
+    else if (k) { this.view.level = k.level; this.view.cx = k.x; this.view.cz = k.z; this.follow = false; }
+    this.view.zoom = Math.max(this.view.zoom, 2.2); this._dirty = true;
     this._renderStrip(); this._syncUI(true);
   }
   _showFloor(l) {
     this.view.level = l; this.focus = -1;
-    this.follow = l === this.pos.level && this.follow;
+    this.follow = this._where().gps && l === this.pos.level;
     this._dirty = true; this._renderStrip();
-    // a floor with the route on it: show that part of the route; the pin's floor: the pin
-    const R = this.route, lg = R && R.legs && R.legs.find(q => q.level === l);
-    if (lg && l !== this.pos.level && lg.draw && lg.draw.length > 1) this._fit(lg.draw, 3.2, 34);
+    // the floor's part of the route; else the pin; else the last known spot; else the whole floor
+    const R = this.route, lg = R && R.legs && R.legs.find(q => q.level === l), k = this.known;
+    if (lg && lg.draw && lg.draw.length > 1) this._fit(lg.draw, 3.2, 34);
     else if (this.selected && this.selected.level === l) this._fit([[this.selected.x, this.selected.z]], 3, 40);
-    else if (l !== this.pos.level) { const g = this.ctx.world.grids[l]; if (g) { this.view.cx = g.x0 + g.w / 2; this.view.cz = g.z0 + g.h / 2; if (this.view.zoom > 2) this.view.zoom = 1.6; } }
+    else if (k && k.level === l) { this.view.cx = k.x; this.view.cz = k.z; }
+    else { const g = this.ctx.world.grids[l]; if (g) { this.view.cx = g.x0 + g.w / 2; this.view.cz = g.z0 + g.h / 2; if (this.view.zoom > 2) this.view.zoom = 1.6; } }
     this._syncUI(true);
   }
   _renderStrip(force) {
-    const me = this._where().levels.join(','), R = this.route, T = R ? R.target : this.selected;
-    const key = [this.view.level, me, this.pos.level, T ? T.level : '', R && R.floors ? R.floors.join('') : '', this._where().unsure ? 'u' : ''].join('|');
+    const R = this.route, T = R ? R.target : this.selected, K = this.known, W = this._where();
+    const key = [this.view.level, T ? T.level : '', K ? K.level : '', W.gps ? this.pos.level : ''].join('|');
     if (!force && key === this._stripKey) return;
     this._stripKey = key;
-    const W = this._where(), lv = LEVEL_ORDER.filter(l => this.ctx.world.grids[l]);
+    const lv = LEVEL_ORDER.filter(l => this.ctx.world.grids[l]);
     this.strip.innerHTML = lv.map(l => {
-      const you = l === this.pos.level, maybe = W.unsure && W.levels.includes(l) && !you, onR = R && R.floors && R.floors.includes(l), pin = T && T.level === l;
+      const pin = T && T.level === l, ghost = K && K.level === l, gps = W.gps && this.pos.level === l;
       const name = FLOOR_NAMES[l] || '';
-      return `<button type="button" role="tab" data-l="${l}" class="${l === this.view.level ? 'on' : ''}${you ? ' you' : ''}${maybe ? ' maybe' : ''}${onR ? ' rt' : ''}${pin ? ' pin' : ''}" aria-label="${lvl(l)} ${esc(name)}${you ? ', you may be here' : ''}${pin ? ', destination' : ''}"><b>${lvl(l)}</b>${you || maybe ? `<i class="dot${W.unsure ? ' q' : ''}"></i>` : ''}${pin ? `<em>${I.pin}</em>` : ''}</button>`;
+      return `<button type="button" role="tab" data-l="${l}" class="${l === this.view.level ? 'on' : ''}${ghost ? ' ghost' : ''}${pin ? ' pin' : ''}${gps ? ' gps' : ''}" aria-label="${lvl(l)} ${esc(name)}${pin ? ', destination' : ''}${ghost ? ', last known place' : ''}"><b>${lvl(l)}</b>${ghost || gps ? '<i class="dot"></i>' : ''}${pin ? `<em>${I.pin}</em>` : ''}</button>`;
     }).join('');
-    // scroll so the floor you are viewing, the one you are on and the pin's floor are all in view when they fit
+    // scroll so the viewed floor, the destination's and the last known one are in view when they fit
     const on = this.strip.querySelector('.on'); if (!on) return;
-    const idx = (l) => lv.indexOf(l), bw = on.offsetWidth || 40, vw = this.strip.clientWidth || 300;
-    const set = [this.view.level, this.pos.level].concat(T ? [T.level] : []).map(idx).filter(i => i >= 0);
+    const idx = (l) => lv.indexOf(l), bw = on.offsetWidth || 44, vw = this.strip.clientWidth || 300;
+    const set = [this.view.level].concat(T ? [T.level] : []).concat(K ? [K.level] : []).map(idx).filter(i => i >= 0);
     const lo = Math.min(...set), hi = Math.max(...set);
     let left;
     if ((hi - lo + 1) * bw <= vw) left = (lo + hi + 1) / 2 * bw - vw / 2; else left = (idx(this.view.level) + 0.5) * bw - vw / 2;
@@ -1222,36 +1236,30 @@ export class MapApp {
   }
   // text, classes and chips that follow the state (written only when they change)
   _syncUI(force) {
-    const R = this.route, p = this.pos, W = this._where(), v = this.view;
+    const R = this.route, W = this._where(), v = this.view;
     const setT = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
-    // the floor you are looking at, named the way the signs name it; the phone's belief about YOU next to it
-    const viewing = v.level !== p.level;
+    // the floor you are looking at, named the way the signs name it
     setT(this.flEl, `${lvl(v.level)} · ${FLOOR_NAMES[v.level] || ''}`);
-    this.flEl.classList.toggle('other', viewing);
-    const y = this._youText(W);
-    setT(this.meEl.querySelector('b'), y.a); setT(this.meEl.querySelector('small'), y.b);
-    this.meEl.classList.toggle('q', W.unsure); this.meEl.classList.toggle('ok', W.fix);
-    // the top bar: search, or the route's current step
+    this.flEl.classList.toggle('other', !!this.known && v.level !== this.known.level);
+    // no GPS indoors: one quiet chip (tap for the tip); a real fix outdoors says so
+    setT(this.meEl.querySelector('b'), W.gps ? `GPS ±${Math.round(this.pos.acc)} m` : 'No GPS indoors');
+    this.meEl.classList.toggle('ok', W.gps);
+    // the top bar: search, or the destination (name, where it is) and Directions
     const D = this.phone.dest, arr = D && D.current && D.current.arrived;
     const mode = R && !R.failed ? 'route' : 'search';
     this.bar.dataset.m = mode;
-    this.searchEl.hidden = mode !== 'search'; this.rtEl.hidden = mode !== 'route';
+    this.searchEl.hidden = mode !== 'search'; this.rtEl.hidden = mode !== 'route'; this.rtX.hidden = mode !== 'route';
     if (mode === 'route') {
-      const st = this.focus >= 0 ? this.steps[this.focus] : this.steps[this.cur], n = this.steps.length;
-      const ic = this.rtEl.querySelector('.mq-rt-ic'), want = st ? st.icon : 'walk';
-      if (ic.dataset.k !== want) { ic.dataset.k = want; ic.innerHTML = I[want] || I.walk; }
-      setT(this.rtEl.querySelector('b'), st ? st.text : R.target.en);
-      setT(this.rtEl.querySelector('small'), `${this.focus >= 0 ? 'Showing step' : 'Step'} ${(this.focus >= 0 ? this.focus : this.cur) + 1} of ${n} · to ${R.target.en} (${lvl(R.target.level)})`);
-      this.rtEl.classList.toggle('pulse', this._rtPulse > 0);
-      if (this._rtPulse > 0) this._rtPulse -= 0.25;
+      const t = R.target, area = t.kind === 'biz' ? zoneShort(t.b.zone) : (t.sub || '').split(' · ')[0];
+      setT(this.rtEl.querySelector('b'), t.en);
+      setT(this.rtEl.querySelector('small'), `${area ? area + ' ' : ''}${lvl(t.level)}`);
     }
-    if (R && R.failed) { this.searchEl.hidden = false; this.rtEl.hidden = true; }
     // Aya's pick, one tap from the map (no route yet / the next one after an arrival)
     const nx = D && D.next && D.next(), place = nx && this.placeById(nx);
     const showAya = !!(place && !R && this.sheet === 'map' && !this.input.matches(':focus'));
-    this.ayaEl.hidden = !showAya;
+    if (this.ayaEl.hidden === showAya) { this.ayaEl.hidden = !showAya; this._measured = false; this._dirty = true; }
     if (showAya) {
-      const html = `<span class="a">${arr ? 'Next · from Aya' : 'From Aya'}</span><b>${esc(this._ayaName(nx, place))}</b><small>${lvl(place.level)} · ${esc(this._areaOf(place))}</small><em>Go</em>`;
+      const html = `<span class="a">${arr ? 'Next · from Aya' : 'From Aya'}</span><b>${esc(this._ayaName(nx, place))}</b><small>${esc(this._areaOf(place))} ${lvl(place.level)}</small><em>Go</em>`;
       if (this.ayaEl.dataset.h !== html) { this.ayaEl.dataset.h = html; this.ayaEl.innerHTML = html; }
       this._ayaList = { items: [{ id: nx }], sel: 0, armed: false, chip: true, move() {}, pick: () => this._ayaGo() };
       this._ayaId = nx;
@@ -1262,8 +1270,6 @@ export class MapApp {
     const o = this.orientBtn.firstChild, w = this.headingUp ? 'up' : 'n';
     if (o.dataset.m !== w) { o.dataset.m = w; o.innerHTML = this.headingUp ? '<svg viewBox="0 0 24 24"><path d="M12 3 19 20l-7-4-7 4z" fill="currentColor" stroke="none"/></svg>' : '<b>N</b>'; this.orientBtn.title = this.headingUp ? 'Heading up (tap for north up)' : 'North up (tap for heading up)'; }
     this.orientBtn.classList.toggle('on', this.headingUp);
-    this.locBtn.classList.toggle('off', this.follow && v.level === p.level);
-    this.locBtn.classList.toggle('lost', !this.follow || v.level !== p.level);
     this._renderStrip();
   }
   _ayaName(id, place) {
@@ -1283,22 +1289,23 @@ export class MapApp {
   // ---- the step list ----
   openSteps(keep) {
     const R = this.route; if (!R || R.failed) return;
+    // a new last-known pin since the route was made: directions restart from it, quietly
+    if (this.known && R.fromId !== this.known.id) this._computeRoute(false);
+    if (!this.route || this.route.failed) return;
     const t = R.target, minutes = Math.max(1, Math.round(R.total / 1.4 / 60));
     this._next = nextChip(this.phone);
-    const y = this._youText(this._where());
-    const rows = this.steps.map((s, i) => `<li><button type="button" class="mq-step${i === this.cur ? ' cur' : ''}${i < this.cur ? ' done' : ''}" data-i="${i}"><span class="n">${i + 1}</span><i class="ic">${I[s.icon] || I.walk}</i><span class="tx"><b>${esc(s.text)}</b><small>${s.kind === 'ramp' ? `${lvl(s.level)} → ${lvl(s.to)}` : lvl(s.level)}${i === this.cur ? ` · ${this._where().unsure ? 'you may be here' : 'you are here'}` : ''}</small></span><span class="go">Map</span></button></li>`).join('');
+    const rows = this.steps.map((s, i) => `<li><button type="button" class="mq-step" data-i="${i}"><span class="n">${i + 1}</span><i class="ic">${I[s.icon] || I.walk}</i><span class="tx"><b>${esc(s.text)}</b><small>${s.kind === 'ramp' ? `${lvl(s.level)} → ${lvl(s.to)}` : lvl(s.level)}</small></span><span class="go">Map</span></button></li>`).join('');
     this._openPanel('steps', `To ${t.en}`, `
       ${nextChipHtml(this._next, this.touch, 'dl-next-maps')}
-      <div class="mq-rt-meta"><b>about ${minutes} min</b> · ${lvl(t.level)} · ${FLOOR_NAMES[t.level] || ''}</div>
+      <div class="mq-rt-from"><b>From</b> ${esc(R.fromWhere || '')}${this.known ? ` <span>(last known, ${this._ageTxt(this._clk - this.known.t0)} ago)</span>` : ''}</div>
+      <div class="mq-rt-meta"><b>about ${minutes} min</b> · ${lvl(t.level)}</div>
       <ol class="mq-steps">${rows}</ol>
-      <div class="mq-rt-from">Planned from where your phone thinks you are (${esc(y.a.toLowerCase())}). It can be wrong; the signs are not.</div>
-      <div class="mq-actions mq-end-row"><button class="mq-show" type="button">Show map</button><button class="mq-redo" type="button">Re-plan from here</button><button class="mq-end" type="button">End route</button></div>`);
+      <div class="mq-rt-from">A suggestion between two known places. Check the signs as you go.</div>
+      <div class="mq-actions mq-end-row"><button class="mq-show" type="button">Show map</button><button class="mq-end" type="button">End route</button></div>`);
     this.panelB.querySelectorAll('.mq-step').forEach(b => b.addEventListener('click', () => this._previewStep(+b.dataset.i)));
     this.panelB.querySelector('.mq-show').addEventListener('click', () => this.closePanel());
-    this.panelB.querySelector('.mq-redo').addEventListener('click', () => { this.closePanel(); this._computeRoute(false); this._recenterRoute(); });
     this.panelB.querySelector('.mq-end').addEventListener('click', () => this.endRoute());
     const nb = this.panelB.querySelector('.dl-next'); if (nb) nb.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
-    const cur = this.panelB.querySelector('.mq-step.cur'); if (cur && !keep) cur.scrollIntoView({ block: 'nearest' });
   }
   _recenterRoute() { const lg = this.route && this.route.legs.find(l => l.level === this.pos.level); if (lg) this._fit(lg.draw.concat([[this.pos.x, this.pos.z]]), 3.2, 34); }
   // tap a step: that part of the plan, on its floor

@@ -38,8 +38,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .nbl-stations li:last-child .nbl-dot { left: auto; right: 0; margin: 0 -4px 0 0; }
 .nbl-stations li.on { opacity: .9; } .nbl-stations li.on .nbl-dot { border-color: #f2c14e; background: #f2c14e; }
 .nbl-stations li.cur { opacity: 1; } .nbl-stations li.cur:not(.on) .nbl-dot { border-color: #f2c14e; }
-.nbl-stations em { font-style: normal; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
-.nbl-stations small { font: 400 10px var(--font-ja); opacity: .6; }
+.nbl-stations em { font-style: normal; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+.nbl-stations small { font: 400 12px var(--font-ja); opacity: .6; }
 .nbl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; height: 1.5em; margin: 22px 6px 0; font-size: 12.5px; letter-spacing: .06em; animation: nbl-in 1s .45s ease both; }
 .ld-msg { opacity: .75; text-align: left; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* v23: one line, so a long message never moves the row below */
 .nbl-pct { font-variant-numeric: tabular-nums; opacity: .5; min-width: 3.4ch; text-align: right; }

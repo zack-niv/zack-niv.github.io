@@ -146,8 +146,16 @@ export class Tutorial {
     if (!this.off && this.state.look && this.state.move && (hold || (!this._coachEnd && (id === 'look' || id === 'move')))) {
       const S = this.game.story || {}, f = S.f || {};
       this._coached = true;
-      T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M }, nudge });
-      return up ? h : null;
+      // v23 (QA m7): one instruction at a time. The look card shows first; when it is done it says "Nice" for ~1.3 s and
+      // fades, and only then the walk card appears (it used to be both cards at once, the left one over the tracks).
+      // Out of order (walked first): the look card stays up alone. While the phone is up there is no text at all.
+      if (L && this._lookT == null) this._lookT = this.t;
+      if (M && this._walkT == null) this._walkT = this.t;
+      const recent = (t0) => t0 != null && this.t - t0 < 1.4;
+      const showLook = !L || recent(this._lookT);
+      const showWalk = L && this.t - this._lookT >= 1.4 && (!M || recent(this._walkT));
+      T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M, showLook, showWalk }, nudge });
+      return null;
     }
     const tg = h ? touchTarget(id, h, ph, up) : null;
     T.coach(h ? { target: tg, nudge } : null);

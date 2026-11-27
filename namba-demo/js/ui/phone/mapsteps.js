@@ -14,7 +14,8 @@ import { areaOf, SIGN_NAME } from './places.js?v=5442362';
 
 const lv = (l) => (LEVELS[l] ? LEVELS[l].label : String(l)).replace('B1F', 'B1').replace('B2F', 'B2');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const AREA_PREFIX = { parks: 'Parks', 'parks-bridge': 'Parks', city: 'Namba CITY', nankai: 'Nankai', 'nankai-plat': 'Nankai', walk: 'NAMBAWALK', taka: 'Takashimaya', midosuji: 'Metro', sennichimae: 'Metro' };
+// (the signs name the escalators of Parks and Namba CITY; the Nankai ones are just "escalator")
+const AREA_PREFIX = { parks: 'Parks', 'parks-bridge': 'Parks', city: 'Namba CITY', walk: 'NAMBAWALK', taka: 'Takashimaya' };
 
 // one leg: the areas it passes through (in order), the gate lines it crosses, its length
 function scan(lg, world) {
@@ -84,7 +85,7 @@ export function buildSteps(R, world) {
         if (mids.length) text = `Through ${mids.map(n => n.name).join(' and ')}${sign ? `, follow “${sign}” signs` : ''}`;
         else if (sign) text = `Follow “${sign}” signs`;
         else if (names.length >= 2) text = `Walk on to ${lastN.name}`;
-        else text = walkLen >= 70 ? `Walk on to the ${r.kind === 'escalator' ? 'escalator' : 'stairs'}` : null;
+        else text = null;
         if (text) push({ kind: 'walk', icon: 'walk', text, level: lg.level, to: lg.level, at: last });
       }
       // ---- the ramp(s): a run of short hops in the same direction is one step ("Parks escalators up to 6F") ----

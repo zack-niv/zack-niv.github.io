@@ -9,7 +9,7 @@ export function buildTactile(K) {
   const routes = K.L.tactile || [];
   let n = 0;
   for (const t of routes) {
-    const lv = t.level, y = K.y(lv) + 0.006;
+    const lv = t.level, y = K.y(lv) + 0.011;   // v23: 11 mm (was 6): clear of the floor even on a 16-bit depth buffer
     const pts = t.pts;
     for (let i = 0; i < pts.length - 1; i++) {
       const [ax, az] = pts[i], [bx, bz] = pts[i + 1];

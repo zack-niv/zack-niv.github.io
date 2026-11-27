@@ -74,6 +74,9 @@ export function drsGovern(st, in_) {
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
 const OPEN_CELL = 4;     // opening clustering (m)
+// v23: nothing within NEAR_KEEP metres (surface distance, i.e. chunk radius already subtracted) of the camera on the player's level (or the level being travelled to) is ever
+// dropped by the distance rules, whatever the draw-call governor has done to the draw distance: small chunks (props, shop fronts) used to stop at 0.6 x the shrunk distance (15 m on a phone). ?nonear = v22 rule.
+const NEAR_KEEP = 28;
 const SHELL_DIST = 110;  // metres the shell (structure only) is drawn to
 // chunk visibility states; rec.shown stays true only for FULL
 const HIDDEN = 0, SHELL = 1, FULL = 2;
@@ -102,6 +105,7 @@ export class Visibility {
     this.shell = !!(P.has('noshell') ? false : (ctx.engine.mobile || P.has('shell')));
     this.shellDist = this.shell ? SHELL_DIST : 0;
     this._shellRe = P.has('noshellx') ? SHELL_RE_V22 : null;
+    this._nearKeep = !P.has('nonear');
     this.shownChunks = 0; this._nChunks = 0;
     this.fan = new Float32Array(FAN);
     this._fanKey = { x: 1e9, z: 1e9, level: '' };
@@ -314,7 +318,8 @@ export class Visibility {
           const dx = rec.x - cp.x, dz = rec.z - cp.z, dy = (ly + 3) - cp.y;
           const d = Math.sqrt(dx * dx + dz * dz + dy * dy) - rec.r;
           // small chunks (shops, props, signs) stop reading earlier
-          const l2 = rec.r < 14 ? lim * 0.6 : lim;
+          let l2 = rec.r < 14 ? lim * 0.6 : lim;
+          if (this._nearKeep && (isOwn || lv === dest) && l2 < NEAR_KEEP) l2 = NEAR_KEEP;
           // beyond the detail distance a chunk with structural meshes drops to the shell state while inside shellDist
           const far = d > l2;
           const sl = isOwn || lv === dest ? this.shellDist : this.shellDist * 0.6;

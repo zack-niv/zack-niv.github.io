@@ -65,7 +65,7 @@ export class Architecture {
     step('emit', () => {
       let meshes = 0;
       // v23: file long merged runs (platform edges, tactile spines, long walls) by piece, not by call point, so a chunk far away can no longer take a strip beside the player with it
-      try { if (!ctx.params.has('noregroup')) this.stats.regrouped = regroupBatches([...K.batches].map(([k, b]) => [k.split('|')[0], b]), (lv, x, z) => K.B(lv, x, z), 16); } catch (e) { console.warn('[architecture] regroup failed', e); }
+      try { if (!ctx.params.has('noregroup')) this.stats.regrouped = regroupBatches([...K.batches].map(([k, b]) => [k.split('|')[0], b]), (lv, x, z) => K.B(lv, x, z), 40); } catch (e) { console.warn('[architecture] regroup failed', e); }
       for (const [k, b] of K.batches) {
         const [lv, cx, cz] = k.split('|');
         const grp = new THREE.Group();

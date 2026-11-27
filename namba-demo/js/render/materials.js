@@ -365,7 +365,7 @@ export class Materials {
     }
     if (o.env != null) m.envMapIntensity = o.env;
     if (o.transparent) { m.transparent = true; m.opacity = o.opacity != null ? o.opacity : 1; m.depthWrite = false; }
-    if (o.offset) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -4; }
+    if (o.offset) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -8; }   // v23: was -1 / -4; inlays sit 7-12 mm over the floor (world/arch), the stronger pull keeps them over the floor on a 16-bit depth buffer too
     m.userData.texKey = key; m.userData.uvSize = [su, sv];
     return m;
   }

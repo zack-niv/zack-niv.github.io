@@ -212,7 +212,7 @@ export class GeoBatch {
 // (position, normal, uv and colour all interpolate linearly: planar world UVs stay exact) and files every triangle in the
 // chunk of its CENTROID. `getBatch(level, x, z)` returns the GeoBatch for that point (Kit.B). Only lists that hold a
 // triangle needing a change are touched. Returns the number of triangles moved or split.
-export function regroupBatches(entries, getBatch, maxLen = 16) {
+export function regroupBatches(entries, getBatch, maxLen = 40, maxWidth = 6) {
   const moves = [];
   let touched = 0;
   const V = (l, i) => ({ p: [l.p[i * 3], l.p[i * 3 + 1], l.p[i * 3 + 2]], n: [l.n[i * 3], l.n[i * 3 + 1], l.n[i * 3 + 2]], uv: [l.uv[i * 2], l.uv[i * 2 + 1]], c: l.hasC ? [l.c[i * 3], l.c[i * 3 + 1], l.c[i * 3 + 2]] : null });
@@ -240,7 +240,11 @@ export function regroupBatches(entries, getBatch, maxLen = 16) {
         const stack = [[V(l, t * 3), V(l, t * 3 + 1), V(l, t * 3 + 2)]];
         while (stack.length) {
           const [a, b, c] = stack.pop();
-          if (ext(a, b, c) > maxLen) {
+          // only thin runs are split (platform edges, strips, walls: width in plan <= maxWidth). A fat triangle (a hall floor, a street, a roof)
+          // is just filed under its centroid: bisecting those would multiply their vertex count (measured +160k triangles) for no visibility gain
+          const cr = Math.abs((b.p[0] - a.p[0]) * (c.p[2] - a.p[2]) - (c.p[0] - a.p[0]) * (b.p[2] - a.p[2]));
+          const Lmax = Math.sqrt(Math.max(len2(a, b), len2(b, c), len2(c, a))) || 1;
+          if (ext(a, b, c) > maxLen && cr / Lmax <= maxWidth) {
             // bisect the longest horizontal edge
             const ab = len2(a, b), bc = len2(b, c), ca = len2(c, a);
             if (ab >= bc && ab >= ca) { const m = mid(a, b); stack.push([a, m, c], [m, b, c]); }

@@ -416,5 +416,23 @@ html.is-touch .ph-dock { background: rgba(22, 24, 30, .94); }
    never reach the mission clock chip (top centre, 78 px wide): with the wide phone up, the phone-up hint ends at least
    49 px short of the screen centre (at 852 px wide it used to run 13 px under the chip). */
 html.ph-wide .g-tip[data-at="phoneup"], html.ph-wide .g-tip.ph-up {
-  right: max(calc(var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 88px), calc(50vw + 49px));
-  max-width: calc(100vw - max(calc(var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 88px), calc(50vw + 49px)) - var(--tu-sl, 0px) - 12px); }
+  right: calc(max(50vw, var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 52px) + 49px);
+  max-width: calc(100vw - max(50vw, var(--ph-wide-gap, var(--tu-phone-gap, 300px)) + 52px) - 49px - var(--tu-sl, 0px) - 12px); }
+/* the clock chip keeps the top centre; with the wide phone up it slides left just far enough to stay off the phone
+   (at 667 px wide the phone's corner covered 30 px of it) */
+html.ph-wide #hud .h-mission { left: min(50%, calc(100vw - var(--ph-wide-gap, 300px) - 52px)); transition: left .3s ease; }
+/* the "centre" hint (walk up to a lane / the counter) used to sit at 24 vh from the bottom, exactly where the speech and PA
+   captions stack (8.5 vh up, 84-101 px tall with two of them on a phone): the two overlapped. On a phone it goes to the band
+   between the clock chip / PA caption (ends ~80 px) and the captions (start ~175 px), which nothing else uses */
+@media (pointer: coarse) and (max-height: 500px) {
+  html.is-touch .g-tip[data-at="center"] { bottom: auto; top: 92px; }
+}
+/* the second thumb card waits for the first (one instruction at a time) */
+.tcz.hide { opacity: 0 !important; transition: opacity .3s ease 0s; }
+/* nothing a player has to read is under 12 px (QA m1): coach kicker, title lines, loading stations */
+.tcz-lab small { font-size: 12px; }
+html.is-touch #title .t-begin small, html.is-touch #title .t-foot, html.is-touch #title .t-hint, html.is-touch #title .t-place { font-size: 12px; }
+html.is-touch .t-swipe { font-size: 12px; }
+html.is-touch .t-a2hs { font-size: 12px; }
+/* the HUD's own E prompt is gone (not just transparent) whenever the Use card shows: one prompt, the card */
+html.tu-use-on #hud .h-prompt:not(.passive) { visibility: hidden !important; }

@@ -1027,19 +1027,27 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 .nt, .tr { padding-top: 6px; }
 .nt { padding-bottom: 12px; } .tr { padding-bottom: 14px; }
 
-/* touch, landscape: the slim real-size phone */
-#phone-root.ph-flat .ph-device { border-radius: 34px; box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 3px #0b0b0c; }
-#phone-root.ph-flat .ph-screen, #phone-root.ph-flat .ph-glare { border-radius: 28px; }
-#phone-root.ph-flat .ph-btn, #phone-root.ph-flat .ph-homebar { display: none; }
-#phone-root.ph-flat .ph-status, #phone-root.ph-flat .ph-wrap[data-pose="up"] .ph-isl { display: none; }
-#phone-root.ph-flat .ph-dock { left: 0; right: 0; bottom: 0; height: var(--ph-dk); padding: 0 8px; gap: 4px; border-radius: 0; background: #14161b; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); align-items: center; }
+/* touch, landscape: a real-size phone with real proportions (about 2.1 : 1), held up under the top edge; its lower part runs
+   off the bottom of the screen. The view box and the dock are laid out from the TOP of the device to the viewport's bottom
+   edge (phone.js _layout publishes --ph-view-h, --ph-dk, --ph-sb); nothing interactive sits in the off-screen part. */
+#phone-root.ph-flat .ph-device { border-radius: 48px; box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 3px #0b0b0c; }
+#phone-root.ph-flat .ph-screen, #phone-root.ph-flat .ph-glare { border-radius: 40px; }
+#phone-root.ph-flat .ph-btn-a { top: 118px; } 
+#phone-root.ph-flat .ph-homebar { display: none; }
+#phone-root.ph-flat .ph-status { height: var(--ph-st); padding: 5px 26px 0 30px; font-size: 12.5px; }
+#phone-root.ph-flat .ph-net { font-size: 10.5px; }
+#phone-root.ph-flat .ph-bat { width: 23px; height: 11px; }
+#phone-root.ph-flat .ph-bat b { font-size: 7.5px; }
+#phone-root.ph-flat .ph-wrap[data-pose="up"] .ph-isl { top: 6px; height: 20px; left: calc(50% - 40px); right: calc(50% - 40px); border-radius: 12px; }
+#phone-root.ph-flat .ph-views { bottom: auto; height: var(--ph-view-h); }
+#phone-root.ph-flat .ph-dock { left: 0; right: 0; bottom: auto; top: calc(var(--ph-st) + var(--ph-view-h)); height: var(--ph-dk); padding: 0 8px var(--ph-sb); gap: 4px; border-radius: 0; background: #14161b; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); align-items: stretch; }
 #phone-root.ph-flat .ph-dock button { height: 100%; padding: 0; border-radius: 12px; justify-content: center; gap: 0; }
 #phone-root.ph-flat .ph-dock button span { display: none; }
 #phone-root.ph-flat .ph-dock .ph-d-ic { width: 28px; height: 28px; border-radius: 8px; }
 #phone-root.ph-flat .ph-dock .ph-d-ic.ic-apps { padding: 5px; }
 #phone-root.ph-flat .ph-dock button.on { background: rgba(255,255,255,.16); }
-#phone-root.ph-flat .ph-notif { top: 6px; }
-#phone-root.ph-flat .ph-toast { bottom: 48px; }
+#phone-root.ph-flat .ph-notif { top: 32px; }
+#phone-root.ph-flat .ph-toast { top: calc(var(--ph-st) + var(--ph-view-h) - 44px); bottom: auto; }
 
 /* ---- Messages ---- */
 #phone-root .ms { padding: 0; background: #fff; }
@@ -1237,3 +1245,42 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 .mq-search input { height: 40px; }
 .mq .dl-aya { font-size: 11px; }
 .mq-steps { margin-top: 6px; }
+
+/* v23 maps, round 3: no position indoors. A quiet "No GPS indoors" chip, a last-known pin, a compass badge, nothing truncated */
+.mq-me { background: none; border: 0; box-shadow: none; padding: 0; min-height: 40px; display: inline-flex; align-items: center; cursor: pointer; font-family: inherit; pointer-events: auto; }
+.mq-me .p { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 13px; background: rgba(255,255,255,.92); color: #5f6368; font: 650 11.5px/1.2 Inter, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.16); }
+.mq-me .p i { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid #9aa0a6; background: none; }
+.mq-me.ok .p { color: #1558b8; } .mq-me.ok .p i { border-color: #1a73e8; background: #1a73e8; }
+.mq-me.q, .mq-me.q .p { background: none; }
+.mq-me b { white-space: normal; }
+.mq-chips { gap: 0; }
+.mq-fl { white-space: normal; text-overflow: clip; overflow: visible; line-height: 1.2; margin-bottom: 0; }
+.mq-toast { white-space: pre-line; text-overflow: clip; max-width: 92%; }
+.mq-rt-t b, .mq-rt-t small { white-space: normal; overflow: visible; text-overflow: clip; display: block; -webkit-line-clamp: unset; }
+.mq-rt-t b { font-size: 14px; }
+.mq-rt-go { min-width: 0; padding: 0 11px; font-size: 12.5px; }
+.mq-rt-x { flex: 0 0 40px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #5f6368; padding: 9px; cursor: pointer; margin-left: 2px; } .mq-rt-x[hidden] { display: none; } .mq-rt-x svg { width: 22px; height: 22px; }
+.mq-rt-ic svg { stroke: none; }
+.mq-aya b, .mq-aya small { white-space: normal; overflow: visible; text-overflow: clip; }
+.mq-pt { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; }
+.mq .dl-m b, .mq .dl-m small { white-space: normal; overflow: visible; text-overflow: clip; }
+.mq-ph { min-height: 44px; height: auto; padding-top: 4px; padding-bottom: 4px; }
+.mq-strip button.ghost .dot { background: none; border: 2.5px dashed #e8710a; box-shadow: none; }
+.mq-strip button.gps .dot { background: #1a73e8; }
+.mq-strip button.rt::after { display: none; }
+.mq-strip .dot { left: 7px; top: 7px; }
+.mq-rt-from b { color: #202124; } .mq-rt-from span { color: #8a5a2b; }
+
+/* ---- v23 the lowered phone's glance card ---- */
+/* before Aya's first "meet me" text there is nothing about Maps: just the Dynamic-Island pill peeking */
+.ph-wrap[data-pose="glance"] .ph-isl.quiet, .ph-wrap[data-pose="down"] .ph-isl.quiet { left: calc(50% - 53px); right: calc(50% - 53px); top: 11px; height: 31px; border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,.04); }
+.ph-isl.quiet .gl { display: none; }
+/* texts on the card come out at least 12 px (or 11 for the sub line) ON SCREEN: --ph-gs is the card's scale (phone.js) */
+#phone-root#phone-root .gl-read { font-size: calc(12.5px / var(--ph-gs, .6)); padding: .5em .7em .5em .55em; }
+#phone-root#phone-root .gl-t span { font-size: calc(11.5px / var(--ph-gs, .6)); }
+#phone-root#phone-root .gl-note .gl-t b { font-size: calc(13px / var(--ph-gs, .6)); }
+#phone-root#phone-root .gl-note .gl-t b small { font-size: calc(11px / var(--ph-gs, .6)); }
+/* the title wraps to two lines, never one line with an ellipsis */
+#phone-root .gl-t b { -webkit-line-clamp: 2; line-height: 1.12; }
+/* the thread fades out at its top edge instead of being cut through a bubble */
+#phone-root .ms-list { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px); mask-image: linear-gradient(180deg, transparent 0, #000 16px); }

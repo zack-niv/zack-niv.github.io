@@ -17,7 +17,8 @@
 import { icon, logo } from './lodestone.js?v=5442362';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const NOTE_S = 7.5;
+// v23: a text shows as the big card for about 6 s, then shrinks to the small badge on the peeking phone (still tappable)
+const NOTE_S = 6;
 
 export class Glance {
   constructor(phone, root) {
@@ -39,7 +40,7 @@ export class Glance {
 
   showNote(msg) {
     this.note = { title: msg.title || 'Aya', text: msg.text || '', reply: !!msg.reply };
-    this._noteT = msg.reply ? NOTE_S + 3 : NOTE_S;
+    this._noteT = NOTE_S;
     this.refresh(true);
     // pulse (restart the animation)
     this.root.classList.remove('ping'); void this.root.offsetWidth; this.root.classList.add('ping');
@@ -77,6 +78,10 @@ export class Glance {
       return { kind: 'inst', cls: 'gl-ld', title: st === 'installing' ? 'Installing Lodestone' : 'Finding you indoors…', sub: st === 'installing' ? 'Lodestone' : (L.calibLabel ? L.calibLabel() : 'Reading the magnetic field'), pct };
     }
     if (st === 'ready' && ph.lodestone.state === 'ready') return { cls: 'gl-ld', ...ph.lodestone.glanceInfo() };
+    // v23: nothing about Maps until Aya's "meet me" text has arrived (the story gates its first step the same way); the card
+    // stays the quiet Dynamic-Island pill meanwhile
+    const S = this.ctx.game && this.ctx.game.story;
+    if (S && !S.classic && S.aya && typeof S.aya.wasSent === 'function' && !S.aya.wasSent('meet')) return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' };
     return { cls: 'gl-mp', ...ph.maps.glanceInfo() };
   }
 
@@ -85,7 +90,8 @@ export class Glance {
     const rep = this.phone.messages && this.phone.messages.pending;
     const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || ((this.phone._raises || 0) >= 3 && i.kind !== 'pick' && !(i.kind === 'arr' && /^Next/.test(i.sub || ''))) ? '' : `<kbd class="gl-k">Q</kbd>`);
     const tail = i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} ${this.note && this.note.reply ? 'reply' : 'read'}</span>` : k;
-    this.hdr.render(i, tail);
+    this.hdr.render(i, i.kind === 'idle' ? '' : tail);
+    this.root.classList.toggle('quiet', i.kind === 'idle');
     // (the island itself carries the on-track state: amber ring while drifting / off)
     this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');
     this.root.classList.toggle('trk-off', i.trk === 'trk-off');
