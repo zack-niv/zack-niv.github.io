@@ -47,7 +47,7 @@ const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
 
-import { liveStats } from './core/resilience.js?v=1d470ff';
+import { liveStats } from './core/resilience.js?v=5442362';
 
 // v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
 const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, geo_mb: m.geo != null ? m.geo : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null,

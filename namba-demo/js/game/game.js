@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=1d470ff';
-import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=1d470ff';
-import { BUSINESSES } from '../world/directory.js?v=1d470ff';
-import { Interactions } from './interact.js?v=1d470ff';
-import { Panels, yen, esc } from './panel.js?v=1d470ff';
-import { Journal } from './journal.js?v=1d470ff';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=1d470ff';
-import { Title } from '../ui/title.js?v=1d470ff';
-import { Demo } from './demo.js?v=1d470ff';
-import * as V from './vignettes.js?v=1d470ff';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=1d470ff';
-import { orderItem, hasCounter } from './order.js?v=1d470ff';
-import { contactLinks, hasContact } from './endcard.js?v=1d470ff';
+import { params } from '../core/params.js?v=5442362';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=5442362';
+import { BUSINESSES } from '../world/directory.js?v=5442362';
+import { Interactions } from './interact.js?v=5442362';
+import { Panels, yen, esc } from './panel.js?v=5442362';
+import { Journal } from './journal.js?v=5442362';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=5442362';
+import { Title } from '../ui/title.js?v=5442362';
+import { Demo } from './demo.js?v=5442362';
+import * as V from './vignettes.js?v=5442362';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=5442362';
+import { orderItem, hasCounter } from './order.js?v=5442362';
+import { contactLinks, hasContact } from './endcard.js?v=5442362';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };

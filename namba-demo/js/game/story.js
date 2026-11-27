@@ -33,13 +33,13 @@
 //   the 240 s cap is only a never-stall guard and logs 'story:timer'. Every beat logs 'story:beat' {id, why}.)
 //   question or the café counter); its words fit the why. The offer closes any open question (no stale chips).
 // =============================================================================
-import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, ERRAND_DRINK_V22, UPGRADE, LATTE_REFUSABLE } from './script.js?v=1d470ff';
-import { businessBySlot } from '../world/directory.js?v=1d470ff';
-import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=1d470ff';
-import { params } from '../core/params.js?v=1d470ff';
-import { missionScore, START_PTS, SEATS_PTS, COFFEE_PTS } from './mission.js?v=1d470ff';
-import { Aya } from './aya.js?v=1d470ff';
-import { Tutorial } from './tutorial.js?v=1d470ff';
+import { AYA, TUTORIAL, DEMO, ERRAND_DRINK, ERRAND_DRINK_V22, UPGRADE, LATTE_REFUSABLE } from './script.js?v=5442362';
+import { businessBySlot } from '../world/directory.js?v=5442362';
+import { LEVEL_ORDER, LAYOUT, rampEnds } from '../world/layout.js?v=5442362';
+import { params } from '../core/params.js?v=5442362';
+import { missionScore, START_PTS, SEATS_PTS, COFFEE_PTS } from './mission.js?v=5442362';
+import { Aya } from './aya.js?v=5442362';
+import { Tutorial } from './tutorial.js?v=5442362';
 
 export class Story {
   constructor(ctx, game, demo) {

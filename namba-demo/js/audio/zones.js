@@ -14,7 +14,7 @@
 //                                    (drives the faint tunnel rumble upstairs)
 //   AREA[mood]                       soundscape label per ambience mood
 // =============================================================================
-import { LAYOUT, LEVELS } from '../world/layout.js?v=1d470ff';
+import { LAYOUT, LEVELS } from '../world/layout.js?v=5442362';
 
 const PLATFORMS = LAYOUT.spaces.filter(s => s.kind === 'platform' && s.rect);
 const PLAT_BY_ID = Object.fromEntries(PLATFORMS.map(p => [p.id, p]));

@@ -3,12 +3,12 @@
 // keys, e.g. 'fs:tile:sneaker:3', 'mus:bossa', 'bed:hvac:tile', 'ir:platform',
 // 'ir:platform'. Worker-safe (imported by worker.js). (No synthesized speech: the PA is recorded, see clips.js.)
 // =============================================================================
-import * as F from './foley.js?v=1d470ff';
-import * as M from './music.js?v=1d470ff';
-import * as B from './beds.js?v=1d470ff';
-import * as T from './trainsfx.js?v=1d470ff';
-import { impulse } from './ir.js?v=1d470ff';
-import { walla, formantVoice } from './formant.js?v=1d470ff';
+import * as F from './foley.js?v=5442362';
+import * as M from './music.js?v=5442362';
+import * as B from './beds.js?v=5442362';
+import * as T from './trainsfx.js?v=5442362';
+import { impulse } from './ir.js?v=5442362';
+import { walla, formantVoice } from './formant.js?v=5442362';
 
 const mono = (a) => [a];
 
