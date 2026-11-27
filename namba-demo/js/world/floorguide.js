@@ -21,7 +21,8 @@ import { drawFloor, THEMES } from '../ui/phone/maprender.js?v=5442362';
 import { FACILITY_INFO, DESTINATIONS, EXIT_INFO } from '../ui/phone/places.js?v=5442362';
 
 // board geometry (metres)
-export const BW = 2.72, BH = 1.9, LW = 1.56, PW = 0.98;
+// v23 signs2: 3.0 x 2.2 m (was 2.72 x 1.9) so the list type can be read from 3 m
+export const BW = 3.0, BH = 2.2, LW = 1.85, PW = 1.05;
 // texture density (logical px per metre): lists carry small tenant text, plans are shapes
 const LD = 300, PD = 220;
 const LPX = [Math.round(LW * LD), Math.round(BH * LD)], PPX = [Math.round(PW * PD), Math.round(BH * PD)];
@@ -75,15 +76,21 @@ export function buildingData(key) {
     // the café Aya sends you to is on its floor even if not rated highest
     const cafe = arr.find(b => /Mitsubachi/.test(b.en)); if (cafe && !pick.includes(cafe)) { pick.pop(); pick.unshift(cafe); }
     const star = (b) => (b.key === 'tempura_great' || /Mitsubachi/.test(b.en)) ? '★' : '';
-    rows.push({ level: lv, tag: LEVELS[lv].label, ja, en, jaL: pick.map(b => star(b) + b.ja).join('・'), enL: pick.map(b => star(b) + b.en).join(' · ') });
+    // v23 signs2: names small enough to need a nose against the board were noise. Only the floor that holds a shop the story
+    // names (Daikichi, Mitsubachi) keeps ONE tenant line, big; every other floor is its category alone.
+    const st = pick.filter(b => star(b));
+    rows.push({ level: lv, tag: LEVELS[lv].label, ja, en, star: st.length > 0, jaL: st.map(b => '★' + b.ja).join('・'), enL: st.map(b => '★' + b.en).join(' · ') });
   }
   return (_data[key] = { key, ...B, rows });
 }
-// vertical layout of the list rows inside the list texture (px)
-export function rowGeom(n) {
-  const top = Math.round(LPX[1] * 0.16) + 6, bot = LPX[1] - 62;
-  const rh = Math.min(120, (bot - top) / n);
-  return { top, rh, bot };
+// vertical layout of the list rows inside the list texture (px): rows holding a starred shop are taller (they carry the one
+// tenant line); the block of rows is centred when the building has few floors.
+export function rowLayout(bd) {
+  const top = Math.round(LPX[1] * 0.14) + 6, bot = LPX[1] - 54, n = bd.rows.length;
+  const w = bd.rows.map(r => (r.star || bd.key === 'nankai') ? 1.9 : 1), tot = w.reduce((a, b) => a + b, 0);
+  const unit = Math.min(88, (bot - top) / tot);
+  let y = top + ((bot - top) - unit * tot) / 2;
+  return bd.rows.map((r, i) => { const h = unit * w[i], o = { y, h }; y += h; return o; });
 }
 
 // ---- footprint of a building's floor (m) -------------------------------------
@@ -135,7 +142,7 @@ export class FloorGuides {
       let stand = false;
       if (m && sp.maxWall != null && Math.hypot(m.x - sp.x, m.z - sp.z) > sp.maxWall) m = null;
       if (!m) { m = { x: sp.x, z: sp.z, nx: sp.nx, nz: sp.nz }; stand = true; }
-      const s = sig._add({ kind: 'fguide', level: sp.level, x: m.x, z: m.z, nx: m.nx, nz: m.nz, w: BW, h: BH, yc: 1.52, op: sp.bld === 'city' ? 'city' : sp.bld === 'parks' ? 'parks' : 'nankai',
+      const s = sig._add({ kind: 'fguide', level: sp.level, x: m.x, z: m.z, nx: m.nx, nz: m.nz, w: BW, h: BH, yc: 1.6, op: sp.bld === 'city' ? 'city' : sp.bld === 'parks' ? 'parks' : 'nankai',
         single: true, cat: 'guide', bld: sp.bld, area: !!sp.area, stand, major: true, label: sp.label || '' });
       if (stand) {
         // free-standing: two posts + the panel; blocks the cells it stands on (the nav graph is built after this)
@@ -211,45 +218,50 @@ export class FloorGuides {
   _drawList(g, W, H, bld) {
     const { JA, EN, fitFont, measW } = this.K;
     g.fillStyle = '#f8f6ef'; g.fillRect(0, 0, W, H);
-    const hh = Math.round(H * 0.16);
+    const hh = Math.round(H * 0.14);
     g.fillStyle = '#24272c'; g.fillRect(0, 0, W, hh); g.fillStyle = bld.color; g.fillRect(0, hh - 6, W, 6);
     g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = '#ffffff';
-    fitFont(g, bld.ja, p => JA(p, 900), 46, W * 0.62); g.fillText(bld.ja, 14, hh * 0.40);
-    g.fillStyle = '#d3d7dd'; fitFont(g, bld.en, p => EN(p, 700), 25, W * 0.62); g.fillText(bld.en, 14, hh * 0.76);
-    g.textAlign = 'right'; g.fillStyle = '#ffffff'; g.font = JA(22, 900); g.fillText('フロアガイド', W - 12, hh * 0.38);
-    g.fillStyle = '#d3d7dd'; g.font = EN(16, 800); g.fillText('FLOOR GUIDE', W - 12, hh * 0.72);
-    const n = bld.rows.length, { top, rh } = rowGeom(n);
-    const k = Math.max(1, Math.min(1.45, rh / 56));
+    fitFont(g, bld.ja, p => JA(p, 900), 50, W * 0.6); g.fillText(bld.ja, 14, hh * 0.40);
+    g.fillStyle = '#d3d7dd'; fitFont(g, bld.en, p => EN(p, 700), 27, W * 0.6); g.fillText(bld.en, 14, hh * 0.76);
+    g.textAlign = 'right'; g.fillStyle = '#ffffff'; g.font = JA(26, 900); g.fillText('フロアガイド', W - 12, hh * 0.38);
+    g.fillStyle = '#d3d7dd'; g.font = EN(18, 800); g.fillText('FLOOR GUIDE', W - 12, hh * 0.72);
+    const lay = rowLayout(bld);
     bld.rows.forEach((r, i) => {
-      const y = top + i * rh;
+      const { y, h: rh } = lay[i];
       g.fillStyle = i % 2 ? '#f8f6ef' : '#ece9df'; g.fillRect(0, y, W, rh);
       g.fillStyle = '#cfcabd'; g.fillRect(0, y + rh - 1.5, W, 1.5);
-      // floor tile
-      g.fillStyle = bld.color; this.K.rr(g, 5, y + 3, 64, rh - 6, 7); g.fill();
-      g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.font = EN(Math.min(rh * 0.5, 31), 900); g.fillText(r.tag, 37, y + rh * 0.52);
-      // category + tenants
-      const x0 = 78, mw = W - x0 - 8;
+      // floor tile (big: reads from 6 m)
+      const tw = 78;
+      g.fillStyle = bld.color; this.K.rr(g, 5, y + 3, tw, rh - 6, 8); g.fill();
+      g.fillStyle = '#ffffff'; g.textAlign = 'center'; g.font = EN(Math.min(rh * 0.5, 44), 900); g.fillText(r.tag, 5 + tw / 2, y + rh * 0.52);
+      const x0 = tw + 16, mw = W - x0 - 8;
       g.textAlign = 'left';
-      g.fillStyle = '#16191d'; const tp = fitFont(g, r.ja, p => JA(p, 900), 18 * k, mw * 0.55); g.fillText(r.ja, x0, y + rh * 0.22);
-      const tw = measW(g, r.ja);
-      g.fillStyle = '#5c616a'; fitFont(g, r.en, p => EN(p, 700), 12.5 * k, mw - tw - 10); g.fillText(r.en, x0 + tw + 8, y + rh * 0.23);
-      g.fillStyle = '#1f2328'; fitFont(g, r.jaL, p => JA(p, 700), 16 * k, mw); g.fillText(r.jaL, x0, y + rh * 0.53);
-      g.fillStyle = '#5c616a'; fitFont(g, r.enL, p => EN(p, 700), 13 * k, mw); g.fillText(r.enL, x0, y + rh * 0.81);
+      if (r.jaL) {
+        // a floor with a named shop: category on top (smaller), the shop below (big, red star)
+        g.fillStyle = '#16191d'; fitFont(g, r.ja, p => JA(p, 900), rh * 0.22, mw); g.fillText(r.ja, x0, y + rh * 0.17);
+        g.fillStyle = '#5c616a'; fitFont(g, r.en, p => EN(p, 700), rh * 0.14, mw); g.fillText(r.en, x0, y + rh * 0.34);
+        g.fillStyle = r.star ? '#b3121a' : '#1f2328'; fitFont(g, r.jaL, p => JA(p, 900), rh * 0.25, mw); g.fillText(r.jaL, x0, y + rh * 0.58);
+        g.fillStyle = r.star ? '#8e1017' : '#4b5058'; fitFont(g, r.enL, p => EN(p, 800), rh * 0.16, mw); g.fillText(r.enL, x0, y + rh * 0.84);
+      } else {
+        // category alone: JA big, EN under it
+        g.fillStyle = '#16191d'; fitFont(g, r.ja, p => JA(p, 900), rh * 0.46, mw); g.fillText(r.ja, x0, y + rh * 0.36);
+        g.fillStyle = '#4b5058'; fitFont(g, r.en, p => EN(p, 700), rh * 0.27, mw); g.fillText(r.en, x0, y + rh * 0.75);
+      }
     });
     this._legend(g, W, H);
   }
   _legend(g, W, H) {
-    const { JA, EN, picto } = this.K, y = H - 58;
-    g.fillStyle = '#e4e0d4'; g.fillRect(0, y, W, 58);
+    const { JA, EN, picto } = this.K, y = H - 54;
+    g.fillStyle = '#e4e0d4'; g.fillRect(0, y, W, 54);
     const items = [['escalator', '#3b6fb6', 'エスカレーター', 'Escalator'], ['toilet', '#2b6cb0', 'トイレ', 'Toilets'], ['locker', '#4a5568', 'ロッカー', 'Lockers'], ['star', '#d7191f', '現在地', 'You are here']];
     const cw = W / items.length;
     items.forEach(([kind, col, ja, en], i) => {
-      const cx = i * cw + 22, cy = y + 29;
+      const cx = i * cw + 22, cy = y + 27;
       if (kind === 'star') { g.fillStyle = '#d7191f'; g.beginPath(); g.arc(cx, cy, 12, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.arc(cx, cy, 5.5, 0, Math.PI * 2); g.fill(); }
       else picto(g, kind, cx, cy, 34, '#ffffff', col);
       g.fillStyle = '#1f2328'; g.textAlign = 'left'; g.textBaseline = 'middle';
-      g.font = JA(12.5, 900); g.fillText(ja, cx + 24, cy - 8);
-      g.fillStyle = '#5c616a'; g.font = EN(10, 700); g.fillText(en, cx + 24, cy + 9);
+      g.font = JA(14, 900); g.fillText(ja, cx + 24, cy - 8);
+      g.fillStyle = '#5c616a'; g.font = EN(11.5, 700); g.fillText(en, cx + 24, cy + 10);
     });
   }
 
@@ -263,7 +275,7 @@ export class FloorGuides {
     fitFont(g, 'なんば駅周辺案内図', p => JA(p, 900), 42, W * 0.7); g.fillText('なんば駅周辺案内図', 14, hh * 0.40);
     g.fillStyle = '#d3d7dd'; fitFont(g, 'Station area guide · where to from here', p => EN(p, 700), 22, W - 28); g.fillText('Station area guide · where to from here', 14, hh * 0.76);
     const rows = s.areaRows || [];
-    const top = hh + 8, rh = Math.min(66, (H - top - 8) / Math.max(1, rows.length));
+    const top = hh + 8, rh = Math.min(84, (H - top - 8) / Math.max(1, rows.length));
     rows.forEach((r, i) => {
       const y = top + i * rh;
       g.fillStyle = i % 2 ? '#f8f6ef' : '#ece9df'; g.fillRect(0, y, W, rh);
@@ -271,8 +283,8 @@ export class FloorGuides {
       g.fillStyle = r.color; g.beginPath(); g.arc(rh * 0.5 + 6, y + rh / 2, rh * 0.42, 0, Math.PI * 2); g.fill();
       drawArrow(g, rh * 0.5 + 6, y + rh / 2, rh * 0.5, r.ang, '#ffffff');
       const x0 = rh + 16, mw = W - x0 - 78;
-      g.textAlign = 'left'; g.fillStyle = '#16191d'; fitFont(g, r.ja, p => JA(p, 900), rh * 0.36, mw); g.fillText(r.ja, x0, y + rh * 0.34);
-      g.fillStyle = '#5c616a'; fitFont(g, r.en, p => EN(p, 700), rh * 0.24, mw); g.fillText(r.en, x0, y + rh * 0.74);
+      g.textAlign = 'left'; g.fillStyle = '#16191d'; fitFont(g, r.ja, p => JA(p, 900), rh * 0.4, mw); g.fillText(r.ja, x0, y + rh * 0.34);
+      g.fillStyle = '#5c616a'; fitFont(g, r.en, p => EN(p, 700), rh * 0.27, mw); g.fillText(r.en, x0, y + rh * 0.74);
       if (r.lvl) {
         g.fillStyle = '#24272c'; this.K.rr(g, W - 72, y + rh * 0.2, 64, rh * 0.6, 8); g.fill();
         g.fillStyle = '#fff'; g.textAlign = 'center'; g.font = EN(rh * 0.32, 900); g.fillText((r.dir > 0 ? '↑' : '↓') + r.lvl, W - 40, y + rh * 0.5);
@@ -392,8 +404,8 @@ export class FloorGuides {
     if (!s.area && s.listRect) {
       const bd = buildingData(s.bld), i = bd.rows.findIndex(r => r.level === s.level);
       if (i >= 0) {
-        const { top, rh } = rowGeom(bd.rows.length), pxm = 1 / LD;
-        const v = BH / 2 - (top + (i + 0.5) * rh) * pxm, h = rh * pxm;
+        const lay = rowLayout(bd)[i], pxm = 1 / LD;
+        const v = BH / 2 - (lay.y + lay.h / 2) * pxm, h = lay.h * pxm;
         let p = at(lu, v, F); sig._quadRect(b, reg(PIN.hl), p[0], p[1], p[2], nx, nz, LW, h, pm);
         const tw = Math.min(0.36, h * 3), th = tw * 56 / 170;
         p = at(lu + LW / 2 - tw / 2 - 0.02, v + h / 2 - th / 2 - 0.004, F * 1.5); sig._quadRect(b, reg(PIN.tab), p[0], p[1], p[2], nx, nz, tw, th, pm);
