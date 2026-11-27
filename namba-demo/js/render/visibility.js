@@ -81,7 +81,11 @@ const HIDDEN = 0, SHELL = 1, FULL = 2;
 // wall_*, ceiling_*, concrete_*, light_* plus arch_slab, arch_vault, arch_daylight, roof_deck. Left out on purpose:
 // transparent or decal materials (ao_strip, arch_wear, glass_*), tactile_*, inlay_*, band_*, steel / stainless /
 // aluminium trim, rubber, esc_* (escalator parts), arch_kit / arch_exit / arch_adbox (signs, small kit).
-const SHELL_RE = /^(?:floor_|wall_|ceiling_|concrete_|light_|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;
+// v23: tactile_*, inlay_* and esc_comb (platform-edge dot line, floor inlays: opaque and coplanar with the floor, a handful of
+// triangles each) join the shell, so the yellow edge line and floor patterns run out to the shell distance with the floor they sit on
+// instead of stopping at the detail distance with the floor still drawn beyond them.
+const SHELL_RE = /^(?:floor_|wall_|ceiling_|concrete_|light_|tactile_|inlay_|esc_comb$|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;
+const SHELL_RE_V22 = /^(?:floor_|wall_|ceiling_|concrete_|light_|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;   // ?noshellx: the v22 list, for before / after checks
 
 export class Visibility {
   constructor(ctx) {
@@ -97,6 +101,7 @@ export class Visibility {
     const P = ctx.params || params;
     this.shell = !!(P.has('noshell') ? false : (ctx.engine.mobile || P.has('shell')));
     this.shellDist = this.shell ? SHELL_DIST : 0;
+    this._shellRe = P.has('noshellx') ? SHELL_RE_V22 : null;
     this.shownChunks = 0; this._nChunks = 0;
     this.fan = new Float32Array(FAN);
     this._fanKey = { x: 1e9, z: 1e9, level: '' };
@@ -168,7 +173,7 @@ export class Visibility {
           for (const m of o.children) {
             if (!m.isMesh || m.userData.nbShell !== undefined) continue;
             const mat = m.material;
-            m.userData.nbShell = !!(mat && !Array.isArray(mat) && !mat.transparent && SHELL_RE.test(mat.name || ''));
+            m.userData.nbShell = !!(mat && !Array.isArray(mat) && !mat.transparent && (this._shellRe || SHELL_RE).test(mat.name || ''));
             if (m.userData.nbShell) rec.hasShell = true;
           }
         }
