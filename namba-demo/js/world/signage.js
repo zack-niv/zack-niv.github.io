@@ -114,7 +114,7 @@ const WAY_SIGNS = [
   ..._plat, ..._corr,
   // 3F concourse after the Central Gate: towards the escalator down (and the way back to the gate)
   { level: '3F', x: -9, z: -75, nx: 0, nz: 1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya', 'midosuji', 'sennichimae'], back: [_NKG], lm: 'the big overhead sign' },
-  { level: '3F', x: -2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
+  { level: '3F', x: 2.5, z: -80.8, nx: -1, nz: 0, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },
   { level: '3F', x: 10, z: -77.5, nx: 0, nz: -1, op: 'nankai', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },      // back face: read by people riding UP to the concourse
   // Nankai 2F hall: towards the corridor
   { level: '2F', x: 1.5, z: -62, nx: 0, nz: -1, op: 'metro', h: 1.1, maxW: 6.8, dests: ['city', 'parks', 'takashimaya'], back: [_NKG], lm: 'the big overhead sign' },

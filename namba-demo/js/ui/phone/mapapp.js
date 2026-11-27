@@ -85,7 +85,8 @@ export class MapApp {
     r.classList.add('mp', 'mq');
     r.innerHTML = `
       <canvas class="mq-canvas"></canvas>
-      <div class="mq-chips"><span class="mq-fl"></span><button class="mq-me" type="button"><span class="p"><i></i><b></b></span></button></div>
+      <div class="mq-chips"><span class="mq-fl"></span><button class="mq-me" type="button" hidden><span class="p"><i></i><b></b></span></button></div>
+      <button class="mq-gps lab" type="button" aria-label="No GPS indoors. The arrow shows which way you face."><svg viewBox="0 0 44 44" aria-hidden="true"><defs><radialGradient id="mqwg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#1a73e8" stop-opacity=".95"/><stop offset="1" stop-color="#1a73e8" stop-opacity=".55"/></radialGradient></defs><circle cx="22" cy="22" r="21" fill="#fff"/><g class="mq-wg"><path d="M22 22 L10 5.2 A20.6 20.6 0 0 1 34 5.2 Z" fill="url(#mqwg)"/></g><circle cx="22" cy="22" r="4.2" fill="#fff"/></svg><span class="t"><span class="full"><b>No GPS indoors</b><span>you face this way</span></span><span class="cap">No GPS</span></span></button>
       <div class="mq-ctl">
         <button class="mq-btn mq-orient" type="button" aria-label="Map orientation"><span></span></button>
         <button class="mq-btn mq-locate" type="button" aria-label="Centre on me">${I.locate}</button>
@@ -105,7 +106,7 @@ export class MapApp {
     this.bar = q('.mq-bar'); this.searchEl = q('.mq-search'); this.rtEl = q('.mq-rt'); this.rtX = q('.mq-rt-x');
     this.strip = q('.mq-strip'); this.sugg = q('.mq-sugg');
     this.panel = q('.mq-panel'); this.panelT = q('.mq-pt'); this.panelB = q('.mq-pb');
-    this.flEl = q('.mq-fl'); this.meEl = q('.mq-me'); this.orientBtn = q('.mq-orient'); this.locBtn = q('.mq-locate');
+    this.flEl = q('.mq-fl'); this.meEl = q('.mq-me'); this.gpsEl = q('.mq-gps'); this.wgEl = q('.mq-wg'); this._wgA = null; this.orientBtn = q('.mq-orient'); this.locBtn = q('.mq-locate');
     this.toastEl = q('.mq-toast'); this.ayaEl = q('.mq-aya');
     // v23: on a touch screen the search box opens the list (no on-screen keyboard unless you ask for it); desktop types
     if (touch) this.input.readOnly = true;
@@ -123,7 +124,9 @@ export class MapApp {
     q('.mq-x').addEventListener('click', () => this.closePanel());
     this.rtEl.addEventListener('click', () => this.openSteps());
     this.rtX.addEventListener('click', () => this.endRoute());
-    this.meEl.addEventListener('click', () => this._toast('No GPS indoors\nFind a shop or a sign near you on the map, or send Aya a photo 📸', 5200));
+    const gpsTip = () => { this._lblUntil = this._clk + 5; this._toast('No GPS indoors\nFind a shop or a sign near you on the map, or send Aya a photo 📸', 5200); };
+    this.meEl.addEventListener('click', () => this._toast(`GPS fix, accurate to about ${Math.round(this.pos.acc)} m. It only works outdoors.`, 3600));
+    this.gpsEl.addEventListener('click', gpsTip);
     this.ayaEl.addEventListener('click', () => this._ayaGo());
     this.orientBtn.addEventListener('click', () => this._toggleOrient());
     this.locBtn.addEventListener('click', () => this._recenter());
@@ -215,6 +218,8 @@ export class MapApp {
 
   _tap(sx, sy) {
     if (this.sheet !== 'map' && this.sheet !== 'place') return;
+    const kn = this.known;
+    if (kn && kn.level === this.view.level) { const [kx, ky] = this.toScreen(kn.x, kn.z); if (Math.hypot(kx - sx, ky - sy) < 26) { this._labelPin(); return; } }
     let best = null, bd = 24;
     for (const L of this._hits || []) { const d = Math.hypot(L.x - sx, L.y - sy); if (d < bd) { bd = d; best = L; } }
     if (best) { this.select(best.place); return; }
@@ -234,6 +239,7 @@ export class MapApp {
     const ph = this.sheet === 'place' ? Math.min(this.panel.offsetHeight || 0, this.H * 0.6) : 0;
     this._ins = { t: bh, b: sh + ph + (this.ayaEl.hidden ? 0 : 60) };
     this.root.style.setProperty('--mq-bar', (bh + 8) + 'px');
+    this.root.style.setProperty('--mq-insb', this._ins.b + 'px');
     this._measured = true;
   }
   // the plan's centre is the middle of what the bar, the strip and a place card leave free
@@ -320,7 +326,7 @@ export class MapApp {
     this._setKnown({ level, x, z, text, where: text.replace(/^Tapped in at /, '').replace(/^/, '') + `, ${lvl(level)}`, glance });
   }
   _setKnown(k) {
-    k.t0 = this._clk; k.id = (this._kn = (this._kn || 0) + 1);
+    k.t0 = this._clk; k.id = (this._kn = (this._kn || 0) + 1); k.lblUntil = null;
     this.known = k;
     // a new pin takes the plan to its floor, unless you are looking around (panned in the last 5 s)
     if (this._clk - this._lastPan > 5 || k.id === 1) { this.view.level = k.level; this.view.cx = k.x; this.view.cz = k.z; this.follow = false; }
@@ -353,9 +359,10 @@ export class MapApp {
     this._uiT = (this._uiT || 0) - dt;
     if (this._uiT <= 0 && visible) { this._uiT = 0.25; this._syncUI(); }
     if (!visible) return;
+    this._syncWedge();
     this._drawT += dt;
     const k0 = this.known, age = k0 ? Math.min(100, Math.floor(this._clk - k0.t0)) : 0;
-    const sig = [v.level, v.cx.toFixed(1), v.cz.toFixed(1), v.zoom.toFixed(2), Math.round(v.rot * 28.6), W.gps ? p.x.toFixed(1) + p.z.toFixed(1) : '', p.level, W.gps ? Math.round(p.acc) : '', this.selected && this.selected.id, this._routeV, this.sheet, this.focus, this._toastV, k0 && k0.id, age].join('|');
+    const sig = [v.level, v.cx.toFixed(1), v.cz.toFixed(1), v.zoom.toFixed(2), Math.round(v.rot * 28.6), W.gps ? p.x.toFixed(1) + p.z.toFixed(1) : '', p.level, W.gps ? Math.round(p.acc) : '', this.selected && this.selected.id, this._routeV, this.sheet, this.focus, this._toastV, k0 && k0.id, k0 && this._clk < (k0.lblUntil || 0), age].join('|');
     if (sig === this._sig && !this._dirty) return;
     // gestures redraw at once; the heading and the dot at most 30 times a second
     if (!this._dirty && this._drawT < 0.033) return;
@@ -402,7 +409,6 @@ export class MapApp {
     this._drawKnown(g);
     this._drawEdgeArrow(g);
     this._drawRose(g);
-    this._drawWedge(g);
   }
 
   _footprint() {
@@ -498,7 +504,7 @@ export class MapApp {
       if (big) { g.strokeStyle = '#fff'; g.lineWidth = 2.4; this._rr(g, sx - s / 2, sy - s / 2, s, s, 7); g.stroke(); }
       this._arrow(g, sx, sy, o.dir, s * 0.5);
       // "2F" beside it: where it leads
-      const lab = `${lvl(o.to)}`, font = `700 11px ${FONT}`, tw = this._textW(g, font, lab);
+      const lab = `${lvl(o.to)}`, font = `700 12px ${FONT}`, tw = this._textW(g, font, lab);
       const lx = sx + s / 2 + 2, ly = sy;
       if (big || (k > 1.1 && free(lx, ly - 8, tw + 10, 16))) {
         if (big) boxes.push([lx, ly - 8, tw + 10, 16]);
@@ -518,14 +524,14 @@ export class MapApp {
       const Lc = LINES[t.line];
       g.fillStyle = Lc.color; g.beginPath(); g.arc(sx, sy, 10, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.stroke();
-      g.fillStyle = '#fff'; g.font = `800 11px ${FONT}`; g.textAlign = 'center'; g.fillText(`${t.no}`, sx, sy + 0.5);
+      g.fillStyle = '#fff'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.fillText(`${t.no}`, sx, sy + 0.5);
     }
     // ticket gates
     for (const gt of L.gates) {
       const x = gt.axis === 'x' ? (gt.from + gt.to) / 2 : gt.at, z = gt.axis === 'x' ? gt.at : (gt.from + gt.to) / 2;
       const [sx, sy] = this.toScreen(x, z);
       if (!inView(sx, sy, 60) || k < 0.7) continue;
-      this._pill(g, sx, sy - 16, `改札 ${gt.name}`, '#3d4653', '#fff', 11, boxes);
+      this._pill(g, sx, sy - 16, `改札 ${gt.name}`, '#3d4653', '#fff', 12, boxes);
     }
     // exits
     for (const e of L.exits) {
@@ -545,7 +551,7 @@ export class MapApp {
       if (!free(sx - 11, sy - 11, 22, 22)) continue;
       g.fillStyle = f.kind === 'toilet' ? '#2b6cb0' : '#5a6372'; g.beginPath(); g.arc(sx, sy, 11, 0, Math.PI * 2); g.fill();
       g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.stroke();
-      g.fillStyle = '#fff'; g.font = `800 11px ${FONT}`; g.textAlign = 'center'; g.fillText(f.kind === 'toilet' ? 'WC' : f.kind === 'locker' ? 'L' : 'T', sx, sy + 0.5);
+      g.fillStyle = '#fff'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.fillText(f.kind === 'toilet' ? 'WC' : f.kind === 'locker' ? 'L' : 'T', sx, sy + 0.5);
       this._hits.push({ x: sx, y: sy, place: this._facPlace(f) });
     }
     // area names (Namba CITY, Nankai Namba Station ...): big, low zoom
@@ -557,7 +563,7 @@ export class MapApp {
       g.font = font; g.textAlign = 'center';
       g.lineWidth = 3.5; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineJoin = 'round'; g.strokeText(zl.en, sx, sy);
       g.fillStyle = ZONES[zl.zone].color; g.fillText(zl.en, sx, sy);
-      if (k <= 1.6) { g.font = `500 11px ${FONT}`; g.strokeText(zl.ja, sx, sy + 13); g.fillStyle = '#6f6a62'; g.fillText(zl.ja, sx, sy + 13); }
+      if (k <= 1.6) { g.font = `500 12px ${FONT}`; g.strokeText(zl.ja, sx, sy + 13); g.fillStyle = '#6f6a62'; g.fillText(zl.ja, sx, sy + 13); }
     }
     // ---- 3. shop names: the destination, the route's shops, landmarks and big tenants first; names that do not fit are left out ----
     const c = Math.cos(v.rot), s = Math.sin(v.rot);
@@ -578,7 +584,7 @@ export class MapApp {
       const must = q.isDest || q.isRt || q.sh.feat;
       if (k < minK && !must) continue;
       if (k < 0.9) continue;
-      const name = q.sh.b.en, font = `${must ? 700 : 600} 11px ${FONT}`;
+      const name = q.sh.b.en, font = `${must ? 700 : 600} 12px ${FONT}`;
       let tw = this._textW(g, font, name), lines = [name];
       // a long name on a roomy block wraps to two lines
       if (tw > Math.max(q.ew, 70) && name.includes(' ')) {
@@ -586,9 +592,9 @@ export class MapApp {
         for (let i = 1; i < parts.length; i++) { const a = parts.slice(0, i).join(' '), b = parts.slice(i).join(' '), w = Math.max(this._textW(g, font, a), this._textW(g, font, b)); if (!best || w < best.w) best = { a, b, w }; }
         if (best && best.w < tw * 0.8) { lines = [best.a, best.b]; tw = best.w; }
       }
-      const fits = tw + 4 <= q.ew && lines.length * 13 <= q.eh + 2;
+      const fits = tw + 4 <= q.ew && lines.length * 14 <= q.eh + 2;
       if (!must && !fits && k < 3.2) continue;
-      const lh = 13, hh = lines.length * lh;
+      const lh = 14, hh = lines.length * lh;
       if (!free(q.sx - tw / 2 - 2, q.sy - hh / 2 - 1, tw + 4, hh + 2)) continue;
       g.font = font; g.textAlign = 'center'; g.lineJoin = 'round';
       lines.forEach((t, i) => {
@@ -609,7 +615,7 @@ export class MapApp {
       g.save(); g.translate(sx, sy);
       let ang = (along ? 0 : Math.PI / 2) + v.rot; if (Math.cos(ang) < 0) ang += Math.PI;
       g.rotate(ang);
-      g.font = `600 11px ${FONT}`; g.textAlign = 'center';
+      g.font = `600 12px ${FONT}`; g.textAlign = 'center';
       g.lineWidth = 3; g.strokeStyle = '#ffffff'; g.fillStyle = '#8c8577';
       const t = `${r.en}  ${r.ja}`; g.strokeText(t, 0, 0); g.fillText(t, 0, 0);
       g.restore();
@@ -739,44 +745,75 @@ export class MapApp {
     g.fillStyle = '#d93025'; g.beginPath(); g.moveTo(0, -14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
     g.fillStyle = '#8a9099'; g.beginPath(); g.moveTo(0, 14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
     g.restore();
-    g.fillStyle = '#d93025'; g.font = `800 11px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = '#d93025'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
   }
-  // "you are facing this way": a fixed compass badge at the bottom centre (a direction, never a location)
-  _drawWedge(g) {
-    if (this._where().gps) return;     // on a GPS fix the dot has its own heading cone
-    const v = this.view, p = this.pos, x = this.W / 2, y = this.H - this._ins.b - 36;
-    const ang = -(p.heading - v.rot) - Math.PI / 2;
-    g.save();
-    g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 5; g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.arc(x, y, 25, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
-    const gr = g.createRadialGradient(x, y, 2, x, y, 23); gr.addColorStop(0, 'rgba(26,115,232,.95)'); gr.addColorStop(1, 'rgba(26,115,232,.55)');
-    g.fillStyle = gr; g.beginPath(); g.moveTo(x, y); g.arc(x, y, 23, ang - 0.62, ang + 0.62); g.closePath(); g.fill();
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(x, y, 4.5, 0, Math.PI * 2); g.fill();
-    g.font = `700 11px ${FONT}`; g.textAlign = 'left'; g.textBaseline = 'middle'; g.lineJoin = 'round';
-    g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,.95)';
-    ['You face', 'this way'].forEach((t, i) => { g.strokeText(t, x + 30, y - 7 + i * 14); g.fillStyle = '#1558b8'; g.fillText(t, x + 30, y - 7 + i * 14); });
-    g.restore();
+  // v23 integration: "you are facing this way" is ONE bottom-centre DOM badge (.mq-gps): the wedge turns with the compass (a direction,
+  // never a location). For the first 5 s after Maps opens, and for 5 s after a tap, it carries the words "No GPS indoors / you face
+  // this way"; then only the wedge stays with a 12 px caption "No GPS". Written only when the angle (1 degree) or the phase changes.
+  _syncWedge() {
+    const gps = this._where().gps, el = this.gpsEl;
+    if (el.hidden !== gps) el.hidden = gps;
+    if (gps) return;
+    const lab = this._clk < (this._lblUntil || 0);
+    if (el.classList.contains('lab') !== lab) { el.classList.toggle('lab', lab); this._dirty = true; }
+    const a = Math.round(-(this.pos.heading - this.view.rot) * 180 / Math.PI);
+    if (a !== this._wgA) { this._wgA = a; this.wgEl.setAttribute('transform', `rotate(${a} 22 22)`); }
   }
-  // the one place the map shows where you were: the last known moment, ageing to a faint ghost
+  // the maps app was shown (the phone was raised on it, or switched to it): the badge's words show again for 5 s, and the floor
+  // strip is placed again (it cannot scroll while the view is hidden)
+  onShow() {
+    this._lblUntil = this._clk + 5;
+    this._measured = false; this._dirty = true;
+    this._renderStrip(true); this._syncUI(true); this._syncWedge();
+  }
+  // the pin's full label for 8 s (tap on the pin)
+  _labelPin() { const k = this.known; if (!k) return; k.lblUntil = this._clk + 8; this._dirty = true; }
+  // rectangles (in canvas px) the pin's label must keep clear of: the badge, the floor chip, the round buttons, the compass rose
+  _obstacles() {
+    const out = [], off = (el, par) => { if (!el || el.hidden || !el.offsetWidth) return null; let x = el.offsetLeft, y = el.offsetTop; if (par) { x += par.offsetLeft; y += par.offsetTop; } return [x - 3, y - 3, el.offsetWidth + 6, el.offsetHeight + 6]; };
+    const ch = this.root.querySelector('.mq-chips'), ctl = this.root.querySelector('.mq-ctl');
+    for (const r of [off(this.gpsEl), off(this.flEl, ch), off(this.meEl, ch), off(ctl)]) if (r) out.push(r);
+    if (Math.abs(this.view.rot) >= 0.04) out.push([this.W - 26 - 19, this.H - this._ins.b - 28 - 19, 38, 38]);
+    return out;
+  }
+  // the one place the map shows where you were: the last known moment, ageing to a faint ghost. A pin shows its full label for 8 s
+  // (counted while it is on screen) or when tapped, otherwise just the marker and a short age chip ("0:10")
   _drawKnown(g) {
     const k = this.known; if (!k || k.level !== this.view.level) return;
+    if (k.lblUntil == null) k.lblUntil = this._clk + 8;
     const age = this._clk - k.t0, a = age < 90 ? 1 - 0.62 * age / 90 : 0.38;
     const [sx, sy] = this.toScreen(k.x, k.z);
     g.save(); g.globalAlpha = a; g.textBaseline = 'middle'; g.textAlign = 'center';
     g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 4; g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 12, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
     g.fillStyle = '#e8710a'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy - 2.6, 2.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4, sy + 5); g.quadraticCurveTo(sx, sy - 1, sx + 4, sy + 5); g.closePath(); g.fill();
-    const f1 = `700 11px ${FONT}`, f2 = `600 11px ${FONT}`, l2 = `${this._ageTxt(age)} ago`;
-    // the label wraps (nothing is cut): up to ~118 px wide, to the right of the marker (left when there is no room)
-    const lines = []; let cur = '';
-    for (const wd of k.text.split(' ')) { const t = cur ? `${cur} ${wd}` : wd; if (cur && this._textW(g, f1, t) > 118) { lines.push(cur); cur = wd; } else cur = t; }
-    lines.push(cur);
-    const w = Math.max(this._textW(g, f2, l2), ...lines.map(t => this._textW(g, f1, t))) + 20, h = lines.length * 13 + 13 + 10;
-    let x = sx + 18 + w / 2; if (x + w / 2 > this.W - 4) x = sx - 18 - w / 2; x = Math.max(4 + w / 2, x);
-    const y = sy;
-    g.fillStyle = '#fff4e5'; g.strokeStyle = '#e8710a'; g.lineWidth = 1.5; this._rr(g, x - w / 2, y - h / 2, w, h, 9); g.fill(); g.stroke();
-    g.fillStyle = '#5a2d00'; g.font = f1;
-    lines.forEach((t, i) => g.fillText(t, x, y - h / 2 + 11 + i * 13));
-    g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(l2, x, y - h / 2 + 11 + lines.length * 13 + 1);
+    const f1 = `700 12px ${FONT}`, f2 = `600 12px ${FONT}`, ageS = this._ageTxt(age), full = this._clk < k.lblUntil;
+    const lines = []; let w, h;
+    if (full) {
+      // the label wraps (nothing is cut): up to ~118 px wide
+      let cur = '';
+      for (const wd of k.text.split(' ')) { const t = cur ? `${cur} ${wd}` : wd; if (cur && this._textW(g, f1, t) > 118) { lines.push(cur); cur = wd; } else cur = t; }
+      lines.push(cur);
+      w = Math.max(this._textW(g, f2, `${ageS} ago`), ...lines.map(t => this._textW(g, f1, t))) + 20; h = lines.length * 14 + 14 + 10;
+    } else { w = this._textW(g, f2, ageS) + 14; h = 20; }
+    // where it fits: right of the marker, left, above, below; clamped inside the free part of the plan, clear of the badge, the
+    // floor chip, the round buttons and the marker itself
+    const top = this._ins.t + 4, bot = this.H - this._ins.b - 4, obs = this._obstacles(), m = 15;
+    const hit = (x, y) => { let o = 0; for (const r of obs.concat([[sx - m, sy - m, 2 * m, 2 * m]])) { const ox = Math.min(x + w, r[0] + r[2]) - Math.max(x, r[0]), oy = Math.min(y + h, r[1] + r[3]) - Math.max(y, r[1]); if (ox > 0 && oy > 0) o += ox * oy; } return o; };
+    const cl = (x, y) => [Math.max(4, Math.min(this.W - 4 - w, x)), Math.max(top, Math.min(bot - h, y))];
+    let best = null;
+    for (const c of [[sx + 18, sy - h / 2], [sx - 18 - w, sy - h / 2], [sx - w / 2, sy - 18 - h], [sx - w / 2, sy + 18]]) {
+      const [x, y] = cl(c[0], c[1]), o = hit(x, y);
+      if (!best || o < best.o) best = { x, y, o };
+      if (!o) break;
+    }
+    const x = best.x + w / 2, y = best.y + h / 2;
+    g.fillStyle = '#fff4e5'; g.strokeStyle = '#e8710a'; g.lineWidth = 1.5; this._rr(g, x - w / 2, y - h / 2, w, h, full ? 9 : 10); g.fill(); g.stroke();
+    if (full) {
+      g.fillStyle = '#5a2d00'; g.font = f1;
+      lines.forEach((t, i) => g.fillText(t, x, y - h / 2 + 12 + i * 14));
+      g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(`${ageS} ago`, x, y - h / 2 + 12 + lines.length * 14 + 1);
+    } else { g.fillStyle = '#5a2d00'; g.font = f2; g.fillText(ageS, x, y + 0.5); }
     g.restore();
   }
   // the destination's shop block, outlined
@@ -1251,8 +1288,8 @@ export class MapApp {
     setT(this.flEl, `${lvl(v.level)} · ${FLOOR_NAMES[v.level] || ''}`);
     this.flEl.classList.toggle('other', !!this.known && v.level !== this.known.level);
     // no GPS indoors: one quiet chip (tap for the tip); a real fix outdoors says so
-    setT(this.meEl.querySelector('b'), W.gps ? `GPS ±${Math.round(this.pos.acc)} m` : 'No GPS indoors');
-    this.meEl.classList.toggle('ok', W.gps);
+    setT(this.meEl.querySelector('b'), `GPS ±${Math.round(this.pos.acc)} m`);
+    this.meEl.hidden = !W.gps; this.meEl.classList.toggle('ok', W.gps);
     // the top bar: search, or the destination (name, where it is) and Directions
     const D = this.phone.dest, arr = D && D.current && D.current.arrived;
     const mode = R && !R.failed ? 'route' : 'search';

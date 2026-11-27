@@ -1284,3 +1284,24 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 #phone-root .gl-t b { -webkit-line-clamp: 2; line-height: 1.12; }
 /* the thread fades out at its top edge instead of being cut through a bubble */
 #phone-root .ms-list { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px); mask-image: linear-gradient(180deg, transparent 0, #000 16px); }
+
+/* =============================================================================
+   v23 integration
+   ============================================================================= */
+/* ---- Maps: ONE bottom-centre badge says both "No GPS indoors" and "you face this way" (js/ui/phone/mapapp.js _syncWedge) ----
+   First 5 s after Maps opens (and 5 s after a tap): a white pill with the words. Then the pill shrinks to the wedge with a 12 px caption. */
+.mq-me[hidden] { display: none; }
+.mq-gps { position: absolute; z-index: 5; left: 50%; bottom: calc(var(--mq-insb, 44px) + 8px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 96px); min-height: 46px; padding: 1px 12px 1px 1px; border: 0; border-radius: 24px; background: rgba(255,255,255,.94); box-shadow: 0 1px 6px rgba(0,0,0,.24); color: #1558b8; font-family: Inter, "Noto Sans JP", sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .35s, box-shadow .35s; }
+.mq-gps[hidden] { display: none; }
+.mq-gps svg { display: block; flex: 0 0 44px; width: 44px; height: 44px; margin: 1px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.28)); overflow: visible; }
+.mq-gps .t { position: relative; display: grid; min-width: 0; }
+.mq-gps .full, .mq-gps .cap { grid-area: 1 / 1; transition: opacity .35s; white-space: nowrap; font: 700 12px/1.25 Inter, "Noto Sans JP", sans-serif; }
+.mq-gps .full { display: flex; flex-direction: column; }
+.mq-gps .full b { font-weight: 800; color: #1558b8; }
+.mq-gps .full span { font-weight: 650; color: #3c4043; }
+.mq-gps.lab .cap, .mq-gps:not(.lab) .full { opacity: 0; pointer-events: none; }
+/* collapsed: the pill drops its fill and keeps a small caption chip; the wedge's own disc stays white */
+.mq-gps:not(.lab) { padding-right: 4px; background: rgba(255,255,255,0); box-shadow: none; }
+.mq-gps:not(.lab) .cap { align-self: center; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.92); color: #5f6368; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.mq-has-panel:not(.mq-p-place-on) .mq-gps { display: none; }
+@media (prefers-reduced-motion: reduce) { .mq-gps, .mq-gps .full, .mq-gps .cap { transition: none; } }
