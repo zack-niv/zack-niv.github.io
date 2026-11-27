@@ -1300,3 +1300,5 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 .ms-pinrow .ms-p-t em kbd { display: none; }
 /* camera mode: the tutorial's ghost thumb (it points at the phone button) stays out of the viewfinder */
 html:has(#phone-root.ph-cam-on) .tu-point { opacity: 0 !important; }
+/* the pause button stays clear of the raised phone's frame whatever the touch column measured (it sits left of the phone, never over it) */
+html.ph-wide #touch-ui.ph-up .tu-pause { right: max(calc(14px + max(var(--tu-right, 0px), var(--sr, 0px)) + 4px), calc(var(--ph-wide-gap, 0px) + 14px)); }
