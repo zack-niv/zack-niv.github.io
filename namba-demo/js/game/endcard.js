@@ -152,7 +152,7 @@ const lsGet = (k) => { try { return localStorage.getItem(k) || ''; } catch (e) {
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } };
 const initialsOf = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 3);
 const runId = () => { try { return crypto.randomUUID(); } catch (e) { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); } };
-const NAP = 'Scoreboard is taking a nap. Your time still counts for bragging.';
+const NAP = 'Scoreboard is taking a nap. Your score still counts for bragging.';
 
 function showMission(ctx, s, { onRoam, onReplay } = {}) {
   const M = s.mission, tier = ['full', 'train'].includes(M.tier) ? M.tier : 'missed';
