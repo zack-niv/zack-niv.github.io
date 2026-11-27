@@ -5,8 +5,8 @@
 // All generated once at init (lazily cached through ctx.materials.texture).
 // =============================================================================
 import * as THREE from 'three';
-import { DESTS, TYPES, LINES } from './timetable.js?v=0d08d5d';
-import { lcanvas } from '../../render/canvasres.js?v=0d08d5d';
+import { DESTS, TYPES, LINES } from './timetable.js?v=1d470ff';
+import { lcanvas } from '../../render/canvasres.js?v=1d470ff';
 
 export const JP = '"Noto Sans JP","Noto Sans CJK JP","Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Meiryo",sans-serif';
 export const EN = '"Inter","Helvetica Neue",Arial,sans-serif';

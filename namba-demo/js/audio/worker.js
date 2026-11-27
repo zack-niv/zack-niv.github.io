@@ -1,6 +1,6 @@
 // Synthesis worker: renders recipes off the main thread and transfers the
 // sample data back. Module worker (imports recipes.js).
-import { synthesize } from './recipes.js?v=0d08d5d';
+import { synthesize } from './recipes.js?v=1d470ff';
 
 self.onmessage = (e) => {
   const { id, name, base } = e.data;

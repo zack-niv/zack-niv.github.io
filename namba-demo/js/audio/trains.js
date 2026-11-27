@@ -15,9 +15,9 @@
 // train:approach {etaSec|eta} / train:arrive / train:closing / train:depart,
 // with our own bilingual announcements (phrases.js).
 // =============================================================================
-import { LAYOUT, LEVELS } from '../world/layout.js?v=0d08d5d';
-import { approach, arrival, doorsClosing, departure, firstSentences } from './phrases.js?v=0d08d5d';
-import { platformGain, platformOf } from './zones.js?v=0d08d5d';
+import { LAYOUT, LEVELS } from '../world/layout.js?v=1d470ff';
+import { approach, arrival, doorsClosing, departure, firstSentences } from './phrases.js?v=1d470ff';
+import { platformGain, platformOf } from './zones.js?v=1d470ff';
 
 const MEL = { midosuji: 'mel:midosuji', sennichimae: 'mel:sennichimae' };
 const V0 = 16, TB = 14; // fallback: m/s entry speed, braking time (s)

@@ -26,12 +26,12 @@
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=0d08d5d';
-import { CELL } from '../world/world.js?v=0d08d5d';
-import { params } from '../core/params.js?v=0d08d5d';
-import { QUALITY_ORDER } from '../core/engine.js?v=0d08d5d';
-import * as visFan from './visfan.js?v=0d08d5d';
-import { clipIntrusions } from './intrusions.js?v=0d08d5d';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=1d470ff';
+import { CELL } from '../world/world.js?v=1d470ff';
+import { params } from '../core/params.js?v=1d470ff';
+import { QUALITY_ORDER } from '../core/engine.js?v=1d470ff';
+import * as visFan from './visfan.js?v=1d470ff';
+import { clipIntrusions } from './intrusions.js?v=1d470ff';
 
 // v21: DRS governor under a frame cap (see drsGovern). Each number says why.
 const GOV_LATE = 1.2;        // a frame is late when its interval exceeds this x the cap's period (a healthy 30 fps frame is 1.0, a missed refresh 1.5)
@@ -47,20 +47,23 @@ const GOV_UP_STEP = 0.05;    // gentle climb
 const GOV_UP_COOL = 3.0;     // s between step ups
 const GOV_PROBE = 4.0;       // s after a step up during which a late fraction above GOV_DOWN_AT sends it straight back
 const GOV_LOCK = 20.0;       // s without a step up after a failed probe (stops oscillation at the edge of what the GPU can do)
+const GOV_LOCK_MAX = 60.0;   // each failed probe in a row doubles the wait, up to this (a phone at its limit hitches once a minute, not three times)
 
 // v21: pure DRS decision for the capped path. `st` (from drsGovState) is updated in place; `in_` = { ms: raw frame interval, T: cap period in ms,
 // drs: current scale }. Returns 'down', 'up' or null; the caller applies engine.setDRS(drs - GOV_DOWN_STEP / drs + GOV_UP_STEP).
-export function drsGovState() { return { lateF: 0, warm: 0, calm: 0, cool: 0, probe: 0, lock: 0 }; }
+export function drsGovState() { return { lateF: 0, warm: 0, calm: 0, cool: 0, probe: 0, lock: 0, fails: 0 }; }
 export function drsGovern(st, in_) {
   const { ms, T, drs } = in_;
   if (!(ms > 0) || ms > GOV_GAP) return null;
   if (st.warm < GOV_WARM) { st.warm += ms; return null; }
   const s = ms / 1000;
   st.lateF += ((ms > T * GOV_LATE ? 1 : 0) - st.lateF) * (1 - Math.exp(-ms / GOV_TAU));
+  // a probe that ran out without being sent back held: the next failure starts from the short wait again
+  if (st.probe > 0 && st.probe - s <= 0) st.fails = 0;
   st.cool -= s; st.lock -= s; st.probe -= s;
   st.calm = st.lateF < GOV_UP_BELOW ? st.calm + ms : 0;
   if (st.lateF > GOV_DOWN_AT) {
-    if (st.probe > 0) { st.probe = 0; st.lock = GOV_LOCK; st.cool = GOV_DOWN_COOL; st.calm = 0; return 'down'; }
+    if (st.probe > 0) { st.probe = 0; st.lock = Math.min(GOV_LOCK_MAX, GOV_LOCK * Math.pow(2, st.fails)); st.fails++; st.cool = GOV_DOWN_COOL; st.calm = 0; return 'down'; }
     if (st.cool <= 0) { st.cool = GOV_DOWN_COOL; st.calm = 0; return 'down'; }
   } else if (st.calm > GOV_UP_HOLD && st.cool <= 0 && st.lock <= 0 && drs < 1) {
     st.cool = GOV_UP_COOL; st.probe = GOV_PROBE; st.calm = 0; return 'up';

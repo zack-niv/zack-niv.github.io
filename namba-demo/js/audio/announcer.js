@@ -16,8 +16,8 @@
 //   * everything else (shop staff, a passer-by's "sumimasen"): the plain recording, placed left / right from item.pos
 // One line at a time, ever: a single `cur` item walks chime -> ja -> en (en is caption only).
 // =============================================================================
-import { voiceKey } from './phrases.js?v=0d08d5d';
-import { platformGain, pointGain } from './zones.js?v=0d08d5d';
+import { voiceKey } from './phrases.js?v=1d470ff';
+import { platformGain, pointGain } from './zones.js?v=1d470ff';
 
 const PRIO = { train: 0, station: 1, platform: 1, crowd: 2, escalator: 3, shop: 4, ambient: 5 };
 const MAX_AGE = { train: 30, station: 20, platform: 20, crowd: 1.6, escalator: 10, shop: 4, ambient: 15 };

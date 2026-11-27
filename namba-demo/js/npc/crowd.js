@@ -24,12 +24,12 @@
 //                 'crowd:gate' {gate,lane,dir,level,x,z,near}       (an NPC passed a ticket gate lane)
 // Listens: 'train:arrive', 'train:depart', 'player:teleport'
 // =============================================================================
-import { CrowdSim, POSE, MODE } from './sim.js?v=0d08d5d';
-import { Behave } from './behave.js?v=0d08d5d';
-import { CrowdRenderer } from './render.js?v=0d08d5d';
-import { CrowdRendererV1 } from './render_v1.js?v=0d08d5d';
-import { loadHumanLibrary } from './humans.js?v=0d08d5d';
-import { CounterStaff } from './counters.js?v=0d08d5d';
+import { CrowdSim, POSE, MODE } from './sim.js?v=1d470ff';
+import { Behave } from './behave.js?v=1d470ff';
+import { CrowdRenderer } from './render.js?v=1d470ff';
+import { CrowdRendererV1 } from './render_v1.js?v=1d470ff';
+import { loadHumanLibrary } from './humans.js?v=1d470ff';
+import { CounterStaff } from './counters.js?v=1d470ff';
 
 const POSE_NAME = Object.fromEntries(Object.entries(POSE).map(([k, v]) => [v, k.toLowerCase()]));
 
