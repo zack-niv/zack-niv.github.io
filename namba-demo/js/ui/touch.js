@@ -21,7 +21,12 @@
 // Layout: the right-hand cluster sits above the lowered phone, and steps left of the raised phone, so a raised phone
 // never covers a control and the controls never cover the phone.
 // =============================================================================
-import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=5442362';
+import { applyTouchCopy, TOUCH_TEXT, COACH_TEXT } from './touchcopy.js?v=bdb557c';
+import { params } from '../core/params.js?v=bdb557c';
+
+// v23: ?nofs turns every full-screen / browser-bar trick in this file off (Begin's requestFullscreen + orientation lock,
+// the iPhone swipe-up title page, both title lines, the visualViewport nudge)
+const NOFS = !!(params && params.has && params.has('nofs'));
 
 const PORTRAIT_OK = 'namba.portraitOK';
 const coarse = () => { try { return matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } };
@@ -54,7 +59,7 @@ const fullLandscapeH = () => Math.min(screen.width || 9999, screen.height || 999
 export const iosSwipe = {
   on: false, base: 0, begun: false,
   init() {
-    if (!iphoneSafari()) return;
+    if (NOFS || !iphoneSafari()) return;
     const html = document.documentElement;
     html.classList.add('ios-iphone');
     this.on = true;
@@ -102,10 +107,33 @@ export function bootTouch() {
   vh(); addEventListener('resize', vh); addEventListener('orientationchange', () => setTimeout(vh, 250));
   // safe-area insets as plain variables, so the HUD (outside #touch-ui) can keep clear of the notch side
   iosSwipe.init();
+  if (!NOFS) {
+    try {
+      // v23: the Share → Add to Home Screen line on the title: iPhone / iPad (iPadOS says "Macintosh" + touch), Safari or
+      // Chrome, not already standalone, not an in-app browser (they cannot add to the home screen). CSS shows it only
+      // under html.ios-a2hs, so desktop and standalone never see it.
+      const ua = navigator.userAgent || '';
+      const ios = /iPhone|iPod|iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+      const inApp = /LinkedInApp|FBAN|FBAV|Instagram|MicroMessenger|Twitter|GSA\/|Line\/|Snapchat|Barcelona/.test(ua);
+      const standalone = navigator.standalone || (matchMedia && matchMedia('(display-mode: standalone)').matches);
+      if (ios && !inApp && !standalone) html.classList.add('ios-a2hs');
+      // v23: in an in-app browser (LinkedIn's, mostly) the bars never go away and there is no home-screen option: the title
+      // says how to get out to the real browser instead. Android in-app browsers can go fullscreen, so iOS only.
+      if (ios && inApp) html.classList.add('ios-inapp');
+      // v23: when the visible viewport changes (Safari's bars slide away) make sure the engine and the UI hear about it even
+      // where only visualViewport reports it: re-fire one window resize, only if innerHeight really moved (no loops)
+      if (window.visualViewport) {
+        let lastH = innerHeight;
+        visualViewport.addEventListener('resize', () => { if (innerHeight !== lastH) { lastH = innerHeight; try { dispatchEvent(new Event('resize')); } catch (e) { /* ignore */ } } });
+        addEventListener('resize', () => { lastH = innerHeight; });
+      }
+    } catch (e) { /* cosmetic */ }
+  }
 }
 
 // fullscreen + landscape lock (needs a user gesture; silently does nothing where unsupported)
 export function goFullscreen() {
+  if (NOFS) return;
   const d = document, el = d.documentElement;
   if (d.fullscreenElement || d.webkitFullscreenElement) { lockLandscape(); return; }
   const req = el.requestFullscreen || el.webkitRequestFullscreen;
@@ -259,6 +287,9 @@ export class TouchUI {
   // target: a ghost thumb taps on the real control the current hint is about (the Phone button, a reply, Maps in the
   //   dock, Aya's pick, Use). It follows the control every frame and hides when that control is not on screen.
   coach(s) { this._co = s || null; }
+  // v23: is the ghost thumb on this control right now (it was found, visible and on screen at the last tick)? The tutorial
+  // drops its text line while it is, so the player gets one prompt, not two
+  targetOn(sel) { return !!(this._ptOn && this._ptSel === sel); }
   _coachTick(dt) {
     const el = this.el, s = this._co, de = document.documentElement;
     if (!el || !el.coach) return;
@@ -273,6 +304,8 @@ export class TouchUI {
         if (!!done !== zEl.classList.contains('done')) zEl.classList.toggle('done', !!done);
       };
       set(el.walkZ, z.walk, z.walkDone); set(el.lookZ, z.look, z.lookDone);
+      // v23: one card at a time (js/game/tutorial.js decides which)
+      if (z.showLook != null) { el.lookZ.classList.toggle('hide', !z.showLook); el.walkZ.classList.toggle('hide', !z.showWalk); }
       const n = s.nudge || 0; if (el.coach._n !== n) { el.coach._n = n; el.coach.classList.toggle('nudge', n > 0); }
     }
     // the tap pointer: re-find the control a few times a second (apps re-render), place it every frame
@@ -290,12 +323,14 @@ export class TouchUI {
         const r = e.getBoundingClientRect();
         if (r.width > 4 && r.height > 4 && r.right > 0 && r.bottom > 0 && r.left < innerWidth && r.top < innerHeight) {
           // a small control: its centre; a wide card or chip: towards its right end, so the thumb does not hide the words
-          const x = r.width > 90 ? r.right - Math.min(34, r.width * 0.18) : r.left + r.width / 2;
+          // v23: on the Use card the ring sits on its hand icon, not on the price (QA M2); elsewhere towards the right end
+          const x = e.classList && e.classList.contains('tu-use') ? r.left + 28 : r.width > 90 ? r.right - Math.min(34, r.width * 0.18) : r.left + r.width / 2;
           pt = [Math.round(x), Math.round(r.top + r.height / 2)];
         }
       }
     }
     const P = el.point;
+    this._ptOn = !!pt;
     if (!pt) { if (P.classList.contains('on')) P.classList.remove('on'); return; }
     const k = pt[0] + ',' + pt[1];
     if (P._k !== k) { P._k = k; P.style.transform = `translate(${pt[0]}px, ${pt[1]}px)`; }
@@ -325,7 +360,7 @@ export class TouchUI {
       const b = ph.device ? ph.device.getBoundingClientRect() : null;
       if (b && b.width > 0) {
         if (ph.isOpen) right = Math.max(0, innerWidth - b.left + 10);
-        else if (ph._sp && ph._sp.a.x > 0.005 && this._b != null) bottom = this._b;   // v13 critic: hold the cluster while an alert pops the card
+        else if (ph._sp && ph._sp.a.x > 0.005 && this._b != null) bottom = Math.max(this._b, Math.round(innerHeight - b.top + 4));   // v13 critic: hold the cluster while an alert pops the card; v23: but only ever upwards, so it rises with the card instead of leaving the Run button on top of its 'tap reply' pill
         else bottom = Math.max(0, innerHeight - b.top + 4);
       }
     }

@@ -25,9 +25,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
-<link rel="stylesheet" href="css/style.css?v=5442362">
-<link rel="stylesheet" href="css/game.css?v=5442362">
-<link rel="stylesheet" href="css/touch.css?v=5442362">
+<link rel="stylesheet" href="css/style.css?v=bdb557c">
+<link rel="stylesheet" href="css/game.css?v=bdb557c">
+<link rel="stylesheet" href="css/touch.css?v=bdb557c">
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three/three.module.js",
@@ -38,7 +38,8 @@
 <body>
 <canvas id="view"></canvas>
 <div id="ui">
-  <!-- v8: the loading screen is painted here and adopted by js/core/loader.js (same markup, nothing is rebuilt), so
+  <!-- v23: each station sits where its group of stages completes (js/core/loader.js STATION_END); keep the left: values in sync.
+       v8: the loading screen is painted here and adopted by js/core/loader.js (same markup, nothing is rebuilt), so
        the title "Lost in Namba" never changes from first paint to the title screen. Keep in sync with loader.js STATIONS. -->
   <div id="loading">
     <div class="nbl-bg"></div>
@@ -47,7 +48,7 @@
       <div class="nbl-latin">Lost in Namba</div>
       <div class="nbl-line" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
         <div class="nbl-track"><i class="nbl-fill"></i><b class="nbl-train"></b></div>
-        <ol class="nbl-stations"><li><span class="nbl-dot"></span><em>Survey</em><small lang="ja">測量</small></li><li><span class="nbl-dot"></span><em>Station</em><small lang="ja">駅</small></li><li><span class="nbl-dot"></span><em>Streets</em><small lang="ja">街</small></li><li><span class="nbl-dot"></span><em>Light</em><small lang="ja">光</small></li><li><span class="nbl-dot"></span><em>People</em><small lang="ja">人</small></li><li><span class="nbl-dot"></span><em>Shaders</em><small lang="ja">仕上げ</small></li></ol>
+        <ol class="nbl-stations"><li class="cur" style="left:5.0%"><span class="nbl-dot"></span><em>Survey</em><small lang="ja">測量</small></li><li style="left:22.0%"><span class="nbl-dot"></span><em>Station</em><small lang="ja">駅</small></li><li style="left:44.0%"><span class="nbl-dot"></span><em>Streets</em><small lang="ja">街</small></li><li style="left:58.0%"><span class="nbl-dot"></span><em>Light</em><small lang="ja">光</small></li><li style="left:73.0%"><span class="nbl-dot"></span><em>People</em><small lang="ja">人</small></li><li style="left:100.0%"><span class="nbl-dot"></span><em>Shaders</em><small lang="ja">仕上げ</small></li></ol>
       </div>
       <div class="nbl-row"><div class="ld-msg">Loading…</div><div class="nbl-pct">0%</div></div>
       <div class="nbl-tip"></div>
@@ -78,6 +79,6 @@
     <button type="button" class="rt-anyway">Play upright anyway</button>
   </div>
 </div>
-<script type="module" src="js/main.js?v=5442362"></script>
+<script type="module" src="js/main.js?v=bdb557c"></script>
 </body>
 </html>

@@ -18,8 +18,8 @@
 //   ?notutorial   no hints at all (the conversation still plays)
 // Events: 'tutorial:step' {id, done, t}, 'tutorial:done' {t, skipped}.
 // =============================================================================
-import { params } from '../core/params.js?v=5442362';
-import { TUTORIAL } from './script.js?v=5442362';
+import { params } from '../core/params.js?v=bdb557c';
+import { TUTORIAL } from './script.js?v=bdb557c';
 
 const KEY = 'namba.tutorial.v3';
 const NUDGE_S = [12, 26, 42];          // seconds a step may sit idle before each nudge
@@ -42,6 +42,13 @@ export class Tutorial {
     this.off = params.has('notutorial');
     this.teach = true;                 // v7: always (see the header); tutorialStore only records completion
     this.el = null; this._html = ''; this._at = '';
+    // v23: "open Aya's link / pick where to go" is taught once: after the player has opened Maps and then left it (another app, or the
+    // phone lowered) the step is retired even when no destination was picked (the hint stayed up through photos and texts)
+    this._mapsIn = false; this._mapsLeft = false;
+    const pickLive = () => { const st = this.steps.find(x => x.id === 'pick'); return !!st && safeTrue(st.available); };
+    ctx.events.on('phone:app', (e) => { if (!e || !pickLive()) return; if (e.app === 'maps') this._mapsIn = true; else if (this._mapsIn) this._mapsLeft = true; });
+    ctx.events.on('phone:open', (e) => { if (e && e.app === 'maps' && pickLive()) this._mapsIn = true; });
+    ctx.events.on('phone:close', () => { if (this._mapsIn && pickLive()) this._mapsLeft = true; });
   }
   start(steps) {
     this.steps = steps.map(s => Object.assign({ done: () => false, available: () => true, hint: () => null }, s));
@@ -81,6 +88,7 @@ export class Tutorial {
       if (st.done) continue;
       let ok = false;
       try { ok = !!s.done(); } catch (e) { ok = false; }
+      if (!ok && s.id === 'pick' && this._mapsLeft) ok = true;
       if (ok) { st.done = true; this.ctx.events.emit('tutorial:step', { id: s.id, done: true, t: +this.t.toFixed(1), nudges: st.nudges }); continue; }
       if (!s.side && !s.late) { if (s.core) coreLeft++; if (st.nudges <= NUDGE_S.length) liveLeft++; }
     }
@@ -146,10 +154,26 @@ export class Tutorial {
     if (!this.off && this.state.look && this.state.move && (hold || (!this._coachEnd && (id === 'look' || id === 'move')))) {
       const S = this.game.story || {}, f = S.f || {};
       this._coached = true;
-      T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M }, nudge });
-      return up ? h : null;
+      // v23 (QA m7): one instruction at a time. The look card shows first; when it is done it says "Nice" for ~1.3 s and
+      // fades, and only then the walk card appears (it used to be both cards at once, the left one over the tracks).
+      // Out of order (walked first): the look card stays up alone. While the phone is up there is no text at all.
+      if (L && this._lookT == null) this._lookT = this.t;
+      if (M && this._walkT == null) this._walkT = this.t;
+      const recent = (t0) => t0 != null && this.t - t0 < 1.4;
+      const showLook = !L || recent(this._lookT);
+      const showWalk = L && this.t - this._lookT >= 1.4 && (!M || recent(this._walkT));
+      T.coach({ zones: { look: L ? 1 : (f.look || 0) / 1.0, walk: M ? 1 : (S.walked || 0) / 8, lookDone: L, walkDone: M, showLook, showWalk }, nudge });
+      return null;
     }
-    T.coach(h ? { target: touchTarget(id, h, ph, up), nudge } : null);
+    const tg = h ? touchTarget(id, h, ph, up) : null;
+    T.coach(h ? { target: tg, nudge } : null);
+    // v23 (owner shots 2 / 4: "the IC card prompt is duplicated"): when the thing to do is a control that is itself on
+    // screen with its own label (the Use button, the phone button, a reply chip, a dock icon, a message card), the ghost
+    // thumb on that control IS the hint and the text line is not drawn. The line stays only when there is nothing to
+    // point at (look, walk, "walk up to a lane", "read Aya's message"), and returns half a second after the control
+    // goes away so a control that blinks out never leaves a hole.
+    if (tg && T.targetOn && T.targetOn(tg.sel)) this._noTextUntil = this.t + 0.5;
+    if (h && tg && this._noTextUntil != null && this.t < this._noTextUntil) h = null;
     return h;
   }
   // the player just did something on-topic (raised the phone, walked): the idle clock restarts
@@ -175,6 +199,13 @@ export class Tutorial {
 // the on-screen control a touch hint is about ({ sel, last }: the last match = the newest message card), or null
 function touchTarget(id, h, ph, up) {
   const at = h.at;
+  // v23: a hint that is about SENDING AYA A PHOTO points at the camera button (.ms-cam) while Messages is open, at the Messages dock icon
+  // while another app is open, and at the phone button while the phone is down. (Recognised by the step id, a h.target of 'camera', or the
+  // words pic / photo / camera in the line; no line is drawn while the labelled control is on screen: see _touchCoach.)
+  if (/^(snap|photo|pic|camera)($|[^a-z])/i.test(String(id || '')) || h.target === 'camera' || /\b(pic|photo|camera)\b/i.test(String(h.html || ''))) {
+    if (!up || !ph) return { sel: '#touch-ui .tu-phone' };
+    return ph.app === 'messages' ? { sel: `#phone-root .ph-view[data-v="messages"] .ms-cam` } : { sel: '#phone-root .ph-dock [data-app="messages"]' };
+  }
   if (at === 'phone' && !up) return { sel: '#touch-ui .tu-phone' };
   if (at === 'prompt') return { sel: '#touch-ui.has-use .tu-use' };
   if (!up || !ph) return null;
@@ -182,11 +213,14 @@ function touchTarget(id, h, ph, up) {
   if (id === 'reply') return { sel: `${v} .ms-replies .ms-chip` };
   if (id === 'install') return ph.app === 'messages' ? { sel: `${v} .ms-link`, last: true } : { sel: '#phone-root .ph-dock [data-app="messages"]' };
   if (id === 'pick' || id === 'pick2') {
+    // v23: with Maps open the thumb stays in Maps (Directions on the place sheet, Aya's pick, the list's Next row); never on the dock
+    if (ph.app === 'maps') return { sel: `${v} .mq-go, ${v} .dl-next, ${v} .dl-r.aya, ${v} .mq-aya:not([hidden])` };
     if (h.html === TUTORIAL.maps) return { sel: '#phone-root .ph-dock [data-app="maps"]' };
     if (h.html === TUTORIAL.pickMsg) return { sel: `${v} .ms-place`, last: true };
-    return { sel: `${v} .dl-next, ${v} .dl-r.aya` };
+    return { sel: `${v} .dl-next, ${v} .dl-r.aya, ${v} .mq-aya:not([hidden])` };
   }
-  if (id === 'order' || id === 'gate' || id === 'gateAgain') return { sel: '#touch-ui.has-use .tu-use' };
+  // v23: order / gate / gateAgain point at Use only through at:'prompt' (above): their 'center' lines are about walking up
+  // to the counter or lane, when Use is not (or not yet) the control, and a Use button for something else must not be pointed at
   return null;
 }
 function safeTrue(fn) { try { return !!fn(); } catch (e) { return false; } }

@@ -14,10 +14,12 @@
 // Data comes from LodestoneApp.glanceInfo() / MapApp.glanceInfo(); this file
 // only renders (DOM rewrites only when the text changes; the arrow rotates).
 // =============================================================================
-import { icon, logo } from './lodestone.js?v=5442362';
+import { icon, logo } from './lodestone.js?v=bdb557c';
+import { levelLabel, zoneShort } from './destinations.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const NOTE_S = 7.5;
+// v23: a text shows as the big card for about 6 s, then shrinks to the small badge on the peeking phone (still tappable)
+const NOTE_S = 6;
 
 export class Glance {
   constructor(phone, root) {
@@ -39,7 +41,7 @@ export class Glance {
 
   showNote(msg) {
     this.note = { title: msg.title || 'Aya', text: msg.text || '', reply: !!msg.reply };
-    this._noteT = msg.reply ? NOTE_S + 3 : NOTE_S;
+    this._noteT = NOTE_S;
     this.refresh(true);
     // pulse (restart the animation)
     this.root.classList.remove('ping'); void this.root.offsetWidth; this.root.classList.add('ping');
@@ -69,6 +71,28 @@ export class Glance {
   _info() {
     const ph = this.phone;
     if (this.note) return { kind: 'note', cls: 'gl-note', title: this.note.title, sub: this.note.text };
+    // v23 integration: the strip always states the CURRENT GOAL, read from the mission (not from one-off flags that nothing clears):
+    //   before Aya's "meet me" text   the quiet pill (below)        lunch beat     "You've arrived"
+    //   leg 1, nothing picked         "Open Aya's link in Maps"      leg 1, picked  "Tempura Daikichi · Namba Parks 6F" + the last-known line
+    //   leg 2 (train)                 "Train · Nankai Central Gate, 3F" (+ the café line while the coffee is wanted and not ordered)
+    //   after the run / free roam     the quiet pill (the clock and the unread dot are all that is left)
+    const G = this.ctx.game, dm = G && G.demo, S0 = G && G.story;
+    if (dm && S0 && !S0.classic) {
+      const M = S0.mission, leg = M ? M.leg : 0, D = ph.dest;
+      if (dm.finished || G.ended || leg >= 3) { this.finale = null; return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' }; }
+      if (this.finale && !dm.beat) this.finale = null;
+      if (!this.finale && !dm.beat && leg >= 1 && ph.upgradeStage !== 'ready') {
+        const place = (id) => { const d = D && D.resolve(id); return d ? `${zoneShort(d.zone) ? zoneShort(d.zone) + ' ' : ''}${levelLabel(d.level)}` : ''; };
+        const pin = ph.maps && ph.maps.known && ph.maps._clk - ph.maps.known.t0 < 90 ? ph.maps.known.glance : '';
+        if (leg === 1) {
+          const d = ph.destination;
+          if (!d || d.arrived) return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Open Aya’s link in Maps', sub: pin || 'Aya sent you a place', warn: '' };
+          return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: `${d.name} · ${place(d.slotId)}`, sub: pin, warn: '' };
+        }
+        const E = S0.errand, cafe = E && E.state === 'asked' && E.slot ? `☕ ${place(E.slot).replace(/^Namba /, '')} · ${E.name}` : '';
+        return { cls: 'gl-mp', kind: 'pick', icon: 'pin', title: 'Train · Nankai gates, 3F', sub: cafe || pin, warn: '' };
+      }
+    }
     if (this.finale) return { kind: 'arr', cls: ph.upgradeStage === 'ready' ? 'gl-ld' : 'gl-mp', icon: 'check', title: 'You’ve arrived', sub: this.finale };
     const st = ph.upgradeStage;
     if (st === 'installing' || st === 'calibrating') {
@@ -77,6 +101,10 @@ export class Glance {
       return { kind: 'inst', cls: 'gl-ld', title: st === 'installing' ? 'Installing Lodestone' : 'Finding you indoors…', sub: st === 'installing' ? 'Lodestone' : (L.calibLabel ? L.calibLabel() : 'Reading the magnetic field'), pct };
     }
     if (st === 'ready' && ph.lodestone.state === 'ready') return { cls: 'gl-ld', ...ph.lodestone.glanceInfo() };
+    // v23: nothing about Maps until Aya's "meet me" text has arrived (the story gates its first step the same way); the card
+    // stays the quiet Dynamic-Island pill meanwhile
+    const S = this.ctx.game && this.ctx.game.story;
+    if (S && !S.classic && S.aya && typeof S.aya.wasSent === 'function' && !S.aya.wasSent('meet')) return { kind: 'idle', cls: 'gl-mp', title: '', sub: '' };
     return { cls: 'gl-mp', ...ph.maps.glanceInfo() };
   }
 
@@ -85,7 +113,8 @@ export class Glance {
     const rep = this.phone.messages && this.phone.messages.pending;
     const k = (i.typing ? `<i class="gl-typing" title="${esc(i.typing)} is typing"><b></b><b></b><b></b></i>` : rep && i.kind !== 'note' ? `<i class="gl-rep" title="${esc(rep.from)} is waiting for your reply">${esc((rep.from || 'A')[0])}<b>↩</b></i>` : i.unread ? '<i class="gl-unread" title="Unread message"></i>' : '') + (this.touch || ((this.phone._raises || 0) >= 3 && i.kind !== 'pick' && !(i.kind === 'arr' && /^Next/.test(i.sub || ''))) ? '' : `<kbd class="gl-k">Q</kbd>`);
     const tail = i.kind === 'note' ? `<span class="gl-read">${this.touch ? 'tap' : '<kbd>Q</kbd>'} ${this.note && this.note.reply ? 'reply' : 'read'}</span>` : k;
-    this.hdr.render(i, tail);
+    this.hdr.render(i, i.kind === 'idle' ? '' : tail);
+    this.root.classList.toggle('quiet', i.kind === 'idle');
     // (the island itself carries the on-track state: amber ring while drifting / off)
     this.root.classList.toggle('trk-drift', i.trk === 'trk-drift');
     this.root.classList.toggle('trk-off', i.trk === 'trk-off');

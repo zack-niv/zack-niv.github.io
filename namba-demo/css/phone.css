@@ -87,7 +87,6 @@
 .mp { background: #ebe8e1; color: #202124; }
 .mp-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
 .mp-canvas:active { cursor: grabbing; }
-.mp-top { position: absolute; top: 50px; left: 10px; right: 10px; z-index: 6; }
 .mp-search { height: 44px; border-radius: 22px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.16), 0 0 0 .5px rgba(0,0,0,.05); display: flex; align-items: center; padding: 0 6px 0 14px; gap: 8px; }
 .mp-s-ico { width: 18px; height: 18px; fill: none; stroke: #5f6368; stroke-width: 2.2; stroke-linecap: round; flex: 0 0 auto; }
 .mp-search input { flex: 1; min-width: 0; border: 0; outline: 0; font: 500 15px Inter, "Noto Sans JP", sans-serif; color: #202124; background: none; pointer-events: auto; -webkit-user-select: text; user-select: text; }
@@ -105,14 +104,7 @@
 .mp-sugg-i:hover { background: #f6f7f8; }
 .mp-sugg-i b { display: block; font-weight: 600; font-size: 13.5px; } .mp-sugg-i small { display: block; color: #70757a; font-size: 11px; }
 .mp-sugg-ic { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; color: #70757a; }
-.mp-banner { position: absolute; top: 50px; left: 10px; right: 10px; z-index: 7; min-height: 64px; border-radius: 16px; background: #0f7a4f; color: #fff; display: flex; align-items: center; gap: 12px; padding: 10px 14px; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
-.mp-banner b { display: block; font-size: 16px; font-weight: 700; line-height: 1.2; } .mp-banner small { display: block; font-size: 12px; opacity: .85; margin-top: 2px; }
-.mp-bn-ic { font-size: 30px; width: 34px; text-align: center; }
 .mp-spin { animation: mpSpin 1s linear infinite; } @keyframes mpSpin { to { transform: rotate(360deg); } }
-.mp-banner:not([hidden]) ~ .mp-top { display: none; }
-.mp-floorchip { position: absolute; top: 140px; left: 10px; z-index: 5; font-size: 11.5px; background: rgba(255,255,255,.95); border-radius: 12px; padding: 5px 10px; box-shadow: 0 1px 5px rgba(0,0,0,.15); color: #3c4043; max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mp-floorchip b { color: #1a73e8; font-weight: 800; }
-.mp-floorchip.other { background: #1c2a3a; color: #fff; } .mp-floorchip.other b { color: #8ab4f8; }
 .mp-ctrls { position: absolute; right: 10px; top: 140px; z-index: 5; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
 .mp-floors { display: flex; flex-direction: column; background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.2); overflow-y: auto; max-height: 214px; scrollbar-width: none; width: 40px; }
 .mp-floors::-webkit-scrollbar { display: none; }
@@ -123,15 +115,8 @@
 .mp-btn svg { width: 22px; height: 22px; }
 .mp-locate svg { fill: #1a73e8; }
 .mp-compass.on { box-shadow: 0 0 0 2px #1a73e8, 0 1px 6px rgba(0,0,0,.22); }
-.mp-scale { position: absolute; left: 12px; z-index: 4; bottom: 222px; font: 600 10px Inter, sans-serif; color: #3c4043; display: flex; align-items: center; gap: 5px; pointer-events: none; }
-.mp-scale i { display: block; height: 5px; border: 1.5px solid #3c4043; border-top: 0; }
-.mp-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 8; background: #fff; border-radius: 20px 20px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.14); max-height: 46%; display: flex; flex-direction: column; transition: max-height .3s cubic-bezier(.2,.8,.2,1); padding-bottom: 22px; }
-.mp-sheet.mp-full { max-height: 74%; }
-.mp-sheet.mp-home { max-height: 120px; }
-.mp-sheet.mp-home ~ .mp-scale, .mp-scale { bottom: 130px; }
 .mp-grab { flex: 0 0 auto; height: 16px; cursor: pointer; position: relative; }
 .mp-grab::after { content: ''; position: absolute; left: 50%; top: 6px; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: #dadce0; }
-.mp-sheet-in { flex: 1; overflow-y: auto; padding: 0 14px 6px; scrollbar-width: thin; position: relative; }
 .mp-home-t { font-size: 18px; font-weight: 700; }
 .mp-home-s { font-size: 12.5px; color: #5f6368; margin-top: 1px; }
 .mp-home-acc { margin-top: 7px; font-size: 11.5px; color: #5f6368; display: flex; align-items: center; gap: 6px; }
@@ -353,9 +338,6 @@
 @keyframes ldLinkPulse { 50% { box-shadow: 0 4px 22px rgba(255,138,31,.45), inset 0 0 0 1.5px rgba(255,176,46,.8); } }
 .ms-b:has(.ms-link) { max-width: 88%; }
 
-.mp-gpswarn { position: absolute; top: 140px; left: 50%; transform: translateX(-50%); z-index: 6; white-space: nowrap; background: #fff4d6; color: #7a4b00; font: 600 11.5px Inter, sans-serif; padding: 5px 12px 5px 10px; border-radius: 14px; box-shadow: 0 1px 6px rgba(0,0,0,.2); }
-.mp-gpswarn::before { content: '⚠'; margin-right: 6px; }
-.mp-banner:not([hidden]) ~ .mp-gpswarn { display: none; }
 .mp-compass-cal { position: absolute; left: 14px; right: 14px; bottom: 150px; z-index: 12; display: flex; align-items: center; gap: 12px; background: rgba(32,33,36,.94); color: #fff; padding: 12px 14px; border-radius: 16px; box-shadow: 0 8px 26px rgba(0,0,0,.4); animation: phDrop .35s cubic-bezier(.2,.9,.3,1.2); }
 .mp-compass-cal b { display: block; font-size: 13.5px; } .mp-compass-cal small { font-size: 11.5px; opacity: .75; }
 .mp-cc-8 { flex: 0 0 44px; height: 44px; position: relative; }
@@ -412,13 +394,8 @@
 /* =============================================================================
    v2 — Maps: cleaner chrome (still the generic app)
    ============================================================================= */
-.mp-chips, .mp-scale, .mp-compass { display: none !important; }
-.mp-floorchip { top: 102px; font-size: 13px; padding: 6px 11px; border-radius: 14px; max-width: 200px; }
+.mp-chips, .mp-compass { display: none !important; }
 .mp-ctrls { top: 102px; }
-.mp-gpswarn { top: 138px; left: 10px; transform: none; font-size: 12px; }
-.mp-banner { min-height: 76px; border-radius: 20px; padding: 12px 16px; }
-.mp-banner b { font-size: 19px; line-height: 1.18; } .mp-banner small { font-size: 13px; }
-.mp-sheet.mp-home { max-height: 210px; }
 .mp-home { padding: 2px 0 4px; }
 .mp-here { display: flex; align-items: center; gap: 11px; }
 .mp-here-dot { flex: 0 0 14px; height: 14px; border-radius: 50%; background: #9aa0a6; box-shadow: 0 0 0 4px rgba(154,160,166,.25); }
@@ -565,9 +542,6 @@
 .ld .ld-sheet { bottom: 96px; }
 .ld-ctl { bottom: 302px; }
 .ld-main .ld-card:not(.big) { bottom: 288px; }
-.mp-sheet { padding-bottom: 92px; }
-.mp-sheet.mp-home { max-height: 286px; }
-.mp-sheet.mp-full { max-height: 82%; }
 .mp-compass-cal { bottom: 200px; }
 .tr { padding-bottom: 100px; }
 .nt { padding-bottom: 100px; overflow-y: auto; }
@@ -684,10 +658,8 @@
 .dl.kb .dl-r.sel { box-shadow: inset 0 0 0 2px #1a73e8; }
 .dl.kb.dl-lodestone .dl-r.sel { box-shadow: inset 0 0 0 2px #ffb02e; }
 .dl-maps .mp-open { color: #188038; } .dl-maps .mp-closed { color: #c5221f; }
-.mp-sheet.mp-home.mp-full { max-height: 66%; }
 .mp-home .mp-here { margin-bottom: 10px; }
 .mp-home .mp-here b { font-size: 15px; } .mp-home .mp-here small { font-size: 11.5px; }
-.mp-sheet.mp-results .mp-dl { margin: 2px -6px 0; }
 .mp-arr { display: flex; align-items: center; gap: 11px; margin: 0 0 10px; }
 .mp-arr > i { flex: 0 0 30px; height: 30px; border-radius: 50%; background: #188038; color: #fff; display: grid; place-items: center; font: 800 16px/1 Inter, sans-serif; font-style: normal; }
 .mp-arr b { display: block; font-size: 16px; font-weight: 750; } .mp-arr small { display: block; font-size: 12px; color: #5f6368; }
@@ -898,13 +870,7 @@
 
 /* ---- Maps: the map pane + the side panel (search on top, the sheet under it, full height) ---------------- */
 #phone-root.ph-land .mp-canvas { width: calc(100% - var(--side)); }
-#phone-root.ph-land .mp-top, #phone-root.ph-land .mp-banner { top: 8px; left: auto; right: var(--rail); width: var(--pan); }
-#phone-root.ph-land .mp-sheet, #phone-root.ph-land .mp-sheet.mp-home, #phone-root.ph-land .mp-sheet.mp-full, #phone-root.ph-land .mp-sheet.mp-home.mp-full {
-  top: 60px; bottom: 8px; left: auto; right: var(--rail); width: var(--pan); max-height: none; padding: 10px 0 6px; border-radius: 20px; box-shadow: 0 4px 22px rgba(0,0,0,.16); }
-#phone-root.ph-land .mp-banner:not([hidden]) ~ .mp-sheet { top: 96px; }
 #phone-root.ph-land .mp-grab { display: none; }
-#phone-root.ph-land .mp-floorchip { top: 8px; left: var(--isl); max-width: 190px; }
-#phone-root.ph-land .mp-gpswarn { top: 44px; left: var(--isl); }
 #phone-root.ph-land .mp-ctrls { top: 8px; right: calc(var(--side) + 8px); }
 #phone-root.ph-land .mp-floors { max-height: 250px; }
 #phone-root.ph-land .mp-compass-cal { left: var(--isl); right: calc(var(--side) + 8px); bottom: 10px; padding: 9px 12px; gap: 10px; }
@@ -1006,3 +972,351 @@ html.is-touch #phone-root .ld-x3d { position: absolute; }
 @media (prefers-reduced-motion: reduce) {
   #phone-root.ph-alert .ph-device, #phone-root.ph-alert .ph-wrap[data-pose="glance"] .ph-isl, #phone-root.ph-alert .gl-read, .ph-cue.in { animation: none; }
 }
+
+/* =============================================================================
+   v23 phone — a raised phone you can use: real size on touch, one app view box, outlined reply pills, a camera button
+   ============================================================================= */
+/* the shell: bezel, status row and dock heights are variables (phone.js _layout sets them; --ph-view-w/h = the app view box).
+   The apps no longer pad themselves round the status bar and the dock: .ph-view IS the free box between them. */
+#phone-root { --bez: 12px; --ph-st: 50px; --ph-dk: 92px; --ph-view-w: 316px; --ph-view-h: 534px; }
+.ph-screen, .ph-glare { inset: var(--bez); }
+.ph-views { top: var(--ph-st); bottom: var(--ph-dk); }
+.ph-view { display: flex; flex-direction: column; }
+.ph-screen { transition: none; }
+.ph-screen[data-app="home"] { background: #1b1e3f; }
+.ph-screen[data-app="messages"] { background: #fff; }
+.ph-screen[data-app="maps"] { background: #ebe8e1; }
+.ph-screen[data-app="notes"] { background: #fbfaf7; }
+.ph-screen[data-app="transit"] { background: #f2f2f7; }
+#phone-root.ph-land .ph-views { top: 0; bottom: 0; }
+.hs-widget { top: 14px; } .hs-grid { top: 140px; }
+.nt, .tr { padding-top: 6px; }
+.nt { padding-bottom: 12px; } .tr { padding-bottom: 14px; }
+
+/* touch, landscape: a real-size phone with real proportions (about 2.1 : 1), held up under the top edge; its lower part runs
+   off the bottom of the screen. The view box and the dock are laid out from the TOP of the device to the viewport's bottom
+   edge (phone.js _layout publishes --ph-view-h, --ph-dk, --ph-sb); nothing interactive sits in the off-screen part. */
+#phone-root.ph-flat .ph-device { border-radius: 48px; box-shadow: 0 18px 50px rgba(0,0,0,.5), 0 6px 16px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(255,255,255,.18), inset 0 0 0 3px #0b0b0c; }
+#phone-root.ph-flat .ph-screen, #phone-root.ph-flat .ph-glare { border-radius: 40px; }
+#phone-root.ph-flat .ph-btn-a { top: 118px; } 
+#phone-root.ph-flat .ph-homebar { display: none; }
+#phone-root.ph-flat .ph-status { height: var(--ph-st); padding: 5px 26px 0 30px; font-size: 12.5px; }
+#phone-root.ph-flat .ph-net { font-size: 10.5px; }
+#phone-root.ph-flat .ph-bat { width: 23px; height: 11px; }
+#phone-root.ph-flat .ph-bat b { font-size: 7.5px; }
+#phone-root.ph-flat .ph-wrap[data-pose="up"] .ph-isl { top: 6px; height: 20px; left: calc(50% - 40px); right: calc(50% - 40px); border-radius: 12px; }
+#phone-root.ph-flat .ph-views { bottom: auto; height: var(--ph-view-h); }
+#phone-root.ph-flat .ph-dock { left: 0; right: 0; bottom: auto; top: calc(var(--ph-st) + var(--ph-view-h)); height: var(--ph-dk); padding: 0 8px var(--ph-sb); gap: 4px; border-radius: 0; background: #14161b; box-shadow: inset 0 1px 0 rgba(255,255,255,.1); align-items: stretch; }
+#phone-root.ph-flat .ph-dock button { height: 100%; padding: 0; border-radius: 12px; justify-content: center; gap: 0; }
+#phone-root.ph-flat .ph-dock button span { display: none; }
+#phone-root.ph-flat .ph-dock .ph-d-ic { width: 28px; height: 28px; border-radius: 8px; }
+#phone-root.ph-flat .ph-dock .ph-d-ic.ic-apps { padding: 5px; }
+#phone-root.ph-flat .ph-dock button.on { background: rgba(255,255,255,.16); }
+#phone-root.ph-flat .ph-notif { top: 32px; }
+#phone-root.ph-flat .ph-toast { top: calc(var(--ph-st) + var(--ph-view-h) - 44px); bottom: auto; }
+
+/* ---- Messages ---- */
+#phone-root .ms { padding: 0; background: #fff; }
+#phone-root .ms-h { flex: 0 0 auto; padding: 3px 12px 4px; gap: 9px; }
+#phone-root .ms-back { font-size: 26px; }
+#phone-root .ms-av { width: 28px; height: 28px; font-size: 13px; flex: 0 0 28px; }
+#phone-root .ms-h b { font-size: 15px; } #phone-root .ms-h small { font-size: 11px; }
+#phone-root .ms-list { flex: 1 1 auto; min-height: 0; padding: 8px 10px; gap: 4px; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+#phone-root .ms-list > :first-child { margin-top: auto; }
+#phone-root .ms-b { max-width: 82%; }
+#phone-root#phone-root .ms-b p { font-size: 15.5px; line-height: 1.3; padding: 7px 12px; overflow-wrap: anywhere; }
+#phone-root#phone-root .ms-b small { font-size: 11px; margin: 1px 8px 0; }
+#phone-root .ms-day { font-size: 11px; margin: 4px 0 0; }
+#phone-root .ms-b.ms-photo { max-width: 60%; }
+/* the suggestions: outlined pills on a quiet strip, nothing like the blue sent bubbles */
+#phone-root .ms-cap { flex: 0 0 auto; padding: 7px 12px 0; font: 600 11.5px/1 Inter, sans-serif; letter-spacing: .02em; color: #8e8e93; text-align: center; border-top: 1px solid #ececef; }
+#phone-root#phone-root .ms-replies { flex: 0 0 auto; display: flex; flex-direction: row; flex-wrap: wrap; justify-content: stretch; align-items: stretch; gap: 6px 8px; padding: 6px 10px 6px; border-top: 0; background: #fff; animation: msChipsFade .22s ease-out; }
+.ms-cap + .ms-replies { padding-top: 6px; }
+#phone-root#phone-root .ms-list + .ms-replies { border-top: 1px solid #ececef; }
+@keyframes msChipsFade { from { opacity: 0; } }
+#phone-root#phone-root .ms-replies .ms-chip { flex: 1 1 auto; max-width: 100%; min-height: 40px; padding: 7px 14px; gap: 7px; justify-content: center; text-align: center; border: 1.5px solid #0a84ff; background: #fff; color: #0a68cf; border-radius: 22px; font: 600 15px/1.2 Inter, "Noto Sans JP", sans-serif; box-shadow: none; animation: none; -webkit-tap-highlight-color: transparent; }
+#phone-root#phone-root .ms-replies .ms-chip:active { background: #d9eaff; transform: scale(.98); }
+@media (hover: hover) { #phone-root#phone-root .ms-replies .ms-chip:hover, #phone-root#phone-root .ms-replies .ms-chip:focus-visible { background: #eaf3ff; color: #0a68cf; } }
+#phone-root#phone-root .ms-replies .ms-chip kbd { width: 18px; height: 18px; border-radius: 5px; background: #eaf3ff; color: #0a68cf; font-size: 11px; box-shadow: inset 0 -1.5px 0 rgba(10,132,255,.35); }
+#phone-root#phone-root .ms-replies .ms-chip-photo { border-color: #0a84ff; color: #0a68cf; background: #fff; box-shadow: none; }
+#phone-root .ms-replies .ms-chip span { min-width: 0; overflow-wrap: anywhere; }
+/* the sent bubble: the pill flies from its place and turns blue (phone/apps.js render: FLIP vars --fx / --fy) */
+.ms-b.me.ms-sent.fly p { animation: msFly .36s cubic-bezier(.2,.8,.25,1) both; }
+@keyframes msFly {
+  from { transform: translate(var(--fx, 0), var(--fy, 0)); background: #fff; color: #0a68cf; box-shadow: inset 0 0 0 1.5px #0a84ff; }
+  to { transform: none; background: #0a84ff; color: #fff; box-shadow: inset 0 0 0 1.5px #0a84ff; }
+}
+.ms-b.ms-photo.ms-sent img { animation: msPhotoIn .42s cubic-bezier(.2,.9,.3,1.15) both; transform-origin: 100% 100%; }
+.ms-b.ms-photo.ms-sent.late img { animation-delay: .4s; }
+@keyframes msPhotoIn { from { transform: translateY(18px) scale(.72); opacity: 0; } }
+/* the input bar: [camera] [iMessage field ↑] */
+#phone-root .ms-in { position: static; flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-start; gap: 8px; height: auto; padding: 4px 10px 6px; border: 0; border-top: 1px solid #ececef; border-radius: 0; background: #fff; }
+#phone-root .ms-replies + .ms-in, #phone-root .ms-cap + .ms-replies + .ms-in { border-top: 0; }
+.ms-field { flex: 1 1 auto; min-width: 0; height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 14px; border: 1px solid #d1d1d6; border-radius: 18px; color: #aeaeb2; font-size: 15px; background: #fff; }
+.ms-field i { width: 28px; height: 28px; border-radius: 50%; background: #c7c7cc; color: #fff; display: grid; place-items: center; font-style: normal; }
+/* the camera button: a 36 px round button (44 px tap area) with a ring that fills over the 15 s cooldown */
+.ms-cam { position: relative; flex: 0 0 auto; width: 36px; height: 36px; margin: 0; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #0a84ff;
+  background: conic-gradient(#0a84ff calc(var(--p, 1) * 360deg), #d3d8e0 0); -webkit-tap-highlight-color: transparent; transition: opacity .2s; }
+.ms-cam::before { content: ''; position: absolute; inset: 2.5px; border-radius: 50%; background: #e9f3ff; }
+.ms-cam::after { content: ''; position: absolute; inset: -4px; }
+.ms-cam-ic { position: relative; display: block; width: 20px; height: 20px; }
+.ms-cam-ic svg { display: block; width: 100%; height: 100%; }
+.ms-cam:active { transform: scale(.94); }
+.ms-cam:not([data-s="ready"]) { color: #9aa3b0; opacity: .75; cursor: default; }
+.ms-cam[data-s="typing"] { background: #d3d8e0; opacity: .55; }
+.ms-cam[data-s="typing"]::before { background: #f1f2f4; }
+.ms-cam kbd { position: absolute; right: -6px; bottom: -6px; z-index: 1; font: 800 9.5px/1 Inter, sans-serif; color: #4a4a50; background: #fff; border: 1px solid #c7c7cc; border-bottom-width: 2px; border-radius: 4px; padding: 1px 4px; }
+.ms-cam.pulse { animation: msCamPulse 1.1s ease-out 2; }
+@keyframes msCamPulse { 0% { box-shadow: 0 0 0 0 rgba(10,132,255,.6); } 100% { box-shadow: 0 0 0 16px rgba(10,132,255,0); } }
+.ms-cam.nope { animation: msCamNope .3s; }
+@keyframes msCamNope { 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .ms-b.me.ms-sent p, .ms-b.ms-photo.ms-sent img, #phone-root .ms-replies, .ms-cam.pulse, .ms-cam.nope { animation: none !important; }
+}
+
+/* ---- camera mode: the world through a viewfinder (js/ui/phone/camera.js). Above the touch controls (z 25) ---- */
+.ph-cam { position: fixed; inset: 0; z-index: 30; pointer-events: none; -webkit-user-select: none; user-select: none; font-family: Inter, "Noto Sans JP", system-ui, sans-serif; }
+.cam-dim { position: absolute; background: rgba(0,0,0,.34); }
+.cam-frame { position: absolute; }
+.cam-c { position: absolute; width: 26px; height: 26px; border: 0 solid rgba(255,255,255,.96); filter: drop-shadow(0 0 2px rgba(0,0,0,.45)); }
+.cam-c.a { left: 0; top: 0; border-left-width: 3px; border-top-width: 3px; border-top-left-radius: 7px; }
+.cam-c.b { right: 0; top: 0; border-right-width: 3px; border-top-width: 3px; border-top-right-radius: 7px; }
+.cam-c.c { left: 0; bottom: 0; border-left-width: 3px; border-bottom-width: 3px; border-bottom-left-radius: 7px; }
+.cam-c.d { right: 0; bottom: 0; border-right-width: 3px; border-bottom-width: 3px; border-bottom-right-radius: 7px; }
+.cam-grid { position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)),
+    linear-gradient(180deg, transparent calc(33.333% - .5px), rgba(255,255,255,.4) calc(33.333% - .5px) calc(33.333% + .5px), transparent calc(33.333% + .5px) calc(66.666% - .5px), rgba(255,255,255,.4) calc(66.666% - .5px) calc(66.666% + .5px), transparent calc(66.666% + .5px)); }
+.cam-hint { position: absolute; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); padding: 7px 14px; border-radius: 16px; background: rgba(10,10,12,.62); color: #fff; font: 600 14px/1.2 Inter, sans-serif; white-space: nowrap; animation: camHint .4s ease-out; }
+@keyframes camHint { from { opacity: 0; transform: translate(-50%, 8px); } }
+.cam-shutter { position: absolute; right: calc(26px + env(safe-area-inset-right, 0px)); top: 50%; width: 72px; height: 72px; margin: -36px 0 0; padding: 0; border: 4px solid #fff; border-radius: 50%; background: rgba(0,0,0,.12); box-shadow: 0 2px 14px rgba(0,0,0,.5); pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cam-shutter i { position: absolute; inset: 5px; border-radius: 50%; background: #fff; transition: transform .08s; }
+.cam-shutter:active i { transform: scale(.86); }
+.cam-shutter kbd { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); margin-top: 8px; }
+.cam-x { position: absolute; left: calc(14px + env(safe-area-inset-left, 0px)); top: 12px; min-width: 44px; height: 44px; padding: 0; border: 0; border-radius: 22px; display: flex; align-items: center; justify-content: center; gap: 7px; background: rgba(10,10,12,.55); color: #fff; pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cam-x svg { width: 20px; height: 20px; }
+.cam-x kbd { margin-right: 12px; }
+.ph-cam kbd { font: 700 11px/1 Inter, sans-serif; color: #fff; border: 1px solid rgba(255,255,255,.55); border-bottom-width: 2px; border-radius: 5px; padding: 3px 6px 2px; background: rgba(10,10,12,.5); }
+.cam-toast { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); padding: 8px 14px; border-radius: 16px; background: rgba(10,10,12,.7); color: #fff; font: 600 13.5px/1.2 Inter, sans-serif; opacity: 0; white-space: nowrap; }
+.cam-toast.on { animation: camToast 2.2s ease-out; }
+@keyframes camToast { 0% { opacity: 0; } 12%, 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cam-hint, .cam-toast.on { animation: none; } .cam-toast.on { opacity: 1; } }
+
+/* =============================================================================
+   v23 maps — the plan fills the app box (.ph-view[data-v="maps"], 300-400 x 250-700); the bar, the floor strip and the panels float over it
+   ============================================================================= */
+.mq { overflow: hidden; background: #ebe8e1; color: #202124; font-family: Inter, "Noto Sans JP", sans-serif; }
+.mq svg { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.mq-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.mq-bar { position: absolute; left: 0; right: 0; top: 0; z-index: 6; height: 46px; padding: 3px 8px; display: flex; align-items: center; background: rgba(255,255,255,.96); box-shadow: 0 1px 6px rgba(0,0,0,.18); }
+.mq-search { flex: 1; min-width: 0; height: 40px; border-radius: 20px; background: #f1f3f4; display: flex; align-items: center; gap: 8px; padding: 0 4px 0 12px; cursor: text; }
+.mq-search[hidden], .mq-rt[hidden] { display: none; }
+.mq-s-ico { width: 20px; height: 20px; flex: 0 0 20px; color: #5f6368; } .mq-s-ico svg { width: 20px; height: 20px; }
+.mq-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: 600 15px Inter, "Noto Sans JP", sans-serif; color: #202124; pointer-events: auto; -webkit-user-select: text; user-select: text; }
+.mq-search input::placeholder { color: #5f6368; }
+.mq-clear { width: 36px; height: 36px; border: 0; border-radius: 50%; background: none; color: #5f6368; padding: 8px; cursor: pointer; } .mq-clear[hidden] { display: none; } .mq-clear svg { width: 20px; height: 20px; }
+.mq-rt { flex: 1; min-width: 0; height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 4px 0 2px; border: 0; background: none; text-align: left; cursor: pointer; font-family: inherit; color: inherit; }
+.mq-rt-ic { flex: 0 0 34px; width: 34px; height: 34px; border-radius: 50%; background: #1a73e8; color: #fff; display: grid; place-items: center; }
+.mq-rt-ic svg { width: 20px; height: 20px; }
+.mq-rt-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mq-rt-t b { font-size: 14px; font-weight: 750; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-rt-t small { font-size: 11px; color: #5f6368; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-rt-go { flex: 0 0 auto; min-width: 54px; height: 40px; display: grid; place-items: center; border-radius: 20px; padding: 0 12px; background: #e8f0fe; color: #1558b8; font: 750 13px Inter, sans-serif; }
+.mq-rt.pulse .mq-rt-go { animation: mqPulse 1s ease-in-out infinite; }
+@keyframes mqPulse { 50% { background: #1a73e8; color: #fff; } }
+.mq-chips { position: absolute; left: 8px; top: 54px; z-index: 4; right: 64px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; pointer-events: none; }
+.mq-fl, .mq-me { max-width: 100%; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 650; line-height: 1; padding: 6px 10px; border-radius: 13px; background: rgba(255,255,255,.95); color: #202124; box-shadow: 0 1px 4px rgba(0,0,0,.18); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-fl.other { background: #1c2a3a; color: #fff; }
+.mq-me b { font-weight: 650; overflow: hidden; text-overflow: ellipsis; }
+.mq-me i { flex: 0 0 9px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #1a73e8; background: rgba(26,115,232,.2); }
+.mq-me.ok i { background: #1a73e8; } .mq-me.q { background: #fff4d6; color: #5e3b00; } .mq-me.q i { border-color: #e37400; background: rgba(227,116,0,.2); }
+.mq-ctl { position: absolute; right: 8px; top: 54px; z-index: 5; display: flex; flex-direction: column; gap: 8px; }
+.mq-btn { width: 44px; height: 44px; border-radius: 50%; border: 0; background: #fff; color: #1a73e8; box-shadow: 0 1px 6px rgba(0,0,0,.28); display: grid; place-items: center; padding: 0; cursor: pointer; font: 800 16px Inter, sans-serif; }
+.mq-btn svg { width: 24px; height: 24px; } .mq-btn b { font-weight: 800; color: #202124; } .mq-btn span { display: grid; place-items: center; }
+.mq-orient.on { box-shadow: 0 0 0 2px #1a73e8, 0 1px 6px rgba(0,0,0,.28); }
+.mq-locate.lost { background: #1a73e8; color: #fff; } .mq-locate.off { color: #5f6368; }
+.mq-toast { position: absolute; z-index: 9; left: 50%; top: 56px; transform: translateX(-50%); max-width: 86%; padding: 8px 14px; border-radius: 16px; background: rgba(32,33,36,.92); color: #fff; font: 600 12.5px Inter, sans-serif; text-align: center; pointer-events: none; }
+.mq-toast[hidden] { display: none; }
+.mq-strip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; height: 44px; display: flex; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; background: rgba(255,255,255,.96); box-shadow: 0 -1px 6px rgba(0,0,0,.18); -webkit-overflow-scrolling: touch; touch-action: pan-x; overscroll-behavior: contain; }
+.mq-strip::-webkit-scrollbar { display: none; }
+.mq-strip button { position: relative; flex: 1 0 44px; min-width: 44px; height: 44px; border: 0; background: none; font: 750 14px Inter, sans-serif; color: #3c4043; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.mq-strip button.on { background: #1c2a3a; color: #fff; }
+.mq-strip button.rt::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 3px; height: 4px; border-radius: 2px; background: #1a73e8; }
+.mq-strip button.on.rt::after { background: #8ab4f8; }
+.mq-strip .dot { position: absolute; left: 6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: #1a73e8; box-shadow: 0 0 0 2px #fff; }
+.mq-strip .dot.q { background: #fff; border: 2.5px solid #1a73e8; box-shadow: none; }
+.mq-strip button.maybe .dot { background: #fff; border: 2.5px dashed #1a73e8; box-shadow: none; }
+.mq-strip em { position: absolute; right: 4px; top: 2px; width: 17px; height: 20px; color: #d93025; font-style: normal; } .mq-strip em svg { width: 17px; height: 20px; stroke: none; }
+.mq-strip button.on em { color: #ff8a80; }
+.mq-aya { position: absolute; z-index: 7; left: 8px; right: 8px; bottom: 52px; min-height: 52px; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "a go" "b go" "s go"; align-items: center; column-gap: 10px; padding: 6px 8px 6px 14px; border: 0; border-radius: 18px; background: #1a73e8; color: #fff; text-align: left; font-family: inherit; box-shadow: 0 4px 14px rgba(0,0,0,.3); cursor: pointer; }
+.mq-aya[hidden] { display: none; }
+.mq-aya .a { grid-area: a; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .85; line-height: 1.1; }
+.mq-aya b { grid-area: b; font-size: 15px; font-weight: 800; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-aya small { grid-area: s; font-size: 11.5px; opacity: .9; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-aya em { grid-area: go; font-style: normal; font-weight: 800; font-size: 14px; background: #fff; color: #1558b8; border-radius: 20px; min-height: 40px; padding: 0 16px; display: grid; place-items: center; }
+.mq-aya-on .mq-ctl { bottom: 112px; top: auto; }
+.mq-sugg { position: absolute; z-index: 9; left: 8px; right: 8px; top: 50px; max-height: calc(100% - 110px); overflow-y: auto; background: #fff; border-radius: 14px; box-shadow: 0 6px 24px rgba(0,0,0,.28); }
+.mq-sugg[hidden] { display: none; }
+.mq-sugg-h { font-size: 11px; font-weight: 700; color: #5f6368; padding: 10px 14px 4px; text-transform: uppercase; letter-spacing: .06em; }
+.mq-sugg-i { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 6px 14px; border: 0; border-top: 1px solid #f1f3f4; background: none; font: 500 14px Inter, sans-serif; text-align: left; cursor: pointer; color: #202124; }
+.mq-sugg-i b { display: block; font-weight: 650; font-size: 13.5px; } .mq-sugg-i small { display: block; color: #5f6368; font-size: 11.5px; }
+.mq-sugg-ic { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; color: #5f6368; }
+/* panels */
+.mq-panel { position: absolute; z-index: 8; left: 0; right: 0; top: 46px; bottom: 0; background: #fff; display: flex; flex-direction: column; }
+.mq-panel[hidden] { display: none; }
+.mq-ph { flex: 0 0 auto; height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px 0 14px; border-bottom: 1px solid #f1f3f4; }
+.mq-pt { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-x { flex: 0 0 auto; width: 44px; height: 44px; border: 0; background: none; color: #5f6368; padding: 11px; cursor: pointer; } .mq-x svg { width: 22px; height: 22px; }
+.mq-pb { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 6px 12px 14px; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; }
+.mq-p-place { top: auto; max-height: 58%; border-radius: 18px 18px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.2); bottom: 0; }
+.mq-p-place .mq-ph { height: 26px; border: 0; } .mq-p-place .mq-pt { display: none; } .mq-p-place .mq-x { position: absolute; right: 2px; top: 0; z-index: 2; }
+.mq-p-place .mq-pb { padding-top: 0; }
+.mq-p-place .mp-pc-t { padding-right: 40px; }
+.mq-has-panel .mq-chips, .mq-has-panel .mq-ctl, .mq-has-panel .mq-aya { display: none; }
+.mq-p-place ~ .mq-chips { display: flex; }
+.mq-here { display: flex; align-items: center; gap: 10px; margin: 2px 0 6px; }
+.mq-here-dot { flex: 0 0 14px; height: 14px; border-radius: 50%; border: 3px solid #e37400; background: rgba(227,116,0,.2); } .mq-here-dot.ok { border-color: #1a73e8; background: #1a73e8; }
+.mq-here b { display: block; font-size: 14px; font-weight: 750; } .mq-here small { display: block; font-size: 11.5px; color: #5f6368; }
+.mq-offline { font-size: 11.5px; background: #fce8e6; color: #c5221f; border-radius: 8px; padding: 6px 9px; font-weight: 650; margin-bottom: 6px; }
+.mq-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
+.mq-actions button { min-height: 44px; border-radius: 22px; padding: 0 16px; border: 1.5px solid #dadce0; background: #fff; color: #1a73e8; font: 750 14px Inter, sans-serif; cursor: pointer; }
+.mq-actions .mq-go { flex: 1; background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.mq-actions .mq-end { color: #c5221f; border-color: #f0b8b4; }
+.mq-actions .mq-show { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.mq-rt-meta { font-size: 13px; margin: 4px 0 2px; } .mq-rt-meta b { color: #188038; }
+.mq-rt-from { font-size: 11.5px; line-height: 1.35; color: #5f6368; margin-bottom: 6px; }
+.mq-steps { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.mq-step { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 9px; padding: 6px 8px; border: 1.5px solid #e3e5e8; border-radius: 14px; background: #fff; text-align: left; cursor: pointer; font-family: inherit; color: #202124; }
+.mq-step.cur { border-color: #1a73e8; background: #e8f0fe; } .mq-step.done { opacity: .55; }
+.mq-step .n { flex: 0 0 22px; height: 22px; border-radius: 50%; background: #1c2a3a; color: #fff; font: 800 12px/22px Inter, sans-serif; text-align: center; }
+.mq-step .ic { flex: 0 0 24px; height: 24px; color: #1a73e8; } .mq-step .ic svg { width: 22px; height: 22px; }
+.mq-step .tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mq-step .tx b { font-size: 13.5px; font-weight: 700; line-height: 1.25; } .mq-step .tx small { font-size: 11.5px; color: #5f6368; }
+.mq-step .go { flex: 0 0 auto; font: 750 12px Inter, sans-serif; color: #1558b8; padding: 0 6px; }
+.mq .dl-chips button { height: 40px; font-size: 12.5px; }
+.mq .dl-r { min-height: 52px; }
+.mq .dl-m b { font-size: 14px; } .mq .dl-m small { font-size: 11.5px; }
+.mq .dl-next { min-height: 48px; width: 100%; margin-bottom: 8px; }
+.mq .mp-fl { font-size: 11px; }
+.mq .mp-photo.mp-photo-in { height: 84px; margin: 8px -12px 8px; width: calc(100% + 24px); }
+@media (prefers-reduced-motion: reduce) { .mq-rt.pulse .mq-rt-go { animation: none; } }
+/* v23 maps, round 2: the bar grows to two lines of step text; the list, results and steps panels replace the bar (their header is the bar) */
+.mq-bar { height: auto; min-height: 46px; }
+.mq-rt { height: auto; min-height: 40px; padding-top: 1px; padding-bottom: 1px; }
+.mq-rt-t b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 13.5px; }
+.mq-chips, .mq-ctl, .mq-toast { top: var(--mq-bar, 54px); }
+.mq-me { align-items: center; padding: 5px 10px; line-height: 1.15; white-space: normal; }
+.mq-me > span { display: flex; flex-direction: column; min-width: 0; } .mq-me b { white-space: nowrap; } .mq-me small { font-size: 11px; font-weight: 600; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mq-p-home, .mq-p-results, .mq-p-steps { top: 0; z-index: 10; }
+.mq-search input { height: 40px; }
+.mq .dl-aya { font-size: 11px; }
+.mq-steps { margin-top: 6px; }
+
+/* v23 maps, round 3: no position indoors. A quiet "No GPS indoors" chip, a last-known pin, a compass badge, nothing truncated */
+.mq-me { background: none; border: 0; box-shadow: none; padding: 0; min-height: 40px; display: inline-flex; align-items: center; cursor: pointer; font-family: inherit; pointer-events: auto; }
+.mq-me .p { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 13px; background: rgba(255,255,255,.92); color: #5f6368; font: 650 11.5px/1.2 Inter, sans-serif; box-shadow: 0 1px 4px rgba(0,0,0,.16); }
+.mq-me .p i { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid #9aa0a6; background: none; }
+.mq-me.ok .p { color: #1558b8; } .mq-me.ok .p i { border-color: #1a73e8; background: #1a73e8; }
+.mq-me.q, .mq-me.q .p { background: none; }
+.mq-me b { white-space: normal; }
+.mq-chips { gap: 0; }
+.mq-fl { white-space: normal; text-overflow: clip; overflow: visible; line-height: 1.2; margin-bottom: 0; }
+.mq-toast { white-space: pre-line; text-overflow: clip; max-width: 92%; }
+.mq-rt-t b, .mq-rt-t small { white-space: normal; overflow: visible; text-overflow: clip; display: block; -webkit-line-clamp: unset; }
+.mq-rt-t b { font-size: 14px; }
+.mq-rt-go { min-width: 0; padding: 0 11px; font-size: 12.5px; }
+.mq-rt-x { flex: 0 0 40px; width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: #5f6368; padding: 9px; cursor: pointer; margin-left: 2px; } .mq-rt-x[hidden] { display: none; } .mq-rt-x svg { width: 22px; height: 22px; }
+.mq-rt-ic svg { stroke: none; }
+.mq-aya b, .mq-aya small { white-space: normal; overflow: visible; text-overflow: clip; }
+.mq-pt { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.2; }
+.mq .dl-m b, .mq .dl-m small { white-space: normal; overflow: visible; text-overflow: clip; }
+.mq-ph { min-height: 44px; height: auto; padding-top: 4px; padding-bottom: 4px; }
+.mq-strip button.ghost .dot { background: none; border: 2.5px dashed #e8710a; box-shadow: none; }
+.mq-strip button.gps .dot { background: #1a73e8; }
+.mq-strip button.rt::after { display: none; }
+.mq-strip .dot { left: 7px; top: 7px; }
+.mq-rt-from b { color: #202124; } .mq-rt-from span { color: #8a5a2b; }
+
+/* ---- v23 the lowered phone's glance card ---- */
+/* before Aya's first "meet me" text there is nothing about Maps: just the Dynamic-Island pill peeking */
+.ph-wrap[data-pose="glance"] .ph-isl.quiet, .ph-wrap[data-pose="down"] .ph-isl.quiet { left: calc(50% - 53px); right: calc(50% - 53px); top: 11px; height: 31px; border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 1px rgba(255,255,255,.04); }
+.ph-isl.quiet .gl { display: none; }
+/* texts on the card come out at least 12 px (or 11 for the sub line) ON SCREEN: --ph-gs is the card's scale (phone.js) */
+#phone-root#phone-root .gl-read { font-size: calc(12.5px / var(--ph-gs, .6)); padding: .5em .7em .5em .55em; }
+#phone-root#phone-root .gl-t span { font-size: calc(11.5px / var(--ph-gs, .6)); }
+#phone-root#phone-root .gl-note .gl-t b { font-size: calc(13px / var(--ph-gs, .6)); }
+#phone-root#phone-root .gl-note .gl-t b small { font-size: calc(11px / var(--ph-gs, .6)); }
+/* the title wraps to two lines, never one line with an ellipsis */
+#phone-root .gl-t b { -webkit-line-clamp: 2; line-height: 1.12; }
+/* the thread fades out at its top edge instead of being cut through a bubble */
+#phone-root .ms-list { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 16px); mask-image: linear-gradient(180deg, transparent 0, #000 16px); }
+
+/* =============================================================================
+   v23 integration
+   ============================================================================= */
+/* ---- Maps: ONE bottom-centre badge says both "No GPS indoors" and "you face this way" (js/ui/phone/mapapp.js _syncWedge) ----
+   First 5 s after Maps opens (and 5 s after a tap): a white pill with the words. Then the pill shrinks to the wedge with a 12 px caption. */
+.mq-me[hidden] { display: none; }
+.mq-gps { position: absolute; z-index: 5; left: 50%; bottom: calc(var(--mq-insb, 44px) + 8px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 96px); min-height: 46px; padding: 1px 12px 1px 1px; border: 0; border-radius: 24px; background: rgba(255,255,255,.94); box-shadow: 0 1px 6px rgba(0,0,0,.24); color: #1558b8; font-family: Inter, "Noto Sans JP", sans-serif; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .35s, box-shadow .35s; }
+.mq-gps[hidden] { display: none; }
+.mq .mq-gps svg, .mq .mq-gps svg * { stroke: none; }
+.mq-gps svg { display: block; flex: 0 0 44px; width: 44px; height: 44px; margin: 1px; filter: drop-shadow(0 1px 3px rgba(0,0,0,.28)); overflow: visible; }
+.mq-gps .t { position: relative; display: grid; min-width: 0; }
+.mq-gps .full, .mq-gps .cap { grid-area: 1 / 1; transition: opacity .35s; white-space: nowrap; font: 700 12px/1.25 Inter, "Noto Sans JP", sans-serif; }
+.mq-gps .full { display: flex; flex-direction: column; }
+.mq-gps .full b { font-weight: 800; color: #1558b8; }
+.mq-gps .full span { font-weight: 650; color: #3c4043; }
+.mq-gps.lab .cap, .mq-gps:not(.lab) .full { opacity: 0; pointer-events: none; position: absolute; left: 0; top: 0; }
+/* collapsed: the pill drops its fill and keeps a small caption chip; the wedge's own disc stays white */
+.mq-gps:not(.lab) { padding-right: 4px; background: rgba(255,255,255,0); box-shadow: none; }
+.mq-gps:not(.lab) .cap { align-self: center; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.92); color: #5f6368; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
+.mq-has-panel .mq-gps { display: none; }
+@media (prefers-reduced-motion: reduce) { .mq-gps, .mq-gps .full, .mq-gps .cap { transition: none; } }
+/* the floor strip: all ten floors (B2 .. 8F) share the width (30 px min: they all fit a 300 px box), so the viewed, destination and last-known floors are on screen together */
+.mq-strip button { flex: 1 1 0; min-width: 30px; }
+.mq-strip .dot { left: 4px; top: 6px; }
+.mq-strip em { right: 1px; }
+/* Maps: nothing under 12 px (the floor chip, the destination rows, the place card, the step list) */
+.mq .mq-fl, .mq .mq-rt-t small, .mq .mq-aya .a, .mq .mq-aya small, .mq .mq-sugg-h, .mq .mq-sugg-i small, .mq .mq-here small, .mq .mq-offline, .mq .mq-rt-from, .mq .mq-step .tx small,
+.mq .dl-m small, .mq .dl-d, .mq .dl-aya, .mq .dl-hint, .mq .dl-s kbd, .mq .dl-r kbd, .mq .dl-next em, .mq .dl-next small, .mq .dl-next kbd, .mq .mp-fl, .mq .mp-st, .mq .mp-st u, .mq .mp-stars,
+.mq .mp-open, .mq .mp-closed, .mq .mp-lb.square, .mq .mp-r-m small, .mq .mp-r-meta, .mq .mp-pop-l, .mq .mp-rev-h small, .mq .mp-rev-h i, .mq .mp-trip-t small, .mq .mp-fine, .mq .mp-chip-m,
+.mq .mp-actions .mp-k, .mq .mq-home-s, .mq .mq-here-s, .mq small { font-size: 12px; }
+.mq .mp-pop-l span, .mq .mp-pop-l, .mq .mp-pop small, .mq .mp-rev-h small, .mq .mp-pop-l i { font-size: 12px; }
+/* ---- Messages: reply pills size to their text and sit side by side when they fit (wrap otherwise); the block takes at most
+   40 % of the view height and scrolls inside beyond that, so Aya's last message always stays on screen ---- */
+#phone-root#phone-root .ms-replies { justify-content: center; align-items: flex-start; align-content: flex-start; gap: 8px; max-height: calc(var(--ph-view-h, 534px) * .4); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; scrollbar-width: thin; }
+#phone-root#phone-root .ms-replies .ms-chip { flex: 0 1 auto; width: auto; max-width: 100%; min-height: 40px; }
+/* in the touch phone's small box the input row steps aside while pills are showing (the camera is disabled then anyway), so the thread keeps room for Aya's last message and its card */
+#phone-root.ph-flat .ms-has-replies .ms-in { display: none; }
+#phone-root.ph-flat#phone-root .ms-has-replies .ms-replies { padding-bottom: 8px; }
+/* Aya's link, docked above the pills / input row while the card is out of sight in the thread (apps.js _syncPin): a slim 34 px strip */
+.ms-pinrow { flex: 0 0 auto; height: 34px; padding: 2px 10px; background: #fff; border-top: 1px solid #ececef; box-sizing: border-box; }
+.ms-pinrow[hidden] { display: none; }
+.ms-pinrow .ms-place.ms-pin { position: relative; display: flex; align-items: center; gap: 7px; width: 100%; height: 30px; margin: 0; padding: 0 12px 0 9px; border-radius: 15px; background: #eaf3ff; box-shadow: inset 0 0 0 1.5px #0a84ff; overflow: visible; color: #0a68cf; }
+.ms-pin::after { content: ''; position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; }
+.ms-pin svg { flex: 0 0 16px; width: 16px; height: 16px; color: #d93025; }
+.ms-pin b { flex: 1 1 auto; min-width: 0; font: 600 13px/1.2 Inter, "Noto Sans JP", sans-serif; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.ms-pin em { flex: 0 0 auto; font: 700 12px/1 Inter, sans-serif; font-style: normal; color: #0a68cf; white-space: nowrap; }
+.ms-pin.ld em { color: #c76a00; }
+/* camera mode: the tutorial's ghost thumb (it points at the phone button) stays out of the viewfinder */
+html:has(#phone-root.ph-cam-on) .tu-point { opacity: 0 !important; }
+/* the pause button stays clear of the raised phone's frame whatever the touch column measured (it sits left of the phone, never over it) */
+html.ph-wide #touch-ui.ph-up .tu-pause { right: max(calc(14px + max(var(--tu-right, 0px), var(--sr, 0px)) + 4px), calc(var(--ph-wide-gap, 0px) + 14px)); }
+/* ---- Maps place sheet: Directions sits on the name's row (right side, 36 px+), never below the fold ---- */
+.mq-p-place .mp-pc { position: relative; }
+.mq-p-place .mp-pc > .mq-actions { position: absolute; top: 0; right: 38px; margin: 0; z-index: 2; }
+.mq-p-place .mp-pc > .mq-actions .mq-go { flex: 0 0 auto; min-height: 36px; height: 36px; padding: 0 14px; font-size: 14px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.mq-p-place .mp-pc-t { padding-right: 150px; min-height: 36px; display: flex; align-items: center; }
+.mq-p-place .mp-tr-h .mp-pc-t { padding-right: 0; display: block; min-height: 0; }
+.mq-p-place .mp-tr-h { padding-right: 150px; min-height: 36px; }
+#phone-root:not(.ph-touch) .mq-p-place .mp-pc-t, #phone-root:not(.ph-touch) .mq-p-place .mp-tr-h { padding-right: 195px; }
+#phone-root:not(.ph-touch) .mq-p-place .mp-tr-h .mp-pc-t { padding-right: 0; }
+/* the floor strip is opaque (map labels no longer ghost through it); the camera button is 40 px like the chat bar */
+.mq-strip { background: #fff; }
+.ms-cam { width: 40px; height: 40px; }
+.ms-cam-ic { width: 22px; height: 22px; }
+#phone-root .ms-field { height: 40px; border-radius: 20px; }
+/* the chat bar is 40 px of button plus 2 + 4 px: the thread keeps every pixel it can */
+#phone-root .ms-in { padding: 2px 10px 4px; }
+/* the goal card: a title of up to two lines over ONE line of detail (three lines fit the lowered card) */
+#phone-root#phone-root .gl-pick .gl-t span { -webkit-line-clamp: 1; }

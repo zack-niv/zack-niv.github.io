@@ -10,8 +10,8 @@
 // v22: the game is a race to Aya; with summary.mission the card shows the player's score, its breakdown and the public board (showMission below).
 //   Without summary.mission (the old ?lodestone arc) the original card below is untouched.
 // =============================================================================
-import { ENDCARD } from './script.js?v=5442362';
-import { fetchScores, postScore, hasScores } from './scores.js?v=5442362';
+import { ENDCARD } from './script.js?v=bdb557c';
+import { fetchScores, postScore, hasScores } from './scores.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
@@ -166,6 +166,7 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
   // pts > 0 -> "+1,000"; pts < 0 -> true minus; pts 0 -> its note in place of the points, dimmed (the Train line, when made, shows a check instead).
   const lines = (Array.isArray(M.lines) ? M.lines : []).filter(l => l && typeof l === 'object');
   const isTrain = (l) => l.icon === '\u{1F686}' || /^train/i.test(String(l.label || ''));
+  const chips = [];
   const lineHtml = lines.map((l, i) => {
     const pts = isFinite(l.pts) ? Math.round(l.pts) : 0, start = i === 0 && /^start/i.test(String(l.label || '')), train = isTrain(l) && eligible;
     let right, sub = l.note || '', cls = '';
@@ -174,17 +175,20 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
     else if (train) right = '\u2713';
     else { right = l.note ? esc(l.note) : '0'; sub = ''; cls = 'dim'; }
     if (pts === 0 && isTrain(l) && !eligible) cls = 'dim';
+    // v23: the same ledger as one compact chip per line (short screens show these instead of the list); Start and a zero line with only a note are skipped or dimmed
+    if (!start) chips.push(`<span class="e-chip${pts < 0 ? ' neg' : ''}${train ? ' ok' : ''}${cls === 'dim' ? ' dim' : ''}"><i aria-hidden="true">${esc(l.icon)}</i>${esc(pts > 0 ? '+' + num(pts) : pts < 0 ? '\u2212' + num(-pts) : train ? '\u2713' : '\u2013')}</span>`);
     return `<li class="${cls}${pts < 0 ? ' neg' : ''}${train ? ' ok' : ''}"><span class="e-li" aria-hidden="true">${esc(l.icon)}</span><span class="e-ll"><b>${esc(l.label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span><span class="e-lp">${right}</span></li>`;
   }).join('');
   const talk = hasContact();
   const el = document.createElement('div');
-  el.className = 'g-end e-race';
+  el.className = 'g-end e-race' + (eligible ? '' : ' miss');
   el.innerHTML = `
     <div class="e-wrap">
       <section class="e-left">
         <div class="e-eyebrow"><span class="e-dot"></span>${eligible ? '着いた。<em>You made it.</em>' : '行っちゃった。<em>It left.</em>'}</div>
         <h1 class="e-line">${headline(tier, coffee)}</h1>
         <div class="e-time"><b aria-label="${num(score)}">${num(score)}</b><small>Your score</small></div>
+        ${lines.length ? `<button type="button" class="e-chips" aria-expanded="false" aria-label="Show how the score adds up">${chips.join('')}<u aria-hidden="true">\u25BE</u></button>` : ''}
         ${lines.length ? `<ul class="e-lines${eligible ? '' : ' void'}">${lineHtml}<li class="e-sum"><span class="e-li"></span><span class="e-ll"><b>Total</b></span><span class="e-lp">${num(score)}</span></li></ul>${eligible ? '' : '<p class="e-lcap">not counted: the train left</p>'}` : ''}
         <p class="e-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}</p>
         <p class="e-where">${esc(ENDCARD.kicker)}</p>
@@ -198,7 +202,7 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
       <section class="e-right e-board" aria-label="Top scores">
         <div class="e-head"><span>Top scores</span></div>
         <div class="e-post" hidden>
-          <input class="e-ini" type="text" maxlength="3" size="3" placeholder="AAA" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="send" aria-label="Your initials, 3 letters or numbers">
+          <label class="e-fld"><span>Your initials</span><input class="e-ini" type="text" maxlength="3" size="3" placeholder="ABC" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="send" inputmode="text" aria-label="Your initials, 3 letters or numbers"></label>
           <button type="button" class="e-mini e-go">Post my score</button>
         </div>
         <p class="e-msg" role="status" aria-live="polite"></p>
@@ -221,21 +225,24 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
     setTimeout(() => { big.textContent = num(score); }, D + 400);
   }
   const list = $('.e-list'), msg = $('.e-msg'), post = $('.e-post'), ini = $('.e-ini'), go = $('.e-go'), legend = $('.e-legend');
-  let closed = false, board = null, mine = null, posted = false, posting = false, nap = !hasScores();
+  let closed = false, board = null, mine = null, posted = false, posting = false, refused = false, nap = !hasScores();
   const id = runId();
   ini.value = initialsOf(lsGet('namba.initials'));
 
+  // v23: before posting, the player's own entry leads the list so it is plain that their score is not on the board yet
+  const youRow = `<li class="e-r me you"><b class="e-rk">\u2192</b><span class="e-nm">YOU</span><span class="e-t">${num(score)}</span><span class="e-x e-join">post to join</span></li>`;
   const row = (r, rank, me) => `<li class="e-r${me ? ' me' : ''}"><b class="e-rk">${rank}</b><span class="e-nm">${esc(r.name)}</span><span class="e-t">${num(r.score)}</span><span class="e-x"><em title="got the seats">${r.seats ? '\u{1F364}' : ''}</em><em title="brought coffee">${r.coffee ? '\u2615' : ''}</em></span></li>`;
   const draw = () => {
     if (closed) return;
     legend.hidden = !board || !board.top.length;
-    post.hidden = !(eligible && board && !posted);
+    post.hidden = !(eligible && board && !posted) || refused;
     if (nap) { list.innerHTML = `<p class="e-nap">${NAP}</p>`; return; }
     if (!board) { list.innerHTML = '<ol class="e-ol skel" aria-hidden="true">' + '<li class="e-r"><b class="e-rk"></b><span class="e-nm"></span><span class="e-t"></span><span class="e-x"></span></li>'.repeat(10) + '</ol>'; return; }
     if (!board.top.length && !mine) { list.innerHTML = '<p class="e-nap e-empty">No scores yet. Be the first.</p>'; return; }
     const hi = mine && mine.rank <= board.top.length ? mine.rank : 0;
-    list.innerHTML = `<ol class="e-ol">${board.top.map((r, i) => row(r, i + 1, hi === i + 1)).join('')}${mine && !hi ? `<li class="e-gap" aria-hidden="true"></li>${row(mine, mine.rank, true)}` : ''}</ol>`;
-    if (mine) { const m = list.querySelector('.e-r.me'); try { m && m.scrollIntoView({ block: 'nearest' }); } catch (e) { /* old browsers */ } }
+    list.innerHTML = `<ol class="e-ol">${eligible && !posted ? youRow : ''}${board.top.map((r, i) => row(r, i + 1, hi === i + 1)).join('')}${mine && !hi ? `<li class="e-gap" aria-hidden="true"></li>${row(mine, mine.rank, true)}` : ''}</ol>`;
+    // v23: scroll only the list (never the card) to the player's row
+    if (mine) { const m = list.querySelector('.e-r.me'); try { if (m) list.scrollTop = Math.max(0, m.offsetTop - list.clientHeight / 2); } catch (e) { /* old browsers */ } }
   };
   msg.textContent = eligible ? '' : 'Catch the train to get on the board.';
   draw();
@@ -247,9 +254,9 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
   }).catch(() => { nap = true; draw(); });
 
   const submit = async () => {
-    if (!eligible || posted || posting || closed) return;
+    if (!eligible || posted || posting || closed || refused) return;
     const name = initialsOf(ini.value);
-    if (name.length !== 3) { msg.textContent = 'Enter 3 letters or numbers.'; try { ini.focus(); } catch (e) { /* ignore */ } return; }
+    if (name.length !== 3) { msg.textContent = 'Enter 3 letters or numbers.'; msg.classList.add('err'); try { ini.focus(); } catch (e) { /* ignore */ } return; }
     posting = true; ini.value = name; ini.disabled = true; go.disabled = true; go.classList.add('wait'); go.textContent = 'Posting\u2026'; msg.textContent = '';
     lsSet('namba.initials', name);
     const r = await postScore({ name, score, t1: M.t1, t2: M.t2, coffee, hints, m: metersOn || 0, id });
@@ -260,11 +267,19 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
       posted = true; board = { ok: true, top: r.top, total: r.total }; nap = false;
       mine = { ...(r.you || { name, score, seats, coffee }), rank: Math.max(1, r.rank | 0) };
       msg.textContent = `You're #${mine.rank} of ${r.total}`;
-      msg.classList.add('got');
+      msg.classList.remove('err'); msg.classList.add('got');
       draw();
     } else {
-      ini.disabled = false; go.disabled = false; go.classList.remove('wait'); go.textContent = 'Post my score';
-      msg.textContent = 'Could not post just now. Try again?';
+      // v23: a post the server refuses on its merits (bad-time, bad-score, ...) is final: say so kindly, no retry. Only a network-ish failure offers one more tap.
+      const soft = /^(network|timeout|failed|bad_response|http_(5|429)\d*|no_url)/.test(String(r.error || ''));
+      msg.classList.add('err');
+      if (soft) {
+        ini.disabled = false; go.disabled = false; go.classList.remove('wait'); go.textContent = 'Post my score';
+        msg.textContent = 'Could not reach the board. Tap Post to try again.';
+      } else {
+        post.hidden = true; refused = true;
+        msg.textContent = 'The board could not check that run, so it is not listed. Your score still counts for bragging.';
+      }
     }
   };
   go.addEventListener('click', (ev) => { ev.stopPropagation(); submit(); });
@@ -283,9 +298,27 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
     try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(brag).then(flash, fallbackCopy); else fallbackCopy(); } catch (e) { fallbackCopy(); }
   });
 
-  ini.addEventListener('input', () => { const v = initialsOf(ini.value); if (v !== ini.value) ini.value = v; if (msg.textContent.startsWith('Enter 3')) msg.textContent = ''; });
+  ini.addEventListener('input', () => { const v = initialsOf(ini.value); if (v !== ini.value) ini.value = v; if (msg.textContent.startsWith('Enter 3')) { msg.textContent = ''; msg.classList.remove('err'); } });
   // a soft keyboard shrinks the viewport: bring the field into view inside the card rather than letting the page jump
-  ini.addEventListener('focus', () => setTimeout(() => { try { ini.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* old browsers */ } }, 300));
+  // v23: with the keyboard up the card shrinks to the board's post row (field, Post, message) so the field can never sit under the keyboard.
+  // The visual viewport tells us (iOS keeps the layout viewport full height, Android may shrink it: base = the tallest we have seen).
+  const vv = window.visualViewport;
+  let base = Math.max(innerHeight, vv ? vv.height : 0);
+  const kbSync = () => {
+    if (closed) return;
+    const h = vv ? vv.height : innerHeight;
+    base = Math.max(base, innerHeight, h);
+    const kb = document.activeElement === ini && h < base - 90;
+    el.classList.toggle('e-kb', kb);
+    el.style.setProperty('--e-vh', h + 'px');
+    if (kb) { try { $('.e-post').scrollIntoView({ block: 'center' }); } catch (e) { /* old browsers */ } }
+  };
+  if (vv) { vv.addEventListener('resize', kbSync); vv.addEventListener('scroll', kbSync); }
+  ini.addEventListener('focus', () => { setTimeout(kbSync, 120); setTimeout(kbSync, 450); });
+  ini.addEventListener('blur', () => setTimeout(kbSync, 120));
+  // the ledger chips open and close the full breakdown (short screens only; on a roomy screen the list is always there)
+  const chipBtn = $('.e-chips');
+  if (chipBtn) chipBtn.addEventListener('click', (ev) => { ev.stopPropagation(); const o = el.classList.toggle('e-open'); chipBtn.setAttribute('aria-expanded', o ? 'true' : 'false'); });
 
   const btns = [...el.querySelectorAll('.g-btn')];
   const act = (v) => {
@@ -321,6 +354,6 @@ function showMission(ctx, s, { onRoam, onReplay } = {}) {
   el.querySelectorAll('.e-link').forEach(x => x.addEventListener('click', (ev) => ev.stopPropagation()));
   return {
     el,
-    close() { closed = true; clearTimeout(copyT); removeEventListener('keydown', key, true); removeEventListener('keyup', keyUp, true); el.classList.remove('on'); setTimeout(() => el.remove(), 900); },
+    close() { closed = true; clearTimeout(copyT); if (vv) { vv.removeEventListener('resize', kbSync); vv.removeEventListener('scroll', kbSync); } removeEventListener('keydown', key, true); removeEventListener('keyup', keyUp, true); el.classList.remove('on'); setTimeout(() => el.remove(), 900); },
   };
 }

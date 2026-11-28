@@ -22,22 +22,27 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .nbl-latin { font-weight: 600; font-size: 13px; letter-spacing: .7em; padding-left: .7em; opacity: .55; margin: 10px 0 44px; animation: nbl-in 1s .15s ease both; }
 .nbl-line { position: relative; padding: 0 6px; animation: nbl-in 1s .3s ease both; }
 .nbl-track { position: relative; height: 4px; border-radius: 3px; background: rgba(255, 255, 255, .1); }
-.nbl-fill { position: absolute; inset: 0; border-radius: 3px; transform-origin: 0 50%; transform: scaleX(0); transition: transform .35s ease-out;
-  background: linear-gradient(90deg, #e5171f, #f2c14e); box-shadow: 0 0 14px rgba(242, 193, 78, .45); }
-.nbl-train { position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; transition: left .35s ease-out;
+.nbl-fill { position: absolute; inset: 0; border-radius: 3px; transform-origin: 0 50%; transform: scaleX(0); overflow: hidden; will-change: transform;
+  background: linear-gradient(90deg, #e5171f, #f2c14e); box-shadow: 0 0 14px rgba(242, 193, 78, .45); }   /* v23: no CSS transition: loader.js eases ONE value per frame, so fill, dot and % can never disagree */
+/* v23: life while the page is busy (compositor-only: keeps moving when the main thread is compiling shaders) */
+.nbl-fill::after { content: ''; position: absolute; inset: 0; width: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .55), transparent); transform: translateX(-100%); animation: nbl-sheen 1.8s ease-in-out infinite; }
+.nbl-train { position: absolute; top: 50%; left: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; will-change: transform;
   box-shadow: 0 0 0 3px rgba(242, 193, 78, .35), 0 0 18px rgba(255, 220, 140, .9); }
-.nbl-stations { list-style: none; display: flex; justify-content: space-between; margin: -8px 0 0; padding: 0; position: relative; }
-.nbl-stations li { position: relative; flex: 1 1 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 14px; opacity: .38; transition: opacity .4s; }
-.nbl-stations li:first-child { align-items: flex-start; } .nbl-stations li:last-child { align-items: flex-end; }
-.nbl-dot { position: absolute; top: 0; width: 8px; height: 8px; border-radius: 50%; background: #0a0b0d; border: 2px solid rgba(255, 255, 255, .5); }
-.nbl-stations li:first-child .nbl-dot { left: 0; } .nbl-stations li:last-child .nbl-dot { right: 0; }
+.nbl-train::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid rgba(255, 220, 140, .8); opacity: 0; animation: nbl-ping 1.6s ease-out infinite; }
+@keyframes nbl-sheen { 0% { transform: translateX(-100%); } 70%, 100% { transform: translateX(100%); } }
+@keyframes nbl-ping { 0% { transform: scale(.7); opacity: .7; } 100% { transform: scale(1.9); opacity: 0; } }
+.nbl-stations { list-style: none; margin: -8px 0 0; padding: 0; position: relative; height: 42px; }
+.nbl-stations li { position: absolute; top: 0; width: 92px; margin-left: -46px; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 14px; opacity: .38; transition: opacity .4s; }
+.nbl-stations li:last-child { margin-left: -92px; align-items: flex-end; }
+.nbl-dot { position: absolute; top: 2px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; background: #0a0b0d; border: 2px solid rgba(255, 255, 255, .5); transition: background .25s, border-color .25s; }
+.nbl-stations li:last-child .nbl-dot { left: auto; right: 0; margin: 0 -4px 0 0; }
 .nbl-stations li.on { opacity: .9; } .nbl-stations li.on .nbl-dot { border-color: #f2c14e; background: #f2c14e; }
-.nbl-stations li.cur { opacity: 1; }
-.nbl-stations em { font-style: normal; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; }
-.nbl-stations small { font: 400 10px var(--font-ja); opacity: .6; }
-.nbl-row { display: flex; justify-content: space-between; align-items: baseline; margin: 30px 6px 0; font-size: 12.5px; letter-spacing: .06em; animation: nbl-in 1s .45s ease both; }
-.ld-msg { opacity: .75; text-align: left; }
-.nbl-pct { font-variant-numeric: tabular-nums; opacity: .5; }
+.nbl-stations li.cur { opacity: 1; } .nbl-stations li.cur:not(.on) .nbl-dot { border-color: #f2c14e; }
+.nbl-stations em { font-style: normal; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+.nbl-stations small { font: 400 12px var(--font-ja); opacity: .6; }
+.nbl-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; height: 1.5em; margin: 22px 6px 0; font-size: 12.5px; letter-spacing: .06em; animation: nbl-in 1s .45s ease both; }
+.ld-msg { opacity: .75; text-align: left; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* v23: one line, so a long message never moves the row below */
+.nbl-pct { font-variant-numeric: tabular-nums; opacity: .5; min-width: 3.4ch; text-align: right; }
 .nbl-tip { margin-top: 34px; min-height: 2.6em; font-size: 12.5px; line-height: 1.55; color: var(--ink-dim); opacity: 0; transition: opacity .35s; }
 .nbl-tip.on { opacity: .8; }
 .nbl-touch { position: absolute; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(4, 4, 5, .78); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
@@ -51,7 +56,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .nbl-go:active { transform: scale(.97); }
 @keyframes nbl-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (max-width: 520px) { .nbl-stations em { font-size: 9px; letter-spacing: .08em; } .nbl-stations small { display: none; } .nbl-latin { margin-bottom: 34px; } }
-@media (prefers-reduced-motion: reduce) { .nbl-kana, .nbl-latin, .nbl-line, .nbl-row { animation: none; } .nbl-fill, .nbl-train { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .nbl-kana, .nbl-latin, .nbl-line, .nbl-row { animation: none; } .nbl-fill::after, .nbl-train::after { animation: none; } }
 /* pre-JS markup from index.html (replaced by loader.js as soon as main.js runs) */
 .ld-inner { position: relative; width: min(560px, 88vw); text-align: center; }
 .ld-title { font-family: var(--font-ja); font-weight: 900; font-size: clamp(54px, 11vw, 124px); letter-spacing: .1em; padding: 0 0 .1em .1em; line-height: 1.12; color: #e9e5da; }

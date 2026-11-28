@@ -25,11 +25,11 @@
 //      map only updated near outdoors; sky irradiance follows ctx.exterior.sun.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=5442362';
-import { CELL } from '../world/world.js?v=5442362';
-import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=5442362';
-import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=5442362';
-import { EnvMaps } from './lighting/envmaps.js?v=5442362';
+import { LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../world/layout.js?v=bdb557c';
+import { CELL } from '../world/world.js?v=bdb557c';
+import { bakeLevel, synthesiseFallback, normLight, packAtlas } from './lighting/bake.js?v=bdb557c';
+import { installMaterialHook, U, NB_DYN } from './lighting/inject.js?v=bdb557c';
+import { EnvMaps } from './lighting/envmaps.js?v=bdb557c';
 
 // install as early as possible: before any lit material compiles
 installMaterialHook();
@@ -157,7 +157,7 @@ export class Lighting {
     }
     const out = [];
     return Promise.all(buckets.filter(b => b.jobs.length).map(b => new Promise((resolve, reject) => {
-      const w = new Worker(new URL('./lighting/bakeworker.js?v=5442362', import.meta.url), { type: 'module' });
+      const w = new Worker(new URL('./lighting/bakeworker.js?v=bdb557c', import.meta.url), { type: 'module' });
       const timer = setTimeout(() => { w.terminate(); reject(new Error('bake worker timeout')); }, 60000);
       w.onmessage = (ev) => {
         const d = ev.data;

@@ -26,12 +26,12 @@
 //  ?novis disables chunk culling (for comparisons); ?visdbg logs culling stats.
 // =============================================================================
 import * as THREE from 'three';
-import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=5442362';
-import { CELL } from '../world/world.js?v=5442362';
-import { params } from '../core/params.js?v=5442362';
-import { QUALITY_ORDER } from '../core/engine.js?v=5442362';
-import * as visFan from './visfan.js?v=5442362';
-import { clipIntrusions } from './intrusions.js?v=5442362';
+import { LEVELS, LEVEL_ORDER } from '../world/layout.js?v=bdb557c';
+import { CELL } from '../world/world.js?v=bdb557c';
+import { params } from '../core/params.js?v=bdb557c';
+import { QUALITY_ORDER } from '../core/engine.js?v=bdb557c';
+import * as visFan from './visfan.js?v=bdb557c';
+import { clipIntrusions } from './intrusions.js?v=bdb557c';
 
 // v21: DRS governor under a frame cap (see drsGovern). Each number says why.
 const GOV_LATE = 1.2;        // a frame is late when its interval exceeds this x the cap's period (a healthy 30 fps frame is 1.0, a missed refresh 1.5)
@@ -74,6 +74,9 @@ export function drsGovern(st, in_) {
 const FAN = visFan.FAN;
 const HOLD = 0.45;       // seconds an occluded chunk stays on
 const OPEN_CELL = 4;     // opening clustering (m)
+// v23: nothing within NEAR_KEEP metres (surface distance, i.e. chunk radius already subtracted) of the camera on the player's level (or the level being travelled to) is ever
+// dropped by the distance rules, whatever the draw-call governor has done to the draw distance: small chunks (props, shop fronts) used to stop at 0.6 x the shrunk distance (15 m on a phone). ?nonear = v22 rule.
+const NEAR_KEEP = 28;
 const SHELL_DIST = 110;  // metres the shell (structure only) is drawn to
 // chunk visibility states; rec.shown stays true only for FULL
 const HIDDEN = 0, SHELL = 1, FULL = 2;
@@ -81,7 +84,11 @@ const HIDDEN = 0, SHELL = 1, FULL = 2;
 // wall_*, ceiling_*, concrete_*, light_* plus arch_slab, arch_vault, arch_daylight, roof_deck. Left out on purpose:
 // transparent or decal materials (ao_strip, arch_wear, glass_*), tactile_*, inlay_*, band_*, steel / stainless /
 // aluminium trim, rubber, esc_* (escalator parts), arch_kit / arch_exit / arch_adbox (signs, small kit).
-const SHELL_RE = /^(?:floor_|wall_|ceiling_|concrete_|light_|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;
+// v23: tactile_*, inlay_* and esc_comb (platform-edge dot line, floor inlays: opaque and coplanar with the floor, a handful of
+// triangles each) join the shell, so the yellow edge line and floor patterns run out to the shell distance with the floor they sit on
+// instead of stopping at the detail distance with the floor still drawn beyond them.
+const SHELL_RE = /^(?:floor_|wall_|ceiling_|concrete_|light_|tactile_|inlay_|esc_comb$|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;
+const SHELL_RE_V22 = /^(?:floor_|wall_|ceiling_|concrete_|light_|arch_slab$|arch_vault$|arch_daylight$|roof_deck$)/;   // ?noshellx: the v22 list, for before / after checks
 
 export class Visibility {
   constructor(ctx) {
@@ -97,6 +104,8 @@ export class Visibility {
     const P = ctx.params || params;
     this.shell = !!(P.has('noshell') ? false : (ctx.engine.mobile || P.has('shell')));
     this.shellDist = this.shell ? SHELL_DIST : 0;
+    this._shellRe = P.has('noshellx') ? SHELL_RE_V22 : null;
+    this._nearKeep = !P.has('nonear');
     this.shownChunks = 0; this._nChunks = 0;
     this.fan = new Float32Array(FAN);
     this._fanKey = { x: 1e9, z: 1e9, level: '' };
@@ -168,7 +177,7 @@ export class Visibility {
           for (const m of o.children) {
             if (!m.isMesh || m.userData.nbShell !== undefined) continue;
             const mat = m.material;
-            m.userData.nbShell = !!(mat && !Array.isArray(mat) && !mat.transparent && SHELL_RE.test(mat.name || ''));
+            m.userData.nbShell = !!(mat && !Array.isArray(mat) && !mat.transparent && (this._shellRe || SHELL_RE).test(mat.name || ''));
             if (m.userData.nbShell) rec.hasShell = true;
           }
         }
@@ -309,7 +318,8 @@ export class Visibility {
           const dx = rec.x - cp.x, dz = rec.z - cp.z, dy = (ly + 3) - cp.y;
           const d = Math.sqrt(dx * dx + dz * dz + dy * dy) - rec.r;
           // small chunks (shops, props, signs) stop reading earlier
-          const l2 = rec.r < 14 ? lim * 0.6 : lim;
+          let l2 = rec.r < 14 ? lim * 0.6 : lim;
+          if (this._nearKeep && (isOwn || lv === dest) && l2 < NEAR_KEEP) l2 = NEAR_KEEP;
           // beyond the detail distance a chunk with structural meshes drops to the shell state while inside shellDist
           const far = d > l2;
           const sl = isOwn || lv === dest ? this.shellDist : this.shellDist * 0.6;

@@ -17,13 +17,13 @@
 //   ctx.phone.stats()            (guarded; own fallbacks computed here)
 // Emits 'demo:arrive' and 'demo:end'.
 // =============================================================================
-import { businessBySlot } from '../world/directory.js?v=5442362';
-import { params } from '../core/params.js?v=5442362';
-import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=5442362';
-import { Story } from './story.js?v=5442362';
-import { makeLook, BIT } from '../npc/looks.js?v=5442362';
-import { showEndCard } from './endcard.js?v=5442362';
-import { newMission } from './mission.js?v=5442362';
+import { businessBySlot } from '../world/directory.js?v=bdb557c';
+import { params } from '../core/params.js?v=bdb557c';
+import { DEMO, UPGRADE, QUEUE_LINES, ARRIVAL, CANYON_TEXT } from './script.js?v=bdb557c';
+import { Story } from './story.js?v=bdb557c';
+import { makeLook, BIT } from '../npc/looks.js?v=bdb557c';
+import { showEndCard } from './endcard.js?v=bdb557c';
+import { newMission } from './mission.js?v=bdb557c';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const safe = (fn) => { try { return fn(); } catch (e) { return null; } };
@@ -588,6 +588,8 @@ export class Demo {
     const { ctx, game } = this;
     const s = this.summary();
     ctx.events.emit('demo:end', { summary: s });
+    // v23 final: the coffee-in-hand glyph is a run prop; it goes when the run ends (end card, pause, free roam)
+    game.hud?.cup(false); clearTimeout(game._cupT);
     game._endCard = true; game._allowUnlock = true;
     try { ctx.input.exitLock(); } catch (e) { /* optional */ }
     this.card = showEndCard(ctx, s, {

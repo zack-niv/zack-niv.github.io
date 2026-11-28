@@ -203,3 +203,71 @@ export class GeoBatch {
     return meshes;
   }
 }
+
+// v23: chunk re-bucketing. Visibility (render/visibility.js) decides per CHUNK from the chunk's centre and radius, but a
+// long merged run (a platform edge is ONE quad along the whole platform, a tactile spine 335 m) is filed in the chunk of
+// its midpoint, so when the player stands by the run and that midpoint chunk is "far" (phones draw ~25 m in busy places)
+// the whole run drops out beside the player: floors stay (they are small, filed locally), yellow tactile strips, edge
+// lines and coping vanish. This splits every triangle longer than maxLen (x or z extent) by longest-edge bisection
+// (position, normal, uv and colour all interpolate linearly: planar world UVs stay exact) and files every triangle in the
+// chunk of its CENTROID. `getBatch(level, x, z)` returns the GeoBatch for that point (Kit.B). Only lists that hold a
+// triangle needing a change are touched. Returns the number of triangles moved or split.
+export function regroupBatches(entries, getBatch, maxLen = 40, maxWidth = 6) {
+  const moves = [];
+  let touched = 0;
+  const V = (l, i) => ({ p: [l.p[i * 3], l.p[i * 3 + 1], l.p[i * 3 + 2]], n: [l.n[i * 3], l.n[i * 3 + 1], l.n[i * 3 + 2]], uv: [l.uv[i * 2], l.uv[i * 2 + 1]], c: l.hasC ? [l.c[i * 3], l.c[i * 3 + 1], l.c[i * 3 + 2]] : null });
+  const mid = (a, b) => ({ p: a.p.map((v, k) => (v + b.p[k]) / 2), n: a.n.map((v, k) => (v + b.n[k]) / 2), uv: a.uv.map((v, k) => (v + b.uv[k]) / 2), c: a.c && b.c ? a.c.map((v, k) => (v + b.c[k]) / 2) : null });
+  const ext = (a, b, c) => Math.max(Math.abs(a.p[0] - b.p[0]), Math.abs(b.p[0] - c.p[0]), Math.abs(a.p[0] - c.p[0]), Math.abs(a.p[2] - b.p[2]), Math.abs(b.p[2] - c.p[2]), Math.abs(a.p[2] - c.p[2]));
+  const len2 = (a, b) => (a.p[0] - b.p[0]) ** 2 + (a.p[2] - b.p[2]) ** 2;
+  for (const [lv, batch] of entries) {
+    for (const [mat, l] of batch.lists) {
+      const nT = Math.floor(l.p.length / 9);
+      const bad = [];
+      for (let t = 0; t < nT; t++) {
+        let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, cx = 0, cz = 0;
+        for (let k = 0; k < 3; k++) { const x = l.p[t * 9 + k * 3], z = l.p[t * 9 + k * 3 + 2]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (z < z0) z0 = z; if (z > z1) z1 = z; cx += x; cz += z; }
+        if (x1 - x0 > maxLen || z1 - z0 > maxLen || getBatch(lv, cx / 3, cz / 3) !== batch) bad.push(t);
+      }
+      if (!bad.length) continue;
+      touched += bad.length;
+      const badSet = new Set(bad);
+      const np = [], nn = [], nuv = [], nc = [];
+      for (let t = 0; t < nT; t++) {
+        if (badSet.has(t)) continue;
+        for (let k = 0; k < 3; k++) { const i = t * 3 + k; np.push(l.p[i * 3], l.p[i * 3 + 1], l.p[i * 3 + 2]); nn.push(l.n[i * 3], l.n[i * 3 + 1], l.n[i * 3 + 2]); nuv.push(l.uv[i * 2], l.uv[i * 2 + 1]); if (l.hasC) nc.push(l.c[i * 3], l.c[i * 3 + 1], l.c[i * 3 + 2]); }
+      }
+      for (const t of bad) {
+        const stack = [[V(l, t * 3), V(l, t * 3 + 1), V(l, t * 3 + 2)]];
+        while (stack.length) {
+          const [a, b, c] = stack.pop();
+          // only thin runs are split (platform edges, strips, walls: width in plan <= maxWidth). A fat triangle (a hall floor, a street, a roof)
+          // is just filed under its centroid: bisecting those would multiply their vertex count (measured +160k triangles) for no visibility gain
+          const cr = Math.abs((b.p[0] - a.p[0]) * (c.p[2] - a.p[2]) - (c.p[0] - a.p[0]) * (b.p[2] - a.p[2]));
+          const Lmax = Math.sqrt(Math.max(len2(a, b), len2(b, c), len2(c, a))) || 1;
+          if (ext(a, b, c) > maxLen && cr / Lmax <= maxWidth) {
+            // bisect the longest horizontal edge
+            const ab = len2(a, b), bc = len2(b, c), ca = len2(c, a);
+            if (ab >= bc && ab >= ca) { const m = mid(a, b); stack.push([a, m, c], [m, b, c]); }
+            else if (bc >= ca) { const m = mid(b, c); stack.push([a, b, m], [a, m, c]); }
+            else { const m = mid(c, a); stack.push([a, b, m], [m, b, c]); }
+          } else moves.push([lv, mat, a, b, c]);
+        }
+      }
+      l.p = np; l.n = nn; l.uv = nuv; l.c = nc;
+    }
+  }
+  for (const [lv, mat, a, b, c] of moves) {
+    const cx = (a.p[0] + b.p[0] + c.p[0]) / 3, cz = (a.p[2] + b.p[2] + c.p[2]) / 3;
+    const l = getBatch(lv, cx, cz)._list(mat);
+    for (const v of [a, b, c]) {
+      l.p.push(v.p[0], v.p[1], v.p[2]); l.n.push(v.n[0], v.n[1], v.n[2]); l.uv.push(v.uv[0], v.uv[1]);
+      if (v.c) batch_col(l, v.c); else if (l.hasC) l.c.push(1, 1, 1);
+    }
+  }
+  return touched;
+}
+// colour push with lazy white back-fill (same rule as GeoBatch._col)
+function batch_col(l, col) {
+  if (!l.hasC) { l.hasC = true; const n = l.p.length / 3 - 1; for (let i = 0; i < n; i++) l.c.push(1, 1, 1); }
+  l.c.push(col[0], col[1], col[2]);
+}

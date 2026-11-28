@@ -18,17 +18,18 @@
 //   hangPoints, wallItems (hose cabinets, doors, lockers... {level,type,x,z,nx,nz,w}), isClear(level, x, z, r), stats
 // =============================================================================
 import * as THREE from 'three';
-import { Kit, CHUNK, PARKS_MERGE } from './arch/kit.js?v=5442362';
-import { STYLE, styleOf } from './arch/styles.js?v=5442362';
-import { buildSurfaces } from './arch/surfaces.js?v=5442362';
-import { buildCeilings } from './arch/ceilings.js?v=5442362';
-import { buildColumns } from './arch/columns.js?v=5442362';
-import { buildTactile } from './arch/tactile.js?v=5442362';
-import { buildStations } from './arch/stations.js?v=5442362';
-import { Ramps } from './arch/escalators.js?v=5442362';
-import { wallKit, wearKit } from './arch/details.js?v=5442362';
-import { buildPortals } from './arch/portals.js?v=5442362';
-import { buildShells } from './arch/shells.js?v=5442362';
+import { Kit, CHUNK, PARKS_MERGE } from './arch/kit.js?v=bdb557c';
+import { STYLE, styleOf } from './arch/styles.js?v=bdb557c';
+import { buildSurfaces } from './arch/surfaces.js?v=bdb557c';
+import { buildCeilings } from './arch/ceilings.js?v=bdb557c';
+import { buildColumns } from './arch/columns.js?v=bdb557c';
+import { buildTactile } from './arch/tactile.js?v=bdb557c';
+import { buildStations } from './arch/stations.js?v=bdb557c';
+import { Ramps } from './arch/escalators.js?v=bdb557c';
+import { wallKit, wearKit } from './arch/details.js?v=bdb557c';
+import { buildPortals } from './arch/portals.js?v=bdb557c';
+import { buildShells } from './arch/shells.js?v=bdb557c';
+import { regroupBatches } from '../render/geobatch.js?v=bdb557c';
 
 export { STYLE, styleOf };
 
@@ -63,6 +64,8 @@ export class Architecture {
     // emit static meshes into chunk groups
     step('emit', () => {
       let meshes = 0;
+      // v23: file long merged runs (platform edges, tactile spines, long walls) by piece, not by call point, so a chunk far away can no longer take a strip beside the player with it
+      try { if (!ctx.params.has('noregroup')) this.stats.regrouped = regroupBatches([...K.batches].map(([k, b]) => [k.split('|')[0], b]), (lv, x, z) => K.B(lv, x, z), 40); } catch (e) { console.warn('[architecture] regroup failed', e); }
       for (const [k, b] of K.batches) {
         const [lv, cx, cz] = k.split('|');
         const grp = new THREE.Group();

@@ -1,40 +1,42 @@
 // =============================================================================
-// Maps — the phone's indoor map app.
+// Maps — the phone's indoor map app.   v23: "the phone cannot tell you precisely where you are indoors, but it is a good MAP".
 //
-// Useful, but with the characteristic ambiguity of real indoor navigation:
-//   * it shows the floor the phone THINKS you are on (lagging, sometimes wrong)
-//   * the blue dot wanders 5–25 m underground; the heading cone jitters
-//   * search distances are as the crow flies (misleadingly short)
-//   * places on other floors are ghost pins with a floor badge
-//   * directions only cover the current floor up to the next escalator /
-//     stairs ("Take escalator to 2F"), then wait for you to get there
-// Rendering: Canvas2D, cached per-floor base layers, redrawn only while open.
+//   * THE PLAN IS TRUE. Walkable area, shop blocks with their names (big / landmark tenants and anything on the route first),
+//     escalators and stairs with the floor they lead to, ticket gates, exits, toilets, the train lines. Pinch / drag / wheel.
+//   * YOU ARE HERE IS HONEST. Outdoors or on a GPS fix: a blue dot, ±5 m. Indoors without a fix: a wide accuracy circle, a
+//     hollow dot, and "Somewhere on 2F or 3F" (the floor pair always contains the truth). The compass IS reliable: the
+//     heading arrow shows which way you face; "heading up" turns the plan to match the world, "north up" is the other mode.
+//   * THE ROUTE IS A WHOLE OVERVIEW (not turn-by-turn): a few plain steps in the words the signs use, the line drawn on
+//     every floor it crosses, tap a step to see it. The current step moves only on what the phone can know (the floor it
+//     believes you are on, a gate you tapped, a GPS fix near the step), never on false precision.
+//   * ONE BOX. The app lives in .ph-view[data-v="maps"] (300-400 wide, 250-700 tall): a top bar, the plan filling the box,
+//     a floor strip along the bottom, panels (list, results, place, steps) that slide over the plan. Everything is fluid.
+//   * PERFORMANCE: one visible canvas (box size x dpr, e.g. 600 x 510 px), floor-plan caches of 1-4 floors (ppm 2 on phones,
+//     3 on desktop), redrawn only when something changed (a gesture, the floor, the dot, the heading in 2-degree steps).
 // =============================================================================
-import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=5442362';
-import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES } from '../../world/directory.js?v=5442362';
-import { businessBySlot } from '../../world/directory.js?v=5442362';
-import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=5442362';
-import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO } from './places.js?v=5442362';
-import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=5442362';
-import { hash } from '../../core/rng.js?v=5442362';
-import { placeArt, reviewsFor, popularTimes } from './art.js?v=5442362';
-import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml } from './destinations.js?v=5442362';
+import { LAYOUT, LEVELS, LEVEL_ORDER, ZONES, rampEnds } from '../../world/layout.js?v=bdb557c';
+import { BUSINESSES, searchBusinesses, isOpen, CATEGORIES, FEATURED } from '../../world/directory.js?v=bdb557c';
+import { businessBySlot } from '../../world/directory.js?v=bdb557c';
+import { drawFloor, drawRoads, THEMES, catGroup, ROADS } from './maprender.js?v=bdb557c';
+import { TRANSIT_PLACES, LINES, EXIT_INFO, FACILITIES, FACILITY_INFO, FLOOR_NAMES, areaOf } from './places.js?v=bdb557c';
+import { routeLegs, simplify, fieldNoEntry } from './routes.js?v=bdb557c';
+import { buildSteps, routeFloors } from './mapsteps.js?v=bdb557c';
+import { hash } from '../../core/rng.js?v=bdb557c';
+import { placeArt, reviewsFor, popularTimes } from './art.js?v=bdb557c';
+import { DestList, destIdOf, defaultIds, bizSub, zoneShort, nextChip, nextChipHtml, levelLabel } from './destinations.js?v=bdb557c';
 
-const BASE_PPM = 4;          // cached base layer resolution (px per metre)
-const ZOOM_MIN = 0.45, ZOOM_MAX = 14;
+const ZOOM_MIN = 0.5, ZOOM_MAX = 12;
+const MAX_BASE = 4;                  // floor-plan caches kept at once
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
-// Presentation-layer overrides for the hand-made quest places: how a maps
-// listing would really show a tiny standing bar (few reviews, Japanese name,
-// geocoded to the wrong side of the passage).
+// Presentation-layer overrides for the hand-made quest places: a tiny standing bar with few reviews and a Japanese name.
 const LISTING = {
-  coffee_great: { rating: 4.9, reviews: 38, jaOnly: true, fuzz: 22 },
+  coffee_great: { rating: 4.9, reviews: 38, jaOnly: true },
 };
-const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-export const fmtDist = (m) => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`;
-
-const CHIPS = [
-  ['coffee', '☕', 'Coffee'], ['tempura', '🍤', 'Tempura'], ['midosuji', 'M', 'Midosuji'], ['shin-osaka', '🚄', 'Shin-Osaka'], ['toilet', '🚻', 'Toilets'], ['ramen', '🍜', 'Ramen'],
-];
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// v23: a distance from where the phone THINKS you are is never metre-precise: "about 150 m"
+export const fmtDist = (m) => m < 1000 ? `about ${Math.max(50, Math.round(m / 50) * 50)} m` : `about ${(m / 1000).toFixed(1)} km`;
+const lvl = levelLabel;
+const FONT = 'Inter, "Noto Sans JP", sans-serif';
 const AREA_PLACES = [
   { id: 'a_parks', kind: 'area', en: 'Namba Parks', ja: 'なんばパークス', sub: 'Shopping mall & roof gardens · 2F–8F', level: '2F', x: 0, z: 205, keys: ['parks', 'namba parks', 'garden', 'パークス'] },
   { id: 'a_city', kind: 'area', en: 'Namba CITY', ja: 'なんばCITY', sub: 'Shopping mall under the Nankai tracks · B1–2F', level: 'B1', x: 0, z: 20, keys: ['city', 'namba city', 'mall'] },
@@ -43,113 +45,142 @@ const AREA_PLACES = [
   { id: 'a_dotonbori', kind: 'area', en: 'Dotonbori', ja: '道頓堀', sub: 'Canal-side food street · approx. 500 m north via Exit 18', level: '1F', x: 43, z: -255, keys: ['dotonbori', 'glico', '道頓堀'], offmap: true },
 ];
 
+// ---- small inline icons (24 x 24, currentColor) ----
+const I = {
+  search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>',
+  pin: '<svg viewBox="0 0 24 24"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="2.6" fill="#fff" stroke="none"/></svg>',
+  up: '<svg viewBox="0 0 24 24"><path d="M12 19V6M6 11l6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M12 5v13M6 13l6 6 6-6"/></svg>',
+  gate: '<svg viewBox="0 0 24 24"><path d="M5 20V8m14 12V8M5 12h14M9 20v-5m6 5v-5"/></svg>',
+  walk: '<svg viewBox="0 0 24 24"><circle cx="13" cy="4.6" r="1.9" fill="currentColor" stroke="none"/><path d="M12.6 8.5 10 12l2.4 2.2L11 20M10.8 9.6 8 10.6M12.6 8.5l2.6 2.2 2.4.2M12.4 14.2l2.6 2.4.6 3.4"/></svg>',
+  locate: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2.5v3.3M12 18.2v3.3M2.5 12h3.3M18.2 12h3.3"/></svg>',
+  list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.6" cy="6" r="1.1" fill="currentColor"/><circle cx="4.6" cy="12" r="1.1" fill="currentColor"/><circle cx="4.6" cy="18" r="1.1" fill="currentColor"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>',
+  close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+};
+
 export class MapApp {
   constructor(phone, root) {
     this.phone = phone; this.ctx = phone.ctx; this.pos = phone.pos;
     this.root = root;
     this.view = { cx: 0, cz: 0, zoom: 2.6, rot: 0, level: '3F' };
-    this.follow = true; this.headingUp = false;
+    // v23: heading up is the default (the plan turns with you: "ahead" is up); the N button flips to north up
+    this.follow = true; this.headingUp = true;
     this.base = new Map();
     this.selected = null; this.results = []; this.route = null;
-    this.sheet = 'home';
-    this._dirty = true;
+    this.steps = []; this.focus = -1; this.known = null; this._clk = 0; this._lastPan = -99;
+    this.sheet = 'map';        // the panel over the plan: 'map' (none) | 'home' (list) | 'results' | 'place' | 'steps'
+    this._dirty = true; this._sig = ''; this._drawT = 0; this._routeV = 0;
+    this._labelsFor = new Map(); this._shopsFor = new Map(); this._tw = new Map();
+    this._ins = { t: 46, b: 44 };
     this._build();
-    this._labelsFor = new Map();
+    // text widths are cached; measure again once the web fonts are in (a narrower fallback font would clip labels)
+    try { if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { this._tw.clear(); this._dirty = true; }); } catch (e) { /* ignore */ }
   }
 
   // ---------------------------------------------------------------- DOM ----
   _build() {
-    const r = this.root;
-    r.classList.add('mp');
+    const r = this.root, touch = !!(this.ctx.input && this.ctx.input.touch);
+    this.touch = touch;
+    r.classList.add('mp', 'mq');
     r.innerHTML = `
-      <canvas class="mp-canvas"></canvas>
-      <div class="mp-top">
-        <div class="mp-search"><svg viewBox="0 0 24 24" class="mp-s-ico"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
-          <input type="text" placeholder="Search Namba" spellcheck="false" autocomplete="off"><button class="mp-clear" hidden>×</button><span class="mp-avatar">T</span></div>
-        <div class="mp-chips">${CHIPS.map(([q, ic, t]) => `<button data-q="${q}"><span class="${ic === 'M' ? 'mp-chip-m' : ''}">${ic}</span>${t}</button>`).join('')}</div>
-        <div class="mp-sugg" hidden></div>
+      <canvas class="mq-canvas"></canvas>
+      <div class="mq-chips"><span class="mq-fl"></span><button class="mq-me" type="button" hidden><span class="p"><i></i><b></b></span></button></div>
+      <button class="mq-gps lab" type="button" aria-label="No GPS indoors. The arrow shows which way you face."><svg viewBox="0 0 44 44" aria-hidden="true"><defs><radialGradient id="mqwg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#1a73e8" stop-opacity=".95"/><stop offset="1" stop-color="#1a73e8" stop-opacity=".55"/></radialGradient></defs><circle cx="22" cy="22" r="21" fill="#fff"/><g class="mq-wg"><path d="M22 22 L10 5.2 A20.6 20.6 0 0 1 34 5.2 Z" fill="url(#mqwg)"/></g><circle cx="22" cy="22" r="4.2" fill="#fff"/></svg><span class="t"><span class="full"><b>No GPS indoors</b><span>you face this way</span></span><span class="cap">No GPS</span></span></button>
+      <div class="mq-ctl">
+        <button class="mq-btn mq-orient" type="button" aria-label="Map orientation"><span></span></button>
+        <button class="mq-btn mq-locate" type="button" aria-label="Centre on me">${I.locate}</button>
       </div>
-      <div class="mp-banner" hidden></div>
-      <div class="mp-gpswarn" hidden></div>
-      <div class="mp-compass-cal" hidden><div class="mp-cc-8"><i></i></div><div><b>Compass needs calibration</b><small>Move your phone in a figure 8</small></div></div>
-      <div class="mp-floorchip"></div>
-      <div class="mp-ctrls">
-        <div class="mp-floors"></div>
-        <button class="mp-btn mp-compass" title="Compass"><svg viewBox="0 0 24 24"><path d="M12 3 15 12H9z" fill="#e5322d"/><path d="M12 21 9 12h6z" fill="#9aa0a8"/></svg></button>
-        <button class="mp-btn mp-locate" title="My location"><svg viewBox="0 0 24 24"><path d="M3 11 21 3l-8 18-2-8z"/></svg></button>
+      <div class="mq-toast" hidden></div>
+      <button class="mq-aya" type="button" hidden></button>
+      <div class="mq-strip" role="tablist" aria-label="Floors"></div>
+      <div class="mq-bar">
+        <label class="mq-search"><span class="mq-s-ico">${I.search}</span><input type="text" placeholder="Where to?" spellcheck="false" autocomplete="off" aria-label="Search Namba"><button class="mq-clear" type="button" hidden aria-label="Clear">${I.close}</button></label>
+        <button class="mq-rt" type="button" hidden><i class="mq-rt-ic">${I.pin}</i><span class="mq-rt-t"><b></b><small></small></span><span class="mq-rt-go">Directions</span></button><button class="mq-rt-x" type="button" hidden aria-label="Clear destination">${I.close}</button>
       </div>
-      <div class="mp-scale"><i></i><span></span></div>
-      <div class="mp-sheet"><div class="mp-grab"></div><div class="mp-sheet-in"></div></div>`;
-    this.canvas = r.querySelector('canvas');
-    this.g = this.canvas.getContext('2d');
-    this.input = r.querySelector('input');
-    this.sugg = r.querySelector('.mp-sugg');
-    this.sheetEl = r.querySelector('.mp-sheet'); this.sheetIn = r.querySelector('.mp-sheet-in');
-    this.banner = r.querySelector('.mp-banner');
-    this.floorsEl = r.querySelector('.mp-floors');
-    this.floorChip = r.querySelector('.mp-floorchip');
-    this.warnEl = r.querySelector('.mp-gpswarn'); this.calEl = r.querySelector('.mp-compass-cal');
-    this.compassBtn = r.querySelector('.mp-compass');
-    this.scaleEl = r.querySelector('.mp-scale');
-    const clr = r.querySelector('.mp-clear');
-    // search
+      <div class="mq-sugg" hidden></div>
+      <div class="mq-panel" hidden><div class="mq-ph"><b class="mq-pt"></b><button class="mq-x" type="button" aria-label="Close">${I.close}</button></div><div class="mq-pb"></div></div>`;
+    const q = (s) => r.querySelector(s);
+    this.canvas = q('canvas'); this.g = this.canvas.getContext('2d');
+    this.input = q('.mq-search input'); this.clearBtn = q('.mq-clear');
+    this.bar = q('.mq-bar'); this.searchEl = q('.mq-search'); this.rtEl = q('.mq-rt'); this.rtX = q('.mq-rt-x');
+    this.strip = q('.mq-strip'); this.sugg = q('.mq-sugg');
+    this.panel = q('.mq-panel'); this.panelT = q('.mq-pt'); this.panelB = q('.mq-pb');
+    this.flEl = q('.mq-fl'); this.meEl = q('.mq-me'); this.gpsEl = q('.mq-gps'); this.wgEl = q('.mq-wg'); this._wgA = null; this.orientBtn = q('.mq-orient'); this.locBtn = q('.mq-locate');
+    this.toastEl = q('.mq-toast'); this.ayaEl = q('.mq-aya');
+    // v23: on a touch screen the search box opens the list (no on-screen keyboard unless you ask for it); desktop types
+    if (touch) this.input.readOnly = true;
     this.input.addEventListener('keydown', e => {
       e.stopPropagation();
       if (e.key === 'Enter') { this.doSearch(this.input.value); this.input.blur(); }
       if (e.key === 'Escape') { this.input.blur(); this._hideSugg(); }
     });
     this.input.addEventListener('keyup', e => e.stopPropagation());
-    this.input.addEventListener('input', () => { clr.hidden = !this.input.value; this._suggest(this.input.value); });
-    this.input.addEventListener('focus', () => { this.phone.typing = true; this._suggest(this.input.value); });
+    this.input.addEventListener('input', () => { this.clearBtn.hidden = !this.input.value; this._suggest(this.input.value); });
+    this.input.addEventListener('focus', () => { this.phone.typing = true; if (!touch) this._suggest(this.input.value); });
     this.input.addEventListener('blur', () => { this.phone.typing = false; setTimeout(() => this._hideSugg(), 150); });
-    clr.addEventListener('click', () => { this.input.value = ''; clr.hidden = true; this.clearSearch(); });
-    r.querySelectorAll('.mp-chips button').forEach(b => b.addEventListener('click', () => { this.input.value = b.querySelector('span').nextSibling.textContent; clr.hidden = false; this.doSearch(b.dataset.q); }));
-    // controls
-    this.compassBtn.addEventListener('click', () => { this.headingUp = !this.headingUp; if (!this.headingUp) this.view.rot = 0; this.follow = true; this._dirty = true; });
-    r.querySelector('.mp-locate').addEventListener('click', () => { this._warnT = 0; this.follow = true; this.view.level = this.pos.level; this.view.zoom = Math.max(this.view.zoom, 2.4); this._dirty = true; this._renderFloors(); });
-    r.querySelector('.mp-grab').addEventListener('click', () => { this.sheetEl.classList.toggle('mp-full'); });
+    this.searchEl.addEventListener('click', (e) => { if (e.target.closest('.mq-clear')) return; if (touch) { this.openList(); } });
+    this.clearBtn.addEventListener('click', (e) => { e.preventDefault(); this.input.value = ''; this.clearBtn.hidden = true; this.clearSearch(); });
+    q('.mq-x').addEventListener('click', () => this.closePanel());
+    this.rtEl.addEventListener('click', () => this.openSteps());
+    this.rtX.addEventListener('click', () => this.endRoute());
+    const gpsTip = () => { this._lblUntil = this._clk + 5; this._toast('No GPS indoors\nFind a shop or a sign near you on the map, or send Aya a photo 📸', 5200); };
+    this.meEl.addEventListener('click', () => this._toast(`GPS fix, accurate to about ${Math.round(this.pos.acc)} m. It only works outdoors.`, 3600));
+    this.gpsEl.addEventListener('click', gpsTip);
+    this.ayaEl.addEventListener('click', () => this._ayaGo());
+    this.orientBtn.addEventListener('click', () => this._toggleOrient());
+    this.locBtn.addEventListener('click', () => this._recenter());
+    this.strip.addEventListener('click', (e) => { const b = e.target.closest('button[data-l]'); if (!b) return; e.stopPropagation(); this._showFloor(b.dataset.l); });
+    // the phone is a game overlay: nothing in the app may leak a press to the world behind it
+    r.addEventListener('pointerdown', (e) => e.stopPropagation());
     this._pointer();
-    this._renderFloors();
+    if (typeof ResizeObserver !== 'undefined') { this._ro = new ResizeObserver(() => { this._measured = false; this._dirty = true; }); this._ro.observe(r); }
+    this._renderStrip(true);
     this.showHome();
-  }
-
-  _renderFloors() {
-    const lv = LEVEL_ORDER.filter(l => this.ctx.world.grids[l]).slice().reverse();
-    this.floorsEl.innerHTML = lv.map(l => `<button data-l="${l}" class="${l === this.view.level ? 'on' : ''} ${l === this.pos.level ? 'me' : ''}">${LEVELS[l].label.replace('B1F', 'B1').replace('B2F', 'B2')}</button>`).join('');
-    this.floorsEl.querySelectorAll('button').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); this.view.level = b.dataset.l; this.follow = false; this._dirty = true; this._renderFloors(); }));
-    // scroll the selected floor into view (the picker is short)
-    const on = this.floorsEl.querySelector('.on');
-    if (on) this.floorsEl.scrollTop = on.offsetTop - 40;
+    const ev = this.ctx.events;
+    // v23 round 2: the phone has no position indoors; it learns where you are only when something tells it
+    if (ev && ev.on) {
+      ev.on('story:photo', (e) => { if (e && e.ok) this._knownHere('Aya spotted you here', 'Aya spotted you', e.lm); });
+      ev.on('gate:tap', (e) => { if (e && e.player) this._knownAt(e.level, e.x, e.z, `Tapped in at ${this._gateName(e)}`, `Tapped in at ${this._gateName(e)}, ${lvl(e.level)}`); });
+      ev.on('demo:order', (e) => { if (e && e.name) this._knownHere(`Paid at ${e.name}`, `Paid at ${e.name}`, null, true); });
+    }
   }
 
   // ------------------------------------------------------------ pointer ----
   _pointer() {
     const c = this.canvas;
     const pts = new Map();
-    let last = null, moved = 0, pinch = null;
+    let moved = 0, pinch = null, lastTap = 0, lastTapAt = null;
+    const local = (e) => { const rect = c.getBoundingClientRect(), s = this._cssScale(); return [(e.clientX - rect.left) / s, (e.clientY - rect.top) / s]; };
     c.addEventListener('pointerdown', e => {
-      c.setPointerCapture(e.pointerId);
-      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      moved = 0; last = { x: e.clientX, y: e.clientY };
-      if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: this.view.zoom }; }
+      try { c.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      const [sx, sy] = local(e);
+      pts.set(e.pointerId, { x: sx, y: sy });
+      moved = 0;
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        pinch = { d: Math.max(8, Math.hypot(a.x - b.x, a.y - b.y)), z: this.view.zoom, w: this.toWorld(mx, my) };
+      }
       e.stopPropagation();
     });
     c.addEventListener('pointermove', e => {
-      if (!pts.has(e.pointerId)) return;
-      const p = pts.get(e.pointerId);
-      const s = this._cssScale();
+      const p = pts.get(e.pointerId); if (!p) return;
+      const [sx, sy] = local(e);
       if (pts.size === 2 && pinch) {
-        p.x = e.clientX; p.y = e.clientY;
+        p.x = sx; p.y = sy;
         const [a, b] = [...pts.values()];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        this.view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pinch.z * d / Math.max(1, pinch.d)));
-        this._dirty = true; moved += 10; return;
+        const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        this.view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, pinch.z * d / pinch.d));
+        // keep the world point under the fingers' midpoint under the fingers
+        const now = this.toWorld(mx, my);
+        this.view.cx += pinch.w[0] - now[0]; this.view.cz += pinch.w[1] - now[1];
+        this.follow = false; this._dirty = true; this._lastPan = this._clk; moved += 10; return;
       }
-      const dx = (e.clientX - p.x) / s, dy = (e.clientY - p.y) / s;
-      p.x = e.clientX; p.y = e.clientY;
+      const dx = sx - p.x, dy = sy - p.y;
+      p.x = sx; p.y = sy;
       moved += Math.abs(dx) + Math.abs(dy);
-      if (moved > 4) {
-        this.follow = false;
+      if (moved > 6) {
+        this.follow = false; this.focus = -1; this._lastPan = this._clk;
         const k = this.view.zoom, cr = Math.cos(this.view.rot), sr = Math.sin(this.view.rot);
         // screen delta -> world delta (inverse rotation)
         this.view.cx -= (dx * cr + dy * sr) / k; this.view.cz -= (-dx * sr + dy * cr) / k;
@@ -158,40 +189,61 @@ export class MapApp {
     });
     const up = e => {
       if (!pts.has(e.pointerId)) return;
+      const was = pts.get(e.pointerId);
       pts.delete(e.pointerId);
       if (pts.size < 2) pinch = null;
-      if (moved < 5 && pts.size === 0) this._tap(e);
+      if (moved < 7 && pts.size === 0 && e.type === 'pointerup') {
+        const t = performance.now();
+        if (t - lastTap < 320 && lastTapAt && Math.hypot(lastTapAt[0] - was.x, lastTapAt[1] - was.y) < 30) { this._zoomAt(was.x, was.y, 1.7); lastTap = 0; }
+        else { lastTap = t; lastTapAt = [was.x, was.y]; this._tap(was.x, was.y); }
+      }
     };
     c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up);
     c.addEventListener('wheel', e => {
       e.preventDefault(); e.stopPropagation();
-      const rect = c.getBoundingClientRect(), s = this._cssScale();
-      const sx = (e.clientX - rect.left) / s, sy = (e.clientY - rect.top) / s;
-      const before = this.toWorld(sx, sy);
-      const f = Math.exp(-e.deltaY * 0.0016);
-      this.view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.view.zoom * f));
-      const after = this.toWorld(sx, sy);
-      this.view.cx += before[0] - after[0]; this.view.cz += before[1] - after[1];
-      if (this.follow && Math.hypot(before[0] - after[0], before[1] - after[1]) > 0.5) this.follow = false;
-      this._dirty = true;
+      const [sx, sy] = local(e);
+      this._zoomAt(sx, sy, Math.exp(-e.deltaY * 0.0016));
     }, { passive: false });
   }
-  // ratio between CSS px of the canvas element and its on-screen size (phone is scaled)
+  _zoomAt(sx, sy, f) {
+    const before = this.toWorld(sx, sy);
+    this.view.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.view.zoom * f));
+    const after = this.toWorld(sx, sy);
+    this.view.cx += before[0] - after[0]; this.view.cz += before[1] - after[1];
+    if (Math.hypot(before[0] - after[0], before[1] - after[1]) > 0.3) { this.follow = false; this._lastPan = this._clk; }
+    this._dirty = true;
+  }
+  // ratio between CSS px of the canvas element and its on-screen size (the desktop phone is scaled)
   _cssScale() { const r = this.canvas.getBoundingClientRect(); return r.width / (this.canvas.clientWidth || r.width) || 1; }
 
-  _tap(e) {
-    const rect = this.canvas.getBoundingClientRect(), s = this._cssScale();
-    const sx = (e.clientX - rect.left) / s, sy = (e.clientY - rect.top) / s;
-    let best = null, bd = 22;
+  _tap(sx, sy) {
+    if (this.sheet !== 'map' && this.sheet !== 'place') return;
+    const kn = this.known;
+    if (kn && kn.level === this.view.level) { const [kx, ky] = this.toScreen(kn.x, kn.z); if (Math.hypot(kx - sx, ky - sy) < 26) { this._labelPin(); return; } }
+    let best = null, bd = 24;
     for (const L of this._hits || []) { const d = Math.hypot(L.x - sx, L.y - sy); if (d < bd) { bd = d; best = L; } }
-    if (best) this.select(best.place);
+    if (best) { this.select(best.place); return; }
+    // a tap on a shop block picks the shop
+    const [wx, wz] = this.toWorld(sx, sy);
+    for (const s of this._levelShops(this.view.level)) {
+      if (wx >= s.x0 && wx <= s.x1 && wz >= s.z0 && wz <= s.z1) { this.select(this._bizPlace(s.b)); return; }
+    }
+    if (this.sheet === 'place' && !this._linkGo) this.closePanel();
   }
 
   // ------------------------------------------------------------- view -----
   get W() { return this.canvas.clientWidth || 300; }
-  get H() { return this.canvas.clientHeight || 600; }
-  // (v12: the wide landscape phone has no sheet over the map: the sheet is a side panel, so the map centres)
-  _anchor() { return [this.W / 2, this.H * (this.phone.land ? 0.5 : this.sheet === 'home' ? 0.46 : 0.36)]; }
+  get H() { return this.canvas.clientHeight || 300; }
+  _measure() {
+    const bh = this.bar.offsetHeight || 46, sh = this.strip.offsetHeight || 44;
+    const ph = this.sheet === 'place' ? Math.min(this.panel.offsetHeight || 0, this.H * 0.6) : 0;
+    this._ins = { t: bh, b: sh + ph + (this.ayaEl.hidden ? 0 : 60) };
+    this.root.style.setProperty('--mq-bar', (bh + 8) + 'px');
+    this.root.style.setProperty('--mq-insb', this._ins.b + 'px');
+    this._measured = true;
+  }
+  // the plan's centre is the middle of what the bar, the strip and a place card leave free
+  _anchor() { if (!this._measured) this._measure(); return [this.W / 2, this._ins.t + (this.H - this._ins.t - this._ins.b) / 2]; }
   toScreen(x, z) {
     const v = this.view, k = v.zoom, c = Math.cos(v.rot), s = Math.sin(v.rot);
     const dx = x - v.cx, dz = z - v.cz;
@@ -204,12 +256,29 @@ export class MapApp {
     const px = (sx - ax) / k, py = (sy - ay) / k;
     return [v.cx + c * px + s * py, v.cz - s * px + c * py];
   }
+  // a view that shows the points `pts` ([x, z]) inside the free area, as large as that allows (never above maxZoom)
+  _fit(pts, maxZoom = 3.4, pad = 26) {
+    if (!pts.length) return;
+    const v = this.view;
+    let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
+    const c = Math.cos(v.rot), s = Math.sin(v.rot);
+    // bounds in the rotated frame (the plan may be turned)
+    for (const [x, z] of pts) { const u = c * x + s * z, w = -s * x + c * z; x0 = Math.min(x0, u); x1 = Math.max(x1, u); z0 = Math.min(z0, w); z1 = Math.max(z1, w); }
+    if (!this._measured) this._measure();
+    const fw = Math.max(60, this.W - 2 * pad), fh = Math.max(60, this.H - this._ins.t - this._ins.b - 2 * pad);
+    const k = Math.min(maxZoom, fw / Math.max(8, x1 - x0), fh / Math.max(8, z1 - z0));
+    v.zoom = Math.max(ZOOM_MIN, k);
+    const mu = (x0 + x1) / 2, mw = (z0 + z1) / 2;
+    v.cx = c * mu - s * mw; v.cz = s * mu + c * mw;
+    this.follow = false; this._dirty = true;
+  }
 
+  // ---- floor plan caches (small, few) ----
   _baseFor(level) {
     let b = this.base.get(level);
-    if (b) return b;
+    if (b) { this.base.delete(level); this.base.set(level, b); return b; }       // most recently used last
     const grid = this.ctx.world.grids[level]; if (!grid) return null;
-    const ppm = this.phone.lowQ ? 3 : BASE_PPM;
+    const ppm = this.phone.lowQ || (this.ctx.engine && this.ctx.engine.mobile) ? 2 : 3;
     const c = document.createElement('canvas');
     c.width = Math.ceil(grid.w * ppm); c.height = Math.ceil(grid.h * ppm);
     const g = c.getContext('2d');
@@ -217,36 +286,96 @@ export class MapApp {
     drawFloor(g, this.ctx.world, level, THEMES.phone, { businessBySlot });
     b = { canvas: c, x0: grid.x0, z0: grid.z0, w: grid.w, h: grid.h, ppm };
     this.base.set(level, b);
+    while (this.base.size > MAX_BASE) { const k = this.base.keys().next().value, o = this.base.get(k); o.canvas.width = o.canvas.height = 0; this.base.delete(k); }
     return b;
+  }
+
+  // ------------------------------------------------------------ position ----
+  // v23 round 2: indoors the phone has a compass and a map and NO position. It draws a dot only in the open air on a real GPS fix
+  // (or in the retired Lodestone mode). Everywhere else it knows where you were only at "known moments" (a photo Aya read, a
+  // gate you tapped, a café you paid at, the arrival): a labelled last-known pin that ages and fades.
+  _where() {
+    const p = this.pos, outdoors = p.env === 'outdoor' || p.env === 'canyon';
+    const gps = p.mode === 'lodestone' || (p.mode === 'gps' && p.state === 'fix' && outdoors);
+    return { gps, fix: gps, outdoors, unsure: false, level: p.level, levels: [p.level] };
+  }
+  _ageTxt(s) { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }
+  _youText(w) {
+    const p = this.pos, k = this.known;
+    if (w.gps) return { a: `You are on ${lvl(p.level)}`, b: `GPS · ±${Math.round(p.acc)} m` };
+    return { a: 'No GPS indoors', b: k ? `Last known: ${k.where}` : '' };
+  }
+  _accTxt() { const t = this._youText(this._where()); return t.b ? `${t.a} · ${t.b}` : t.a; }
+  _trueHere() { const b = this.ctx.player && this.ctx.player.body; return b ? { level: this.pos.trueLevel ? this.pos.trueLevel(b) : b.level, x: b.x, z: b.z } : null; }
+  // "Nankai platforms, 3F"
+  _whereName(level, x, z) {
+    const a = areaOf(this.ctx.world.spaceAt(level, x, z)), n = a ? a.name.replace(/^the /, '') : '';
+    return `${n ? n.charAt(0).toUpperCase() + n.slice(1) + ', ' : ''}${lvl(level)}`;
+  }
+  _gateName(e) {
+    const g = LAYOUT.gates.find(q => q.id === e.gate) || LAYOUT.gates.filter(q => q.level === e.level)[0];
+    return g ? g.name : 'the ticket gate';
+  }
+  _knownHere(text, glancePre, lm, noLm) {
+    const h = this._trueHere(); if (!h) return;
+    const w = this._whereName(h.level, h.x, h.z);
+    this._setKnown({ level: h.level, x: h.x, z: h.z, text, where: w, glance: glancePre === 'Aya spotted you' ? `Aya spotted you: ${lm ? `${lm}, ${lvl(h.level)}` : w}` : `${glancePre}, ${lvl(h.level)}` });
+  }
+  _knownAt(level, x, z, text, glance) {
+    if (!level || x == null) { this._knownHere(text, text); return; }
+    this._setKnown({ level, x, z, text, where: text.replace(/^Tapped in at /, '').replace(/^/, '') + `, ${lvl(level)}`, glance });
+  }
+  _setKnown(k) {
+    k.t0 = this._clk; k.id = (this._kn = (this._kn || 0) + 1); k.lblUntil = null;
+    this.known = k;
+    // a new pin takes the plan to its floor, unless you are looking around (panned in the last 5 s)
+    if (this._clk - this._lastPan > 5 || k.id === 1) { this.view.level = k.level; this.view.cx = k.x; this.view.cz = k.z; this.follow = false; }
+    this.focus = -1; this._dirty = true;
+    this._renderStrip(); this._syncUI(true);
+    if (this.sheet === 'steps') this.openSteps(true);
   }
 
   // ------------------------------------------------------------- update ----
   update(dt, visible) {
-    const p = this.pos;
-    if (this.follow) {
+    const p = this.pos, v = this.view;
+    this._clk += dt;
+    if (!this.known && this.ctx.player && this.ctx.player.body && this.ctx.world && this.ctx.world.spaceAt) {
+      const h = this._trueHere(), w = this._whereName(h.level, h.x, h.z);
+      this._setKnown({ level: h.level, x: h.x, z: h.z, text: `Arrived: ${w}`, where: w, glance: `You: ${w}` });   // v23 final: under a destination title "Arrived:" read as arrived there
+    }
+    const W = this._where();
+    if (W.gps !== this._gpsPrev) { this._gpsPrev = W.gps; if (W.gps) this.follow = true; this._renderStrip(); this._syncUI(true); }
+    if (this.follow && W.gps) {
       const k = 1 - Math.exp(-dt / 0.25);
-      this.view.cx += (p.x - this.view.cx) * k; this.view.cz += (p.z - this.view.cz) * k;
-      if (this.view.level !== p.level) { this.view.level = p.level; this._renderFloors(); }
+      const ex = p.x - v.cx, ez = p.z - v.cz;
+      if (Math.abs(ex) + Math.abs(ez) < 0.04) { v.cx = p.x; v.cz = p.z; } else { v.cx += ex * k; v.cz += ez * k; }
+      if (v.level !== p.level) { v.level = p.level; this._renderStrip(); }
     }
     if (this.headingUp) {
-      let d = p.heading - this.view.rot; d = Math.atan2(Math.sin(d), Math.cos(d));
-      this.view.rot += d * (1 - Math.exp(-dt / 0.35));
-    }
-    if (this._lastMe !== p.level) { this._lastMe = p.level; this._renderFloors(); this._onBelievedFloor(); }
-    // route upkeep
-    if (this.route) this._routeTick(dt);
-    this._nag(dt);
+      let d = p.heading - v.rot; d = Math.atan2(Math.sin(d), Math.cos(d));
+      // 2-degree steps: no redraw for a hair of turn
+      if (Math.abs(d) > 0.035) v.rot += d * (1 - Math.exp(-dt / 0.18)); else if (Math.abs(d) > 0.004) v.rot += d;
+    } else if (Math.abs(v.rot) > 0.001) { v.rot *= Math.exp(-dt / 0.12); if (Math.abs(v.rot) < 0.004) v.rot = 0; }
+    this._uiT = (this._uiT || 0) - dt;
+    if (this._uiT <= 0 && visible) { this._uiT = 0.25; this._syncUI(); }
     if (!visible) return;
-    this._t = (this._t || 0) + dt;
+    this._syncWedge();
+    this._drawT += dt;
+    const k0 = this.known, age = k0 ? Math.min(100, Math.floor(this._clk - k0.t0)) : 0;
+    const sig = [v.level, v.cx.toFixed(1), v.cz.toFixed(1), v.zoom.toFixed(2), Math.round(v.rot * 28.6), W.gps ? p.x.toFixed(1) + p.z.toFixed(1) : '', p.level, W.gps ? Math.round(p.acc) : '', this.selected && this.selected.id, this._routeV, this.sheet, this.focus, this._toastV, k0 && k0.id, k0 && this._clk < (k0.lblUntil || 0), age].join('|');
+    if (sig === this._sig && !this._dirty) return;
+    // gestures redraw at once; the heading and the dot at most 30 times a second
+    if (!this._dirty && this._drawT < 0.033) return;
+    this._sig = sig; this._dirty = false; this._drawT = 0;
     this._draw();
   }
-
   // ------------------------------------------------------------- draw -----
   _draw() {
     const c = this.canvas, g = this.g;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = this.W, H = this.H;
-    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+    if (c.width !== Math.round(W * dpr) || c.height !== Math.round(H * dpr)) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); this._measured = false; }
+    if (!this._measured) this._measure();
     const v = this.view, T = THEMES.phone;
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.fillStyle = T.bg; g.fillRect(0, 0, c.width, c.height);
@@ -258,38 +387,28 @@ export class MapApp {
     // city blocks outside + roads
     g.fillStyle = '#e4e1d9'; g.fillRect(-400, -500, 900, 1100);
     drawRoads(g, T, 1);
-    // complex footprint (all floors) faintly — the building outline
+    // the complex's footprint (all floors) faintly: the building outline
     if (!this._foot) this._foot = this._footprint();
     g.fillStyle = '#dcd8cf'; for (const r of this._foot) g.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]);
-    // base layer
+    // the plan: the cached floor when zoomed out, drawn live (visible cells only) when zoomed in
     const base = this._baseFor(v.level);
     const vis = this._visibleBounds();
     if (base) {
-      if (k > base.ppm * 1.35) drawFloor(g, this.ctx.world, v.level, T, { bounds: vis, businessBySlot, _spaceCol: this._spaceCol || (this._spaceCol = new Map()) });
+      if (v.zoom * dpr > base.ppm * 1.1) drawFloor(g, this.ctx.world, v.level, T, { bounds: vis, businessBySlot, _spaceCol: this._spaceCol || (this._spaceCol = new Map()) });
       else { g.imageSmoothingEnabled = true; g.drawImage(base.canvas, base.x0, base.z0, base.w, base.h); }
     }
-    // route
-    if (this.route && this.route.leg && this.route.leg.level === v.level) this._drawRoute(g, k);
+    this._drawDestBlock(g, v);
+    // the route on this floor
+    if (this.route && this.route.legs) this._drawRoute(g, v.zoom, dpr);
     // screen-space overlays
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     this._hits = [];
     this._drawLabels(g, vis);
     this._drawPins(g);
-    this._drawMe(g);
-    // compass & scale
-    this.compassBtn.style.transform = `rotate(${v.rot}rad)`;
-    this.compassBtn.classList.toggle('on', this.headingUp);
-    const m = [5, 10, 20, 50, 100, 200, 500].find(m => m * v.zoom > 40) || 500;
-    this.scaleEl.querySelector('i').style.width = `${m * v.zoom}px`;
-    this.scaleEl.querySelector('span').textContent = `${m} m`;
-    // floor chip
-    const me = this.pos.level;
-    const sp = this.ctx.world.spaceAt(me, this.pos.x, this.pos.z);
-    const z = sp && ZONES[sp.zone];
-    this.floorChip.innerHTML = v.level === me
-      ? `<b>${LEVELS[me].label}</b> ${esc(z ? z.name : 'Namba')}`
-      : `Viewing <b>${LEVELS[v.level].label}</b> · you: ${LEVELS[me].label}`;
-    this.floorChip.classList.toggle('other', v.level !== me);
+    if (this._where().gps) this._drawMe(g);
+    this._drawKnown(g);
+    this._drawEdgeArrow(g);
+    this._drawRose(g);
   }
 
   _footprint() {
@@ -303,11 +422,26 @@ export class MapApp {
     return [Math.min(...xs) - 2, Math.min(...zs) - 2, Math.max(...xs) + 2, Math.max(...zs) + 2];
   }
 
+  // shop blocks of a floor: rect, centre, size, a priority (landmark / big tenants first)
+  _levelShops(level) {
+    let L = this._shopsFor.get(level);
+    if (L) return L;
+    L = [];
+    for (const s of LAYOUT.shopSlots) {
+      if (s.level !== level) continue;
+      const b = businessBySlot[s.id]; if (!b) continue;
+      const [x0, z0, x1, z1] = s.rect, w = x1 - x0, h = z1 - z0;
+      const v = this._view(b);
+      const feat = !!FEATURED[s.id];
+      L.push({ id: s.id, b: v, x0, z0, x1, z1, cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, w, h, area: w * h, feat, base: (feat ? 400 : 0) + w * h * 0.5 + Math.log10(v.reviews + 10) * 18 });
+    }
+    this._shopsFor.set(level, L);
+    return L;
+  }
   _levelLabels(level) {
     let L = this._labelsFor.get(level);
     if (L) return L;
-    L = { zones: [], biz: [], ramps: [], exits: [], fac: [], gates: [], plats: [], roads: [] };
-    // zone centroids
+    L = { zones: [], ramps: [], exits: [], fac: [], gates: [], plats: [] };
     const acc = {};
     for (const s of LAYOUT.spaces) {
       if (s.level !== level || s.kind === 'room' || !s.rect) continue;
@@ -316,8 +450,16 @@ export class MapApp {
       o.x += (x0 + x1) / 2 * a; o.z += (z0 + z1) / 2 * a; o.a += a;
     }
     for (const zk in acc) { const o = acc[zk]; const Z = ZONES[zk]; if (Z && o.a > 300 && zk !== 'street') L.zones.push({ x: o.x / o.a, z: o.z / o.a, en: Z.name, ja: Z.ja, zone: zk }); }
-    for (const b of BUSINESSES) if (b.level === level) L.biz.push(this._view(b));
-    for (const r of LAYOUT.ramps) if (r.lower === level || r.upper === level) L.ramps.push(r);
+    // v23: only the connectors you can USE from here: an escalator running up from this floor, one running down from it, stairs (both ways)
+    for (const r of LAYOUT.ramps) {
+      if (r.lower !== level && r.upper !== level) continue;
+      if (r.bank && r.id !== r.bank + '_0') continue;
+      let dir = 0;
+      if (r.lower === level && (r.kind !== 'escalator' || r.move >= 0)) dir = 1;
+      else if (r.upper === level && (r.kind !== 'escalator' || r.move <= 0)) dir = -1;
+      if (!dir) continue;
+      L.ramps.push({ r, dir, to: dir > 0 ? r.upper : r.lower, x: (r.rect[0] + r.rect[2]) / 2, z: (r.rect[1] + r.rect[3]) / 2 });
+    }
     for (const ex of LAYOUT.exits) {
       const info = EXIT_INFO[ex.id]; if (!info) continue;
       const r = LAYOUT.ramps.find(q => q.id === info.ramp);
@@ -330,14 +472,139 @@ export class MapApp {
     this._labelsFor.set(level, L);
     return L;
   }
+  _textW(g, font, t) {
+    const key = font + t; let w = this._tw.get(key);
+    if (w == null) { g.font = font; w = g.measureText(t).width; this._tw.set(key, w); }
+    return w;
+  }
 
   _drawLabels(g, vis) {
     const v = this.view, k = v.zoom;
-    const L = this._levelLabels(v.level);
+    const L = this._levelLabels(v.level), shops = this._levelShops(v.level);
     const boxes = [];
     const free = (x, y, w, h) => { for (const b of boxes) if (x < b[0] + b[2] && x + w > b[0] && y < b[1] + b[3] && y + h > b[1]) return false; boxes.push([x, y, w, h]); return true; };
-    const inView = (x, y) => x > -30 && x < this.W + 30 && y > -30 && y < this.H + 30;
+    const inView = (x, y, m = 30) => x > -m && x < this.W + m && y > -m && y < this.H + m;
     g.textBaseline = 'middle';
+    const R = this.route, dest = this.selected || (R && R.target);
+    const onRoute = this._routeShopSet(v.level);
+    // ---- 1. the connectors (escalators / stairs) you can take from here; the route's own are big and ringed ----
+    const routeRamps = new Set();
+    if (R && R.legs) for (const lg of R.legs) if (lg.ramp >= 0 && lg.level === v.level) routeRamps.add(LAYOUT.ramps[lg.ramp].bank || LAYOUT.ramps[lg.ramp].id);
+    const rampItems = L.ramps.map(o => ({ o, sc: this.toScreen(o.x, o.z), on: routeRamps.has(o.r.bank || o.r.id) })).filter(i => inView(i.sc[0], i.sc[1])).sort((a, b) => (b.on - a.on));
+    for (const it of rampItems) {
+      const [sx, sy] = it.sc, o = it.o, big = it.on;
+      if (k < 0.75 && !big) continue;
+      const s = big ? 28 : 22;
+      if (!free(sx - s / 2, sy - s / 2, s, s) && !big) continue;
+      const stairs = o.r.kind !== 'escalator';
+      g.save();
+      if (big) { g.shadowColor = 'rgba(26,115,232,.55)'; g.shadowBlur = 10; }
+      g.fillStyle = stairs ? '#2e8b83' : '#2f65b8'; this._rr(g, sx - s / 2, sy - s / 2, s, s, 7); g.fill();
+      g.restore();
+      if (big) { g.strokeStyle = '#fff'; g.lineWidth = 2.4; this._rr(g, sx - s / 2, sy - s / 2, s, s, 7); g.stroke(); }
+      this._arrow(g, sx, sy, o.dir, s * 0.5);
+      // "2F" beside it: where it leads
+      const lab = `${lvl(o.to)}`, font = `700 12px ${FONT}`, tw = this._textW(g, font, lab);
+      const lx = sx + s / 2 + 2, ly = sy;
+      if (big || (k > 1.1 && free(lx, ly - 8, tw + 10, 16))) {
+        if (big) boxes.push([lx, ly - 8, tw + 10, 16]);
+        g.fillStyle = o.dir > 0 ? '#1d4f9f' : '#b5560f'; this._rr(g, lx, ly - 8, tw + 10, 16, 8); g.fill();
+        g.fillStyle = '#fff'; g.font = font; g.textAlign = 'center'; g.fillText(lab, lx + (tw + 10) / 2, ly + 0.5);
+      }
+      this._hits.push({ x: sx, y: sy, place: this._rampPlace(o) });
+    }
+    // ---- 2. the destination's block name, then the route's and the landmark names ----
+    // platforms / lines
+    for (const t of L.plats) {
+      if (k < 0.8) break;
+      const [x0, z0, x1, z1] = t.rect;
+      const [sx, sy] = this.toScreen((x0 + x1) / 2, (z0 + z1) / 2);
+      if (!inView(sx, sy) || t.line === 'nankai' && t.no % 2 === 0) continue;
+      if (!free(sx - 10, sy - 10, 20, 20)) continue;
+      const Lc = LINES[t.line];
+      g.fillStyle = Lc.color; g.beginPath(); g.arc(sx, sy, 10, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.stroke();
+      g.fillStyle = '#fff'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.fillText(`${t.no}`, sx, sy + 0.5);
+    }
+    // ticket gates
+    for (const gt of L.gates) {
+      const x = gt.axis === 'x' ? (gt.from + gt.to) / 2 : gt.at, z = gt.axis === 'x' ? gt.at : (gt.from + gt.to) / 2;
+      const [sx, sy] = this.toScreen(x, z);
+      if (!inView(sx, sy, 60) || k < 0.7) continue;
+      this._pill(g, sx, sy - 16, `改札 ${gt.name}`, '#3d4653', '#fff', 12, boxes);
+    }
+    // exits
+    for (const e of L.exits) {
+      const [sx, sy] = this.toScreen(e.x, e.z);
+      if (!inView(sx, sy)) continue;
+      const w = 12 + e.no.length * 7, h = 20;
+      if (!free(sx - w / 2, sy - h / 2, w, h)) continue;
+      g.fillStyle = '#ffd400'; g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 1;
+      this._rr(g, sx - w / 2, sy - h / 2, w, h, 4); g.fill(); g.stroke();
+      g.fillStyle = '#111'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.fillText(e.no, sx, sy + 0.5);
+      this._hits.push({ x: sx, y: sy, place: this._exitPlace(e.no) });
+    }
+    // toilets (WC), lockers (L), taxis (T): round, 22 px
+    for (const f of L.fac) {
+      const [sx, sy] = this.toScreen(f.x + f.nx * 1.2, f.z + f.nz * 1.2);
+      if (!inView(sx, sy) || k < 1.2) continue;
+      if (!free(sx - 11, sy - 11, 22, 22)) continue;
+      g.fillStyle = f.kind === 'toilet' ? '#2b6cb0' : '#5a6372'; g.beginPath(); g.arc(sx, sy, 11, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#fff'; g.lineWidth = 1.4; g.stroke();
+      g.fillStyle = '#fff'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.fillText(f.kind === 'toilet' ? 'WC' : f.kind === 'locker' ? 'L' : 'T', sx, sy + 0.5);
+      this._hits.push({ x: sx, y: sy, place: this._facPlace(f) });
+    }
+    // area names (Namba CITY, Nankai Namba Station ...): big, low zoom
+    if (k <= 3.4) for (const zl of L.zones) {
+      const [sx, sy] = this.toScreen(zl.x, zl.z);
+      if (!inView(sx, sy)) continue;
+      const font = `700 12px ${FONT}`, w = this._textW(g, font, zl.en);
+      if (!free(sx - w / 2, sy - 8, w, k > 1.6 ? 16 : 28)) continue;
+      g.font = font; g.textAlign = 'center';
+      g.lineWidth = 3.5; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineJoin = 'round'; g.strokeText(zl.en, sx, sy);
+      g.fillStyle = ZONES[zl.zone].color; g.fillText(zl.en, sx, sy);
+      if (k <= 1.6) { g.font = `500 12px ${FONT}`; g.strokeText(zl.ja, sx, sy + 13); g.fillStyle = '#6f6a62'; g.fillText(zl.ja, sx, sy + 13); }
+    }
+    // ---- 3. shop names: the destination, the route's shops, landmarks and big tenants first; names that do not fit are left out ----
+    const c = Math.cos(v.rot), s = Math.sin(v.rot);
+    const cand = [];
+    for (const sh of shops) {
+      const [sx, sy] = this.toScreen(sh.cx, sh.cz);
+      if (!inView(sx, sy, 20)) continue;
+      const isDest = dest && dest.b && dest.b.slot === sh.id, isRt = onRoute.has(sh.id);
+      const ew = k * (Math.abs(c) * sh.w + Math.abs(s) * sh.h), eh = k * (Math.abs(s) * sh.w + Math.abs(c) * sh.h);
+      const pr = (isDest ? 1e6 : 0) + (isRt ? 5e4 : 0) + sh.base;
+      cand.push({ sh, sx, sy, isDest, isRt, ew, eh, pr });
+    }
+    cand.sort((a, b) => b.pr - a.pr);
+    const minK = 1.5;
+    let n = 0;
+    for (const q of cand) {
+      if (n > 26) break;
+      const must = q.isDest || q.isRt || q.sh.feat;
+      if (k < minK && !must) continue;
+      if (k < 0.9) continue;
+      const name = q.sh.b.en, font = `${must ? 700 : 600} 12px ${FONT}`;
+      let tw = this._textW(g, font, name), lines = [name];
+      // a long name on a roomy block wraps to two lines
+      if (tw > Math.max(q.ew, 70) && name.includes(' ')) {
+        const parts = name.split(' '); let best = null;
+        for (let i = 1; i < parts.length; i++) { const a = parts.slice(0, i).join(' '), b = parts.slice(i).join(' '), w = Math.max(this._textW(g, font, a), this._textW(g, font, b)); if (!best || w < best.w) best = { a, b, w }; }
+        if (best && best.w < tw * 0.8) { lines = [best.a, best.b]; tw = best.w; }
+      }
+      const fits = tw + 4 <= q.ew && lines.length * 14 <= q.eh + 2;
+      if (!must && !fits && k < 3.2) continue;
+      const lh = 14, hh = lines.length * lh;
+      if (!free(q.sx - tw / 2 - 2, q.sy - hh / 2 - 1, tw + 4, hh + 2)) continue;
+      g.font = font; g.textAlign = 'center'; g.lineJoin = 'round';
+      lines.forEach((t, i) => {
+        const y = q.sy + (i - (lines.length - 1) / 2) * lh;
+        g.lineWidth = 3.2; g.strokeStyle = 'rgba(255,255,255,0.96)'; g.strokeText(t, q.sx, y);
+        g.fillStyle = q.isDest ? '#b3261e' : q.sh.b.cat === 'closed' ? '#8a8a8a' : '#2f2d29'; g.fillText(t, q.sx, y);
+      });
+      this._hits.push({ x: q.sx, y: q.sy, place: this._bizPlace(q.sh.b) });
+      n++;
+    }
     // road names
     for (const r of ROADS) {
       const [x0, z0, x1, z1] = r.rect;
@@ -348,193 +615,234 @@ export class MapApp {
       g.save(); g.translate(sx, sy);
       let ang = (along ? 0 : Math.PI / 2) + v.rot; if (Math.cos(ang) < 0) ang += Math.PI;
       g.rotate(ang);
-      g.font = '600 11px Inter, "Noto Sans JP", sans-serif'; g.textAlign = 'center';
+      g.font = `600 12px ${FONT}`; g.textAlign = 'center';
       g.lineWidth = 3; g.strokeStyle = '#ffffff'; g.fillStyle = '#8c8577';
       const t = `${r.en}  ${r.ja}`; g.strokeText(t, 0, 0); g.fillText(t, 0, 0);
       g.restore();
     }
-    // platforms / lines
-    for (const t of L.plats) {
-      if (k < 0.8) break;
-      const [x0, z0, x1, z1] = t.rect;
-      const [sx, sy] = this.toScreen((x0 + x1) / 2, (z0 + z1) / 2);
-      if (!inView(sx, sy) || t.line === 'nankai' && t.no % 2 === 0) continue;
-      const Lc = LINES[t.line];
-      const txt = t.line === 'nankai' ? `${t.no}` : `${t.no}`;
-      g.fillStyle = Lc.color; g.beginPath(); g.arc(sx, sy, 7, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#fff'; g.font = '700 9px Inter'; g.textAlign = 'center'; g.fillText(txt, sx, sy + 0.5);
+    // a tapped step: a pulsing ring where it happens
+    if (this.focus >= 0 && this.steps[this.focus] && this.steps[this.focus].level === v.level) {
+      const st = this.steps[this.focus], [sx, sy] = this.toScreen(st.at[0], st.at[1]);
+      g.strokeStyle = '#e8710a'; g.lineWidth = 3; g.beginPath(); g.arc(sx, sy, 20, 0, Math.PI * 2); g.stroke();
+      g.strokeStyle = 'rgba(232,113,10,.35)'; g.lineWidth = 6; g.beginPath(); g.arc(sx, sy, 24, 0, Math.PI * 2); g.stroke();
     }
-    // gates
-    for (const gt of L.gates) {
-      const x = gt.axis === 'x' ? (gt.from + gt.to) / 2 : gt.at, z = gt.axis === 'x' ? gt.at : (gt.from + gt.to) / 2;
-      const [sx, sy] = this.toScreen(x, z);
-      if (!inView(sx, sy) || k < 0.9) continue;
-      this._pill(g, sx, sy - 14, `改札 ${gt.name}`, '#4a5361', '#fff', 10, boxes);
-    }
-    // exits
-    for (const e of L.exits) {
-      const [sx, sy] = this.toScreen(e.x, e.z);
-      if (!inView(sx, sy)) continue;
-      const w = 10 + e.no.length * 7;
-      g.fillStyle = '#ffd400'; g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1;
-      this._rr(g, sx - w / 2, sy - 8, w, 16, 3); g.fill(); g.stroke();
-      g.fillStyle = '#111'; g.font = '800 11px Inter'; g.textAlign = 'center'; g.fillText(e.no, sx, sy + 0.5);
-      boxes.push([sx - w / 2, sy - 8, w, 16]);
-      this._hits.push({ x: sx, y: sy, place: this._exitPlace(e.no) });
-    }
-    // escalators
-    if (k > 1.1) for (const r of L.ramps) {
-      const [sx, sy] = this.toScreen((r.rect[0] + r.rect[2]) / 2, (r.rect[1] + r.rect[3]) / 2);
-      if (!inView(sx, sy)) continue;
-      if (r.bank && r.id !== r.bank + '_0') continue;
-      g.fillStyle = '#3d6fb6'; this._rr(g, sx - 8, sy - 8, 16, 16, 4); g.fill();
-      g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(sx - 5, sy + 4); g.lineTo(sx - 2, sy + 4); g.lineTo(sx + 3, sy - 3); g.lineTo(sx + 5, sy - 3); g.stroke();
-      const other = r.lower === v.level ? r.upper : r.lower;
-      if (k > 2.2) this._pill(g, sx + 18, sy, `${r.lower === v.level ? '▲' : '▼'} ${LEVELS[other].label}`, 'rgba(255,255,255,0.92)', '#3d6fb6', 9, null);
-    }
-    // facilities
-    for (const f of L.fac) {
-      const [sx, sy] = this.toScreen(f.x + f.nx * 1.2, f.z + f.nz * 1.2);
-      if (!inView(sx, sy) || k < 1.0) continue;
-      g.fillStyle = f.kind === 'toilet' ? '#2b6cb0' : '#5a6372'; g.beginPath(); g.arc(sx, sy, 8, 0, Math.PI * 2); g.fill();
-      g.font = '10px "Noto Color Emoji", sans-serif'; g.textAlign = 'center'; g.fillText(f.kind === 'toilet' ? '🚻' : f.kind === 'locker' ? '🔑' : '🚕', sx, sy + 1);
-      boxes.push([sx - 8, sy - 8, 16, 16]);
-      this._hits.push({ x: sx, y: sy, place: this._facPlace(f) });
-    }
-    // businesses
-    const showNames = k >= 2.3, showIcons = k >= 1.15;
-    const sorted = L.biz.slice().sort((a, b) => Math.log10(b.reviews + 10) - Math.log10(a.reviews + 10));
-    for (const b of sorted) {
-      if (!showIcons) continue;
-      const [sx, sy] = this.toScreen(b.px, b.pz);
-      if (!inView(sx, sy)) continue;
-      const grp = catGroup(b.cat);
-      const col = { food: '#f08a3c', cafe: '#b8713a', retail: '#8b6fd1', service: '#3a8bd1', closed: '#9b9b9b' }[grp];
-      const sel = this.selected && this.selected.b && this.selected.b.slot === b.slot;
-      if (!free(sx - 9, sy - 9, 18, 18) && !sel) continue;
-      g.fillStyle = col; g.beginPath(); g.arc(sx, sy, sel ? 11 : 8.5, 0, Math.PI * 2); g.fill();
-      g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke();
-      g.font = `${sel ? 12 : 10}px "Noto Color Emoji", "Apple Color Emoji", sans-serif`; g.textAlign = 'center'; g.fillText(b.info.icon, sx, sy + 1);
-      this._hits.push({ x: sx, y: sy, place: this._bizPlace(b) });
-      if (showNames) {
-        const name = k > 4.5 ? `${b.en}` : b.en;
-        g.font = `500 11px Inter, "Noto Sans JP", sans-serif`;
-        const w = g.measureText(name).width;
-        if (free(sx + 11, sy - 7, w + 4, 14)) {
-          g.textAlign = 'left'; g.lineWidth = 3; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText(name, sx + 12, sy);
-          g.fillStyle = grp === 'closed' ? '#999' : '#3c3a36'; g.fillText(name, sx + 12, sy);
-          if (k > 5 && b.ja && free(sx + 11, sy + 6, w, 12)) { g.font = '500 9px "Noto Sans JP", sans-serif'; g.strokeText(b.ja, sx + 12, sy + 12); g.fillStyle = '#7b766d'; g.fillText(b.ja, sx + 12, sy + 12); }
-        }
-      }
-    }
-    // zone names (big, low zoom)
-    for (const zl of L.zones) {
-      if (k > 3.2) break;
-      const [sx, sy] = this.toScreen(zl.x, zl.z);
-      if (!inView(sx, sy)) continue;
-      g.font = '700 12px Inter, "Noto Sans JP", sans-serif'; g.textAlign = 'center';
-      const w = g.measureText(zl.en).width;
-      if (!free(sx - w / 2, sy - 8, w, 26)) continue;
-      g.lineWidth = 3.5; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.strokeText(zl.en, sx, sy);
-      g.fillStyle = ZONES[zl.zone].color; g.fillText(zl.en, sx, sy);
-      g.font = '500 10px "Noto Sans JP", sans-serif'; g.strokeText(zl.ja, sx, sy + 13); g.fillStyle = '#6f6a62'; g.fillText(zl.ja, sx, sy + 13);
-    }
+  }
+  _arrow(g, x, y, dir, r) {
+    g.strokeStyle = '#fff'; g.lineWidth = 2.4; g.lineCap = 'round'; g.lineJoin = 'round';
+    g.beginPath();
+    if (dir > 0) { g.moveTo(x, y + r * 0.8); g.lineTo(x, y - r * 0.8); g.moveTo(x - r * 0.6, y - r * 0.2); g.lineTo(x, y - r * 0.85); g.lineTo(x + r * 0.6, y - r * 0.2); }
+    else { g.moveTo(x, y - r * 0.8); g.lineTo(x, y + r * 0.8); g.moveTo(x - r * 0.6, y + r * 0.2); g.lineTo(x, y + r * 0.85); g.lineTo(x + r * 0.6, y + r * 0.2); }
+    g.stroke();
   }
   _rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
   _pill(g, x, y, t, bg, fg, size, boxes) {
-    g.font = `600 ${size}px Inter, "Noto Sans JP", sans-serif`;
-    const w = g.measureText(t).width + 10, h = size + 7;
+    g.font = `600 ${size}px ${FONT}`;
+    const w = this._textW(g, g.font, t) + 12, h = size + 8;
     if (boxes) { for (const b of boxes) if (x - w / 2 < b[0] + b[2] && x + w / 2 > b[0] && y - h / 2 < b[1] + b[3] && y + h / 2 > b[1]) return; boxes.push([x - w / 2, y - h / 2, w, h]); }
     g.fillStyle = bg; this._rr(g, x - w / 2, y - h / 2, w, h, h / 2); g.fill();
     g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(t, x, y + 0.5);
+  }
+  // the shops on this floor that the route passes (within 5 m of its line), cached per route
+  _routeShopSet(level) {
+    const R = this.route; if (!R || !R.legs) return new Set();
+    const key = `${this._routeV}:${level}`;
+    if (this._rss && this._rss.key === key) return this._rss.set;
+    const set = new Set();
+    for (const lg of R.legs) {
+      if (lg.level !== level) continue;
+      const pts = lg.draw || lg.pts;
+      for (const sh of this._levelShops(level)) {
+        if (set.has(sh.id)) continue;
+        for (let i = 0; i < pts.length; i++) { const p = pts[i]; if (p[0] > sh.x0 - 5 && p[0] < sh.x1 + 5 && p[1] > sh.z0 - 5 && p[1] < sh.z1 + 5) { set.add(sh.id); break; } }
+      }
+    }
+    this._rss = { key, set };
+    return set;
   }
 
   _drawPins(g) {
     const v = this.view;
     const pin = (p, main) => {
+      if (p.level !== v.level) return;
       const [sx, sy] = this.toScreen(p.x, p.z);
-      const other = p.level !== v.level;
       g.save();
-      g.globalAlpha = other ? 0.5 : 1;
-      const s = main ? 1 : 0.62;
+      const s = main ? 1.15 : 0.62;
       g.translate(sx, sy);
-      g.fillStyle = 'rgba(0,0,0,0.2)'; g.beginPath(); g.ellipse(0, 1, 6 * s, 2.5 * s, 0, 0, Math.PI * 2); g.fill();
-      g.fillStyle = main ? '#e5322d' : '#d4534e';
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.beginPath(); g.ellipse(0, 1, 6 * s, 2.5 * s, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = main ? '#d93025' : '#d4534e';
       g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-4 * s, -10 * s, -13 * s, -16 * s, -13 * s, -25 * s); g.arc(0, -25 * s, 13 * s, Math.PI, 0); g.bezierCurveTo(13 * s, -16 * s, 4 * s, -10 * s, 0, 0); g.fill();
+      g.lineWidth = main ? 2 : 1.2; g.strokeStyle = '#fff'; g.stroke();
       g.fillStyle = '#fff'; g.beginPath(); g.arc(0, -25 * s, 5 * s, 0, Math.PI * 2); g.fill();
-      if (other) {
-        g.globalAlpha = 1;
-        const t = LEVELS[p.level].label;
-        g.font = '800 10px Inter'; const w = g.measureText(t).width + 9;
-        g.fillStyle = '#1c2a3a'; this._rr(g, 9 * s, -40 * s - 7, w, 15, 4); g.fill();
-        g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(t, 9 * s + 4.5, -40 * s + 0.5);
-      }
       g.restore();
       this._hits.push({ x: sx, y: sy - 25 * s, place: p });
     };
     if (this.sheet === 'results') for (const r of this.results.slice(0, 12)) if (r !== this.selected) pin(r, false);
+    const R = this.route;
     if (this.selected) pin(this.selected, true);
+    else if (R && R.target) pin(R.target, true);
   }
 
   _drawMe(g) {
-    const p = this.pos, v = this.view;
+    const p = this.pos, v = this.view, W = this._where();
     const [sx, sy] = this.toScreen(p.x, p.z);
     const same = p.level === v.level;
-    const stale = p.mode === 'gps' && p.state === 'stale', coarse = p.mode === 'gps' && p.state === 'coarse';
-    g.save();
-    if (same) {
-      const r = Math.max(10, Math.min(170, p.acc * v.zoom));
-      // v8: stale = a grey, dashed circle (no signal); coarse = the wide Wi-Fi circle; fix = the tight blue one
-      g.fillStyle = stale ? 'rgba(120,130,145,0.12)' : 'rgba(26,115,232,0.13)'; g.strokeStyle = stale ? 'rgba(110,120,135,0.55)' : 'rgba(26,115,232,0.35)'; g.lineWidth = 1;
-      if (stale) g.setLineDash([5, 4]);
+    const stale = p.mode === 'gps' && p.state === 'stale', unsure = W.unsure;
+    // the other floor the phone may be on: the same circle, dashed, no dot (it does not know where on that floor)
+    if (!same && unsure && W.levels.includes(v.level)) {
+      const r = Math.max(14, Math.min(190, p.acc * v.zoom));
+      g.save(); g.strokeStyle = 'rgba(26,115,232,.55)'; g.lineWidth = 2; g.setLineDash([6, 5]); g.fillStyle = 'rgba(26,115,232,.07)';
       g.beginPath(); g.arc(sx, sy, r, 0, Math.PI * 2); g.fill(); g.stroke(); g.setLineDash([]);
-      // heading cone (map rotation aware): heading yaw -> screen angle
-      const ang = -(p.heading - v.rot) - Math.PI / 2; // yaw 0 = up
-      const spread = 0.55 + (p.env === 'outdoor' ? 0 : 0.25);
-      const gr = g.createRadialGradient(sx, sy, 2, sx, sy, 44);
-      const ca = stale ? 0.28 : coarse ? 0.4 : 0.55;
-      gr.addColorStop(0, `rgba(26,115,232,${ca})`); gr.addColorStop(1, 'rgba(26,115,232,0)');
-      g.fillStyle = gr; g.beginPath(); g.moveTo(sx, sy); g.arc(sx, sy, 44, ang - spread, ang + spread); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(26,115,232,.8)'; g.font = `800 15px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('?', sx, sy);
+      g.restore();
+      return;
     }
-    g.shadowColor = 'rgba(0,0,0,0.3)'; g.shadowBlur = 4;
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
+    if (!same) return;
+    g.save();
+    // the accuracy circle: as wide as the phone's own estimate says, never a confident dot
+    const r = Math.max(12, Math.min(190, p.acc * v.zoom));
+    g.fillStyle = stale ? 'rgba(120,130,145,0.14)' : 'rgba(26,115,232,0.14)'; g.strokeStyle = stale ? 'rgba(110,120,135,0.7)' : 'rgba(26,115,232,0.55)'; g.lineWidth = 1.6;
+    if (stale || unsure) g.setLineDash([6, 4]);
+    g.beginPath(); g.arc(sx, sy, r, 0, Math.PI * 2); g.fill(); g.stroke(); g.setLineDash([]);
+    // heading (the compass is reliable): a cone and an arrow on the dot
+    const ang = -(p.heading - v.rot) - Math.PI / 2;           // yaw 0 = up
+    const gr = g.createRadialGradient(sx, sy, 2, sx, sy, 52);
+    gr.addColorStop(0, `rgba(26,115,232,${unsure ? 0.5 : 0.65})`); gr.addColorStop(1, 'rgba(26,115,232,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(sx, sy); g.arc(sx, sy, 52, ang - 0.5, ang + 0.5); g.closePath(); g.fill();
+    // the dot: solid blue on a fix; hollow and pale when the phone is guessing
+    g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = 5;
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 11, 0, Math.PI * 2); g.fill();
     g.shadowBlur = 0;
-    g.fillStyle = !same || stale ? '#9aa3ad' : '#1a73e8';
-    const pulse = 6 + (stale ? 0 : Math.sin((this._t || 0) * 3) * 0.6);
-    g.beginPath(); g.arc(sx, sy, pulse, 0, Math.PI * 2); g.fill();
-    // a small honest tag under the dot (the sheet says the same, but the map is where eyes are)
-    if (same && (stale || coarse)) {
-      const txt = stale ? `No GPS · last seen ${this._ageTxt(p.ageS)} ago` : `Approximate · ±${Math.round(p.acc)} m`;
-      g.font = '600 10.5px Inter, sans-serif'; const w = g.measureText(txt).width + 14, y = sy + 15;
-      g.shadowColor = 'rgba(0,0,0,0.25)'; g.shadowBlur = 4; g.fillStyle = 'rgba(255,255,255,0.96)';
-      g.beginPath(); g.roundRect ? g.roundRect(sx - w / 2, y, w, 18, 9) : g.rect(sx - w / 2, y, w, 18); g.fill(); g.shadowBlur = 0;
-      g.fillStyle = stale ? '#5f6368' : '#1a73e8'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, sx, y + 9.5);
-    }
+    if (unsure || stale) { g.fillStyle = 'rgba(26,115,232,.18)'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill(); g.strokeStyle = stale ? '#7d8794' : '#1a73e8'; g.lineWidth = 2.2; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.stroke(); }
+    else { g.fillStyle = '#1a73e8'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill(); }
+    // the arrow: always drawn, always right
+    g.translate(sx, sy); g.rotate(ang + Math.PI / 2);
+    g.fillStyle = unsure || stale ? (stale ? '#5f6b7a' : '#1a73e8') : '#fff';
+    g.beginPath(); g.moveTo(0, -6.6); g.lineTo(5, 5); g.lineTo(0, 2.4); g.lineTo(-5, 5); g.closePath(); g.fill();
     g.restore();
   }
 
-  _drawRoute(g, k) {
-    const leg = this.route.leg;
-    const pts = leg.draw;
-    if (!pts || pts.length < 2) return;
-    g.lineJoin = 'round'; g.lineCap = 'round';
-    g.strokeStyle = '#ffffff'; g.lineWidth = 9 / k * Math.min(2, window.devicePixelRatio || 1);
-    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts) g.lineTo(p[0], p[1]); g.stroke();
-    g.strokeStyle = '#1a73e8'; g.lineWidth = 6 / k * Math.min(2, window.devicePixelRatio || 1);
-    g.stroke();
-    // dotted "as the crow flies" hint from leg end to the destination
-    const t = this.route.target;
-    if (this.route.legs.length > 1 && t) {
-      const e = pts[pts.length - 1];
-      g.setLineDash([2 / k * 3, 6 / k * 2]); g.strokeStyle = 'rgba(90,100,115,0.6)'; g.lineWidth = 3 / k * 2;
-      g.beginPath(); g.moveTo(e[0], e[1]); g.lineTo(t.x, t.z); g.stroke(); g.setLineDash([]);
-    }
+  // an arrow at the edge of the plan when the destination pin is on this floor but off screen
+  _drawEdgeArrow(g) {
+    const R = this.route, t = this.selected || (R && R.target); if (!t || t.level !== this.view.level || this.sheet !== 'map') return;
+    const [sx, sy] = this.toScreen(t.x, t.z), W = this.W, ins = this._ins;
+    if (sx > 14 && sx < W - 14 && sy > ins.t + 6 && sy < this.H - ins.b - 6) return;
+    const cx = W / 2, cy = ins.t + (this.H - ins.t - ins.b) / 2, a = Math.atan2(sy - cy, sx - cx);
+    const mx = W / 2 - 22, my = (this.H - ins.t - ins.b) / 2 - 20;
+    const k = Math.min(Math.abs(mx / Math.cos(a || 1e-6)), Math.abs(my / Math.sin(a || 1e-6)));
+    const x = cx + Math.cos(a) * k, y = cy + Math.sin(a) * k;
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.fillStyle = '#d93025'; g.strokeStyle = '#fff'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(13, 0); g.lineTo(-8, -10); g.lineTo(-3, 0); g.lineTo(-8, 10); g.closePath(); g.stroke(); g.fill();
+    g.restore();
   }
-
+  // north marker on the plan when it is turned (heading up): a small "N" on a rose pointing north
+  // the north rose, when the plan is turned (heading up)
+  _drawRose(g) {
+    const v = this.view; if (Math.abs(v.rot) < 0.04) return;
+    const x = this.W - 26, y = this.H - this._ins.b - 28;
+    g.save(); g.translate(x, y); g.rotate(v.rot);
+    g.fillStyle = 'rgba(255,255,255,.94)'; g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 4; g.beginPath(); g.arc(0, 0, 16, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#d93025'; g.beginPath(); g.moveTo(0, -14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+    g.fillStyle = '#8a9099'; g.beginPath(); g.moveTo(0, 14); g.lineTo(5, 0); g.lineTo(-5, 0); g.closePath(); g.fill();
+    g.restore();
+    g.fillStyle = '#d93025'; g.font = `800 12px ${FONT}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  }
+  // v23 integration: "you are facing this way" is ONE bottom-centre DOM badge (.mq-gps): the wedge turns with the compass (a direction,
+  // never a location). For the first 5 s after Maps opens, and for 5 s after a tap, it carries the words "No GPS indoors / you face
+  // this way"; then only the wedge stays with a 12 px caption "No GPS". Written only when the angle (1 degree) or the phase changes.
+  _syncWedge() {
+    const gps = this._where().gps, el = this.gpsEl;
+    if (el.hidden !== gps) el.hidden = gps;
+    if (gps) return;
+    const lab = this._clk < (this._lblUntil || 0);
+    if (el.classList.contains('lab') !== lab) { el.classList.toggle('lab', lab); this._dirty = true; }
+    const a = Math.round(-(this.pos.heading - this.view.rot) * 180 / Math.PI);
+    if (a !== this._wgA) { this._wgA = a; this.wgEl.setAttribute('transform', `rotate(${a} 22 22)`); }
+  }
+  // the maps app was shown (the phone was raised on it, or switched to it): the badge's words show again for 5 s, and the floor
+  // strip is placed again (it cannot scroll while the view is hidden)
+  onShow() {
+    this._lblUntil = this._clk + 5;
+    this._measured = false; this._dirty = true;
+    this._renderStrip(true); this._syncUI(true); this._syncWedge();
+  }
+  // the pin's full label for 8 s (tap on the pin)
+  _labelPin() { const k = this.known; if (!k) return; k.lblUntil = this._clk + 8; this._dirty = true; }
+  // rectangles (in canvas px) the pin's label must keep clear of: the badge, the floor chip, the round buttons, the compass rose
+  _obstacles() {
+    const out = [], off = (el, par) => { if (!el || el.hidden || !el.offsetWidth) return null; let x = el.offsetLeft, y = el.offsetTop; if (par) { x += par.offsetLeft; y += par.offsetTop; } return [x - 3, y - 3, el.offsetWidth + 6, el.offsetHeight + 6]; };
+    const ch = this.root.querySelector('.mq-chips'), ctl = this.root.querySelector('.mq-ctl');
+    for (const r of [off(this.gpsEl), off(this.flEl, ch), off(this.meEl, ch), off(ctl)]) if (r) out.push(r);
+    if (Math.abs(this.view.rot) >= 0.04) out.push([this.W - 26 - 19, this.H - this._ins.b - 28 - 19, 38, 38]);
+    return out;
+  }
+  // the one place the map shows where you were: the last known moment, ageing to a faint ghost. A pin shows its full label for 8 s
+  // (counted while it is on screen) or when tapped, otherwise just the marker and a short age chip ("0:10")
+  _drawKnown(g) {
+    const k = this.known; if (!k || k.level !== this.view.level) return;
+    if (k.lblUntil == null) k.lblUntil = this._clk + 8;
+    const age = this._clk - k.t0, a = age < 90 ? 1 - 0.62 * age / 90 : 0.38;
+    const [sx, sy] = this.toScreen(k.x, k.z);
+    g.save(); g.globalAlpha = a; g.textBaseline = 'middle'; g.textAlign = 'center';
+    g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = 4; g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy, 12, 0, Math.PI * 2); g.fill(); g.shadowBlur = 0;
+    g.fillStyle = '#e8710a'; g.beginPath(); g.arc(sx, sy, 8.5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(sx, sy - 2.6, 2.4, 0, Math.PI * 2); g.fill(); g.beginPath(); g.moveTo(sx - 4, sy + 5); g.quadraticCurveTo(sx, sy - 1, sx + 4, sy + 5); g.closePath(); g.fill();
+    const f1 = `700 12px ${FONT}`, f2 = `600 12px ${FONT}`, ageS = this._ageTxt(age), full = this._clk < k.lblUntil;
+    const lines = []; let w, h;
+    if (full) {
+      // the label wraps (nothing is cut): up to ~118 px wide
+      let cur = '';
+      for (const wd of k.text.split(' ')) { const t = cur ? `${cur} ${wd}` : wd; if (cur && this._textW(g, f1, t) > 118) { lines.push(cur); cur = wd; } else cur = t; }
+      lines.push(cur);
+      w = Math.max(this._textW(g, f2, `${ageS} ago`), ...lines.map(t => this._textW(g, f1, t))) + 20; h = lines.length * 14 + 14 + 10;
+    } else { w = this._textW(g, f2, ageS) + 14; h = 20; }
+    // where it fits: right of the marker, left, above, below; clamped inside the free part of the plan, clear of the badge, the
+    // floor chip, the round buttons and the marker itself
+    const top = this._ins.t + 4, bot = this.H - this._ins.b - 4, obs = this._obstacles(), m = 15;
+    const hit = (x, y) => { let o = 0; for (const r of obs.concat([[sx - m, sy - m, 2 * m, 2 * m]])) { const ox = Math.min(x + w, r[0] + r[2]) - Math.max(x, r[0]), oy = Math.min(y + h, r[1] + r[3]) - Math.max(y, r[1]); if (ox > 0 && oy > 0) o += ox * oy; } return o; };
+    const cl = (x, y) => [Math.max(4, Math.min(this.W - 4 - w, x)), Math.max(top, Math.min(bot - h, y))];
+    let best = null;
+    for (const c of [[sx + 18, sy - h / 2], [sx - 18 - w, sy - h / 2], [sx - w / 2, sy - 18 - h], [sx - w / 2, sy + 18]]) {
+      const [x, y] = cl(c[0], c[1]), o = hit(x, y);
+      if (!best || o < best.o) best = { x, y, o };
+      if (!o) break;
+    }
+    const x = best.x + w / 2, y = best.y + h / 2;
+    g.fillStyle = '#fff4e5'; g.strokeStyle = '#e8710a'; g.lineWidth = 1.5; this._rr(g, x - w / 2, y - h / 2, w, h, full ? 9 : 10); g.fill(); g.stroke();
+    if (full) {
+      g.fillStyle = '#5a2d00'; g.font = f1;
+      lines.forEach((t, i) => g.fillText(t, x, y - h / 2 + 12 + i * 14));
+      g.font = f2; g.fillStyle = '#8a5a2b'; g.fillText(`${ageS} ago`, x, y - h / 2 + 12 + lines.length * 14 + 1);
+    } else { g.fillStyle = '#5a2d00'; g.font = f2; g.fillText(ageS, x, y + 0.5); }
+    g.restore();
+  }
+  // the destination's shop block, outlined
+  _drawDestBlock(g, v) {
+    const t = this.selected || (this.route && this.route.target);
+    if (!t || t.kind !== 'biz' || t.level !== v.level || !t.b) return;
+    const sh = this._levelShops(v.level).find(q => q.id === t.b.slot); if (!sh) return;
+    g.fillStyle = 'rgba(217,48,37,.2)'; g.fillRect(sh.x0, sh.z0, sh.w, sh.h);
+    g.strokeStyle = '#d93025'; g.lineWidth = 2.4 / v.zoom; g.strokeRect(sh.x0, sh.z0, sh.w, sh.h);
+  }
+  // v23 round 2: a thin DASHED line: a suggestion between two known places, not a guide
+  _drawRoute(g, zoom, dpr) {
+    const R = this.route, v = this.view;
+    g.lineJoin = 'round'; g.lineCap = 'butt';
+    const k = zoom * dpr;
+    for (const lg of R.legs) {
+      if (lg.level !== v.level || !lg.draw || lg.draw.length < 2) continue;
+      const pts = lg.draw;
+      g.setLineDash([8 / zoom, 6 / zoom]);
+      g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = 5.5 / k * dpr;
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const p of pts) g.lineTo(p[0], p[1]); g.stroke();
+      g.strokeStyle = '#1a5fd0'; g.lineWidth = 3 / k * dpr;
+      g.stroke();
+    }
+    g.setLineDash([]);
+  }
   // ------------------------------------------------------------ search ----
-  // What the maps app *lists* is not what the directory knows: tiny places have
-  // few reviews and a Japanese-only name; many small underground shops are
-  // pinned some metres off (the listing was geocoded from a street address).
+  // What the maps app lists is what the directory knows (the v23 plan is true; only YOU are vague). Tiny places keep a
+  // Japanese-only name.
   _view(b) {
     const c = this._views || (this._views = new Map());
     let v = c.get(b.slot); if (v) return v;
@@ -542,19 +850,7 @@ export class MapApp {
     const ov = LISTING[b.key];
     if (ov) Object.assign(v, ov);
     if (ov && ov.jaOnly) { v.en = b.ja; v.ja = ''; }
-    // pin position: the shop door, or a geocoding error for small underground places
-    let px = b.door ? b.door.ox : b.x, pz = b.door ? b.door.oz : b.z;
-    const h = hash('pin:' + b.slot) % 100;
-    const fuzz = ov ? ov.fuzz : (b.level === 'B1' || b.level === 'B2') && h < 30 ? 9 + (h % 7) : 0;
-    if (fuzz && this.ctx.nav) {
-      const a0 = (hash('ang:' + b.slot) % 628) / 100;
-      for (let r = fuzz; r >= 5 && (px === (b.door ? b.door.ox : b.x)); r -= 2) for (let k = 0; k < 8; k++) {
-        const a = a0 + k * Math.PI / 4, tx = px + Math.cos(a) * r, tz = pz + Math.sin(a) * r;
-        const n = this.ctx.nav.nodeAtPoint(b.level, tx, tz);
-        if (n >= 0 && this.ctx.nav.nodeLevel(n) === b.level && Math.hypot(this.ctx.nav.x[n] - px, this.ctx.nav.z[n] - pz) > r * 0.6) { px = this.ctx.nav.x[n]; pz = this.ctx.nav.z[n]; break; }
-      }
-    }
-    v.px = px; v.pz = pz;
+    v.px = b.door ? b.door.ox : b.x; v.pz = b.door ? b.door.oz : b.z;
     c.set(b.slot, v);
     return v;
   }
@@ -563,8 +859,8 @@ export class MapApp {
     return { id: 'b:' + b.slot, kind: 'biz', b, en: b.en, ja: b.ja, level: b.level, x: b.px, z: b.pz, sub: `${CATEGORIES[b.cat].en} · ${ZONES[b.zone] ? ZONES[b.zone].name : ''}` };
   }
   _facPlace(f) {
-    const I = FACILITY_INFO[f.kind];
-    return { id: 'f:' + f.id, kind: 'fac', fac: f, en: I.en, ja: I.ja, level: f.level, x: f.x + f.nx * 1.5, z: f.z + f.nz * 1.5, sub: `${I.en} · ${LEVELS[f.level].label}`, icon: f.kind === 'toilet' ? '🚻' : f.kind === 'locker' ? '🔑' : '🚕' };
+    const Fi = FACILITY_INFO[f.kind];
+    return { id: 'f:' + f.id, kind: 'fac', fac: f, en: Fi.en, ja: Fi.ja, level: f.level, x: f.x + f.nx * 1.5, z: f.z + f.nz * 1.5, sub: `${Fi.en} · ${lvl(f.level)}`, icon: f.kind === 'toilet' ? '🚻' : f.kind === 'locker' ? '🔑' : '🚕' };
   }
   _exitPlace(no) {
     const ex = LAYOUT.exits.find(e => EXIT_INFO[e.id] && EXIT_INFO[e.id].no === no);
@@ -572,6 +868,11 @@ export class MapApp {
     return { id: 'x:' + no, kind: 'exit', en: `Exit ${no}`, ja: `${no}番出口`, level: ex.level, x: ex.x, z: ex.z, sub: info.to.map(t => t[1]).join(' · '), exitNo: no };
   }
   _transitPlace(t) { return { id: 't:' + t.id, kind: 'transit', t, en: t.en, ja: t.ja, level: t.at[0], x: t.at[1], z: t.at[2], sub: t.sub, line: t.line }; }
+  // a connector, as a thing you can tap to read ("Escalator up to 2F")
+  _rampPlace(o) {
+    const w = o.r.kind === 'escalator' ? 'Escalator' : 'Stairs';
+    return { id: 'r:' + o.r.id, kind: 'ramp', en: `${w} ${o.dir > 0 ? 'up' : 'down'} to ${lvl(o.to)}`, ja: '', level: o.dir > 0 ? o.r.lower : o.r.upper, x: o.x, z: o.z, sub: `${w} · ${lvl(o.dir > 0 ? o.r.lower : o.r.upper)} → ${lvl(o.to)}` };
+  }
 
   search(q) {
     q = (q || '').trim().toLowerCase();
@@ -593,18 +894,20 @@ export class MapApp {
     return out;
   }
   _crow(p) { return Math.hypot(p.x - this.pos.x, p.z - this.pos.z); }
+  // "6F · about 300 m": the floor says more than the metres do
+  _farTxt(p) { return lvl(p.level); }
 
   _suggest(q) {
     if (!q || !q.trim()) {
-      this.sugg.innerHTML = `<div class="mp-sugg-h">Recent</div>` + ['coffee', 'tempura', 'Midosuji Line', 'Shin-Osaka'].map(s => `<div class="mp-sugg-i" data-q="${s}"><span class="mp-sugg-ic">🕘</span>${s}</div>`).join('');
+      this.sugg.innerHTML = `<div class="mq-sugg-h">Recent</div>` + ['coffee', 'tempura', 'Midosuji Line', 'Shin-Osaka'].map(s => `<button type="button" class="mq-sugg-i" data-q="${s}"><span class="mq-sugg-ic">🕘</span>${s}</button>`).join('');
     } else {
       const res = this.search(q).slice(0, 6);
-      this.sugg.innerHTML = `<div class="mp-sugg-i" data-q="${esc(q)}"><span class="mp-sugg-ic">⌕</span>Search “${esc(q)}”</div>` +
-        res.map((r, i) => `<div class="mp-sugg-i" data-i="${i}"><span class="mp-sugg-ic">${this._iconHtml(r)}</span><span><b>${esc(r.en)}</b><small>${esc(r.ja || '')} · ${LEVELS[r.level].label} · ${fmtDist(this._crow(r))}</small></span></div>`).join('');
+      this.sugg.innerHTML = `<button type="button" class="mq-sugg-i" data-q="${esc(q)}"><span class="mq-sugg-ic">⌕</span>Search “${esc(q)}”</button>` +
+        res.map((r, i) => `<button type="button" class="mq-sugg-i" data-i="${i}"><span class="mq-sugg-ic">${this._iconHtml(r)}</span><span><b>${esc(r.en)}</b><small>${esc(r.ja || '')} · ${lvl(r.level)}</small></span></button>`).join('');
       this._suggRes = res;
     }
     this.sugg.hidden = false;
-    this.sugg.querySelectorAll('.mp-sugg-i').forEach(el => el.addEventListener('mousedown', (e) => {
+    this.sugg.querySelectorAll('.mq-sugg-i').forEach(el => el.addEventListener('mousedown', (e) => {
       e.preventDefault();
       if (el.dataset.i != null) { const r = this._suggRes[+el.dataset.i]; this.input.value = r.en; this.input.blur(); this.results = [r]; this.select(r); }
       else { this.input.value = el.dataset.q; this.input.blur(); this.doSearch(el.dataset.q); }
@@ -617,6 +920,7 @@ export class MapApp {
     if (r.kind === 'biz') return `<i class="mp-ic ${catGroup(r.b.cat)}">${r.b.info.icon}</i>`;
     if (r.kind === 'exit') return `<i class="mp-ex">${r.exitNo}</i>`;
     if (r.kind === 'fac') return `<i class="mp-ic service">${r.icon}</i>`;
+    if (r.kind === 'ramp') return `<i class="mp-ic service">${r.en.startsWith('Esc') ? '🛗' : '🪜'}</i>`;
     return `<i class="mp-ic area">📍</i>`;
   }
 
@@ -628,40 +932,40 @@ export class MapApp {
     this.showResults();
     this.ctx.events.emit('phone:search', { query: q, count: this.results.length });
   }
-  clearSearch() { this.results = []; this.selected = null; if (this.route) this._routeSheet(); else this.showHome(); }
+  clearSearch() { this.results = []; this.selected = null; this._dirty = true; if (this.sheet === 'results' || this.sheet === 'place') this.closePanel(); }
 
-  // ------------------------------------------------------------- sheets ----
-  _setSheet(name, html, full) {
-    this.sheet = name;
-    this.sheetIn.innerHTML = html;
-    this.sheetEl.className = `mp-sheet mp-${name}${full ? ' mp-full' : ''}`;
-    this.sheetIn.scrollTop = 0;
+  // ------------------------------------------------------------- panels ----
+  // one panel at a time over the plan. 'place' is a card from the bottom (the pin stays in sight); the others fill the box
+  _openPanel(name, title, html, opts = {}) {
+    this.sheet = name; this._dirty = true; this._measured = false;
+    this.panelT.textContent = title || '';
+    this.panelB.innerHTML = html;
+    this.panelB.scrollTop = 0;
+    this.panel.hidden = false;
+    this.panel.className = `mq-panel mq-p-${name}`;
+    this.root.classList.toggle('mq-has-panel', name !== 'map');
+    this._syncUI(true);
   }
-  // v8: what the phone honestly knows (positioning.js states: stale = no GPS, the dot frozen; coarse = a Wi-Fi guess; fix = GPS)
-  _ageTxt(s) { s = Math.max(0, Math.round(s)); return s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`; }
-  _accTxt() {
-    const p = this.pos;
-    if (p.mode !== 'gps') return `High accuracy (±${Math.round(p.acc)} m)`;
-    if (p.state === 'stale') return `No GPS signal · last seen ${this._ageTxt(p.ageS)} ago`;
-    if (p.state === 'coarse') return `Approximate (Wi\u2011Fi) ±${Math.round(p.acc)} m`;
-    return p.acc < 6 ? `GPS · high accuracy (±${Math.round(p.acc)} m)` : `GPS · ±${Math.round(p.acc)} m`;
+  closePanel() {
+    if (this.sheet === 'map') return false;
+    if (this.sheet === 'place' && this.route) this.selected = null;
+    this.panel.hidden = true; this.sheet = 'map'; this._dirty = true; this._measured = false;
+    this.root.classList.remove('mq-has-panel');
+    this._hideSugg();
+    this.list = null;
+    this._syncUI(true);
+    return true;
   }
-  // v4: the home sheet is the "Where to?" list (Aya's pick on top, the places Maps offers up front, category chips).
-  // Nothing routes until the player picks (row click, 1–9, ↑↓ Enter).
-  showHome() {
+  showHome() { this.results = []; if (!this.route) this.selected = null; this.closePanel(); this._syncUI(true); }
+  openList() {
     const p = this.pos, D = this.phone.dest, arr = D && D.current && D.current.arrived ? D.current : null;
-    const sp = this.ctx.world.spaceAt(p.level, p.x, p.z);
-    const z = sp && ZONES[sp.zone];
-    this._setSheet('home', `
-      <div class="mp-home">${arr ? `<div class="mp-arr"><i>✓</i><div><b>Arrived · ${esc(arr.name)}</b><small>${LEVELS[arr.level].label} · ${esc(zoneShort(arr.zone) || '')}</small></div></div>` : `<div class="mp-here"><i class="mp-here-dot"></i><div><b class="mp-home-t">${esc(z ? z.name : 'Namba')}</b>
-      <small class="mp-home-s">${LEVELS[p.level].label} · ${this._accTxt()}</small></div></div>`}
-      <div class="mp-dl"></div></div>`, true);
-    this._homeEl = this.sheetIn.querySelector('.mp-home');
-    this.list = new DestList(this._homeEl.querySelector('.mp-dl'), {
-      theme: 'maps', chips: true, title: arr ? 'Where next?' : 'Where to?',
+    this._hideSugg();
+    this._openPanel('home', arr ? 'Where next?' : 'Where to?', `<div class="mq-here"><i class="mq-here-dot"></i><div><b class="mq-home-t"></b><small class="mq-home-s"></small></div></div><div class="mq-dl"></div>`);
+    this.list = new DestList(this.panelB.querySelector('.mq-dl'), {
+      theme: 'maps', chips: true, title: '',
       onPick: (it) => this._pickItem(it), onQuery: (q) => { if (q) { this.input.value = q.replace(/^\w/, c => c.toUpperCase()); this.doSearch(q); } },
     });
-    this.list.touch = this.phone.ctx.input && this.phone.ctx.input.touch;
+    this.list.touch = this.touch;
     this._renderHomeList();
     this._refreshHome();
   }
@@ -669,21 +973,22 @@ export class MapApp {
     if (this.sheet !== 'home' || !this.list) return;
     const D = this.phone.dest, sug = D ? D.suggested : null, cur = D && D.current;
     const ids = defaultIds(sug && !(cur && cur.arrived && cur.id === sug) ? sug : null, cur && cur.arrived ? cur.id : null);
+    // v23: the Nankai ticket gates are always one tap away (the way back to the train), whoever suggested what
+    const gate = this.phone.dest && 't:tp_nk_gate';
+    if (gate && !ids.includes(gate) && !(cur && !cur.arrived && cur.id === gate)) ids.splice(Math.min(2, ids.length), 0, gate);
     const items = ids.map(id => this._itemFor(id, id === sug ? (cur && cur.arrived ? 'Next · from Aya' : 'From Aya') : null)).filter(Boolean);
     this.list.render(items);
-    this.list.setTitle(null, sug ? '' : '');
   }
-  // a list row for a destination id (Maps: crow-flies distance from where the PHONE thinks you are)
+  // a list row for a destination id (distances are from where the PHONE thinks you are, and say so by rounding)
   _itemFor(id, aya) {
     const p = this.placeById(id); if (!p) return null;
     const mins = this.ctx.clock.minutes;
     if (p.kind === 'biz') {
       const b = p.b, s = bizSub(b, mins);
-      // (Aya's row uses the name she wrote; the listing itself may only carry the Japanese name)
       const name = aya && p.en !== b.raw.en ? b.raw.en : p.en, sub = aya && name !== p.en ? `${p.en} · ${s.sub}` : s.sub;
-      return { id, place: p, name, iconHtml: this._iconHtml(p), aya, closed: s.closed, sub: s.status ? `${sub} · ${s.status}` : sub, right: fmtDist(this._crow(p)) };
+      return { id, place: p, name, iconHtml: this._iconHtml(p), aya, closed: s.closed, sub: s.status ? `${sub} · ${s.status}` : sub, right: this._farTxt(p) };
     }
-    return { id, place: p, name: p.en, iconHtml: this._iconHtml(p), aya, sub: `${p.sub || ''}`.split(' · ').slice(0, 2).join(' · ') || LEVELS[p.level].label, right: fmtDist(this._crow(p)) };
+    return { id, place: p, name: p.en, iconHtml: this._iconHtml(p), aya, sub: `${p.sub || ''}`.split(' · ').slice(0, 2).join(' · ') || lvl(p.level), right: this._farTxt(p) };
   }
   _pickItem(it) {
     const ph = this.phone;
@@ -703,72 +1008,64 @@ export class MapApp {
   }
   // ---- the shared destination (phone.dest) drives the route ----
   onDestination(d, fromMaps) {
-    if (!d) { this.route = null; this.banner.hidden = true; this.selected = null; this.results = []; this.showHome(); return; }
+    if (!d) { this.route = null; this.steps = []; this._routeV++; this.selected = null; this.results = []; this.focus = -1; this.closePanel(); this._syncUI(true); return; }
     const p = this.placeById(d.id); if (!p) return;
-    if (this.route && this.route.target && destIdOf(this.route.target) === d.id && !this.route.arrived) { if (fromMaps) this._routeSheet(); return; }
+    if (this.route && this.route.target && destIdOf(this.route.target) === d.id && !this.route.arrived) { if (fromMaps) this.openSteps(); return; }
     this.results = [p];
-    this.selected = p;
+    this.selected = null;
     this.follow = false;
+    this.closePanel();
     this.startRoute(p);
   }
   onArrived(d) {
-    this.route = null; this.selected = null; this.results = [];
-    this.banner.hidden = false;
-    this.banner.innerHTML = `<div class="mp-bn-ic">✓</div><div><b>Arrived</b><small>${esc(d.name)}</small></div>`;
-    clearTimeout(this._bnT); this._bnT = setTimeout(() => { if (!this.route) this.banner.hidden = true; }, 4000);
-    this.follow = true;
-    this.showHome();
+    this.route = null; this.steps = []; this._routeV++; this.selected = null; this.results = []; this.focus = -1;
+    this.follow = true; this._arrivedName = d && d.name;
+    this._toast(`Arrived · ${d ? d.name : ''}`, 4000);
+    this.closePanel();
+    this._syncUI(true);
   }
-  onListChanged() { if (this.sheet === 'home') this.showHome(); else if (this.sheet === 'route') this._routeSheet(); }
-  // the list the keyboard drives (1–9, ↑↓ Enter) while Maps is up; on a route: the "Next (from Aya)" chip
+  onListChanged() { if (this.sheet === 'home') this._renderHomeList(); else if (this.sheet === 'steps') this.openSteps(true); this._syncUI(true); }
+  // the list the keyboard drives (1–9, ↑↓ Enter) while Maps is up
   activeList() {
-    if (this.sheet === 'route') return this._next || null;
+    if (this.sheet === 'steps') return this._next || null;
     if (this.sheet === 'place') return this._placeList || null;
-    return (this.sheet === 'home' || this.sheet === 'results') && this.list && this.list.items.length ? this.list : null;
+    if (this.sheet === 'home' || this.sheet === 'results') return this.list && this.list.items.length ? this.list : null;
+    if (this.sheet === 'map' && !this.route) return this._ayaList || null;
+    return null;
   }
-  focusSearch() { this.input.focus(); return true; }
+  focusSearch() {
+    if (this.touch) { this.openList(); return true; }
+    this.input.focus(); return true;
+  }
   _refreshHome() {
-    if (this.sheet !== 'home' || !this._homeEl) return;
-    const p = this.pos;
-    const sp = this.ctx.world.spaceAt(p.level, p.x, p.z);
-    const z = sp && ZONES[sp.zone];
-    const set = (c, t) => { const e = this._homeEl.querySelector(c); if (e && e.textContent !== t) e.textContent = t; };
-    set('.mp-home-t', z ? z.name : 'Namba');
-    set('.mp-home-s', `${LEVELS[p.level].label} · ${this._accTxt()}`);
-    const dot = this._homeEl.querySelector('.mp-here-dot'); if (dot) dot.classList.toggle('ok', p.mode !== 'gps' || p.state === 'fix');
-    if (this.list) this.list.refreshRight(it => it.place ? fmtDist(this._crow(it.place)) : null);
+    if (this.sheet !== 'home' || !this.panelB) return;
+    const set = (c, t) => { const e = this.panelB.querySelector(c); if (e && e.textContent !== t) e.textContent = t; };
+    const w = this._where(), y = this._youText(w), k = this.known;
+    set('.mq-home-t', y.a); set('.mq-home-s', y.b ? `${y.b}${k && !w.gps ? ` · ${this._ageTxt(this._clk - k.t0)} ago` : ''}` : '');
+    const dot = this.panelB.querySelector('.mq-here-dot'); if (dot) dot.classList.toggle('ok', w.gps);
   }
-
-  // what the lowered phone's glance card shows: the vague hint (crow-flies arrow & distance, the
-  // believed floor), or the one-floor route this app manages — the frustration, legibly
+  // ---- the lowered phone's glance card: honest, no metre-precise distance from a position the phone does not have ----
   glanceInfo() {
-    const p = this.pos, R = this.route;
-    const gpsBad = p.mode === 'gps' && p.state !== 'fix';
-    const warn = p.noService ? 'No service' : gpsBad ? (p.state === 'stale' ? 'No GPS signal' : 'Approximate location') : '';
-    const here = `you’re on ${LEVELS[p.level].label}`;
-    const angTo = (x, z) => { const dx = x - p.x, dz = z - p.z; let d = Math.atan2(-dx, -dz) - p.heading; d = Math.atan2(Math.sin(d), Math.cos(d)); return -d * 180 / Math.PI; };
-    if (R && R.arrived) return { kind: 'arr', icon: 'arrow', ang: 0, title: 'You have arrived', sub: `${R.target.en} · probably`, warn: '' };
-    if (R && !R.failed && R.leg && R.legs.length > 1 && R.leg.ramp >= 0 && R.leg.pts.length) {
-      const r = LAYOUT.ramps[R.leg.ramp], to = R.leg.dir > 0 ? r.upper : r.lower, e = R.leg.pts[R.leg.pts.length - 1];
-      return { kind: 'route', icon: gpsBad ? 'lost' : 'arrow', ang: angTo(e[0], e[1]), title: `Take the ${this._rampWord(r)} ${R.leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`, sub: `${fmtDist(Math.hypot(e[0] - p.x, e[1] - p.z))} · ${here}`, warn };
+    const R = this.route, k = this.known, W = this._where();
+    const pinTxt = k && this._clk - k.t0 < 90 ? k.glance : null;
+    if (R && R.arrived) return { kind: 'arr', icon: 'check', ang: 0, title: 'You have arrived', sub: R.target.en, warn: '' };
+    const areaOf = (t) => (t.kind === 'biz' ? zoneShort(t.b.zone) : (t.sub || '').split(' · ')[0]) || '';
+    if (R && !R.failed && R.target) {
+      const t = R.target, where = `${areaOf(t) ? areaOf(t) + ' · ' : ''}${lvl(t.level)}`;
+      return { kind: 'crow', icon: 'pin', title: `To ${t.en}`, sub: pinTxt || where, warn: '' };
     }
-    const t = R && R.target;
-    if (!t) {
-      // v4: nothing routes until the player picks a place
-      const D = this.phone.dest, C = D && D.current, nx = D && D.next(), sug = nx && D.name(nx);
-      if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : here, warn: '' };
-      if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: sug ? `Where to? · Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
-      return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: sug ? `Aya: ${sug}` : `Where to? · ${here}`, warn: '' };
-    }
-    return { kind: 'crow', icon: gpsBad ? 'lost' : 'arrow', ang: angTo(t.x, t.z), title: t.en, sub: `${fmtDist(this._crow(t))} as the crow flies`, warn };
+    const D = this.phone.dest, C = D && D.current, nx = D && D.next(), sug = nx && D.name(nx);
+    if (C && C.arrived) return { kind: 'arr', icon: 'check', title: `Arrived · ${C.name}`, sub: sug ? `Next: ${sug}` : (pinTxt || ''), warn: '' };
+    if (this.phone._ended) return { kind: 'pick', icon: 'pin', title: 'No route', sub: pinTxt || (sug ? `Where to? · Aya: ${sug}` : 'Where to?'), warn: '' };
+    return { kind: 'pick', icon: 'pin', title: 'Pick a place in Maps', sub: pinTxt || (sug ? `Aya: ${sug}` : 'Where to?'), warn: '' };
   }
   showResults() {
     const mins = this.ctx.clock.minutes;
     const D = this.phone.dest, sug = D && D.suggested;
-    this._setSheet('results', `<div class="mp-sh-h"><b>${this.results.length ? `Results for “${esc(this.query)}”` : `No results for “${esc(this.query)}”`}</b>${this.pos.noService ? '<span class="mp-offline">Offline · saved map</span>' : ''}</div><div class="mp-dl"></div>${this.results.length ? '' : '<div class="mp-empty">Try “coffee”, “tempura”, “Midosuji”…</div>'}`, this.results.length > 3);
-    this.list = new DestList(this.sheetIn.querySelector('.mp-dl'), { theme: 'maps', chips: false, title: '', onPick: (it) => this._pickItem(it) });
-    this.list.touch = this.phone.ctx.input && this.phone.ctx.input.touch;
-    // like every maps app: rating, open / closed, crow-flies distance (Aya's pick is marked where it shows up)
+    this._openPanel('results', this.results.length ? `“${this.query}”` : 'No results', `${this.pos.noService ? '<div class="mq-offline">Offline · saved map</div>' : ''}<div class="mq-dl"></div>${this.results.length ? '' : '<div class="mp-empty">Try “coffee”, “tempura”, “Midosuji”…</div>'}`);
+    this.list = new DestList(this.panelB.querySelector('.mq-dl'), { theme: 'maps', chips: false, title: '', onPick: (it) => this._pickItem(it) });
+    this.list.touch = this.touch;
+    // like every maps app: rating, open / closed, floor and a rounded distance (Aya's pick is marked where it shows up)
     this.list.render(this.results.slice(0, 25).map(r => {
       const id = destIdOf(r);
       let subHtml = esc(r.sub || ''), closed = false;
@@ -777,10 +1074,9 @@ export class MapApp {
         const st = b.cat === 'closed' ? `<span class="mp-closed">Closed for renovation</span>` : open ? `<span class="mp-open">Open</span>` : `<span class="mp-closed">Closed · opens ${hm(b.hours[0])}</span>`;
         subHtml = `<span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> · ${esc(CATEGORIES[b.cat].en.replace(/ \(.*\)$/, ''))} · ${st}`;
       }
-      return { id, place: r, name: r.en, iconHtml: this._iconHtml(r), aya: id && id === sug ? 'From Aya' : null, subHtml, closed, right: `${fmtDist(this._crow(r))} · ${LEVELS[r.level].label}` };
+      return { id, place: r, name: r.en, iconHtml: this._iconHtml(r), aya: id && id === sug ? 'From Aya' : null, subHtml, closed, right: this._farTxt(r) };
     }));
-    // frame results on the map
-    if (this.results.length) { this.follow = false; }
+    if (this.results.length) { this.follow = false; this._fit(this.results.filter(r => r.level === this.view.level).slice(0, 12).map(r => [r.x, r.z]), 3); }
   }
   _stars(r) { const n = Math.round(r || 0); return '<i class="mp-st">' + '★'.repeat(n) + '<u>' + '★'.repeat(5 - n) + '</u></i>'; }
 
@@ -788,29 +1084,26 @@ export class MapApp {
     if (!p) return;
     if (p.kind === 'area' && p.id && p.id.startsWith('a_') && !p.level) return;
     this.selected = p;
-    // pan so the pin is visible, but stay on the current floor (as real apps do)
+    // show the pin's floor: a place card is about that place
     this.follow = false;
-    if (p.level === this.view.level) { this.view.cx = p.x; this.view.cz = p.z; }
-    else { this.view.cx = (p.x + this.pos.x) / 2; this.view.cz = (p.z + this.pos.z) / 2; const d = Math.hypot(p.x - this.pos.x, p.z - this.pos.z); this.view.zoom = Math.max(ZOOM_MIN, Math.min(this.view.zoom, 170 / Math.max(30, d))); }
+    if (p.level !== this.view.level) { this.view.level = p.level; this._renderStrip(); }
     this.showPlace(p);
+    this._fit([[p.x, p.z]], 3.2, 30);
   }
   showPlace(p) {
     const mins = this.ctx.clock.minutes;
-    const crow = this._crow(p);
-    let body = '';
     const otherFloor = p.level !== this.pos.level;
-    const floorNote = otherFloor ? `<div class="mp-note">📍 On <b>${LEVELS[p.level].label}</b> — you are on ${LEVELS[this.pos.level].label}</div>` : '';
+    const floorNote = otherFloor ? `<div class="mp-note">📍 On <b>${lvl(p.level)}</b></div>` : '';
+    const crow = this._farTxt(p);
+    let body = '';
     if (p.kind === 'biz') {
       const b = p.b, open = isOpen(b, mins);
       const st = b.cat === 'closed' ? `<span class="mp-closed">Closed for renovation</span>` : open ? `<span class="mp-open">Open now</span> · until ${hm(b.hours[1])}` : `<span class="mp-closed">Closed</span> · opens ${hm(b.hours[0])}`;
       const revs = reviewsFor(b).map(r => `<div class="mp-rev"><div class="mp-rev-h"><i>${r.who[0]}</i><b>${esc(r.who)}</b><span class="mp-st">${'★'.repeat(r.stars)}<u>${'★'.repeat(5 - r.stars)}</u></span><small>${r.when}</small></div><p>${esc(r.text)}</p></div>`).join('');
-      // v5 critic: Google-Maps order — name, rating, status, the action row, THEN the photo, so Directions (the primary
-      // action, Enter) is visible on the half-height sheet without scrolling (it used to sit under a 118 px photo).
       body = `<div class="mp-pc"><div class="mp-pc-t">${esc(b.en)}</div><div class="mp-pc-ja">${esc(b.ja)}</div>
-        <div class="mp-pc-meta"><span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> <span class="mp-dim">(${b.reviews.toLocaleString('en')})</span> · ${esc(CATEGORIES[b.cat].en)} · ¥${'¥'.repeat(1 + (b.rating > 4.3 ? 1 : 0))}</div>
-        <div class="mp-pc-meta">${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-fl">${LEVELS[b.level].label}</span> · ${fmtDist(crow)} · 🚶 ${Math.max(1, Math.round(crow / 1.4 / 60))} min</div>
-        <div class="mp-pc-meta">${st}</div>${floorNote}
-        <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button><button>⇪ Share</button></div>
+        <div class="mp-pc-meta"><span class="mp-fl">${lvl(b.level)}</span> ${esc(ZONES[b.zone] ? ZONES[b.zone].name : '')} · <span class="mp-stars">${b.rating ? b.rating.toFixed(1) : '–'} ${this._stars(b.rating)}</span> <span class="mp-dim">(${b.reviews.toLocaleString('en')})</span></div>
+        <div class="mp-pc-meta">${esc(CATEGORIES[b.cat].en)} · ${st}</div>${floorNote}
+        <div class="mq-actions"><button class="mq-go" type="button">Directions</button></div>
         <img class="mp-photo mp-photo-in" src="${placeArt(b)}" alt="">
         ${b.blurb ? `<p class="mp-blurb">${esc(b.blurb)}</p>` : ''}
         ${this._popularHtml(b)}
@@ -821,22 +1114,22 @@ export class MapApp {
       let trip = '';
       if (t.trip) trip = `<div class="mp-trip"><div class="mp-trip-l"><i class="mp-lb ${L.shape}" style="--c:${L.color}">${L.letter}</i><div><b>${esc(L.en)} ${esc(L.ja)}</b><small>${esc(t.trip.from)} → ${esc(t.trip.to)} · ${t.trip.stops} stops</small></div><div class="mp-trip-t">${t.trip.min} min<small>¥${t.trip.fare}</small></div></div><div class="mp-trip-dep">${this._departuresHtml(t.trip.track)}</div></div>`;
       body = `<div class="mp-pc mp-pc-tr"><div class="mp-tr-h" style="--c:${L.color}"><i class="mp-lb ${L.shape}" style="--c:${L.color}">${L.letter}</i><div><div class="mp-pc-t">${esc(t.en)}</div><div class="mp-pc-ja">${esc(t.ja)}</div></div></div>
-        <div class="mp-pc-meta">${esc(t.sub)}</div><div class="mp-pc-meta"><span class="mp-fl">${LEVELS[p.level].label}</span> · ${fmtDist(crow)}${t.offmap ? ' · <span class="mp-dim">outside this map</span>' : ''}</div>${floorNote}${trip}
-        <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button></div>
+        <div class="mp-pc-meta">${esc(t.sub)}</div><div class="mp-pc-meta"><span class="mp-fl">${lvl(p.level)}</span> · ${crow}${t.offmap ? ' · <span class="mp-dim">outside this map</span>' : ''}</div>${floorNote}
+        <div class="mq-actions"><button class="mq-go" type="button">Directions</button></div>${trip}
         <p class="mp-blurb mp-dim">“Namba” is four different stations: Osaka Metro なんば, Nankai なんば, Kintetsu/Hanshin 大阪難波 and JR難波. Check the operator.</p></div>`;
     } else {
       body = `<div class="mp-pc"><div class="mp-tr-h">${this._iconHtml(p)}<div><div class="mp-pc-t">${esc(p.en)}</div><div class="mp-pc-ja">${esc(p.ja || '')}</div></div></div>
-        <div class="mp-pc-meta">${esc(p.sub || '')}</div><div class="mp-pc-meta"><span class="mp-fl">${LEVELS[p.level].label}</span> · ${fmtDist(crow)}</div>${floorNote}
-        <div class="mp-actions"><button class="mp-go">➤ Directions</button><button>☆ Save</button></div></div>`;
+        <div class="mp-pc-meta">${esc(p.sub || '')}</div><div class="mp-pc-meta"><span class="mp-fl">${lvl(p.level)}</span> · ${crow}</div>${floorNote}
+        ${p.kind === 'ramp' ? '' : '<div class="mq-actions"><button class="mq-go" type="button">Directions</button></div>'}</div>`;
     }
-    this._setSheet('place', `<button class="mp-x">×</button>${body}`, false);
-    this.sheetIn.querySelector('.mp-x').addEventListener('click', () => { this.selected = null; this.route ? this._routeSheet() : this.results.length > 1 ? this.showResults() : this.showHome(); });
-    const go = this.sheetIn.querySelector('.mp-go');
+    this._openPanel('place', '', body);
+    this.panelT.textContent = '';
+    const go = this.panelB.querySelector('.mq-go');
     if (go) {
-      if (!(this.ctx.input && this.ctx.input.touch)) go.insertAdjacentHTML('beforeend', ' <kbd class="mp-k">Enter</kbd>');
+      if (!this.touch) go.insertAdjacentHTML('beforeend', ' <kbd class="mp-k">Enter</kbd>');
       go.addEventListener('click', () => this._goPlace(p));
     }
-    // (keyboard: the place card is a one-row list — 1 / Enter = Directions)
+    // (keyboard: the place card is a one-row list: 1 / Enter = Directions)
     this._placeList = { items: [{ id: destIdOf(p) }], sel: 0, armed: true, move() {}, pick: () => { this._goPlace(p); return true; } };
     this.ctx.events.emit('phone:select', { id: p.id, kind: p.kind, slot: p.b && p.b.slot, key: p.b && p.b.key });
   }
@@ -866,105 +1159,64 @@ export class MapApp {
 
   // ----------------------------------------------------------- routing ----
   startRoute(target) {
-    this.route = { target, legs: [], leg: null, t: 0, recalc: 0 };
+    this.route = { target, legs: [], leg: null };
+    this.focus = -1;
     this._computeRoute(true);
     this.ctx.events.emit('phone:route', { id: target.id, level: target.level });
   }
+  // directions are a static overview between two known places: from the LAST KNOWN spot (the arrival, a photo, a gate, a café) to the pin
   _computeRoute(first) {
     const R = this.route; if (!R) return;
     const nav = this.ctx.nav; if (!nav) return;
-    const t = R.target, p = this.pos;
+    const t = R.target, from = this.known || (() => { const h = this._trueHere(); return h && { level: h.level, x: h.x, z: h.z, where: lvl(h.level), id: 0 }; })();
+    if (!from) { R.failed = true; return; }
     const key = 'phone:' + t.id;
     // anything that is not a train/gate/platform must not route through the fare gates
     const f = t.kind === 'transit' ? nav.fieldToPoint(key, t.level, t.x, t.z) : fieldNoEntry(nav, key, [nav.nodeAtPoint(t.level, t.x, t.z)]);
-    // the route starts where the PHONE thinks you are, on the floor it thinks
-    let v = nav.nodeAtPoint(p.level, p.x, p.z);
+    let v = nav.nodeAtPoint(from.level, from.x, from.z);
     if (v < 0 || !isFinite(f.dist[v])) {
-      // fall back to the nearest node in a small radius on that floor
-      for (let r = 2; r <= 12 && (v < 0 || !isFinite(f.dist[v])); r += 2) for (let a = 0; a < 8; a++) {
-        const w = nav.nodeAtPoint(p.level, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+      for (let r = 2; r <= 14 && (v < 0 || !isFinite(f.dist[v])); r += 2) for (let a = 0; a < 8; a++) {
+        const w = nav.nodeAtPoint(from.level, from.x + Math.cos(a * 0.785) * r, from.z + Math.sin(a * 0.785) * r);
         if (w >= 0 && isFinite(f.dist[w])) { v = w; break; }
       }
     }
-    if (v < 0 || !isFinite(f.dist[v])) { R.failed = true; this._routeSheet(); return; }
+    if (v < 0 || !isFinite(f.dist[v])) { R.failed = true; this._routeV++; this._syncUI(true); return; }
     R.failed = false;
     R.legs = routeLegs(nav, f, v);
+    for (const lg of R.legs) lg.draw = simplify(lg.pts, 0.9);
     R.leg = R.legs[0];
-    if (R.leg) R.leg.draw = simplify(R.leg.pts, 0.9);
     R.total = f.dist[v];
-    R.level = p.level;
-    R.recalc = 0;
-    R.offCount = 0;
-    if (!first) { this._flashBanner('Recalculating…'); if (this.phone._stats && this.pos.mode === 'gps') this.phone._stats.reroutes++; }
-    if (R.leg && R.leg.level !== this.view.level) { this.view.level = R.leg.level; this._renderFloors(); }
-    this.follow = true;
-    this._routeSheet();
-  }
-  _rampWord(r) { return r.kind === 'escalator' ? 'escalator' : 'stairs'; }
-  _routeSheet() {
-    const R = this.route; if (!R) return;
-    const t = R.target;
-    if (R.failed) {
-      this._setSheet('route', `<button class="mp-x">×</button><div class="mp-pc"><div class="mp-pc-t">No route found</div><p class="mp-dim">Can't determine your position on ${LEVELS[this.pos.level].label}. Try moving to an open area.</p></div>`);
-      this.banner.hidden = true;
-      this.sheetIn.querySelector('.mp-x').addEventListener('click', () => this.endRoute());
-      return;
+    R.fromId = from.id; R.fromWhere = from.where; R.floors = routeFloors(R);
+    this.steps = buildSteps(R, this.ctx.world);
+    this._routeV++; this._rss = null;
+    if (first) {
+      // the plan shows the pin's place, or the stretch of the route on the floor you are on
+      const lg = R.legs.find(l => l.level === from.level), dl = R.legs[R.legs.length - 1];
+      this.view.level = from.level;
+      if (lg) this._fit(lg.draw.concat([[from.x, from.z]]), 3.0, 40);
+      this._renderStrip();
     }
-    const leg = R.leg, legs = R.legs;
-    const minutes = Math.max(1, Math.round(R.total / 1.4 / 60));   // real walking minutes, as any maps app would say
-    let step, sub = '';
-    if (legs.length > 1 && leg.ramp >= 0) {
-      const r = LAYOUT.ramps[leg.ramp];
-      const to = leg.dir > 0 ? r.upper : r.lower;
-      step = `${leg.dir > 0 ? '↗' : '↘'} Take the ${this._rampWord(r)} ${leg.dir > 0 ? 'up' : 'down'} to ${LEVELS[to].label}`;
-      sub = `${fmtDist(leg.len)} · then continue on ${LEVELS[to].label}`;
-    } else {
-      step = `➤ Head to ${t.en}`; sub = `${fmtDist(leg ? leg.len : R.total)} on this floor`;
-    }
-    this.banner.hidden = false;
-    this.banner.innerHTML = `<div class="mp-bn-ic">${legs.length > 1 ? (leg.dir > 0 ? '⬈' : '⬊') : '⬆'}</div><div><b>${esc(step.replace(/^\S+\s/, ''))}</b><small>${esc(sub)}</small></div>`;
-    const steps = [];
-    steps.push(`<li><b>Start</b> <span class="mp-dim mp-start">${LEVELS[R.level].label} · ${this._accTxt()}</span></li>`);
-    legs.forEach((lg, i) => {
-      if (i === 0) {
-        if (lg.ramp >= 0) { const r = LAYOUT.ramps[lg.ramp]; steps.push(`<li>Walk ${fmtDist(lg.len)} to the ${this._rampWord(r)}</li><li>Take ${this._rampWord(r)} ${lg.dir > 0 ? 'up' : 'down'} to <b>${LEVELS[lg.dir > 0 ? r.upper : r.lower].label}</b></li>`); }
-        else steps.push(`<li>Walk ${fmtDist(lg.len)} to <b>${esc(t.en)}</b></li>`);
-      }
-    });
-    if (legs.length > 1) steps.push(`<li class="mp-dim">Directions for the remaining floors will appear once we detect you on ${LEVELS[(() => { const r = LAYOUT.ramps[leg.ramp]; return leg.dir > 0 ? r.upper : r.lower; })()].label}. <i>(We’re not sure when that is.)</i></li>`);
-    this._next = nextChip(this.phone);
-    this._setSheet('route', `<button class="mp-x">×</button><div class="mp-pc">
-      ${nextChipHtml(this._next, this.ctx.input && this.ctx.input.touch, 'dl-next-maps')}
-      <div class="mp-rt-h"><b>${minutes} min</b> <span class="mp-dim">(${fmtDist(R.total)})</span></div>
-      <div class="mp-pc-meta">to <b>${esc(t.en)}</b> · <span class="mp-fl">${LEVELS[t.level].label}</span></div>
-      ${t.level !== R.level ? `<div class="mp-note">Showing this floor only · destination is on ${LEVELS[t.level].label} · straight-line distance ${fmtDist(this._crow(t))}</div>` : ''}
-      <ol class="mp-steps">${steps.join('')}</ol>
-      <div class="mp-dim mp-fine">Walking time does not include crowds, gates or queues. Indoor positioning may be inaccurate.</div>
-      <div class="mp-actions"><button class="mp-end">End</button></div></div>`);
-    this.sheetIn.querySelector('.mp-x').addEventListener('click', () => this.endRoute());
-    this.sheetIn.querySelector('.mp-end').addEventListener('click', () => this.endRoute());
-    const nb = this.sheetIn.querySelector('.dl-next'); if (nb) nb.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
+    this._syncUI(true);
   }
-  // End / × on the route = no destination any more (both apps back to their list)
+
+  // End / × on the route = no destination any more
   endRoute() {
-    this.route = null; this.banner.hidden = true; this.selected = null; this.results = [];
+    this.route = null; this.steps = []; this._routeV++; this.selected = null; this.results = []; this.focus = -1;
     const C = this.phone.dest && this.phone.dest.current;
-    if (C && !C.arrived && this.phone.endRoute) this.phone.endRoute('maps');      // v5: 'nav:end', calm "No route" (same as Lodestone)
+    this.closePanel();
+    if (C && !C.arrived && this.phone.endRoute) this.phone.endRoute('maps');
     else if (C) this.phone.clearDestination(); else this.showHome();
   }
-  // v5: the next milestone as Maps believes it (its one-floor leg: the first escalator, or the place itself)
+  // the next milestone as Maps believes it: the first connector at or after the current step, or the place itself
   milestone() {
-    const R = this.route, p = this.pos;
-    if (!R || R.failed || R.arrived || !R.target) return null;
-    if (R.leg && R.legs.length > 1 && R.leg.ramp >= 0 && R.leg.pts.length) {
-      const r = LAYOUT.ramps[R.leg.ramp], e = R.leg.pts[R.leg.pts.length - 1];
-      return { kind: r.kind === 'escalator' ? 'escalator' : 'stairs', dir: R.leg.dir > 0 ? 'up' : 'down', toLevel: R.leg.dir > 0 ? r.upper : r.lower,
-        dist: Math.round(Math.hypot(e[0] - p.x, e[1] - p.z)), level: R.leg.level, x: e[0], z: e[1], side: null, app: 'maps' };
-    }
+    const R = this.route; if (!R || R.failed || R.arrived || !R.target) return null;
+    const h = this._trueHere(); if (!h) return null;
+    const st = this.steps.find(s => s.kind === 'ramp' && s.level === h.level);
+    if (st) return { kind: st.ramp === 'escalator' ? 'escalator' : 'stairs', dir: st.dir > 0 ? 'up' : 'down', toLevel: st.to, dist: Math.round(Math.hypot(st.at[0] - h.x, st.at[1] - h.z)), level: st.level, x: st.at[0], z: st.at[1], side: null, app: 'maps' };
     const t = R.target;
-    return { kind: 'arrive', dir: null, toLevel: t.level, dist: Math.round(this._crow(t)), name: t.en, level: t.level, x: t.x, z: t.z, side: null, app: 'maps' };
+    return { kind: 'arrive', dir: null, toLevel: t.level, dist: Math.round(Math.hypot(t.x - h.x, t.z - h.z)), name: t.en, level: t.level, x: t.x, z: t.z, side: null, app: 'maps' };
   }
-  // v5: a place link from a text — its place card, Directions = Go (click / Enter / 1)
+  // a place link from a text: its place card, Directions = Go (click / Enter / 1)
   preview(id) {
     const p = this.placeById(id); if (!p) return false;
     this._linkGo = { id: destIdOf(p) || id, p };
@@ -974,72 +1226,150 @@ export class MapApp {
   closePreview() {
     if (this.sheet !== 'place') return false;
     this.selected = null; this._linkGo = null;
-    this.route ? this._routeSheet() : this.results.length > 1 ? this.showResults() : this.showHome();
+    this.closePanel();
     return true;
   }
-  _flashBanner(t) {
-    this.banner.hidden = false;
-    this.banner.innerHTML = `<div class="mp-bn-ic mp-spin">⟳</div><div><b>${t}</b></div>`;
-    clearTimeout(this._bnT); this._bnT = setTimeout(() => this.route && this._routeSheet(), 1300);
+
+  // ------------------------------------------------------------ UI layer ----
+  _toast(t, ms = 2200) {
+    this.toastEl.textContent = t; this.toastEl.hidden = false; this._dirty = true; this._toastV = (this._toastV || 0) + 1;
+    clearTimeout(this._toastT); this._toastT = setTimeout(() => { this.toastEl.hidden = true; }, ms);
   }
-  _onBelievedFloor() {
-    if (!this.route) return;
-    // the app picks up the next leg once it believes you reached that floor
-    this._computeRoute(false);
+  _toggleOrient() {
+    this.headingUp = !this.headingUp; this.follow = true; this._dirty = true;
+    this._toast(this.headingUp ? 'Heading up · the map turns with you' : 'North up', 2200);
+    this._syncUI(true);
   }
-  _routeTick(dt) {
-    const R = this.route; if (!R || R.failed) return;
-    R.recalc += dt;
-    const p = this.pos, t = R.target;
-    // arrived?
-    // "arrived" is the phone's belief, not the truth: it can fire 10 m early or late
-    // v8 critic: a coarse Wi-Fi guess can "arrive" and then jump away; the belief moves on with it (no stuck banner)
-    if (R.arrived && !(p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 15)) { R.arrived = false; R.recalc = 0; R.offCount = 0; this._routeSheet(); }
-    if (p.level === t.level && Math.hypot(p.x - t.x, p.z - t.z) < 7) {
-      if (!R.arrived) { R.arrived = true; this.banner.hidden = false; this.banner.innerHTML = `<div class="mp-bn-ic">✓</div><div><b>You have arrived</b><small>${esc(t.en)}</small></div>`; this.ctx.events.emit('phone:arrive', { id: t.id }); }
-      return;
+  _recenter() {
+    const W = this._where(), k = this.known;
+    this.focus = -1;
+    if (W.gps) { this.follow = true; this.view.level = this.pos.level; }
+    else if (k) { this.view.level = k.level; this.view.cx = k.x; this.view.cz = k.z; this.follow = false; }
+    this.view.zoom = Math.max(this.view.zoom, 2.2); this._dirty = true;
+    this._renderStrip(); this._syncUI(true);
+  }
+  _showFloor(l) {
+    this.view.level = l; this.focus = -1;
+    this.follow = this._where().gps && l === this.pos.level;
+    this._dirty = true; this._renderStrip();
+    // the floor's part of the route; else the pin; else the last known spot; else the whole floor
+    const R = this.route, lg = R && R.legs && R.legs.find(q => q.level === l), k = this.known;
+    if (lg && lg.draw && lg.draw.length > 1) this._fit(lg.draw, 3.2, 34);
+    else if (this.selected && this.selected.level === l) this._fit([[this.selected.x, this.selected.z]], 3, 40);
+    else if (k && k.level === l) { this.view.cx = k.x; this.view.cz = k.z; }
+    else { const g = this.ctx.world.grids[l]; if (g) { this.view.cx = g.x0 + g.w / 2; this.view.cz = g.z0 + g.h / 2; if (this.view.zoom > 2) this.view.zoom = 1.6; } }
+    this._syncUI(true);
+  }
+  _renderStrip(force) {
+    const R = this.route, T = R ? R.target : this.selected, K = this.known, W = this._where();
+    const key = [this.view.level, T ? T.level : '', K ? K.level : '', W.gps ? this.pos.level : ''].join('|');
+    if (!force && key === this._stripKey) return;
+    this._stripKey = key;
+    const lv = LEVEL_ORDER.filter(l => this.ctx.world.grids[l]);
+    this.strip.innerHTML = lv.map(l => {
+      const pin = T && T.level === l, ghost = K && K.level === l, gps = W.gps && this.pos.level === l;
+      const name = FLOOR_NAMES[l] || '';
+      return `<button type="button" role="tab" data-l="${l}" class="${l === this.view.level ? 'on' : ''}${ghost ? ' ghost' : ''}${pin ? ' pin' : ''}${gps ? ' gps' : ''}" aria-label="${lvl(l)} ${esc(name)}${pin ? ', destination' : ''}${ghost ? ', last known place' : ''}"><b>${lvl(l)}</b>${ghost || gps ? '<i class="dot"></i>' : ''}${pin ? `<em>${I.pin}</em>` : ''}</button>`;
+    }).join('');
+    // scroll so the viewed floor, the destination's and the last known one are in view when they fit
+    const on = this.strip.querySelector('.on'); if (!on) return;
+    const idx = (l) => lv.indexOf(l), bw = on.offsetWidth || 44, vw = this.strip.clientWidth || 300;
+    const set = [this.view.level].concat(T ? [T.level] : []).concat(K ? [K.level] : []).map(idx).filter(i => i >= 0);
+    const lo = Math.min(...set), hi = Math.max(...set);
+    let left;
+    if ((hi - lo + 1) * bw <= vw) left = (lo + hi + 1) / 2 * bw - vw / 2; else left = (idx(this.view.level) + 0.5) * bw - vw / 2;
+    this.strip.scrollLeft = Math.max(0, left);
+  }
+  // text, classes and chips that follow the state (written only when they change)
+  _syncUI(force) {
+    const R = this.route, W = this._where(), v = this.view;
+    const setT = (el, t) => { if (el && el.textContent !== t) el.textContent = t; };
+    // the floor you are looking at, named the way the signs name it
+    setT(this.flEl, `${lvl(v.level)} · ${FLOOR_NAMES[v.level] || ''}`);
+    this.flEl.classList.toggle('other', !!this.known && v.level !== this.known.level);
+    // no GPS indoors: one quiet chip (tap for the tip); a real fix outdoors says so
+    setT(this.meEl.querySelector('b'), `GPS ±${Math.round(this.pos.acc)} m`);
+    this.meEl.hidden = !W.gps; this.meEl.classList.toggle('ok', W.gps);
+    // the top bar: search, or the destination (name, where it is) and Directions
+    const D = this.phone.dest, arr = D && D.current && D.current.arrived;
+    const mode = R && !R.failed ? 'route' : 'search';
+    this.bar.dataset.m = mode;
+    this.searchEl.hidden = mode !== 'search'; this.rtEl.hidden = mode !== 'route'; this.rtX.hidden = mode !== 'route';
+    if (mode === 'route') {
+      const t = R.target, area = t.kind === 'biz' ? zoneShort(t.b.zone) : (t.sub || '').split(' · ')[0];
+      setT(this.rtEl.querySelector('b'), t.en);
+      setT(this.rtEl.querySelector('small'), `${area ? area + ' ' : ''}${lvl(t.level)}`);
     }
-    // off route? (distance of the estimate from the drawn leg)
-    // v6 critic: 24 m for 4 s, at most every 12 s — with the ±10–30 m indoor dot the old 18 m / 6 s flashed
-    // "Recalculating…" every ~15 s, which read as noise rather than frustration
-    if (R.leg && R.leg.draw && p.level === R.leg.level && R.recalc > 12) {
-      let best = 1e9;
-      const pts = R.leg.draw;
-      for (let i = 0; i + 1 < pts.length; i++) {
-        const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
-        const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez || 1;
-        let u = ((p.x - ax) * ex + (p.z - az) * ez) / l2; u = Math.max(0, Math.min(1, u));
-        best = Math.min(best, Math.hypot(p.x - ax - ex * u, p.z - az - ez * u));
-      }
-      if (best > 24) { R.offCount += dt; if (R.offCount > 4) this._computeRoute(false); }
-      else R.offCount = 0;
-    }
+    // Aya's pick, one tap from the map (no route yet / the next one after an arrival)
+    const nx = D && D.next && D.next(), place = nx && this.placeById(nx);
+    const showAya = !!(place && !R && this.sheet === 'map' && !this.input.matches(':focus'));
+    if (this.ayaEl.hidden === showAya) { this.ayaEl.hidden = !showAya; this._measured = false; this._dirty = true; }
+    if (showAya) {
+      const html = `<span class="a">${arr ? 'Next · from Aya' : 'From Aya'}</span><b>${esc(this._ayaName(nx, place))}</b><small>${esc(this._areaOf(place))} ${lvl(place.level)}</small><em>Go</em>`;
+      if (this.ayaEl.dataset.h !== html) { this.ayaEl.dataset.h = html; this.ayaEl.innerHTML = html; }
+      this._ayaList = { items: [{ id: nx }], sel: 0, armed: false, chip: true, move() {}, pick: () => this._ayaGo() };
+      this._ayaId = nx;
+    } else { this._ayaList = null; this._ayaId = null; }
+    this.root.classList.toggle('mq-aya-on', showAya);
+    this.root.classList.toggle('mq-route', mode === 'route');
+    // the orientation / recentre buttons
+    const o = this.orientBtn.firstChild, w = this.headingUp ? 'up' : 'n';
+    if (o.dataset.m !== w) { o.dataset.m = w; o.innerHTML = this.headingUp ? '<svg viewBox="0 0 24 24"><path d="M12 3 19 20l-7-4-7 4z" fill="currentColor" stroke="none"/></svg>' : '<b>N</b>'; this.orientBtn.title = this.headingUp ? 'Heading up (tap for north up)' : 'North up (tap for heading up)'; }
+    this.orientBtn.classList.toggle('on', this.headingUp);
+    this._renderStrip();
+  }
+  _ayaName(id, place) {
+    const b = place.kind === 'biz' ? place.b : null;
+    return b && b.raw ? b.raw.en : place.en;
+  }
+  _areaOf(place) {
+    if (place.kind === 'biz') return zoneShort(place.b.zone) || '';
+    return (place.sub || '').split(' · ')[0];
+  }
+  _ayaGo() {
+    const id = this._ayaId; if (!id) return;
+    this.phone._lastPhoneInput = this.phone._now;
+    if (!this.phone.setDestination(id, { app: 'maps' })) { const p = this.placeById(id); if (p) this.select(p); }
   }
 
-  // the little indignities of every maps app indoors
-  _nag(dt) {
-    const p = this.pos, bad = p.mode === 'gps' && p.state !== 'fix';
-    this._warnT = (this._warnT || 0) - dt;
-    if (this._warnT <= 0) {
-      this._warnT = 0.5;
-      const txt = p.noService ? 'No service · showing the saved map' : p.state === 'stale' ? `No GPS signal · last seen ${this._ageTxt(p.ageS)} ago` : 'Approximate location · Wi\u2011Fi';
-      if (this.warnEl.textContent !== txt) this.warnEl.textContent = txt;
-      this.warnEl.hidden = !bad || !this.phone.isOpen || !this.banner.hidden;
-    }
-    // figure-8 compass prompt: underground, every ~70 s, for 5 s
-    this._calT = (this._calT == null ? 40 + Math.random() * 15 : this._calT) - dt;
-    if (this._calT <= 0) {
-      if (bad && p.env !== 'outdoor' && p.env !== 'canyon' && this.phone.isOpen && this.phone.app === 'maps') {
-        this.calEl.hidden = false; this._calShow = 5; this._calT = 70 + Math.random() * 25;
-        if (this.phone._stats) this.phone._stats.compassPrompts++;
-      } else this._calT = 5;
-    }
-    if (this._calShow > 0) { this._calShow -= dt; if (this._calShow <= 0 || p.mode !== 'gps') this.calEl.hidden = true; }
+  // ---- the step list ----
+  openSteps(keep) {
+    const R = this.route; if (!R || R.failed) return;
+    // a new last-known pin since the route was made: directions restart from it, quietly
+    if (this.known && R.fromId !== this.known.id) this._computeRoute(false);
+    if (!this.route || this.route.failed) return;
+    const t = R.target, minutes = Math.max(1, Math.round(R.total / 1.4 / 60));
+    this._next = nextChip(this.phone);
+    const rows = this.steps.map((s, i) => `<li><button type="button" class="mq-step" data-i="${i}"><span class="n">${i + 1}</span><i class="ic">${I[s.icon] || I.walk}</i><span class="tx"><b>${esc(s.text)}</b><small>${s.kind === 'ramp' ? `${lvl(s.level)} → ${lvl(s.to)}` : lvl(s.level)}</small></span><span class="go">Map</span></button></li>`).join('');
+    this._openPanel('steps', `To ${t.en}`, `
+      ${nextChipHtml(this._next, this.touch, 'dl-next-maps')}
+      <div class="mq-rt-from"><b>From</b> ${esc(R.fromWhere || '')}${this.known ? ` <span>(last known, ${this._ageTxt(this._clk - this.known.t0)} ago)</span>` : ''}</div>
+      <div class="mq-rt-meta"><b>about ${minutes} min</b> · ${lvl(t.level)}</div>
+      <ol class="mq-steps">${rows}</ol>
+      <div class="mq-rt-from">A suggestion between two known places. Check the signs as you go.</div>
+      <div class="mq-actions mq-end-row"><button class="mq-show" type="button">Show map</button><button class="mq-end" type="button">End route</button></div>`);
+    this.panelB.querySelectorAll('.mq-step').forEach(b => b.addEventListener('click', () => this._previewStep(+b.dataset.i)));
+    this.panelB.querySelector('.mq-show').addEventListener('click', () => this.closePanel());
+    this.panelB.querySelector('.mq-end').addEventListener('click', () => this.endRoute());
+    const nb = this.panelB.querySelector('.dl-next'); if (nb) nb.addEventListener('click', (e) => { e.stopPropagation(); this._next && this._next.pick(); });
+  }
+  _recenterRoute() { const lg = this.route && this.route.legs.find(l => l.level === this.pos.level); if (lg) this._fit(lg.draw.concat([[this.pos.x, this.pos.z]]), 3.2, 34); }
+  // tap a step: that part of the plan, on its floor
+  _previewStep(i) {
+    const s = this.steps[i]; if (!s) return;
+    this.closePanel();
+    this.focus = i; this.follow = false;
+    this.view.level = s.level;
+    const R = this.route, lg = R.legs.find(l => l.level === s.level && (s.kind === 'ramp' || s.kind === 'gate' || s.kind === 'walk' || s.kind === 'end'));
+    const pts = [s.at];
+    if (lg && lg.draw.length > 1 && s.kind !== 'ramp') for (const q of lg.draw) pts.push(q);
+    this._fit(s.kind === 'ramp' || s.kind === 'gate' ? [s.at, [s.at[0] + 22, s.at[1] + 14], [s.at[0] - 22, s.at[1] - 14]] : pts, s.kind === 'end' ? 3.4 : 3.0, 34);
+    this._renderStrip(); this._syncUI(true);
   }
 
   // called by the phone every few frames when the sheet shows live data
   tick() {
     this._refreshHome();
-    if (this.sheet === 'route') { const e = this.sheetIn.querySelector('.mp-start'), t = `${LEVELS[this.pos.level].label} · ${this._accTxt()}`; if (e && e.textContent !== t) e.textContent = t; }
+    if (this.sheet === 'results' && this.list) this.list.refreshRight(it => it.place ? this._farTxt(it.place) : null);
   }
 }

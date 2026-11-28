@@ -18,6 +18,7 @@
 //   v22: namba_score {ok, score, tier, rank, total, error} (a finish-screen scoreboard post succeeded or failed; no initials)
 //   namba_contact {kind: agent|call, where: endcard|pause} · namba_pause · namba_restart · namba_perf {fps, p95Ms, …}
 //   namba_reply {msg, reply, lost} (v9: every reply chip the player picks)
+//   v23: namba_help {why, key, src, t} · namba_rescue {n, zone, target, rem, via, t} · namba_photo {ok, coarse, why, via, lm, zone, target, level, t}
 //   namba_pa {at: first|summary, mode, speech, tried, started, ended, missing, late, errors, last_err, clips, clip_mb, state, t} (v20: did a recorded PA line play?
 //   v12-v19 reported the browser voice: ja, unlocked, unlock_via, no_start; speechSynthesis is gone)
 //   namba_error {kind, msg, where, at_stage, t} (v14: JS errors and unhandled rejections, at most 15 per page)
@@ -47,7 +48,7 @@ const HOST = 'https://eu.i.posthog.com';
 
 const STAGES = ['start', 'tutorial', 'destination', 'gate', 'lost', 'offer', 'lodestone', 'arrived', 'endcard', 'contact'];
 
-import { liveStats } from './core/resilience.js?v=5442362';
+import { liveStats } from './core/resilience.js?v=bdb557c';
 
 // v12.1: the resilience marker's stage age + memory picture (core/resilience.js), flattened for PostHog
 const memProps = (r) => { const m = (r && r.mem) || {}; return { since_stage_s: r && r.sinceStage != null ? r.sinceStage : null, tex_mb: m.tex != null ? m.tex : null, canvas_mb: m.cv != null ? m.cv : null, geo_mb: m.geo != null ? m.geo : null, heap_mb: m.heap != null ? m.heap : null, gl_contexts: m.gl != null ? m.gl : null, ld_mode: m.ld || null,
@@ -133,6 +134,12 @@ export function setupAnalytics(ctx) {
   E.on('gate:tap', (e) => { if (e && e.player && !e.auto && !gateSent) { gateSent = true; reach('gate'); send('namba_gate_tap', { gate: e.gate, t: t() }); } });
   E.on('aya:answered', (e) => { if (e && !e.auto) send('namba_reply', { msg: e.msgId, reply: e.replyId, lost: !!e.lost, t: t() }); });   // v9: which chip each player picks
   E.on('story:where', (e) => { reach('lost'); send('namba_lost_prompt', { why: e && e.why, t: t() }); });
+  // v23: the stall ladder and her photo answers. namba_help = her "want me to look?" offer (src stall = the ladder's first rung);
+  // namba_rescue = a step she sent unasked (via stall | seatsLost | seatsWarn | trainWarn); namba_photo = every photo she read, from the
+  // camera button or a reply chip (ok = a landmark answer; coarse = a plain shot answered with the zone step; why = plain | floor | ceiling | nocapture)
+  E.on('story:help', (e) => { if (e) send('namba_help', { why: e.why, key: e.key, src: e.src, t: t() }); });
+  E.on('story:rescue', (e) => { if (e) send('namba_rescue', { n: e.n, zone: e.zone, target: e.target, rem: e.rem, via: e.via, t: t() }); });
+  E.on('story:photo', (e) => { if (e) send('namba_photo', { ok: !!e.ok, coarse: !!e.coarse, why: e.why || null, via: e.via || null, lm: e.lm || null, zone: e.zone || null, target: e.target || null, level: e.level || null, t: t() }); });
   E.on('demo:offer', (e) => { reach('offer'); send('namba_lodestone_offer', { why: e && e.why, t: t() }); });
   E.on('phone:upgrade', (e) => {
     if (e && e.stage === 'installing') send('namba_lodestone_install', { t: t() });

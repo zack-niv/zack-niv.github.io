@@ -35,8 +35,8 @@
 // by a right-floor coarse. Events are drawn from their own seeded stream (this.S), so runs are comparable.
 // Lodestone mode is untouched (true position, +-1 m).
 // =============================================================================
-import { LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=5442362';
-import { rng } from '../../core/rng.js?v=5442362';
+import { LEVEL_ORDER, LAYOUT } from '../../world/layout.js?v=bdb557c';
+import { rng } from '../../core/rng.js?v=bdb557c';
 
 const gauss = (R) => { let u = 0, v = 0; while (u === 0) u = R(); v = R(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
 
@@ -263,7 +263,8 @@ export class Positioning {
       this.x += (this.fixX - this.x) * ease; this.z += (this.fixZ - this.z) * ease;
     }
     // --- heading: the compass alone (steel, rails, escalator motors): a drifting bias + jitter + lag; worse without GPS
-    const bias = E.bias * (this.state === 'fix' ? 0.8 : 1.3);
+    // v23: the compass IS reliable (the position is the weak part): a few degrees of drift, a short lag
+    const bias = E.bias * 0.12;
     const tb = 18;
     this.hBias += -this.hBias / tb * dt + Math.sqrt(2 / tb) * (bias * Math.PI / 180) * Math.sqrt(dt) * gauss(R) * 0.8;
     if (!isFinite(this.ex) || !isFinite(this.ez)) { this.ex = this.ez = 0; }
@@ -272,7 +273,7 @@ export class Positioning {
     if (!isFinite(this.heading)) this.heading = p.yaw || 0;
     const target = (p.yaw || 0) + this.hBias + gauss(R) * (bias * Math.PI / 180) * 0.12;
     let d = target - this.heading; d = Math.atan2(Math.sin(d), Math.cos(d));
-    this.heading += d * (1 - Math.exp(-dt / ((E.lag || 0.45) * (this.state === 'fix' ? 1 : 1.25))));
+    this.heading += d * (1 - Math.exp(-dt / Math.max(0.12, (E.lag || 0.45) * 0.25)));
     // --- wrong-floor episodes: every time the believed floor starts to differ from the true one (off the ramps)
     if (b.ramp < 0) {
       const wrong = this.level !== tl;

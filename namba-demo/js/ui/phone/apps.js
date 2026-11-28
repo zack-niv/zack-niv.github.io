@@ -2,10 +2,10 @@
 // Phone apps other than Maps: home screen, Notes (quest checklist), Messages
 // (texts from Aya via 'phone:message'), Transit (lines + departures).
 // =============================================================================
-import { LINES } from './places.js?v=5442362';
-import { businessBySlot } from '../../world/directory.js?v=5442362';
-import { placeArt } from './art.js?v=5442362';
-import { bizSub, levelLabel, zoneShort } from './destinations.js?v=5442362';
+import { LINES } from './places.js?v=bdb557c';
+import { businessBySlot } from '../../world/directory.js?v=bdb557c';
+import { placeArt } from './art.js?v=bdb557c';
+import { bizSub, levelLabel, zoneShort } from './destinations.js?v=bdb557c';
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const hm = (m) => { m = Math.round(m) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -73,11 +73,15 @@ export class NotesApp {
   }
 }
 
-const AYA_SNAP = '📸 Send Aya a pic';
+// v23: the camera button's icon (the same on every device)
+const CAM_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.2A2.2 2.2 0 0 1 6.2 6h1.5l1.1-1.6a1.5 1.5 0 0 1 1.2-.65h4a1.5 1.5 0 0 1 1.2.65L16.3 6h1.5A2.2 2.2 0 0 1 20 8.2v8.6a2.2 2.2 0 0 1-2.2 2.2H6.2A2.2 2.2 0 0 1 4 16.8Z" fill="currentColor"/><circle cx="12" cy="12.4" r="3.5" fill="#fff"/><circle cx="12" cy="12.4" r="1.9" fill="currentColor" opacity=".55"/></svg>';
+const reduceMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
 export class MessagesApp {
   // v3: replies. A text may carry reply chips (replies: [{id, text}], max 3); the player answers with
   // the phone up (click a chip, or keys 1 / 2 / 3). 'phone:reply' {msgId, replyId, text} is emitted and
   // the player's bubble appended. 'phone:typing' {from, on} shows the typing bubble ("Aya is typing…").
+  // v23: the chips are OUTLINED suggestion pills above the input bar (they fly into the thread as a blue bubble when
+  // tapped); the 📸 button is a camera icon at the left of the input bar that opens camera mode (phone/camera.js).
   constructor(phone, root) {
     this.phone = phone; this.root = root; this.ctx = phone.ctx;
     root.classList.add('ms');
@@ -94,14 +98,16 @@ export class MessagesApp {
     this.typingFrom = null; this._typT = 0;
     this._seen = new Set();
     this._autoId = 0;
+    this._capDone = false;        // v23: the "Tap to reply" caption shows until the first reply
+    this._late = false;           // v23: the next photo bubble waits for the phone to rise (camera mode)
     this.ctx.events.on('phone:message', (m) => this.receive(m));
     this.ctx.events.on('phone:typing', (e) => this.setTyping(e && e.from, !!(e && e.on)));
     // tap (or Enter / Space on the focused button) on the Lodestone link card, or on a reply chip
     root.addEventListener('click', (e) => {
       if (e.target.closest('.ms-link')) { this.phone.lodestoneAction(); return; }
-      const pl = e.target.closest('.ms-place'); if (pl) { this.phone.openPlace(pl.dataset.id); return; }
+      const pl = e.target.closest('.ms-place'); if (pl) { this._pinSeen = pl.dataset.id; this.phone.openPlace(pl.dataset.id); this._syncPin(); return; }
       const c = e.target.closest('.ms-chip'); if (c) { this.reply(+c.dataset.i); return; }
-      if (e.target.closest('.ms-snap')) this.snap();      // v22: the persistent 📸 button
+      if (e.target.closest('.ms-cam')) this.snap();      // v23: the camera button
     });
     this.render();
   }
@@ -117,20 +123,29 @@ export class MessagesApp {
     const reps = Array.isArray(m.replies) ? m.replies.filter(r => r && r.text).slice(0, 3) : [];
     if (reps.length) this.pending = { msgId: id, from, replies: reps.map((r, i) => ({ id: r.id != null ? r.id : 'r' + i, text: String(r.text), photo: !!r.photo })), at: this.phone._now || 0 };
     if (m.link === 'lodestone') this.phone._noteOffer();
+    // v23: Aya's "send me a pic of whatever's near you 📸" is the cue to the camera button: it pulses once the thread is on screen
+    if (/send me a pic of whatever/i.test(String(m.text || '')) && !this._pulsed) this._pulsePending = true;
     const reading = this.phone.isOpen && this.phone.app === 'messages';
     if (!reading) this.unread++;
     this.render();
     this.phone.notify('messages', { title: from, text: m.text, reply: !!reps.length });
   }
-  // answer the pending text with chip i (0-based). Returns true when sent.
-  reply(i) {
+  // answer the pending text with chip i (0-based). Returns true when sent. v23: a 📸 chip opens camera mode and the picture
+  // is sent when it is shot (reply(i, { img })); opts.img is that picture.
+  reply(i, opts) {
     const P = this.pending; if (!P) return false;
     const r = P.replies[i]; if (!r) return false;
+    if (r.photo && !(opts && 'img' in opts)) {
+      const cam = this.phone.camera;
+      if (cam && cam.open({ reply: i })) return true;
+    }
     this.pending = null;
-    // v11: the 📸 chip takes a photo of what is in front of you (the game view) and sends it as an image bubble
-    const img = r.photo ? this._capture() : null;
-    if (r.photo) this._shutter();
-    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
+    const img = r.photo ? (opts && opts.img) || null : null;
+    const chip = this.root.querySelector(`.ms-chip[data-i="${i}"]`);
+    this._flyFrom = chip && !r.photo ? chip.getBoundingClientRect() : null;
+    this._capDone = true;
+    if (r.photo && !(opts && opts.img)) { if (!opts || !opts.late) this._shutter(); }
+    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true, late: this._late } : { from: 'me', text: r.photo ? '📸' : r.text, time: this.ctx.clock.hhmm, me: true, sent: true });
     this.render(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
     this.ctx.events.emit('phone:reply', { msgId: P.msgId, replyId: r.id, text: r.text, from: P.from, photo: !!r.photo, img: !!img });
@@ -145,42 +160,99 @@ export class MessagesApp {
     this.ctx.events.emit('phone:sent', { text });
   }
   // v11: a downscaled snapshot of the current frame. Rendering a frame and copying it in the same task keeps the
-  // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo)
-  _capture() {
+  // drawing buffer valid without preserveDrawingBuffer (no camera-attached meshes: the view is the photo).
+  // v23: fr = the viewfinder frame as fractions of the viewport ({x, y, w, h}): the picture is exactly what was framed
+  _capture(fr, noRender) {
     try {
       const eng = this.ctx.engine, cv = eng && eng.renderer && eng.renderer.domElement;
       if (!cv || !cv.width) return null;
-      if (typeof eng.render === 'function') eng.render(0);
-      const w = 360, h = Math.max(1, Math.round(w * cv.height / cv.width));
+      if (!noRender && typeof eng.render === 'function') eng.render(0);
+      const f = fr || { x: 0, y: 0, w: 1, h: 1 };
+      const sx = f.x * cv.width, sy = f.y * cv.height, sw = f.w * cv.width, sh = f.h * cv.height;
+      const w = 420, h = Math.max(1, Math.round(w * sh / sw));
       const c = document.createElement('canvas'); c.width = w; c.height = h;
-      c.getContext('2d').drawImage(cv, 0, 0, w, h);
-      return c.toDataURL('image/jpeg', 0.72);
+      const g2 = c.getContext('2d');
+      // v23 integration: read ONLY the framed rectangle with readPixels (a couple of MB), then downscale 2D -> 2D. drawImage(webglCanvas)
+      // copies the whole drawing buffer through the compositor: under software GL that took 5 to 60 s and 2 GB, and froze or crashed the
+      // desktop page. (Same task as the render: the buffer is still valid.) drawImage stays as the fallback.
+      let done = false;
+      try {
+        const gl = eng.renderer.getContext(), BW = gl.drawingBufferWidth, BH = gl.drawingBufferHeight;
+        const rx = Math.max(0, Math.round(f.x * BW)), rw = Math.max(1, Math.min(BW - rx, Math.round(f.w * BW))), rh = Math.max(1, Math.min(BH, Math.round(f.h * BH))), ry = Math.max(0, Math.min(BH - rh, Math.round(f.y * BH)));
+        const buf = new Uint8Array(rw * rh * 4);
+        gl.readPixels(rx, BH - ry - rh, rw, rh, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        if (!gl.getError || gl.getError() === 0) {
+          const id = new ImageData(rw, rh), row = rw * 4;
+          for (let y = 0; y < rh; y++) id.data.set(buf.subarray((rh - 1 - y) * row, (rh - y) * row), y * row);
+          for (let i = 3; i < id.data.length; i += 4) id.data[i] = 255;
+          const big = document.createElement('canvas'); big.width = rw; big.height = rh; big.getContext('2d').putImageData(id, 0, 0);
+          g2.drawImage(big, 0, 0, rw, rh, 0, 0, w, h); big.width = big.height = 0; done = true;
+        }
+      } catch (e) { done = false; }
+      if (!done) g2.drawImage(cv, sx, sy, sw, sh, 0, 0, w, h);
+      return c.toDataURL('image/jpeg', 0.74);
     } catch (e) { console.warn('[messages] photo', e && e.message); return null; }
+  }
+  // v23 integration (desktop camera hang): the old capture forced a SECOND full-resolution render inside the click handler. Under
+  // software rendering that is 7 s of frozen page (and +450 MB), long enough that a second click or a script's next step piled up.
+  // This takes the picture from the frame the game renders next anyway: the engine's render() is wrapped for one call and the
+  // framed crop is drawn right after it, in the same task (the drawing buffer is still valid), downscaled to 420 px before it is
+  // encoded. Resolves with the data URL (or, if no frame comes within 800 ms, e.g. the game is paused, with the old direct capture).
+  grabNext(fr) {
+    return new Promise((resolve) => {
+      const eng = this.ctx.engine; if (!eng || typeof eng.render !== 'function') { resolve(this._capture(fr)); return; }
+      const own = Object.prototype.hasOwnProperty.call(eng, 'render'), orig = eng.render;
+      let done = false, timer = 0;
+      const finish = (v) => {
+        if (done) return; done = true; clearTimeout(timer);
+        if (eng.render === wrapped) { if (own) eng.render = orig; else delete eng.render; }
+        resolve(v);
+      };
+      const grab = () => this._capture(fr, true);
+      const wrapped = function (dt) { orig.call(this, dt); if (!done) finish(grab()); };
+      eng.render = wrapped;
+      timer = setTimeout(() => finish(this._capture(fr)), 800);
+    });
   }
   _shutter() {
     try {
       const f = document.createElement('div'); f.className = 'ms-shutter';
       document.body.appendChild(f); setTimeout(() => f.remove(), 450);
-      this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select', { rate: 1.7, gain: 1.4 });
+      // two quick clicks of the existing UI blip, pitched up: a shutter
+      const a = this.ctx.audio;
+      if (a && a.play) { a.play('ui_select', { rate: 2.1, gain: 1.5 }); setTimeout(() => { try { a.play('ui_select', { rate: 1.4, gain: 1.2 }); } catch (e) { /* cosmetic */ } }, 70); }
     } catch (e) { /* cosmetic */ }
   }
-  // v22: "📸 Send Aya a pic" — takes the photo like the 📸 chip does, without a question to answer. The story (story.sendPhoto) owns the
-  // cooldown and Aya's answer; this only shows the button (when no reply chips are showing) and sends the bubble.
-  _snapState() { const S = this.ctx.game && this.ctx.game.story; return this.pending || !S || typeof S.snapState !== 'function' ? 'hide' : S.snapState(); }
-  _snapHtml() {
-    const st = this._snapState(); if (st === 'hide') return '';
-    const kb = !(this.ctx.input && this.ctx.input.touch);
-    return `<div class="ms-snap" data-s="${st}"><button class="ms-snap-b${st === 'wait' ? ' wait' : ''}" aria-disabled="${st === 'wait'}">${kb ? '<kbd>1</kbd>' : ''}<span>${esc(AYA_SNAP)}</span></button></div>`;
+  // v23: the camera button. State comes from the story (cooldown, Aya typing); 'hide' before the mission, after arrival, in the old arc.
+  //   s: 'hide' | 'ready' | 'cool' (the 15 s cooldown; p shows it as a ring) | 'typing' (Aya is answering / a question is open)
+  camState() {
+    const S = this.ctx.game && this.ctx.game.story;
+    const st = !S || typeof S.snapState !== 'function' ? 'hide' : S.snapState();
+    if (st === 'hide') return { s: 'hide', p: 1 };
+    const p = typeof S.snapProgress === 'function' ? S.snapProgress() : 1;
+    if (this.pending) return { s: 'typing', p: 1 };
+    if (st === 'ready') return { s: 'ready', p: 1 };
+    return p < 1 ? { s: 'cool', p } : { s: 'typing', p: 1 };
   }
-  snap() { const S = this.ctx.game && this.ctx.game.story; return !!(S && typeof S.sendPhoto === 'function' && S.sendPhoto()); }
-  sendPhoto() {
-    const img = this._capture(); this._shutter();
-    this.msgs.push(img ? { from: 'me', text: '', img, time: this.ctx.clock.hhmm, me: true, sent: true } : { from: 'me', text: '📸', time: this.ctx.clock.hhmm, me: true, sent: true });
+  _camHtml() {
+    const c = this.camState(); if (c.s === 'hide') return '';
+    const kb = !(this.ctx.input && this.ctx.input.touch);
+    const label = c.s === 'ready' ? 'Take a photo for Aya' : c.s === 'cool' ? 'Camera is recharging' : 'Camera is waiting for Aya';
+    return `<button type="button" class="ms-cam" data-s="${c.s}" style="--p:${c.p.toFixed(2)}" aria-label="${label}" aria-disabled="${c.s !== 'ready'}"><span class="ms-cam-ic">${CAM_ICON}</span>${kb ? '<kbd>P</kbd>' : ''}</button>`;
+  }
+  snap() {
+    if (this.camState().s !== 'ready') { this._nudgeCam(); return false; }
+    const cam = this.phone.camera; return !!(cam && cam.open());
+  }
+  _nudgeCam() { const b = this.root.querySelector('.ms-cam'); if (!b) return; b.classList.remove('nope'); void b.offsetWidth; b.classList.add('nope'); }
+  sendPhoto(img) {
+    const pic = img || this._capture(); if (!img) this._shutter();
+    this.msgs.push(pic ? { from: 'me', text: '', img: pic, time: this.ctx.clock.hhmm, me: true, sent: true, late: this._late } : { from: 'me', text: '📸', time: this.ctx.clock.hhmm, me: true, sent: true });
     this.render(true);
     this.ctx.audio && this.ctx.audio.play && this.ctx.audio.play('ui_select');
-    this.ctx.events.emit('phone:photo', { img: !!img });
+    this.ctx.events.emit('phone:photo', { img: !!pic });
     this.phone._badges();
-    return { img: !!img };
+    return { img: !!pic };
   }
   clearReplies() { if (!this.pending) return; this.pending = null; this.render(); this.phone._badges(); }
   setTyping(from, on) {
@@ -192,10 +264,23 @@ export class MessagesApp {
     this.phone.glance && this.phone.glance.refresh(true);
   }
   update(dt) {
-    // v22: the 📸 button appears / greys with the story's state (cooldown, Aya typing); a re-render only when it shows or hides
-    const sn = this._snapState();
-    if (sn !== this._snapSt) { const was = this._snapSt; this._snapSt = sn; if ((sn === 'hide') !== (was === 'hide' || was == null)) this.render(); else { const b = this.root.querySelector('.ms-snap-b'); if (b) { b.classList.toggle('wait', sn === 'wait'); b.setAttribute('aria-disabled', sn === 'wait'); } } }
+    // v23: the camera button follows the story's state (cooldown ring, disabled while Aya types); a re-render only when it shows or hides
+    const c = this.camState(), was = this._camSt;
+    if (!was || c.s !== was.s || Math.abs(c.p - was.p) >= 0.02) {
+      this._camSt = c;
+      if (!was || (c.s === 'hide') !== (was.s === 'hide')) this.render();
+      else { const b = this.root.querySelector('.ms-cam'); if (b) { b.dataset.s = c.s; b.style.setProperty('--p', c.p.toFixed(2)); b.setAttribute('aria-disabled', c.s !== 'ready'); } }
+    }
+    if (this._pulsePending && this.phone.isOpen && this.phone.app === 'messages') this._pulseCam();
+    this._pinC = (this._pinC || 0) - dt; if (this._pinC <= 0) { this._pinC = 0.5; if (this.phone.isOpen && this.phone.app === 'messages') this._syncPin(); }
     if (this._typT > 0) { this._typT -= dt; if (this._typT <= 0 && this.typingFrom) { this.typingFrom = null; this._renderTyping(); } }
+  }
+  // the camera button pulses once, the first time the thread is on screen after Aya's "send me a pic" line
+  _pulseCam() {
+    const b = this.root.querySelector('.ms-cam'); if (!b || b.dataset.s !== 'ready') return;
+    this._pulsePending = false; this._pulsed = true;
+    b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse');
+    setTimeout(() => b.classList.remove('pulse'), 2600);
   }
   _linkCard() {
     const st = this.phone.upgradeStage;
@@ -234,20 +319,49 @@ export class MessagesApp {
     return '';
   }
   _refreshPlaces() { this.root.querySelectorAll('.ms-place').forEach(el => { const t = el.querySelector('.ms-p-d'); const v = this._placeDist(el.dataset.id); if (t && t.textContent !== v) t.textContent = v; }); }
-  onShow() { this._refreshPlaces(); this.unread = 0; this.phone._badges && this.phone._badges(); const s = this.root.querySelector('.ms-list'); if (s) s.scrollTop = s.scrollHeight; }
+  onShow() { this._refreshPlaces(); this.unread = 0; this.phone._badges && this.phone._badges(); this._pin(); }
   _chips() {
     const P = this.pending; if (!P) return '';
-    const kb = !(this.ctx.input && this.ctx.input.touch);
-    return `<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button class="ms-chip${r.photo ? ' ms-chip-photo' : ''}" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
+    const touch = !!(this.ctx.input && this.ctx.input.touch), kb = !touch;
+    const cap = this._capDone ? '' : `<div class="ms-cap">${touch ? 'Tap to reply' : 'Click a reply, or press 1 2 3'}</div>`;
+    return `${cap}<div class="ms-replies" role="group" aria-label="Reply to ${esc(P.from)}">${P.replies.map((r, i) => `<button type="button" class="ms-chip${r.photo ? ' ms-chip-photo' : ''}" data-i="${i}">${kb ? `<kbd>${i + 1}</kbd>` : ''}<span>${esc(r.text)}</span></button>`).join('')}</div>`;
   }
   // v9.1: keep the newest message in view. Pinning once at render is not enough: the reply tray slides in (0.35 s) and
   // place-card thumbnails load late, and both change the list's height after the fact, which hid the newest text
   // behind the chips (Zack's screenshot). Re-pin after the next frame, after the tray animation, and on image loads.
+  // v23: the thread ends fully visible after every change that adds height: a photo bubble, the typing bubble coming and going, Aya's
+  // link card. Pin now, after the next two frames (layout and the bubble / tray animations have settled), after the 0.35 s tray and on
+  // every image load (photo bubbles and card tiles decode late).
   _pin() {
     const s = this.root.querySelector('.ms-list'); if (!s) return;
-    const go = () => { s.scrollTop = s.scrollHeight; };
-    go(); requestAnimationFrame(go); clearTimeout(this._pinT); this._pinT = setTimeout(go, 420);
-    s.querySelectorAll('img').forEach(i => { if (!i.complete) i.addEventListener('load', go, { once: true }); });
+    const go = () => { s.scrollTop = s.scrollHeight; this._syncPin(); };
+    go(); requestAnimationFrame(() => { go(); requestAnimationFrame(go); }); clearTimeout(this._pinT); clearTimeout(this._pinT2); this._pinT = setTimeout(go, 420); this._pinT2 = setTimeout(go, 1000);
+    s.querySelectorAll('img').forEach(i => { if (!i.complete || !i.naturalWidth) { i.addEventListener('load', go, { once: true }); i.addEventListener('error', go, { once: true }); } });
+  }
+  // v23 integration: Aya's link card (the Maps pick) sits in the thread, and her next texts scroll it out of sight, so a first-time
+  // player never saw "tap my link" (the tutorial's ghost thumb had nothing on screen to land on). While a link waits and no
+  // destination is picked, a compact copy of the card is docked above the reply pills / input row whenever the real card is not
+  // (mostly) visible in the thread. It is the same .ms-place button: a tap opens the place in Maps; the thumb points at the last one.
+  _syncPin() {
+    const pin = this.root.querySelector('.ms-pinrow'), list = this.root.querySelector('.ms-list');
+    if (!pin || !list) return;
+    const lr = list.getBoundingClientRect(); if (!lr.height) return;           // (the view is hidden: leave it as it is)
+    const id = this.lastPlace, d = this.phone.destination;
+    let show = false;
+    if (id && id !== this._pinSeen && !(d && !d.arrived)) {            // (once the player has tapped it, it has done its job)
+      const cards = list.querySelectorAll('.ms-place'), el = cards[cards.length - 1];
+      if (el) { const r = el.getBoundingClientRect(), vis = Math.min(r.bottom, lr.bottom) - Math.max(r.top, lr.top); show = !(vis >= r.height * 0.7); }
+    }
+    if (show) {
+      if (pin.dataset.id !== id || pin.hidden) { pin.innerHTML = this._pinStrip(id); pin.dataset.id = id; }
+      if (pin.hidden) { pin.hidden = false; list.scrollTop = list.scrollHeight; }
+    } else if (!pin.hidden) { pin.hidden = true; pin.dataset.id = ''; }
+  }
+  // the docked link: ONE slim line (pin glyph, the place, "Open in Maps ›"), 34 px with its margins; the full card stays in the thread
+  _pinStrip(id) {
+    const ph = this.phone, d = ph.dest && ph.dest.resolve(id); if (!d) return '';
+    const ld = ph.upgradeStage === 'ready';
+    return `<button type="button" class="ms-place ms-pin ${ld ? 'ld' : 'mp'}" data-id="${esc(id)}" aria-label="${esc(d.name)}: open in ${ld ? 'Lodestone' : 'Maps'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z" fill="currentColor"/><circle cx="12" cy="10" r="2.6" fill="#fff"/></svg><b>${esc(d.name)}</b><em>${ld ? 'Open in Lodestone' : 'Open in Maps'} ›</em></button>`;
   }
   _typingHtml() { return this.typingFrom ? `<div class="ms-b ms-typing" aria-label="${esc(this.typingFrom)} is typing"><p><i></i><i></i><i></i></p></div>` : ''; }
   _renderTyping() {
@@ -256,7 +370,7 @@ export class MessagesApp {
     if (this.typingFrom) list.insertAdjacentHTML('beforeend', this._typingHtml());
     const sm = this.root.querySelector('.ms-h small'); if (sm) sm.textContent = this.typingFrom ? 'typing…' : 'Osaka · usually replies fast';
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
-    list.scrollTop = list.scrollHeight;
+    this._pin();
   }
   render(sentNow) {
     const last = this.msgs.length - 1;
@@ -265,16 +379,31 @@ export class MessagesApp {
     const bubble = (m, i) => {
       if (m.day) return `<div class="ms-day">${esc(m.day)}</div>`;
       const fresh = sentNow && i === last && m.me ? ' ms-sent' : '';
-      if (m.img) return `<div class="ms-b me ms-photo${fresh}"><img src="${m.img}" alt="Photo you sent"><small>${esc(m.time)}${i === last && m.sent ? ' · Delivered' : ''}</small></div>`;   // v11
+      if (m.img) return `<div class="ms-b me ms-photo${fresh}${fresh && m.late ? ' late' : ''}"><img src="${m.img}" alt="Photo you sent"><small>${esc(m.time)}${i === last && m.sent ? ' · Delivered' : ''}</small></div>`;   // v11
       return `<div class="ms-b ${m.me ? 'me' : ''}${fresh}${m.place ? ' ms-has-place' : ''}"><p>${esc(m.text)}</p>${m.link ? this._linkCard() : ''}${m.place ? this._placeCard(m.place, m.place === lastPl && i === lastPlI) : ''}<small>${esc(m.time)}${m.me && i === last && m.sent ? ' · Delivered' : ''}</small></div>`;
     };
     this.root.innerHTML = `<div class="ms-h"><span class="ms-back">‹</span><div class="ms-av">A</div><div><b>Aya</b><small>${this.typingFrom ? 'typing…' : 'Osaka · usually replies fast'}</small></div></div>
       <div class="ms-list">${this.msgs.map(bubble).join('')}${this._typingHtml()}</div>
-      ${this._chips()}${this._snapHtml()}
-      <div class="ms-in"><span>iMessage</span><i>↑</i></div>`;
+      <div class="ms-pinrow" hidden></div>
+      ${this._chips()}
+      <div class="ms-in">${this._camHtml()}<div class="ms-field"><span>iMessage</span><i>↑</i></div></div>`;
     this.root.classList.toggle('ms-has-replies', !!this.pending);
     this.root.classList.toggle('ms-is-typing', !!this.typingFrom);
     this._pin();
+    const lst = this.root.querySelector('.ms-list'); if (lst) lst.addEventListener('scroll', () => this._syncPin(), { passive: true });
+    // v23: the tapped pill flies into the thread and turns into the blue bubble (FLIP: from the pill's rect to the bubble's)
+    if (sentNow && this._flyFrom && !reduceMotion()) {
+      const p = this.root.querySelector('.ms-b.me.ms-sent:not(.ms-photo) p'), list = this.root.querySelector('.ms-list');
+      if (p && list && list.offsetWidth) {
+        const k = list.getBoundingClientRect().width / list.offsetWidth || 1, a = this._flyFrom, r = p.getBoundingClientRect();
+        if (r.width && a.width) {
+          p.style.setProperty('--fx', ((a.right - r.right) / k).toFixed(1) + 'px'); p.style.setProperty('--fy', ((a.top + a.height / 2 - r.top - r.height / 2) / k).toFixed(1) + 'px');
+          p.parentNode.classList.add('fly');
+        }
+      }
+    }
+    this._flyFrom = null;
+    this._camSt = this.camState();
     this.phone._badges && this.phone._badges();
   }
 }

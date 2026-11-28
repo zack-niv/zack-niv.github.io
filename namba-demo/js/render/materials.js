@@ -18,8 +18,8 @@
 // are generated once per family and shared between materials (clones share the
 // GPU texture; only repeat differs).
 import * as THREE from 'three';
-import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js?v=5442362';
-import { kitCanvas, wearCanvas } from './textures/kitatlas.js?v=5442362';
+import { TEX, diffuserCanvas, radialCanvas, aoCanvas } from './textures/library.js?v=bdb557c';
+import { kitCanvas, wearCanvas } from './textures/kitatlas.js?v=bdb557c';
 // (generation runs in ./textures/worker.js; see texSet())
 
 const HDR = (r, g, b, k) => new THREE.Color(r, g, b).multiplyScalar(k);
@@ -259,7 +259,7 @@ export class Materials {
     this._workers = null;
     try {
       const n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
-      const url = new URL('./textures/worker.js?v=5442362', import.meta.url);
+      const url = new URL('./textures/worker.js?v=bdb557c', import.meta.url);
       this._workers = [];
       for (let i = 0; i < n; i++) {
         const w = new Worker(url, { type: 'module' });
@@ -365,7 +365,7 @@ export class Materials {
     }
     if (o.env != null) m.envMapIntensity = o.env;
     if (o.transparent) { m.transparent = true; m.opacity = o.opacity != null ? o.opacity : 1; m.depthWrite = false; }
-    if (o.offset) { m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -4; }
+    if (o.offset) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -8; }   // v23: was -1 / -4; inlays sit 7-12 mm over the floor (world/arch), the stronger pull keeps them over the floor on a 16-bit depth buffer too
     m.userData.texKey = key; m.userData.uvSize = [su, sv];
     return m;
   }

@@ -168,3 +168,30 @@ export function walkStreet(x) {
   if (x < 125) return { no: 2, ja: '2番街', en: '2nd Ave.', color: '#2f9a5c' };
   return { no: 3, ja: '3番街', en: '3rd Ave.', color: '#2f6fb8' };
 }
+
+// ---- v23 maps: the words the signs and the phone share --------------------------------------------------------------
+// What each floor IS, in the names the signs in the world use (world/layout.js ZONES, signage DESTINATIONS). The Maps app
+// prints "3F · Nankai platforms" on the floor you are looking at. (4F-7F are Namba Parks shop floors; 6F is the
+// restaurant floor; 7F-8F are the Parks Garden terraces.)
+export const FLOOR_NAMES = {
+  B2: 'Metro platforms', B1: 'Metro gates · NAMBAWALK', '1F': 'Taxi · street level', '2F': 'Nankai concourse · Namba CITY · Parks',
+  '3F': 'Nankai Line platforms · Central Gate', '4F': 'Namba Parks', '5F': 'Namba Parks', '6F': 'Restaurants · Namba Parks', '7F': 'Parks Garden', '8F': 'Parks roof garden',
+};
+// the name a space has in a route sentence ("Through Namba CITY, follow “Namba Parks” signs")
+export function areaOf(sp) {
+  if (!sp) return null;
+  const z = sp.zone;
+  if (z === 'nankai') return sp.kind === 'platform' ? { key: 'nankai-plat', name: 'the Nankai platforms' } : { key: 'nankai', name: 'Nankai Station' };
+  if (z === 'city') return { key: 'city', name: 'Namba CITY' };
+  if (z === 'parks') return /bridge/.test(sp.id || '') ? { key: 'parks-bridge', name: 'the Parks bridge' } : { key: 'parks', name: 'Namba Parks' };
+  if (z === 'parksGarden') return { key: 'parks', name: 'Namba Parks' };
+  if (z === 'nambawalk') return { key: 'walk', name: 'NAMBAWALK' };
+  if (z === 'takashimaya') return { key: 'taka', name: 'Takashimaya' };
+  if (z === 'midosuji') return { key: 'midosuji', name: 'the Midosuji Line station' };
+  if (z === 'sennichimae') return { key: 'sennichimae', name: 'the Sennichimae Line station' };
+  if (z === 'link') return { key: 'link', name: 'the underground passage' };
+  if (z === 'plaza' || z === 'street') return { key: 'street', name: 'the street' };
+  return null;
+}
+// what the signs say for an area: the quoted name to follow (null where no sign points there)
+export const SIGN_NAME = { city: 'Namba CITY', parks: 'Namba Parks', 'parks-bridge': 'Namba Parks', walk: 'NAMBAWALK', taka: 'Takashimaya', 'nankai-plat': 'Nankai Line', nankai: 'Nankai Line', midosuji: 'Midosuji Line', sennichimae: 'Sennichimae Line' };

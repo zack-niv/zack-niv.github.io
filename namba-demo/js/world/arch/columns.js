@@ -6,9 +6,9 @@
 // Clearance: never within reach of ramps (and their run-off), gate lines,
 // shop doors, tactile routes, spawns, POIs, exits, voids or platform edges.
 // =============================================================================
-import { CELL } from '../world.js?v=5442362';
-import { styleOf, LINE_BAND } from './styles.js?v=5442362';
-import { face } from './surfaces.js?v=5442362';
+import { CELL } from '../world.js?v=bdb557c';
+import { styleOf, LINE_BAND } from './styles.js?v=bdb557c';
+import { face } from './surfaces.js?v=bdb557c';
 
 const TYPES = {
   metro:    { size: 0.9, pitch: 8, clad: 'wall_tile_metro', guard: 1.8, band: true, sign: true, skirt: 'rubber_dark' },

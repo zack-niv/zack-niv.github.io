@@ -20,11 +20,11 @@
 // back or tap. NPCs auto-tap (gatePass) and are never stopped.
 // =============================================================================
 import * as THREE from 'three';
-import { GeoBatch } from '../../render/geobatch.js?v=5442362';
-import { CELL, EDGE } from '../world.js?v=5442362';
-import { LEVELS } from '../layout.js?v=5442362';
-import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=5442362';
-import { roundRectPath } from './mesh.js?v=5442362';
+import { GeoBatch } from '../../render/geobatch.js?v=bdb557c';
+import { CELL, EDGE } from '../world.js?v=bdb557c';
+import { LEVELS } from '../layout.js?v=bdb557c';
+import { canvas, canvasTex, JP, EN, fitText } from './textures.js?v=bdb557c';
+import { roundRectPath } from './mesh.js?v=bdb557c';
 
 const MACH_LEN = 1.45, MACH_W = 0.26;
 const CAB_W = 0.24;              // drawn cabinet width

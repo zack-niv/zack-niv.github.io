@@ -5,7 +5,7 @@
 // Both promises NEVER reject: any failure (no url, network, CORS, 5 s timeout, bad status, bad JSON, wrong shape) resolves to
 // { ok:false, error }. No retries, no credentials, no cookies. The card shows a friendly line on any failure, so the game never depends on this.
 // =============================================================================
-import { SCORES } from './script.js?v=5442362';
+import { SCORES } from './script.js?v=bdb557c';
 
 // the deploy stamp, read from this module's own URL (?v=...)
 const STAMP = (() => { try { return new URL(import.meta.url).searchParams.get('v') || ''; } catch (e) { return ''; } })();

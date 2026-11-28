@@ -6,19 +6,19 @@
 // demo.js; the words in script.js; the closing card in endcard.js.
 // See notes/game.md and notes/demo-flow.md for the API other systems can use.
 // =============================================================================
-import { params } from '../core/params.js?v=5442362';
-import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=5442362';
-import { BUSINESSES } from '../world/directory.js?v=5442362';
-import { Interactions } from './interact.js?v=5442362';
-import { Panels, yen, esc } from './panel.js?v=5442362';
-import { Journal } from './journal.js?v=5442362';
-import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=5442362';
-import { Title } from '../ui/title.js?v=5442362';
-import { Demo } from './demo.js?v=5442362';
-import * as V from './vignettes.js?v=5442362';
-import { QUESTS, DEMO, ENDCARD } from './script.js?v=5442362';
-import { orderItem, hasCounter } from './order.js?v=5442362';
-import { contactLinks, hasContact } from './endcard.js?v=5442362';
+import { params } from '../core/params.js?v=bdb557c';
+import { LAYOUT, LEVEL_ORDER, spaceById } from '../world/layout.js?v=bdb557c';
+import { BUSINESSES } from '../world/directory.js?v=bdb557c';
+import { Interactions } from './interact.js?v=bdb557c';
+import { Panels, yen, esc } from './panel.js?v=bdb557c';
+import { Journal } from './journal.js?v=bdb557c';
+import { loadSettings, applySettings, buildSettingsPanel, buildControlsCard } from './settings.js?v=bdb557c';
+import { Title } from '../ui/title.js?v=bdb557c';
+import { Demo } from './demo.js?v=bdb557c';
+import * as V from './vignettes.js?v=bdb557c';
+import { QUESTS, DEMO, ENDCARD } from './script.js?v=bdb557c';
+import { orderItem, hasCounter } from './order.js?v=bdb557c';
+import { contactLinks, hasContact } from './endcard.js?v=bdb557c';
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const hhmm = (m) => { m = ((Math.round(m) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -496,8 +496,11 @@ export class Game {
     const T = this._gateTgt; if (!T) return null;
     // v22: the run's last tap (Aya has the tickets) is never a low-balance tap: see _tapGate
     const gt = T.g.gt, last = !!(T.entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
-    const low = T.entering && !last && this.ic.balance < MIN_FARE;
-    const sub = `${T.n.ja || gt.ja} ${T.n.name || gt.name} · ICOCA ${yen(this.ic.balance)}`;
+    // v23: after the finished run (free roam) the gates are ordinary gates: the card balance is never a blocker
+    const over = !!(this.demo && this.demo.finished);
+    const low = T.entering && !last && !over && this.ic.balance < MIN_FARE;
+    // v23 final: balance first, so a narrow phone that clips the line clips the gate's name and not the amount
+    const sub = `ICOCA ${yen(this.ic.balance)} · ${T.n.ja || gt.ja} ${T.n.name || gt.name}`;
     if (T.open) return { prompt: 'Open — walk through', promptJa: 'どうぞ', sub, passive: true };
     if (!T.ok) return { prompt: T.entering ? 'Exit only — try the next gate' : 'Entry only — try the next gate', promptJa: '✕', sub, passive: true };
     if (low) return { prompt: 'Tap your ICOCA (balance low)', promptJa: '残高不足', sub };
@@ -520,7 +523,7 @@ export class Game {
     // v22: the run's last act is tapping in at the Nankai gates for the train. Aya has the tickets, so a card the player has
     // spent down (coffee, snacks) can never refuse that tap and strand a finished run outside the gate.
     const lastTap = !!(entering && gt.line === 'nankai' && this.story && !this.story.classic && this.story.mission && this.story.mission.leg === 2);
-    if (entering && !again && !lastTap && this.ic.balance < MIN_FARE) {
+    if (entering && !again && !lastTap && !(this.demo && this.demo.finished) && this.ic.balance < MIN_FARE) {
       // not enough on the card to get in: the reader refuses it
       this.hud?.ic({ balance: this.ic.balance, ok: false, reason: 'Charge at a machine · チャージしてください' });
       this.hud?.caption({ ja: 'ピンポーン。残高が不足しています。', en: 'Ding-dong. Insufficient balance — please charge your card.', kind: 'machine', duration: 3.6 });
