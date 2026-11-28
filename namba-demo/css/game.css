@@ -806,3 +806,6 @@ body:has(.g-pause:not([hidden])) .h-amb, body:has(.g-end) .h-amb { opacity: 0; }
 @media (max-height: 500px) and (min-width: 561px) and (max-width: 720px) { :is(#overlay, body) .g-end.e-race .e-btns .g-btn small { display: none; } }
 /* v23 integration: the coffee-in-hand icon is part of the walking HUD; it must not show through the finish card or the pause menu */
 body:has(.g-end.on) .h-cup, body:has(.g-pause:not([hidden])) .h-cup { visibility: hidden !important; }
+
+/* v23 final: on desktop the "cursor is on your phone" banner sat on top of the mission clock; it goes under the clock while the clock shows */
+body:has(.h-mission:not([hidden])) .g-mouse.phone { top: 92px; }
