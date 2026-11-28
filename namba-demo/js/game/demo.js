@@ -588,6 +588,8 @@ export class Demo {
     const { ctx, game } = this;
     const s = this.summary();
     ctx.events.emit('demo:end', { summary: s });
+    // v23 final: the coffee-in-hand glyph is a run prop; it goes when the run ends (end card, pause, free roam)
+    game.hud?.cup(false); clearTimeout(game._cupT);
     game._endCard = true; game._allowUnlock = true;
     try { ctx.input.exitLock(); } catch (e) { /* optional */ }
     this.card = showEndCard(ctx, s, {

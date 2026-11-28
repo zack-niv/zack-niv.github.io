@@ -341,7 +341,7 @@ export class MapApp {
     this._clk += dt;
     if (!this.known && this.ctx.player && this.ctx.player.body && this.ctx.world && this.ctx.world.spaceAt) {
       const h = this._trueHere(), w = this._whereName(h.level, h.x, h.z);
-      this._setKnown({ level: h.level, x: h.x, z: h.z, text: `Arrived: ${w}`, where: w, glance: `Arrived: ${w}` });
+      this._setKnown({ level: h.level, x: h.x, z: h.z, text: `Arrived: ${w}`, where: w, glance: `You: ${w}` });   // v23 final: under a destination title "Arrived:" read as arrived there
     }
     const W = this._where();
     if (W.gps !== this._gpsPrev) { this._gpsPrev = W.gps; if (W.gps) this.follow = true; this._renderStrip(); this._syncUI(true); }

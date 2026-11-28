@@ -499,7 +499,8 @@ export class Game {
     // v23: after the finished run (free roam) the gates are ordinary gates: the card balance is never a blocker
     const over = !!(this.demo && this.demo.finished);
     const low = T.entering && !last && !over && this.ic.balance < MIN_FARE;
-    const sub = `${T.n.ja || gt.ja} ${T.n.name || gt.name} · ICOCA ${yen(this.ic.balance)}`;
+    // v23 final: balance first, so a narrow phone that clips the line clips the gate's name and not the amount
+    const sub = `ICOCA ${yen(this.ic.balance)} · ${T.n.ja || gt.ja} ${T.n.name || gt.name}`;
     if (T.open) return { prompt: 'Open — walk through', promptJa: 'どうぞ', sub, passive: true };
     if (!T.ok) return { prompt: T.entering ? 'Exit only — try the next gate' : 'Entry only — try the next gate', promptJa: '✕', sub, passive: true };
     if (low) return { prompt: 'Tap your ICOCA (balance low)', promptJa: '残高不足', sub };
